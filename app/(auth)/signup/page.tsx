@@ -1,0 +1,30 @@
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { SignupForm } from "./signup-form";
+
+export default async function SignupPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) redirect("/dashboard");
+
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center px-6">
+      <div className="w-full max-w-sm space-y-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Create account</h1>
+          <p className="text-muted text-sm mt-1">Get started with SalonSynk</p>
+        </div>
+        <SignupForm />
+        <p className="text-center text-sm text-muted">
+          Already have an account?{" "}
+          <Link href="/login" className="text-accent hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </div>
+    </main>
+  );
+}

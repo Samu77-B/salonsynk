@@ -1,0 +1,11 @@
+{
+  "name": "SalonSynk",
+  "short_name": "SalonSynk",
+  "description": "Flat-fee salon management. No commissions. Just Synk.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0a0a0b",
+  "theme_color": "#0a0a0b",
+  "orientation": "portrait-primary",
+  "icons": []
+}
