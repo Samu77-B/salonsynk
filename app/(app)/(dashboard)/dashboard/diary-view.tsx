@@ -219,7 +219,26 @@ export function DiaryView({
                     return s < cellEnd && e > cellStart && formatDate(s) === formatDate(day);
                   });
                   return (
-                    <td key={day.toISOString()} className="relative h-12 align-top p-1">
+                    <td
+                      key={day.toISOString()}
+                      className="relative h-12 align-top p-1"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const id = e.dataTransfer.getData("text/plain");
+                        if (!id) return;
+                        const apt = appointments.find((a) => a.id === id);
+                        if (!apt) return;
+                        const newStart = new Date(cellStart);
+                        const durationMs =
+                          new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
+                        const newEnd = new Date(newStart.getTime() + durationMs);
+                        handleReschedule(id, newStart, newEnd);
+                      }}
+                    >
                       {inCell.map((a) => {
                         const start = new Date(a.start_time);
                         const end = new Date(a.end_time);
@@ -265,7 +284,7 @@ export function DiaryView({
         </table>
       </div>
 
-      <p className="text-xs text-muted">Drag appointments to reschedule (drop target: use Edit in a follow-up). For now use Add / Delete.</p>
+      <p className="text-xs text-muted">Drag appointments onto a time slot to reschedule. Use Add / Delete for new or remove.</p>
 
       {addOpen && (
         <AddAppointmentModal
