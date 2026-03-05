@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { createAppointment, updateAppointment, deleteAppointment } from "./actions";
 import { AddAppointmentModal } from "./add-appointment-modal";
 import { getAllowedSlots, validateMove, rangeToMinutes, type TimeRange } from "@/lib/diary-rules";
@@ -61,6 +62,7 @@ export function DiaryView({
   const [addOpen, setAddOpen] = useState(false);
   const [movingId, setMovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const dateObj = useMemo(() => new Date(currentDate + "T12:00:00"), [currentDate]);
 
@@ -119,7 +121,10 @@ export function DiaryView({
       end_time: toLocalISO(newEnd),
     });
     if (result.error) setError(result.error);
-    else setMovingId(null);
+    else {
+      setMovingId(null);
+      router.refresh();
+    }
   }
 
   async function handleDelete(id: string) {
