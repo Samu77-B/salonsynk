@@ -9,7 +9,7 @@ export async function sendAppointmentReminder(
 ) {
   if (!resend) return { error: "Resend not configured" };
   const { error } = await resend.emails.send({
-    from: "SalonSynk <onboarding@resend.dev>",
+    from: "salonbooking@urnextevent.com>",
     to: [to],
     subject: "Appointment reminder: " + details.salonName,
     html: `<p>Reminder: appointment on ${details.date} at ${details.time}.</p>`,
