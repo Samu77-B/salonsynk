@@ -7,7 +7,7 @@ export default async function NewClientPage() {
   if (!context) redirect("/onboarding");
 
   return (
-    <main className="p-4 md:p-6 max-w-lg">
+    <main className="p-4 md:p-6 max-w-lg min-w-0">
       <h1 className="text-2xl font-bold mb-4">Add client</h1>
       <ClientForm salonId={context.salon.id} />
     </main>

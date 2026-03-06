@@ -58,13 +58,13 @@ export function ClientDetailView({
             </li>
           ))}
         </ul>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
           <input
             type="text"
             value={formulaText}
             onChange={(e) => setFormulaText(e.target.value)}
             placeholder="Add formula (e.g. 6.0 + 30vol)"
-            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            className="flex-1 min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
           />
           <button
             type="button"
@@ -79,7 +79,7 @@ export function ClientDetailView({
 
       <section>
         <h2 className="text-lg font-semibold mb-2">Patch test due date</h2>
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 sm:items-center">
           <input
             type="date"
             value={patchDate}
@@ -101,10 +101,10 @@ export function ClientDetailView({
         <h2 className="text-lg font-semibold mb-2">Appointment history</h2>
         <ul className="space-y-2">
           {(appointments as Appointment[]).map((a) => (
-            <li key={a.id} className="flex justify-between rounded-lg border border-border px-4 py-2 text-sm">
-              <span>{new Date(a.start_time).toLocaleString("en-GB")}</span>
-              <span className="text-muted">{serviceName(a.services) ?? "—"}</span>
-              <span className="capitalize">{a.status}</span>
+            <li key={a.id} className="flex flex-wrap gap-x-2 gap-y-1 justify-between rounded-lg border border-border px-4 py-2 text-sm min-w-0">
+              <span className="shrink-0">{new Date(a.start_time).toLocaleString("en-GB")}</span>
+              <span className="text-muted truncate">{serviceName(a.services) ?? "—"}</span>
+              <span className="capitalize shrink-0">{a.status}</span>
             </li>
           ))}
         </ul>

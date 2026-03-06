@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen font-sans bg-background text-foreground">
+      <body className="min-h-screen font-sans bg-background text-foreground overflow-x-hidden">
         <RegisterSw />
         {children}
       </body>

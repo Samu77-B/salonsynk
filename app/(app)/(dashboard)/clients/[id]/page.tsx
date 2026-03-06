@@ -39,7 +39,7 @@ export default async function ClientDetailPage({
     : null;
 
   return (
-    <main className="p-4 md:p-6 max-w-3xl">
+    <main className="p-4 md:p-6 max-w-3xl min-w-0">
       <Link href="/clients" className="text-sm text-muted hover:text-foreground mb-4 inline-block">
         Back to clients
       </Link>
@@ -47,7 +47,7 @@ export default async function ClientDetailPage({
         {client.name || client.email || client.phone || "Client"}
       </h1>
       {(client.email || client.phone) && (
-        <p className="text-sm text-muted mb-6">
+        <p className="text-sm text-muted mb-6 truncate">
           {[client.email, client.phone].filter(Boolean).join(" · ")}
         </p>
       )}

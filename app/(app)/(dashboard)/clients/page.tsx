@@ -15,12 +15,12 @@ export default async function ClientsPage() {
     .order("name");
 
   return (
-    <main className="p-4 md:p-6">
-      <div className="flex items-center justify-between mb-6">
+    <main className="p-4 md:p-6 min-w-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h1 className="text-2xl font-bold">Clients</h1>
         <Link
           href="/clients/new"
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background"
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background w-full sm:w-auto text-center"
         >
           Add client
         </Link>
@@ -30,11 +30,11 @@ export default async function ClientsPage() {
           <li key={c.id}>
             <Link
               href={`/clients/${c.id}`}
-              className="block rounded-lg border border-border p-4 hover:bg-white/5"
+              className="block rounded-lg border border-border p-4 hover:bg-white/5 min-w-0"
             >
-              <p className="font-medium">{c.name || c.email || c.phone || "No name"}</p>
+              <p className="font-medium truncate">{c.name || c.email || c.phone || "No name"}</p>
               {(c.email || c.phone) && (
-                <p className="text-sm text-muted">{[c.email, c.phone].filter(Boolean).join(" · ")}</p>
+                <p className="text-sm text-muted truncate">{[c.email, c.phone].filter(Boolean).join(" · ")}</p>
               )}
               {c.patch_test_due_at && (
                 <p className="text-xs text-amber-400 mt-1">

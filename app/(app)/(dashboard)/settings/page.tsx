@@ -16,7 +16,7 @@ export default async function SettingsPage() {
     .single();
 
   return (
-    <main className="p-4 md:p-6 max-w-2xl">
+    <main className="p-4 md:p-6 max-w-2xl min-w-0">
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
       <SettingsView
         salonId={context.salon.id}

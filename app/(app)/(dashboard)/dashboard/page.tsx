@@ -53,7 +53,7 @@ export default async function DashboardPage() {
   const appointments = appointmentsRes.data ?? [];
 
   return (
-    <main className="p-4 md:p-6">
+    <main className="p-4 md:p-6 min-w-0">
       <DiaryView
         salonId={context.salon.id}
         salonName={context.salon.name}

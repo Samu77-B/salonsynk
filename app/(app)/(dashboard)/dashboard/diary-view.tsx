@@ -135,10 +135,10 @@ export function DiaryView({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">{salonName}</h1>
-        <div className="flex items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold truncate min-w-0">{salonName}</h1>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => {
               const d = new Date(currentDate + "T12:00:00");
@@ -149,7 +149,7 @@ export function DiaryView({
           >
             Prev
           </button>
-          <span className="text-sm text-muted min-w-[140px] text-center">
+          <span className="text-sm text-muted min-w-0 sm:min-w-[140px] text-center shrink-0">
             {view === "day"
               ? dateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
               : `${daysToShow[0].toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${daysToShow[6].toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
@@ -186,7 +186,7 @@ export function DiaryView({
           </select>
           <button
             onClick={() => setAddOpen(true)}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background w-full sm:w-auto"
           >
             Add appointment
           </button>

@@ -34,7 +34,7 @@ export default async function TeamPage() {
   }
 
   return (
-    <main className="p-4 md:p-6">
+    <main className="p-4 md:p-6 min-w-0">
       <TeamView
         salonId={context.salon.id}
         members={members}

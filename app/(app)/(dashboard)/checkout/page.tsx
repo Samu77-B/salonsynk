@@ -14,7 +14,7 @@ export default async function CheckoutPage() {
   ]);
 
   return (
-    <main className="p-4 md:p-6 max-w-lg">
+    <main className="p-4 md:p-6 max-w-lg min-w-0">
       <h1 className="text-2xl font-bold mb-6">Checkout</h1>
       <CheckoutView
         salonId={context.salon.id}
