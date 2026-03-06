@@ -15,15 +15,24 @@ export default async function SettingsPage() {
     .eq("id", context.salon.id)
     .single();
 
+  const settings = (salon?.settings as Record<string, unknown>) ?? {};
+  const branding = (settings.branding as Record<string, string | undefined>) ?? {};
+
   return (
     <main className="p-4 md:p-6 max-w-2xl min-w-0">
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
       <SettingsView
         salonId={context.salon.id}
         salonName={salon?.name ?? context.salon.name}
+        salonSlug={context.salon.slug}
         stripeConnectAccountId={salon?.stripe_connect_account_id ?? null}
         subscriptionStatus={salon?.subscription_status ?? "inactive"}
         formatFlatFee={formatFlatFee()}
+        branding={{
+          logo_url: branding.logo_url ?? "",
+          primary_color: branding.primary_color ?? "",
+          company_name: branding.company_name ?? "",
+        }}
       />
     </main>
   );

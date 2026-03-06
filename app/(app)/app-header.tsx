@@ -12,7 +12,13 @@ const NAV_LINKS = [
   { href: "/settings", label: "Settings" },
 ] as const;
 
-export function AppHeader({ userEmail }: { userEmail: string | undefined }) {
+export function AppHeader({
+  userEmail,
+  isSuperAdmin = false,
+}: {
+  userEmail: string | undefined;
+  isSuperAdmin?: boolean;
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -29,6 +35,11 @@ export function AppHeader({ userEmail }: { userEmail: string | undefined }) {
             {label}
           </Link>
         ))}
+        {isSuperAdmin && (
+          <Link href="/admin" className="text-accent hover:text-accent/90 whitespace-nowrap font-medium">
+            Admin
+          </Link>
+        )}
         {userEmail && (
           <span className="text-muted text-xs max-w-[120px] truncate lg:max-w-[180px]" title={userEmail}>
             {userEmail}
@@ -94,6 +105,15 @@ export function AppHeader({ userEmail }: { userEmail: string | undefined }) {
                 {label}
               </Link>
             ))}
+            {isSuperAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setMenuOpen(false)}
+                className="rounded-lg px-4 py-3 text-accent hover:bg-white/5 font-medium"
+              >
+                Admin
+              </Link>
+            )}
             {userEmail && (
               <p className="px-4 py-2 text-xs text-muted truncate border-t border-border mt-2 pt-4" title={userEmail}>
                 {userEmail}

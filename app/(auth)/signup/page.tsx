@@ -15,8 +15,8 @@ export default async function SignupPage() {
     <main className="min-h-screen flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <Link href="/" className="inline-block mb-4">
-            <Image src="/salonsynk_logo.png" alt="SalonSynk" width={48} height={48} className="mx-auto h-12 w-auto" />
+          <Link href="/" className="inline-block mb-6">
+            <Image src="/salonsynk_logo.png" alt="SalonSynk" width={280} height={80} className="mx-auto h-16 w-auto sm:h-20 md:h-24" priority />
           </Link>
           <h1 className="text-2xl font-bold">Create account</h1>
           <p className="text-muted text-sm mt-1">Get started with SalonSynk</p>
