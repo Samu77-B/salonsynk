@@ -1,7 +1,10 @@
+import Image from "next/image";
+
 export default function HomePage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6">
       <div className="max-w-2xl w-full text-center space-y-8">
+        <Image src="/salonsynk_logo.png" alt="SalonSynk" width={80} height={80} className="mx-auto h-16 w-auto md:h-20" priority />
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
           SalonSynk
         </h1>

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 export default async function AppLayout({
   children,
@@ -17,8 +18,9 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-border px-4 py-3 flex items-center justify-between">
-        <Link href="/dashboard" className="font-semibold">
-          SalonSynk
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <Image src="/salonsynk_logo.png" alt="SalonSynk" width={32} height={32} className="h-8 w-auto" />
+          <span className="font-semibold sr-only sm:not-sr-only">SalonSynk</span>
         </Link>
         <nav className="flex items-center gap-4 text-sm">
           <Link href="/dashboard" className="text-muted hover:text-foreground">

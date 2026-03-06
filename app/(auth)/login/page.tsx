@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage() {
@@ -14,6 +15,9 @@ export default async function LoginPage() {
     <main className="min-h-screen flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
+          <Link href="/" className="inline-block mb-4">
+            <Image src="/salonsynk_logo.png" alt="SalonSynk" width={48} height={48} className="mx-auto h-12 w-auto" />
+          </Link>
           <h1 className="text-2xl font-bold">Sign in</h1>
           <p className="text-muted text-sm mt-1">Welcome back to SalonSynk</p>
         </div>
