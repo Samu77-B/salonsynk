@@ -20,9 +20,80 @@ export default async function AdminDashboardPage() {
   const salons = salonsRes.data ?? [];
 
   return (
-    <div className="max-w-4xl space-y-10">
+    <div className="max-w-6xl space-y-10">
       <h1 className="text-2xl font-bold">Admin dashboard</h1>
 
+      {/* Salons – card grid */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Salons</h2>
+          <Link
+            href="/admin/salons/new"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90"
+          >
+            Add salon
+          </Link>
+        </div>
+        {salons.length === 0 ? (
+          <p className="text-muted text-sm">No salons yet. Add one to get started.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {salons.map((s) => (
+              <div
+                key={s.id}
+                className="rounded-xl border border-border bg-white/[0.02] p-4 flex flex-col gap-3 hover:border-muted/50 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-foreground truncate" title={s.name}>
+                    {s.name}
+                  </h3>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                      s.subscription_status === "active"
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : s.subscription_status === "inactive"
+                          ? "bg-muted/50 text-muted"
+                          : "bg-amber-500/20 text-amber-400"
+                    }`}
+                  >
+                    {s.subscription_status}
+                  </span>
+                </div>
+                <p className="text-sm text-muted font-mono truncate" title={s.slug}>
+                  /book/{s.slug}
+                </p>
+                <p className="text-xs text-muted">
+                  Joined{" "}
+                  {s.created_at
+                    ? new Date(s.created_at).toLocaleDateString(undefined, {
+                        dateStyle: "medium",
+                      })
+                    : "—"}
+                </p>
+                <div className="flex items-center gap-2 mt-auto pt-1">
+                  <a
+                    href={`/book/${s.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-accent hover:underline"
+                  >
+                    View booking
+                  </a>
+                  <span className="text-muted">·</span>
+                  <Link
+                    href={`/admin/salons/${s.id}`}
+                    className="text-sm text-accent hover:underline font-medium"
+                  >
+                    Edit
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Recent signups – compact cards */}
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Recent signups</h2>
@@ -33,89 +104,37 @@ export default async function AdminDashboardPage() {
             View all
           </Link>
         </div>
-        <div className="rounded-lg border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/30">
-              <tr>
-                <th className="text-left px-4 py-2 font-medium">Name</th>
-                <th className="text-left px-4 py-2 font-medium">Email</th>
-                <th className="text-left px-4 py-2 font-medium">Signed up</th>
-                <th className="text-left px-4 py-2 font-medium">Admin</th>
-              </tr>
-            </thead>
-            <tbody>
-              {profiles.map((p) => (
-                <tr key={p.id} className="border-t border-border">
-                  <td className="px-4 py-2">{p.full_name ?? "—"}</td>
-                  <td className="px-4 py-2">{p.email ?? "—"}</td>
-                  <td className="px-4 py-2 text-muted">
+        {profiles.length === 0 ? (
+          <p className="text-muted text-sm">No signups yet.</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {profiles.slice(0, 9).map((p) => (
+              <div
+                key={p.id}
+                className="rounded-lg border border-border bg-white/[0.02] px-4 py-3 flex items-center justify-between gap-3"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground truncate">
+                    {p.full_name || "—"}
+                  </p>
+                  <p className="text-sm text-muted truncate">{p.email ?? "—"}</p>
+                  <p className="text-xs text-muted mt-0.5">
                     {p.created_at
                       ? new Date(p.created_at).toLocaleDateString(undefined, {
                           dateStyle: "short",
                         })
                       : "—"}
-                  </td>
-                  <td className="px-4 py-2">
-                    {p.is_super_admin ? (
-                      <span className="text-accent">Yes</span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Salons</h2>
-          <Link
-            href="/admin/salons/new"
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background"
-          >
-            Add salon
-          </Link>
-        </div>
-        <div className="rounded-lg border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/30">
-              <tr>
-                <th className="text-left px-4 py-2 font-medium">Name</th>
-                <th className="text-left px-4 py-2 font-medium">Slug</th>
-                <th className="text-left px-4 py-2 font-medium">Status</th>
-                <th className="text-left px-4 py-2 font-medium">Created</th>
-                <th className="text-left px-4 py-2 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {salons.map((s) => (
-                <tr key={s.id} className="border-t border-border">
-                  <td className="px-4 py-2">{s.name}</td>
-                  <td className="px-4 py-2 font-mono text-muted">{s.slug}</td>
-                  <td className="px-4 py-2 capitalize">{s.subscription_status}</td>
-                  <td className="px-4 py-2 text-muted">
-                    {s.created_at
-                      ? new Date(s.created_at).toLocaleDateString(undefined, {
-                          dateStyle: "short",
-                        })
-                      : "—"}
-                  </td>
-                  <td className="px-4 py-2">
-                    <Link
-                      href={`/admin/salons/${s.id}`}
-                      className="text-accent hover:underline"
-                    >
-                      Edit
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </p>
+                </div>
+                {p.is_super_admin && (
+                  <span className="shrink-0 rounded bg-accent/20 px-2 py-0.5 text-xs font-medium text-accent">
+                    Admin
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
