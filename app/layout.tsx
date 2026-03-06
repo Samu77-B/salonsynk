@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   description:
     "Flat-fee salon management for UK salons and barbers. Diary, team, clients, payments. No commissions.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export const viewport = {
