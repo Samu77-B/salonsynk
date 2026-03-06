@@ -44,3 +44,24 @@ export async function sendBookingConfirmation(
   });
   return { error };
 }
+
+export async function sendReviewRequest(
+  to: string,
+  details: { clientName?: string; salonName: string; reviewUrl?: string }
+) {
+  if (!resend) return { error: "Resend not configured" };
+  const name = details.clientName ? ` ${details.clientName}` : "";
+  let html = `<p>Hi${name},</p><p>Thank you for visiting ${details.salonName}. We’d love to hear how your appointment went.</p>`;
+  if (details.reviewUrl) {
+    html += `<p><a href="${details.reviewUrl}">Leave a review</a></p>`;
+  } else {
+    html += `<p>Please take a moment to leave us a review – it really helps.</p>`;
+  }
+  const { error } = await resend.emails.send({
+    from: "SalonSynk <onboarding@resend.dev>",
+    to: [to],
+    subject: `How was your visit to ${details.salonName}?`,
+    html,
+  });
+  return { error };
+}
