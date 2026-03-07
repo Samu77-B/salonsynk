@@ -20,7 +20,7 @@ export function CheckoutView({
   defaultStylistId: string;
 }) {
   const [clientId, setClientId] = useState("");
-  const [stylistId, setStylistId] = useState(defaultStylistId || stylists[0]?.id ?? "");
+  const [stylistId, setStylistId] = useState((defaultStylistId || stylists[0]?.id) ?? "");
   const [walkInName, setWalkInName] = useState("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [customAmountMinor, setCustomAmountMinor] = useState<number | null>(null);
