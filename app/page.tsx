@@ -252,7 +252,7 @@ export default function HomePage() {
         </section>
 
         {/* Footer */}
-        <footer className="border-t border-zinc-200 bg-zinc-100/80 py-8">
+        <footer className="border-t border-zinc-200 bg-[#E0E0E0] py-8">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Image
