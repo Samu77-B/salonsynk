@@ -4,6 +4,7 @@ import { SITE } from "@/config/site";
 import { formatFlatFee, FLAT_FEE } from "@/config/subscription";
 // Bundled so the hero image is always available in the build
 import heroImage from "../imgs/hero01.png";
+import plansImage from "../imgs/plans_img_01.jpg";
 
 const FEATURES = [
   {
@@ -147,8 +148,17 @@ export default function HomePage() {
             <p className="mt-3 text-center text-zinc-600 max-w-xl mx-auto">
               One flat fee. No per-booking commissions. Cancel anytime.
             </p>
-            <div className="mt-12 flex justify-center">
-              <div className="rounded-2xl border-2 border-violet-200 bg-violet-50/50 px-8 py-8 sm:px-12 sm:py-10 text-center max-w-md">
+            <div className="mt-12 flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 max-w-4xl mx-auto">
+              <div className="relative w-full max-w-md aspect-[4/3] rounded-2xl overflow-hidden border border-zinc-200 shadow-md shrink-0">
+                <Image
+                  src={plansImage}
+                  alt="Professional barber attending to a client in a modern barbershop"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 448px"
+                />
+              </div>
+              <div className="rounded-2xl border-2 border-violet-200 bg-violet-50/50 px-8 py-8 sm:px-12 sm:py-10 text-center max-w-md w-full">
                 <p className="text-4xl font-bold text-zinc-900 sm:text-5xl">
                   {formatFlatFee()}
                 </p>
