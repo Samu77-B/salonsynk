@@ -33,3 +33,20 @@ export async function updateSalonBranding(salonId: string, branding: BrandingInp
   revalidatePath("/settings");
   return {};
 }
+
+export async function updateRenterAdminFee(salonId: string, adminFeePercent: number) {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
+  const value = Math.min(100, Math.max(0, Math.round(adminFeePercent)));
+  const supabase = await createClient();
+  const { data: existing } = await supabase.from("salons").select("settings").eq("id", salonId).single();
+  if (!existing) return { error: "Salon not found" };
+  const current = (existing.settings as Record<string, unknown>) ?? {};
+  const { error } = await supabase
+    .from("salons")
+    .update({ settings: { ...current, admin_fee_percent: value } })
+    .eq("id", salonId);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return {};
+}

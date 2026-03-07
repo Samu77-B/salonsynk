@@ -24,6 +24,7 @@ export function GuestBookingForm({
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
+  const [silentService, setSilentService] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -43,6 +44,7 @@ export function GuestBookingForm({
       guestName,
       guestEmail,
       guestPhone,
+      silentService,
     });
     setLoading(false);
     if (result.error) setError(result.error);
@@ -136,6 +138,19 @@ export function GuestBookingForm({
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
         />
       </div>
+      <label className="flex items-center gap-2 py-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={silentService}
+          onChange={(e) => setSilentService(e.target.checked)}
+          className="rounded border-border bg-background"
+          aria-label="Silent Appointment"
+        />
+        <span className="text-sm font-medium">Silent Appointment</span>
+      </label>
+      <p className="text-xs text-muted-foreground -mt-2">
+        Check this for a quiet session with no small talk.
+      </p>
       {error && <p className="text-sm text-red-400">{error}</p>}
       <button
         type="submit"

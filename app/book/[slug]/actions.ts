@@ -13,6 +13,7 @@ export async function createGuestBooking(
     guestName: string;
     guestEmail: string;
     guestPhone?: string;
+    silentService?: boolean;
   }
 ) {
   const supabase = createAdminClient();
@@ -43,6 +44,7 @@ export async function createGuestBooking(
       guest_email: data.guestEmail,
       guest_phone: data.guestPhone || null,
       status: "scheduled",
+      silent_service: data.silentService ?? false,
     })
     .select("id")
     .single();

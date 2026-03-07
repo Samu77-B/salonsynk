@@ -35,15 +35,17 @@ export async function inviteOrAddTeamMember(
 
 export async function updateTeamMember(
   id: string,
-  updates: { display_name?: string; holiday_ranges?: string[]; is_active?: boolean }
+  updates: { display_name?: string; holiday_ranges?: string[]; is_active?: boolean; employment_type?: "EMPLOYEE" | "RENTER" }
 ) {
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
+  if (updates.employment_type !== undefined && context.member.role !== "owner") return { error: "Only owners can set employment type" };
 
   const payload: Record<string, unknown> = {};
   if (updates.display_name !== undefined) payload.display_name = updates.display_name;
   if (updates.is_active !== undefined) payload.is_active = updates.is_active;
+  if (updates.employment_type !== undefined) payload.employment_type = updates.employment_type;
   if (updates.holiday_ranges !== undefined) {
     payload.holiday_ranges = updates.holiday_ranges;
   }

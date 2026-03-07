@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { inviteOrAddTeamMember, updateTeamMember, deleteInvite } from "./actions";
 
-type Member = { id: string; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown };
+type Member = { id: string; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string };
 type Invite = { id: string; email: string; role: string; display_name: string | null; created_at: string };
 
 export function TeamView({
@@ -25,6 +25,7 @@ export function TeamView({
   const [role, setRole] = useState<"owner" | "stylist">("stylist");
   const [email, setEmail] = useState("");
   const [editDisplayName, setEditDisplayName] = useState("");
+  const [editEmploymentType, setEditEmploymentType] = useState<"EMPLOYEE" | "RENTER">("EMPLOYEE");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -48,7 +49,10 @@ export function TeamView({
     if (!editId) return;
     setError(null);
     setLoading(true);
-    const result = await updateTeamMember(editId, { display_name: editDisplayName });
+    const result = await updateTeamMember(editId, {
+      display_name: editDisplayName,
+      ...(isOwner ? { employment_type: editEmploymentType } : {}),
+    });
     setLoading(false);
     if (result.error) setError(result.error);
     else setEditId(null);
@@ -94,6 +98,11 @@ export function TeamView({
               <div className="min-w-0">
                 <p className="font-medium truncate">{m.display_name || m.role}</p>
                 <p className="text-sm text-muted capitalize">{m.role}</p>
+                {m.role === "stylist" && (
+                  <p className="text-xs text-muted">
+                    {(m.employment_type as string) === "RENTER" ? "Renter" : "Employee"}
+                  </p>
+                )}
                 <p className="mt-2 text-xs text-muted">
                   Appointments (last 30 days): {appointmentCountByStylist[m.id] ?? 0}
                 </p>
@@ -105,6 +114,7 @@ export function TeamView({
                     onClick={() => {
                       setEditId(m.id);
                       setEditDisplayName(m.display_name ?? "");
+                      setEditEmploymentType((m.employment_type as "EMPLOYEE" | "RENTER") || "EMPLOYEE");
                     }}
                     className="text-sm text-accent hover:underline"
                   >
@@ -208,6 +218,19 @@ export function TeamView({
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
               </div>
+              {isOwner && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Employment type</label>
+                  <select
+                    value={editEmploymentType}
+                    onChange={(e) => setEditEmploymentType(e.target.value as "EMPLOYEE" | "RENTER")}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="EMPLOYEE">Employee (100% to salon)</option>
+                    <option value="RENTER">Renter (split: stylist + admin fee to salon)</option>
+                  </select>
+                </div>
+              )}
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setEditId(null)} className="rounded-lg border border-border px-4 py-2 text-sm">
                   Cancel

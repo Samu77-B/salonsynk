@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { findClientsForEmptySlots, type SlotWithCandidates } from "@/lib/gap-filler";
 import { revalidatePath } from "next/cache";
 
 export type CreateAppointmentInput = {
@@ -74,4 +75,16 @@ export async function deleteAppointment(id: string) {
   if (error) return { error: error.message };
   revalidatePath("/dashboard");
   return { error: null };
+}
+
+export async function getEmptySlotCandidates(): Promise<{ error?: string; data?: SlotWithCandidates[] }> {
+  const context = await getCurrentUserSalon();
+  if (!context) return { error: "Unauthorized" };
+  const supabase = await createClient();
+  try {
+    const data = await findClientsForEmptySlots(supabase, context.salon.id);
+    return { data };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
 }

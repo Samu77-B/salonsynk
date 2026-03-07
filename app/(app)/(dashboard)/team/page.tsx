@@ -11,7 +11,7 @@ export default async function TeamPage() {
   const [membersRes, invitesRes, countsRes] = await Promise.all([
     supabase
       .from("salon_members")
-      .select("id, display_name, role, is_active, holiday_ranges")
+      .select("id, display_name, role, is_active, holiday_ranges, employment_type")
       .eq("salon_id", context.salon.id)
       .order("role", { ascending: false }),
     supabase

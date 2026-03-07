@@ -2,6 +2,7 @@ import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { DiaryView } from "./diary-view";
+import { GapFillerSection } from "./gap-filler-section";
 
 export default async function DashboardPage() {
   const context = await getCurrentUserSalon();
@@ -53,7 +54,7 @@ export default async function DashboardPage() {
   const appointments = appointmentsRes.data ?? [];
 
   return (
-    <main className="p-4 md:p-6 min-w-0">
+    <main className="p-4 md:p-6 min-w-0 space-y-6">
       <DiaryView
         salonId={context.salon.id}
         salonName={context.salon.name}
@@ -62,6 +63,7 @@ export default async function DashboardPage() {
         clients={clients}
         appointments={appointments}
       />
+      <GapFillerSection />
     </main>
   );
 }

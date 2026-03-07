@@ -4,20 +4,27 @@ import { useState } from "react";
 
 type Client = { id: string; name: string | null; email: string | null };
 type Service = { id: string; name: string; duration_minutes: number; price_minor: number };
+type Stylist = { id: string; displayName: string; employmentType: string };
 
 export function CheckoutView({
   salonId,
   clients,
   services,
+  stylists,
+  defaultStylistId,
 }: {
   salonId: string;
   clients: Client[];
   services: Service[];
+  stylists: Stylist[];
+  defaultStylistId: string;
 }) {
   const [clientId, setClientId] = useState("");
+  const [stylistId, setStylistId] = useState(defaultStylistId || stylists[0]?.id ?? "");
   const [walkInName, setWalkInName] = useState("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [customAmountMinor, setCustomAmountMinor] = useState<number | null>(null);
+  const [silentAppointment, setSilentAppointment] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -42,6 +49,8 @@ export function CheckoutView({
           salonId,
           amountMinor: totalMinor,
           clientId: clientId || undefined,
+          stylistId: stylistId || undefined,
+          silentAppointment: silentAppointment || undefined,
         }),
       });
       const data = await res.json();
@@ -67,6 +76,20 @@ export function CheckoutView({
 
   return (
     <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium mb-1">Stylist</label>
+        <select
+          value={stylistId}
+          onChange={(e) => setStylistId(e.target.value)}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        >
+          {stylists.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.displayName} ({s.employmentType === "RENTER" ? "Renter" : "Employee"})
+            </option>
+          ))}
+        </select>
+      </div>
       <div>
         <label className="block text-sm font-medium mb-1">Client</label>
         <select
@@ -120,6 +143,19 @@ export function CheckoutView({
         />
       </div>
       <p className="font-medium">Total: £{(totalMinor / 100).toFixed(2)}</p>
+      <label className="flex items-center gap-2 py-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={silentAppointment}
+          onChange={(e) => setSilentAppointment(e.target.checked)}
+          className="rounded border-border bg-background"
+          aria-label="Silent Appointment"
+        />
+        <span className="text-sm font-medium">Silent Appointment</span>
+      </label>
+      <p className="text-xs text-muted-foreground -mt-2">
+        Check this for a quiet session with no small talk.
+      </p>
       {error && <p className="text-sm text-red-400">{error}</p>}
       <button
         type="button"
