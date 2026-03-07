@@ -157,7 +157,7 @@ export default function HomePage() {
         </section>
 
         {/* Pricing */}
-        <section className="bg-zinc-50 py-16 sm:py-20">
+        <section className="bg-[#C0C0C0] py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <h2 className="text-2xl font-bold text-zinc-900 text-center sm:text-3xl">
               Simple, transparent pricing
