@@ -52,19 +52,19 @@ export default function HomePage() {
     <div className="min-h-screen bg-white text-zinc-900">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-zinc-200/80 bg-white/95 backdrop-blur-sm">
-        <div className="flex h-14 w-full items-center justify-between px-4 sm:px-6">
+        <div className="flex h-20 w-full items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center shrink-0">
             <Image
               src="/salonsynk_logo-grey.png"
               alt={SITE.name}
-              width={36}
-              height={36}
-              className="h-9 w-auto"
+              width={56}
+              height={56}
+              className="h-14 w-auto sm:h-16"
             />
           </Link>
           <Link
             href="/login"
-            className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-400 transition-colors shrink-0"
+            className="rounded-lg border border-zinc-300 bg-white px-5 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-400 transition-colors shrink-0"
           >
             Sign in
           </Link>
