@@ -260,7 +260,7 @@ export default function HomePage() {
                 alt=""
                 width={280}
                 height={80}
-                className="h-6 w-auto opacity-80"
+                className="h-6 w-auto"
                 sizes="48px"
                 quality={95}
               />
