@@ -28,7 +28,7 @@ export default async function ReviewPage({
       <div className="w-full max-w-md space-y-6 text-center">
         <Link href="/" className="inline-block mb-2">
           <Image
-          src="/salonsynk_logo-grey.png"
+          src="/salonsynk-logo.gif"
           alt="SalonSynk"
           width={560}
           height={160}

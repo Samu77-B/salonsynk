@@ -64,7 +64,7 @@ export default function HomePage() {
         <div className="flex h-20 w-full items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center shrink-0">
             <Image
-              src="/salonsynk_logo-grey.png"
+              src="/salonsynk-logo.gif"
               alt={SITE.name}
               width={560}
               height={160}
@@ -256,7 +256,7 @@ export default function HomePage() {
           <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Image
-                src="/salonsynk_logo-grey.png"
+                src="/salonsynk-logo.gif"
                 alt=""
                 width={280}
                 height={80}
