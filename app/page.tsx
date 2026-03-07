@@ -75,46 +75,40 @@ export default function HomePage() {
       </header>
 
       <main>
-        {/* Hero */}
-        <section className="pt-24 pb-16 sm:pt-28 sm:pb-20">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="grid gap-10 lg:grid-cols-2 lg:gap-12 lg:items-center">
-              <div className="space-y-6 text-center lg:text-left">
-                <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-5xl">
-                  No commissions.
-                  <br />
-                  <span className="text-violet-600">Just Synk.</span>
-                </h1>
-                <p className="text-lg text-zinc-600 max-w-xl mx-auto lg:mx-0">
-                  Flat-fee salon management for UK salons and barbers. One diary,
-                  your team, your clients — without the cut.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start pt-2">
-                  <Link
-                    href="/signup"
-                    className="inline-flex items-center justify-center rounded-xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 hover:bg-violet-700 transition-colors"
-                  >
-                    Get started
-                  </Link>
-                  <a
-                    href="#book-demo"
-                    className="inline-flex items-center justify-center rounded-xl border-2 border-zinc-300 bg-white px-6 py-3.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 hover:border-zinc-400 transition-colors"
-                  >
-                    Book a demo
-                  </a>
-                </div>
-              </div>
-              <div className="relative w-full max-w-xl mx-auto lg:max-w-none aspect-[4/3] min-h-[240px] rounded-2xl overflow-hidden shadow-lg bg-zinc-100">
-                <Image
-                  src={heroImage}
-                  alt="Modern salon with appointment booking"
-                  fill
-                  className="object-cover"
-                  priority
-                  unoptimized
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                />
-              </div>
+        {/* Hero – full width, 100vh */}
+        <section className="relative w-full h-[100vh] min-h-[400px] overflow-hidden">
+          <Image
+            src={heroImage}
+            alt="Modern salon with appointment booking"
+            fill
+            className="object-cover"
+            priority
+            unoptimized
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center px-4 sm:px-6 text-center">
+            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl drop-shadow-lg">
+              No commissions.
+              <br />
+              <span className="text-violet-300">Just Synk.</span>
+            </h1>
+            <p className="mt-4 text-lg text-white/95 max-w-xl drop-shadow-md">
+              Flat-fee salon management for UK salons and barbers. One diary,
+              your team, your clients — without the cut.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+              <Link
+                href="/signup"
+                className="inline-flex items-center justify-center rounded-xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg hover:bg-violet-700 transition-colors"
+              >
+                Get started
+              </Link>
+              <a
+                href="#book-demo"
+                className="inline-flex items-center justify-center rounded-xl border-2 border-white bg-white/10 backdrop-blur px-6 py-3.5 text-sm font-semibold text-white hover:bg-white/20 transition-colors"
+              >
+                Book a demo
+              </a>
             </div>
           </div>
         </section>
