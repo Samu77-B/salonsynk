@@ -157,7 +157,7 @@ export default function HomePage() {
         </section>
 
         {/* Pricing */}
-        <section className="bg-[#C0C0C0] py-16 sm:py-20">
+        <section className="bg-[#E0E0E0] py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <h2 className="text-2xl font-bold text-zinc-900 text-center sm:text-3xl">
               Simple, transparent pricing
@@ -165,8 +165,8 @@ export default function HomePage() {
             <p className="mt-3 text-center text-zinc-600 max-w-xl mx-auto">
               One flat fee. No per-booking commissions. Cancel anytime.
             </p>
-            <div className="mt-12 flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 max-w-4xl mx-auto">
-              <div className="relative w-full max-w-md aspect-[4/3] rounded-2xl overflow-hidden border border-zinc-200 shadow-md shrink-0">
+            <div className="mt-12 flex flex-col lg:flex-row items-stretch justify-center gap-8 lg:gap-12 max-w-4xl mx-auto">
+              <div className="relative w-full max-w-md min-h-[280px] rounded-2xl overflow-hidden border border-zinc-200 shadow-md shrink-0 self-stretch">
                 <Image
                   src={plansImage}
                   alt="Professional barber attending to a client in a modern barbershop"
