@@ -104,13 +104,15 @@ export default function HomePage() {
                   </a>
                 </div>
               </div>
-              <div className="relative aspect-[4/3] max-w-xl mx-auto lg:max-w-none rounded-2xl overflow-hidden shadow-lg bg-zinc-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={heroImage.src}
+              <div className="relative w-full max-w-xl mx-auto lg:max-w-none aspect-[4/3] min-h-[240px] rounded-2xl overflow-hidden shadow-lg bg-zinc-100">
+                <Image
+                  src={heroImage}
                   alt="Modern salon with appointment booking"
-                  className="absolute inset-0 w-full h-full object-cover"
-                  fetchPriority="high"
+                  fill
+                  className="object-cover"
+                  priority
+                  unoptimized
+                  sizes="(max-width: 1024px) 100vw, 50vw"
                 />
               </div>
             </div>
