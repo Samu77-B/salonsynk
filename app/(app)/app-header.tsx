@@ -24,7 +24,7 @@ export function AppHeader({
   return (
     <header className="border-b border-border px-4 py-3 flex items-center justify-between gap-4">
       <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
-        <Image src="/favicon.png" alt="SalonSynk logo" width={32} height={32} className="h-8 w-auto" />
+        <Image src="/salonsynk_logo-grey.png" alt="SalonSynk logo" width={32} height={32} className="h-8 w-auto" />
         <span className="sr-only">SalonSynk</span>
       </Link>
 
