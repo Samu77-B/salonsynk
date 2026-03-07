@@ -22,8 +22,8 @@ export default async function SignupPage() {
             width={560}
             height={160}
             className="mx-auto h-16 w-auto sm:h-20 md:h-24"
-            sizes="(max-width: 768px) 64px, (max-width: 1024px) 80px, 96px"
-            quality={90}
+            sizes="(max-width: 768px) 128px, (max-width: 1024px) 160px, 192px"
+            quality={95}
             priority
           />
           </Link>

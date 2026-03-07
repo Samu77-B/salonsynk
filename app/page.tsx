@@ -66,11 +66,12 @@ export default function HomePage() {
             <Image
               src="/salonsynk_logo-grey.png"
               alt={SITE.name}
-              width={128}
-              height={128}
+              width={560}
+              height={160}
               className="h-14 w-auto sm:h-16"
-              sizes="64px"
-              quality={90}
+              sizes="(min-width: 640px) 128px, 112px"
+              quality={95}
+              priority
             />
           </Link>
           <Link
@@ -257,11 +258,11 @@ export default function HomePage() {
               <Image
                 src="/salonsynk_logo-grey.png"
                 alt=""
-                width={48}
-                height={48}
+                width={280}
+                height={80}
                 className="h-6 w-auto opacity-80"
-                sizes="24px"
-                quality={90}
+                sizes="48px"
+                quality={95}
               />
               <span className="text-sm font-medium text-zinc-600">
                 {SITE.name}

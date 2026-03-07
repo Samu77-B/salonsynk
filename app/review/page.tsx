@@ -33,8 +33,8 @@ export default async function ReviewPage({
           width={560}
           height={160}
           className="mx-auto h-16 w-auto sm:h-20"
-          sizes="(max-width: 640px) 64px, 80px"
-          quality={90}
+          sizes="(max-width: 640px) 128px, 160px"
+          quality={95}
           priority
         />
         </Link>

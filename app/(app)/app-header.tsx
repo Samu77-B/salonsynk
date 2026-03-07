@@ -27,11 +27,11 @@ export function AppHeader({
         <Image
           src="/salonsynk_logo-grey.png"
           alt="SalonSynk logo"
-          width={88}
-          height={88}
+          width={280}
+          height={80}
           className="h-11 w-auto"
-          sizes="44px"
-          quality={90}
+          sizes="88px"
+          quality={95}
         />
         <span className="sr-only">SalonSynk</span>
       </Link>
