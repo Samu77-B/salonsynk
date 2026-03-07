@@ -8,5 +8,6 @@ export const SITE = {
   description:
     "Flat-fee salon management for UK salons and barbers. Diary, team, clients, payments.",
   url: "https://salonsynk.com",
+  email: "hello@salonsynk.com",
   studio: "Paradigm Digital Studio",
 } as const;
