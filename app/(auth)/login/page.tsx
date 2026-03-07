@@ -16,7 +16,16 @@ export default async function LoginPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <Link href="/" className="inline-block mb-6">
-            <Image src="/salonsynk_logo-grey.png" alt="SalonSynk" width={280} height={80} className="mx-auto h-16 w-auto sm:h-20 md:h-24" priority />
+            <Image
+            src="/salonsynk_logo-grey.png"
+            alt="SalonSynk"
+            width={560}
+            height={160}
+            className="mx-auto h-16 w-auto sm:h-20 md:h-24"
+            sizes="(max-width: 768px) 64px, (max-width: 1024px) 80px, 96px"
+            quality={90}
+            priority
+          />
           </Link>
           <h1 className="text-2xl font-bold">Sign in</h1>
           <p className="text-muted text-sm mt-1">Welcome back to SalonSynk</p>

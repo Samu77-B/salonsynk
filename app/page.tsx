@@ -58,9 +58,11 @@ export default function HomePage() {
             <Image
               src="/salonsynk_logo-grey.png"
               alt={SITE.name}
-              width={56}
-              height={56}
+              width={128}
+              height={128}
               className="h-14 w-auto sm:h-16"
+              sizes="64px"
+              quality={90}
             />
           </Link>
           <Link
@@ -88,7 +90,7 @@ export default function HomePage() {
             <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl drop-shadow-lg">
               No commissions.
               <br />
-              <span className="text-violet-300">Just Synk.</span>
+              <span className="text-[#F5F5F5]">Just Synk.</span>
             </h1>
             <p className="mt-4 text-lg text-white/95 max-w-xl drop-shadow-md">
               Flat-fee salon management for UK salons and barbers. One diary,
@@ -97,7 +99,7 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
               <Link
                 href="/signup"
-                className="inline-flex items-center justify-center rounded-xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg hover:bg-violet-700 transition-colors"
+                className="inline-flex items-center justify-center rounded-xl bg-black px-6 py-3.5 text-sm font-semibold text-white shadow-lg hover:bg-zinc-800 transition-colors"
               >
                 Get started
               </Link>
@@ -124,7 +126,7 @@ export default function HomePage() {
               {FEATURES.map((f) => (
                 <div
                   key={f.title}
-                  className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-violet-200/50 transition-all"
+                  className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-[#C0C0C0] transition-all"
                 >
                   <span className="text-3xl" aria-hidden>
                     {f.icon}
@@ -158,30 +160,30 @@ export default function HomePage() {
                   sizes="(max-width: 1024px) 100vw, 448px"
                 />
               </div>
-              <div className="rounded-2xl border-2 border-violet-200 bg-violet-50/50 px-8 py-8 sm:px-12 sm:py-10 text-center max-w-md w-full">
+              <div className="rounded-2xl border-2 border-[#C0C0C0] bg-[#F5F5F5] px-8 py-8 sm:px-12 sm:py-10 text-center max-w-md w-full">
                 <p className="text-4xl font-bold text-zinc-900 sm:text-5xl">
                   {formatFlatFee()}
                 </p>
                 <p className="mt-2 text-zinc-600">per salon, per month</p>
                 <ul className="mt-6 space-y-2 text-left text-sm text-zinc-700">
                   <li className="flex items-center gap-2">
-                    <span className="text-violet-500">✓</span> Unlimited team
+                    <span className="text-[#808080]">✓</span> Unlimited team
                     members
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-violet-500">✓</span> Unlimited clients
+                    <span className="text-[#808080]">✓</span> Unlimited clients
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-violet-500">✓</span> Branded booking
+                    <span className="text-[#808080]">✓</span> Branded booking
                     page
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-violet-500">✓</span> No commissions
+                    <span className="text-[#808080]">✓</span> No commissions
                   </li>
                 </ul>
                 <Link
                   href="/signup"
-                  className="mt-8 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-violet-700 transition-colors"
+                  className="mt-8 inline-flex w-full items-center justify-center rounded-xl bg-black px-6 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
                 >
                   Get started
                 </Link>
@@ -227,7 +229,7 @@ export default function HomePage() {
             </p>
             <a
               href="mailto:hello@salonsynk.com?subject=Demo%20request"
-              className="mt-6 inline-flex items-center justify-center rounded-xl bg-violet-600 px-8 py-3.5 text-sm font-semibold text-white hover:bg-violet-700 transition-colors"
+              className="mt-6 inline-flex items-center justify-center rounded-xl bg-black px-8 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
             >
               Book a demo
             </a>
@@ -241,9 +243,11 @@ export default function HomePage() {
               <Image
                 src="/salonsynk_logo-grey.png"
                 alt=""
-                width={24}
-                height={24}
+                width={48}
+                height={48}
                 className="h-6 w-auto opacity-80"
+                sizes="24px"
+                quality={90}
               />
               <span className="text-sm font-medium text-zinc-600">
                 {SITE.name}

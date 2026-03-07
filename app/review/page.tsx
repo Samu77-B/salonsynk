@@ -27,7 +27,16 @@ export default async function ReviewPage({
     <main className="min-h-screen p-6 flex flex-col items-center justify-center">
       <div className="w-full max-w-md space-y-6 text-center">
         <Link href="/" className="inline-block mb-2">
-          <Image src="/salonsynk_logo-grey.png" alt="SalonSynk" width={280} height={80} className="mx-auto h-16 w-auto sm:h-20" priority />
+          <Image
+          src="/salonsynk_logo-grey.png"
+          alt="SalonSynk"
+          width={560}
+          height={160}
+          className="mx-auto h-16 w-auto sm:h-20"
+          sizes="(max-width: 640px) 64px, 80px"
+          quality={90}
+          priority
+        />
         </Link>
         <h1 className="text-2xl font-bold">Thank you for visiting {salonName}</h1>
         <p className="text-muted-foreground">
