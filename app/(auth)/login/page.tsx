@@ -21,7 +21,7 @@ export default async function LoginPage() {
         <div className="text-center">
           <Link href="/" className="inline-block mb-6">
             <Image
-            src="/salonsynk-logo.gif"
+            src="/synk-logo.gif"
             alt="SalonSynk"
             width={560}
             height={160}
