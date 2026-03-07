@@ -15,6 +15,8 @@ export function SettingsView({
   salonTaxVaultMinor,
   showRenterTaxVault,
   renterTaxVaultMinor,
+  isOwner,
+  adminFeePercent,
 }: {
   salonId: string;
   salonName: string;
