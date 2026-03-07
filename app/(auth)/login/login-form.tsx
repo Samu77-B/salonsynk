@@ -22,8 +22,10 @@ export function LoginForm() {
       setMessage({ type: "error", text: error.message });
       return;
     }
+    const res = await fetch("/api/auth/me");
+    const data = res.ok ? await res.json() : { isSuperAdmin: false };
     router.refresh();
-    router.push("/dashboard");
+    router.push(data.isSuperAdmin ? "/admin" : "/dashboard");
   }
 
   return (

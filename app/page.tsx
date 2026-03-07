@@ -268,7 +268,15 @@ export default function HomePage() {
               </span>
             </div>
             <p className="text-sm text-zinc-500">
-              A product of {SITE.studio}
+              A product of{" "}
+              <a
+                href="https://paradigmstudio.net/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-zinc-600 hover:text-zinc-900 underline underline-offset-2"
+              >
+                {SITE.studio}
+              </a>
             </p>
             <div className="flex items-center gap-6 text-sm">
               <Link href="/login" className="text-zinc-600 hover:text-zinc-900">

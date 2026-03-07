@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage() {
@@ -9,7 +10,10 @@ export default async function LoginPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user) redirect("/dashboard");
+  if (user) {
+    const isSuperAdmin = await getIsSuperAdmin();
+    redirect(isSuperAdmin ? "/admin" : "/dashboard");
+  }
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6">
