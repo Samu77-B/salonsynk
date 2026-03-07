@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { SITE } from "@/config/site";
 import { formatFlatFee, FLAT_FEE } from "@/config/subscription";
+// Bundled so the hero image is always available in the build
+import heroImage from "../imgs/hero01.png";
 
 const FEATURES = [
   {
@@ -105,7 +107,7 @@ export default function HomePage() {
               <div className="relative aspect-[4/3] max-w-xl mx-auto lg:max-w-none rounded-2xl overflow-hidden shadow-lg bg-zinc-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/hero01.png"
+                  src={heroImage.src}
                   alt="Modern salon with appointment booking"
                   className="absolute inset-0 w-full h-full object-cover"
                   fetchPriority="high"
