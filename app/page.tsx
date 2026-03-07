@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { SITE } from "@/config/site";
 import { formatFlatFee, FLAT_FEE } from "@/config/subscription";
-import heroImage from "@/imgs/hero01.png";
 
 const FEATURES = [
   {
@@ -105,7 +104,7 @@ export default function HomePage() {
               </div>
               <div className="relative aspect-[4/3] max-w-xl mx-auto lg:max-w-none rounded-2xl overflow-hidden shadow-lg">
                 <Image
-                  src={heroImage}
+                  src="/hero01.png"
                   alt="Modern salon with appointment booking"
                   fill
                   className="object-cover"
