@@ -5,27 +5,35 @@ import { formatFlatFee, FLAT_FEE } from "@/config/subscription";
 // Bundled so the hero image is always available in the build
 import heroImage from "../imgs/hero01.png";
 import plansImage from "../imgs/plans_img_01.jpg";
+import featureDiary from "../imgs/one_dairy.png";
+import featureTeam from "../imgs/team.png";
+import featureOnline from "../imgs/online.png";
+import featureCom from "../imgs/com.png";
 
 const FEATURES = [
   {
     title: "One diary",
     description: "See your whole team’s appointments in one place. No more double-booking or messy spreadsheets.",
-    icon: "📅",
+    image: featureDiary,
+    alt: "Calendar - one diary",
   },
   {
     title: "Your team, your clients",
     description: "Add stylists, manage clients, and keep colour formulas and notes in one system.",
-    icon: "👥",
+    image: featureTeam,
+    alt: "Team and clients",
   },
   {
     title: "Online booking",
     description: "Let clients book 24/7 via your branded booking page. Seamless from your website.",
-    icon: "🌐",
+    image: featureOnline,
+    alt: "Online booking",
   },
   {
     title: "No commissions",
     description: "One flat fee per month. No per-booking cuts — you keep what you earn.",
-    icon: "💷",
+    image: featureCom,
+    alt: "No commissions - flat fee",
   },
 ];
 
@@ -128,9 +136,15 @@ export default function HomePage() {
                   key={f.title}
                   className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-[#C0C0C0] transition-all"
                 >
-                  <span className="text-3xl" aria-hidden>
-                    {f.icon}
-                  </span>
+                  <div className="relative h-14 w-14 shrink-0">
+                    <Image
+                      src={f.image}
+                      alt={f.alt}
+                      fill
+                      className="object-contain object-left"
+                      sizes="56px"
+                    />
+                  </div>
                   <h3 className="mt-4 font-semibold text-zinc-900">{f.title}</h3>
                   <p className="mt-2 text-sm text-zinc-600 leading-relaxed">
                     {f.description}
