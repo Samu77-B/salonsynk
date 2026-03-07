@@ -64,7 +64,7 @@ export default function HomePage() {
         <div className="flex h-20 w-full items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center shrink-0">
             <Image
-              src="/synk-logo.gif"
+              src="/synk-logo2.gif"
               alt={SITE.name}
               width={560}
               height={160}
@@ -243,7 +243,7 @@ export default function HomePage() {
               and how to get started.
             </p>
             <a
-              href="mailto:hello@salonsynk.com?subject=Demo%20request"
+              href={`mailto:${SITE.email}?subject=Demo%20request`}
               className="mt-6 inline-flex items-center justify-center rounded-xl bg-black px-8 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
             >
               Book a demo
@@ -269,6 +269,15 @@ export default function HomePage() {
               </a>
             </p>
             <div className="flex items-center gap-6 text-sm">
+              <Link href="/contact" className="text-zinc-600 hover:text-zinc-900">
+                Contact
+              </Link>
+              <Link href="/terms" className="text-zinc-600 hover:text-zinc-900">
+                Terms
+              </Link>
+              <Link href="/policy" className="text-zinc-600 hover:text-zinc-900">
+                Privacy
+              </Link>
               <Link href="/login" className="text-zinc-600 hover:text-zinc-900">
                 Sign in
               </Link>
