@@ -254,20 +254,9 @@ export default function HomePage() {
         {/* Footer */}
         <footer className="border-t border-zinc-200 bg-[#E0E0E0] py-8">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Image
-                src="/synk-logo.gif"
-                alt=""
-                width={280}
-                height={80}
-                className="h-6 w-auto"
-                sizes="48px"
-                quality={95}
-              />
-              <span className="text-sm font-medium text-zinc-600">
-                {SITE.name}
-              </span>
-            </div>
+            <span className="text-sm font-medium text-zinc-600">
+              {SITE.name}
+            </span>
             <p className="text-sm text-zinc-500">
               A product of{" "}
               <a
