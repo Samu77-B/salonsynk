@@ -106,9 +106,6 @@ export default function TermsPage() {
             <Link href="/policy" className="text-zinc-600 hover:text-zinc-900">
               Privacy
             </Link>
-            <Link href="/login" className="text-zinc-600 hover:text-zinc-900">
-              Sign in
-            </Link>
           </div>
         </div>
       </footer>
