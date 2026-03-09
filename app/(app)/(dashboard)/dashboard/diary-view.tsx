@@ -273,7 +273,7 @@ export function DiaryView({
                               e.dataTransfer.effectAllowed = "move";
                             }}
                             onDragEnd={() => setMovingId(null)}
-                            className="absolute left-1 right-1 rounded border px-2 py-1 cursor-move overflow-hidden"
+                            className="absolute left-1 right-1 rounded border px-2 py-1 cursor-move overflow-hidden border-accent/50 bg-accent/20"
                             style={{
                               top: `${top}px`,
                               minHeight: `${Math.max(24, height)}px`,
@@ -281,7 +281,6 @@ export function DiaryView({
                                 ? { borderColor: `${blockColor}99`, backgroundColor: `${blockColor}20` }
                                 : {}),
                             }}
-                            className="absolute left-1 right-1 rounded border px-2 py-1 cursor-move overflow-hidden border-accent/50 bg-accent/20"
                           >
                             <span className="font-medium truncate block">{label}</span>
                             {sub && <span className="text-xs text-muted truncate block">{sub}</span>}
