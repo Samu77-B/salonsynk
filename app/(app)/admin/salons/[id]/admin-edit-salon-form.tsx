@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   adminUpdateSalon,
   adminAssignOwner,
+  adminDeleteSalon,
   type BrandingInput,
 } from "../actions";
 
@@ -37,6 +39,9 @@ export function AdminEditSalonForm({
   const [assignMsg, setAssignMsg] = useState<"saved" | "error" | null>(null);
   const [loading, setLoading] = useState(false);
   const [assignLoading, setAssignLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState(false);
+  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -177,6 +182,33 @@ export function AdminEditSalonForm({
         {assignMsg === "error" && (
           <p className="text-sm text-red-400 mt-2">Could not add (user may not exist).</p>
         )}
+      </section>
+
+      <section className="pt-8 border-t border-border">
+        <h2 className="text-lg font-semibold mb-2 text-red-400">Danger zone</h2>
+        <p className="text-sm text-muted mb-2">
+          Permanently delete this salon and all its data (appointments, clients, team, services). This cannot be undone.
+        </p>
+        {deleteError && <p className="text-sm text-red-400 mb-2">Failed to delete salon.</p>}
+        <button
+          type="button"
+          onClick={async () => {
+            if (!confirm(`Delete "${initialName}"? This will remove all appointments, clients, team members, and services.`)) return;
+            setDeleteError(false);
+            setDeleteLoading(true);
+            const result = await adminDeleteSalon(salonId);
+            setDeleteLoading(false);
+            if (result.error) {
+              setDeleteError(true);
+            } else {
+              router.push("/admin/salons");
+            }
+          }}
+          disabled={deleteLoading}
+          className="rounded-lg border border-red-400/50 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 disabled:opacity-50"
+        >
+          {deleteLoading ? "Deleting…" : "Delete salon"}
+        </button>
       </section>
     </div>
   );

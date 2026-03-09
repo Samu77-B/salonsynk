@@ -159,3 +159,24 @@ export async function adminAddServices(
   revalidatePath(`/admin/salons/${salonId}`);
   return {};
 }
+
+export async function adminDeleteSalon(salonId: string) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  // Delete in order (appointments reference salon_members)
+  const { error: e1 } = await supabase.from("appointments").delete().eq("salon_id", salonId);
+  if (e1) return { error: e1.message };
+  const { error: e2 } = await supabase.from("salon_invites").delete().eq("salon_id", salonId);
+  if (e2) return { error: e2.message };
+  const { error: e3 } = await supabase.from("salon_members").delete().eq("salon_id", salonId);
+  if (e3) return { error: e3.message };
+  const { error: e4 } = await supabase.from("services").delete().eq("salon_id", salonId);
+  if (e4) return { error: e4.message };
+  const { error: e5 } = await supabase.from("clients").delete().eq("salon_id", salonId);
+  if (e5) return { error: e5.message };
+  const { error: e6 } = await supabase.from("salons").delete().eq("id", salonId);
+  if (e6) return { error: e6.message };
+  revalidatePath("/admin");
+  revalidatePath("/admin/salons");
+  return {};
+}

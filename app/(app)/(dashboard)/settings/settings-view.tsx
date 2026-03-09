@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo } from "./actions";
+import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, addService, updateService, deleteService } from "./actions";
+
+type ServiceRow = { id: string; name: string; duration_minutes: number; price_minor: number };
 
 export function SettingsView({
   salonId,
@@ -17,6 +19,7 @@ export function SettingsView({
   renterTaxVaultMinor,
   isOwner,
   adminFeePercent,
+  services = [],
 }: {
   salonId: string;
   salonName: string;
@@ -31,6 +34,7 @@ export function SettingsView({
   renterTaxVaultMinor?: number;
   isOwner?: boolean;
   adminFeePercent?: number;
+  services?: ServiceRow[];
 }) {
   const connectUrl = `/api/stripe/connect?salonId=${encodeURIComponent(salonId)}`;
   const [logoUrl, setLogoUrl] = useState(branding.logo_url);
@@ -43,6 +47,15 @@ export function SettingsView({
   const [brandingLoading, setBrandingLoading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [newServiceName, setNewServiceName] = useState("");
+  const [newServiceDuration, setNewServiceDuration] = useState(60);
+  const [newServicePrice, setNewServicePrice] = useState("");
+  const [serviceMsg, setServiceMsg] = useState<"saved" | "error" | null>(null);
+  const [serviceLoading, setServiceLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDuration, setEditDuration] = useState(60);
+  const [editPrice, setEditPrice] = useState("");
 
   async function handleBrandingSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -154,6 +167,174 @@ export function SettingsView({
           </button>
         </form>
       </section>
+
+      {isOwner && (
+        <section>
+          <h2 className="text-lg font-semibold mb-2">Services</h2>
+          <p className="text-muted text-sm mb-4">
+            Add and edit the services clients can book. Set duration and price (optional).
+          </p>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newServiceName.trim()) return;
+              setServiceMsg(null);
+              setServiceLoading(true);
+              const priceMinor = newServicePrice.trim() ? Math.round(parseFloat(newServicePrice) * 100) : 0;
+              const result = await addService(salonId, {
+                name: newServiceName.trim(),
+                duration_minutes: newServiceDuration,
+                price_minor: priceMinor,
+              });
+              setServiceLoading(false);
+              setServiceMsg(result.error ? "error" : "saved");
+              if (!result.error) {
+                setNewServiceName("");
+                setNewServiceDuration(60);
+                setNewServicePrice("");
+              }
+            }}
+            className="flex flex-wrap gap-2 items-end mb-4"
+          >
+            <div>
+              <label htmlFor="new-service-name" className="block text-sm font-medium mb-1">Name</label>
+              <input
+                id="new-service-name"
+                type="text"
+                value={newServiceName}
+                onChange={(e) => setNewServiceName(e.target.value)}
+                placeholder="e.g. Balayage"
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-40"
+                aria-label="Service name"
+              />
+            </div>
+            <div>
+              <label htmlFor="new-service-duration" className="block text-sm font-medium mb-1">Duration (min)</label>
+              <input
+                id="new-service-duration"
+                type="number"
+                min={5}
+                max={480}
+                value={newServiceDuration}
+                onChange={(e) => setNewServiceDuration(Number(e.target.value) || 60)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-20"
+                aria-label="Duration in minutes"
+              />
+            </div>
+            <div>
+              <label htmlFor="new-service-price" className="block text-sm font-medium mb-1">Price (£)</label>
+              <input
+                id="new-service-price"
+                type="text"
+                value={newServicePrice}
+                onChange={(e) => setNewServicePrice(e.target.value)}
+                placeholder="0"
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-20"
+                aria-label="Price in pounds"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={serviceLoading || !newServiceName.trim()}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+            >
+              {serviceLoading ? "Adding…" : "Add"}
+            </button>
+            {serviceMsg === "saved" && <span className="text-sm text-green-400">Added.</span>}
+            {serviceMsg === "error" && <span className="text-sm text-red-400">Failed.</span>}
+          </form>
+          <ul className="space-y-2">
+            {services.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center gap-2 py-2 border-b border-border last:border-0">
+                {editingId === s.id ? (
+                  <>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="rounded border border-border px-2 py-1 text-sm flex-1 min-w-0"
+                      aria-label="Service name"
+                      placeholder="Service name"
+                    />
+                    <input
+                      type="number"
+                      min={5}
+                      max={480}
+                      value={editDuration}
+                      onChange={(e) => setEditDuration(Number(e.target.value) || 60)}
+                      className="rounded border border-border px-2 py-1 text-sm w-16"
+                      aria-label="Duration in minutes"
+                    />
+                    <input
+                      type="text"
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(e.target.value)}
+                      placeholder="0"
+                      className="rounded border border-border px-2 py-1 text-sm w-16"
+                      aria-label="Price in pounds"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setServiceLoading(true);
+                        const result = await updateService(salonId, s.id, {
+                          name: editName.trim(),
+                          duration_minutes: editDuration,
+                          price_minor: editPrice.trim() ? Math.round(parseFloat(editPrice) * 100) : 0,
+                        });
+                        setServiceLoading(false);
+                        setEditingId(null);
+                        if (result.error) setServiceMsg("error");
+                      }}
+                      className="text-sm text-accent hover:underline"
+                    >
+                      Save
+                    </button>
+                    <button type="button" onClick={() => setEditingId(null)} className="text-sm text-muted hover:underline">
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 min-w-0 font-medium truncate">{s.name}</span>
+                    <span className="text-sm text-muted">{s.duration_minutes} min</span>
+                    {s.price_minor > 0 && (
+                      <span className="text-sm text-muted">£{(s.price_minor / 100).toFixed(2)}</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingId(s.id);
+                        setEditName(s.name);
+                        setEditDuration(s.duration_minutes);
+                        setEditPrice(s.price_minor > 0 ? (s.price_minor / 100).toFixed(2) : "");
+                      }}
+                      className="text-sm text-accent hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!confirm(`Delete "${s.name}"?`)) return;
+                        setServiceLoading(true);
+                        await deleteService(salonId, s.id);
+                        setServiceLoading(false);
+                      }}
+                      className="text-sm text-red-400 hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+          {services.length === 0 && (
+            <p className="text-sm text-muted">No services yet. Add one above.</p>
+          )}
+        </section>
+      )}
 
       {isOwner && (
         <section>

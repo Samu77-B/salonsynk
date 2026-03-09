@@ -109,3 +109,66 @@ export async function uploadSalonLogo(
   revalidatePath("/settings");
   return { error: null, url };
 }
+
+// Services management (owners only)
+export async function addService(
+  salonId: string,
+  data: { name: string; duration_minutes: number; price_minor?: number }
+) {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
+  const name = data.name?.trim();
+  if (!name) return { error: "Service name is required" };
+  const duration = Math.max(1, Math.min(480, Math.round(data.duration_minutes ?? 60)));
+  const price = Math.max(0, Math.round(data.price_minor ?? 0));
+  const supabase = await createClient();
+  const { error } = await supabase.from("services").insert({
+    salon_id: salonId,
+    name,
+    duration_minutes: duration,
+    price_minor: price,
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  return {};
+}
+
+export async function updateService(
+  salonId: string,
+  serviceId: string,
+  data: { name?: string; duration_minutes?: number; price_minor?: number }
+) {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
+  const payload: Record<string, unknown> = {};
+  if (data.name !== undefined) payload.name = data.name.trim();
+  if (data.duration_minutes !== undefined) payload.duration_minutes = Math.max(1, Math.min(480, Math.round(data.duration_minutes)));
+  if (data.price_minor !== undefined) payload.price_minor = Math.max(0, Math.round(data.price_minor));
+  if (Object.keys(payload).length === 0) return {};
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("services")
+    .update(payload)
+    .eq("id", serviceId)
+    .eq("salon_id", salonId);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  return {};
+}
+
+export async function deleteService(salonId: string, serviceId: string) {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("services")
+    .delete()
+    .eq("id", serviceId)
+    .eq("salon_id", salonId);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  return {};
+}

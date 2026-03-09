@@ -9,7 +9,7 @@ export default async function SettingsPage() {
   if (!context) redirect("/onboarding");
 
   const supabase = await createClient();
-  const [{ data: salon }, { data: member }] = await Promise.all([
+  const [{ data: salon }, { data: member }, { data: services }] = await Promise.all([
     supabase
       .from("salons")
       .select("id, name, slug, stripe_connect_account_id, subscription_status, settings, tax_vault_minor")
@@ -21,6 +21,11 @@ export default async function SettingsPage() {
       .eq("id", context.member.id)
       .eq("salon_id", context.salon.id)
       .single(),
+    supabase
+      .from("services")
+      .select("id, name, duration_minutes, price_minor")
+      .eq("salon_id", context.salon.id)
+      .order("name"),
   ]);
 
   const settings = (salon?.settings as Record<string, unknown>) ?? {};
@@ -53,6 +58,12 @@ export default async function SettingsPage() {
         renterTaxVaultMinor={showRenterTaxVault ? Number(member?.tax_vault_minor ?? 0) : 0}
         isOwner={isOwner}
         adminFeePercent={adminFeePercent}
+        services={(services ?? []).map((s) => ({
+          id: s.id,
+          name: s.name,
+          duration_minutes: s.duration_minutes,
+          price_minor: s.price_minor ?? 0,
+        }))}
       />
     </main>
   );
