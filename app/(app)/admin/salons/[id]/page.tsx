@@ -46,9 +46,15 @@ export default async function AdminEditSalonPage({
         </Link>
         <h1 className="text-2xl font-bold">Edit salon</h1>
       </div>
-      <div className="mb-4 p-3 rounded-lg bg-muted/20 text-sm">
-        <p>
-          Booking URL:{" "}
+      <div className="mb-4 flex flex-wrap gap-3 items-center">
+        <a
+          href={`/api/admin/switch-salon?salonId=${salon.id}`}
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90"
+        >
+          Manage salon (Team, Services, Clients…)
+        </a>
+        <span className="text-muted text-sm">
+          Booking:{" "}
           <a
             href={`/book/${salon.slug}`}
             target="_blank"
@@ -57,7 +63,7 @@ export default async function AdminEditSalonPage({
           >
             /book/{salon.slug}
           </a>
-        </p>
+        </span>
       </div>
       <AdminEditSalonForm
         salonId={salon.id}

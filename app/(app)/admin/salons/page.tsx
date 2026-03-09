@@ -32,7 +32,7 @@ export default async function AdminSalonsPage() {
               <th className="text-left px-4 py-2 font-medium">Slug</th>
               <th className="text-left px-4 py-2 font-medium">Booking URL</th>
               <th className="text-left px-4 py-2 font-medium">Status</th>
-              <th className="text-left px-4 py-2 font-medium"></th>
+              <th className="text-left px-4 py-2 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -52,6 +52,12 @@ export default async function AdminSalonsPage() {
                 </td>
                 <td className="px-4 py-2 capitalize">{s.subscription_status}</td>
                 <td className="px-4 py-2">
+                  <Link
+                    href={`/api/admin/switch-salon?salonId=${s.id}`}
+                    className="text-accent hover:underline mr-3"
+                  >
+                    Manage
+                  </Link>
                   <Link
                     href={`/admin/salons/${s.id}`}
                     className="text-accent hover:underline"
