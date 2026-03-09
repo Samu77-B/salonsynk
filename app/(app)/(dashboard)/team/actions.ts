@@ -13,6 +13,7 @@ export async function inviteOrAddTeamMember(
   salonId: string,
   data: { display_name: string; role: string; email?: string; calendar_color?: string | null }
 ) {
+  const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
   if (context.member.role !== "owner") return { error: "Only owners can add team members" };
