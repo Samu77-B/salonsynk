@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { updateSalonBranding, updateRenterAdminFee } from "./actions";
+import { useState, useRef } from "react";
+import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo } from "./actions";
 
 export function SettingsView({
   salonId,
@@ -41,6 +41,8 @@ export function SettingsView({
   const [companyName, setCompanyName] = useState(branding.company_name);
   const [brandingMsg, setBrandingMsg] = useState<"saved" | "error" | null>(null);
   const [brandingLoading, setBrandingLoading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoFileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function handleBrandingSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,6 +55,23 @@ export function SettingsView({
     });
     setBrandingLoading(false);
     setBrandingMsg(result.error ? "error" : "saved");
+  }
+
+  async function handleLogoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBrandingMsg(null);
+    setLogoUploading(true);
+    const formData = new FormData();
+    formData.append("logo", file);
+    const result = await uploadSalonLogo(salonId, formData);
+    setLogoUploading(false);
+    if (result.error) {
+      setBrandingMsg("error");
+    } else {
+      if (result.url) setLogoUrl(result.url);
+      setBrandingMsg("saved");
+    }
   }
 
   return (
@@ -72,14 +91,37 @@ export function SettingsView({
         </p>
         <form onSubmit={handleBrandingSubmit} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium mb-1">Logo URL</label>
-            <input
-              type="url"
-              value={logoUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
-              placeholder="https://..."
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
+            <label className="block text-sm font-medium mb-1">Logo</label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="url"
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full sm:flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => logoFileInputRef.current?.click()}
+                  className="rounded-lg border border-border px-3 py-2 text-xs font-medium"
+                  disabled={logoUploading}
+                >
+                  {logoUploading ? "Uploading…" : "Upload logo"}
+                </button>
+              </div>
+              <input
+                ref={logoFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleLogoFileChange}
+                className="hidden"
+                aria-label="Upload logo image"
+              />
+            </div>
+            <p className="text-xs text-muted mt-1">
+              Paste a URL or upload an image file. PNG, JPEG, GIF, WebP, or SVG up to 2MB.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Primary colour (hex)</label>
@@ -139,6 +181,7 @@ export function SettingsView({
                 value={adminFee}
                 onChange={(e) => setAdminFee(e.target.value)}
                 className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                aria-label="Admin fee percentage"
               />
             </div>
             <button
