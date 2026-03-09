@@ -4,8 +4,14 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { inviteOrAddTeamMember, updateTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles } from "./actions";
 
-type Member = { id: string; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string; avatar_url?: string | null };
+type Member = { id: string; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string; avatar_url?: string | null; calendar_color?: string | null };
 type Invite = { id: string; email: string; role: string; display_name: string | null; created_at: string };
+
+const CALENDAR_COLORS = [
+  "#3b82f6", "#22c55e", "#eab308", "#ef4444", "#a855f7",
+  "#06b6d4", "#f97316", "#ec4899", "#14b8a6", "#84cc16",
+  "#6366f1", "#0ea5e9",
+];
 
 const PREDEFINED_ROLES = [
   { value: "owner", label: "Owner" },
@@ -46,6 +52,8 @@ export function TeamView({
   const [rolesLoading, setRolesLoading] = useState(false);
   const [bespokeRoleInput, setBespokeRoleInput] = useState("");
   const [editBespokeRoleInput, setEditBespokeRoleInput] = useState("");
+  const [calendarColor, setCalendarColor] = useState<string>("");
+  const [editCalendarColor, setEditCalendarColor] = useState<string>("");
   const [localCustomRoles, setLocalCustomRoles] = useState<string[]>(customRoles);
   const editAvatarInputRef = useRef<HTMLInputElement>(null);
   const addAvatarInputRef = useRef<HTMLInputElement>(null);
@@ -64,7 +72,12 @@ export function TeamView({
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const result = await inviteOrAddTeamMember(salonId, { display_name: displayName, role, email: email || undefined });
+    const result = await inviteOrAddTeamMember(salonId, {
+      display_name: displayName,
+      role,
+      email: email || undefined,
+      calendar_color: calendarColor || undefined,
+    });
     if (result.error) {
       setLoading(false);
       setError(result.error);
@@ -83,6 +96,7 @@ export function TeamView({
     setEmail("");
     setRole("stylist");
     setBespokeRoleInput("");
+    setCalendarColor("");
     addAvatarInputRef.current && (addAvatarInputRef.current.value = "");
   }
 
@@ -104,7 +118,7 @@ export function TeamView({
     }
     const result = await updateTeamMember(editId, {
       display_name: editDisplayName,
-      ...(isOwner ? { employment_type: editEmploymentType, role: editRole } : {}),
+      ...(isOwner ? { employment_type: editEmploymentType, role: editRole, calendar_color: editCalendarColor || null } : {}),
     });
     setLoading(false);
     if (result.error) setError(result.error);
@@ -189,7 +203,16 @@ export function TeamView({
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium truncate">{m.display_name || m.role}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium truncate">{m.display_name || m.role}</p>
+                    {m.calendar_color && (
+                      <span
+                        className="h-3 w-3 shrink-0 rounded-full border border-border"
+                        style={{ backgroundColor: m.calendar_color }}
+                        title="Diary colour"
+                      />
+                    )}
+                  </div>
                   <p className="text-sm text-muted capitalize">{m.role}</p>
                   {m.role === "stylist" && (
                     <p className="text-xs text-muted">
@@ -209,6 +232,7 @@ export function TeamView({
                       setEditId(m.id);
                       setEditDisplayName(m.display_name ?? "");
                       setEditRole(m.role || "stylist");
+                      setEditCalendarColor(m.calendar_color ?? "");
                       setEditEmploymentType((m.employment_type as "EMPLOYEE" | "RENTER") || "EMPLOYEE");
                     }}
                     className="text-sm text-accent hover:underline"
@@ -314,6 +338,31 @@ export function TeamView({
                   </div>
                 )}
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Diary colour</label>
+                <p className="text-xs text-muted mb-2">Used on the calendar so you can see who is booked at a glance.</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCalendarColor("")}
+                    className={`h-8 w-8 rounded-full border-2 shrink-0 ${!calendarColor ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
+                    style={{ backgroundColor: "var(--muted)" }}
+                    title="No colour"
+                    aria-label="No colour"
+                  />
+                  {CALENDAR_COLORS.map((hex) => (
+                    <button
+                      key={hex}
+                      type="button"
+                      onClick={() => setCalendarColor(hex)}
+                      className={`h-8 w-8 rounded-full border-2 shrink-0 ${calendarColor === hex ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
+                      style={{ backgroundColor: hex }}
+                      title={hex}
+                      aria-label={`Colour ${hex}`}
+                    />
+                  ))}
+                </div>
+              </div>
               {isOwner && (
                 <div>
                   <label className="block text-sm font-medium mb-1">Profile image (optional)</label>
@@ -395,6 +444,31 @@ export function TeamView({
                 </div>
                 {isOwner && (
                   <>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Diary colour</label>
+                    <p className="text-xs text-muted mb-2">Used on the calendar so you can see who is booked at a glance.</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditCalendarColor("")}
+                        className={`h-8 w-8 rounded-full border-2 shrink-0 ${!editCalendarColor ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
+                        style={{ backgroundColor: "var(--muted)" }}
+                        title="No colour"
+                        aria-label="No colour"
+                      />
+                      {CALENDAR_COLORS.map((hex) => (
+                        <button
+                          key={hex}
+                          type="button"
+                          onClick={() => setEditCalendarColor(hex)}
+                          className={`h-8 w-8 rounded-full border-2 shrink-0 ${editCalendarColor === hex ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
+                          style={{ backgroundColor: hex }}
+                          title={hex}
+                          aria-label={`Colour ${hex}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Role</label>
                     <select

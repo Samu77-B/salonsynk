@@ -19,7 +19,7 @@ export default async function DashboardPage() {
   const [membersRes, servicesRes, clientsRes, appointmentsRes] = await Promise.all([
     supabase
       .from("salon_members")
-      .select("id, display_name, role")
+      .select("id, display_name, role, calendar_color")
       .eq("salon_id", context.salon.id)
       .eq("is_active", true)
       .order("role", { ascending: false }),

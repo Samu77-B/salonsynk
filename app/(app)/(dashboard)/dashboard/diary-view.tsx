@@ -6,7 +6,7 @@ import { createAppointment, updateAppointment, deleteAppointment } from "./actio
 import { AddAppointmentModal } from "./add-appointment-modal";
 import { getAllowedSlots, validateMove, rangeToMinutes, type TimeRange } from "@/lib/diary-rules";
 
-type Member = { id: string; display_name: string | null; role: string };
+type Member = { id: string; display_name: string | null; role: string; calendar_color?: string | null };
 type Service = { id: string; name: string; duration_minutes: number };
 type Client = { id: string; name: string | null; email: string | null; phone: string | null };
 type Appointment = {
@@ -65,6 +65,13 @@ export function DiaryView({
   const router = useRouter();
 
   const dateObj = useMemo(() => new Date(currentDate + "T12:00:00"), [currentDate]);
+  const stylistColorMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const member of members) {
+      if (member.calendar_color) m[member.id] = member.calendar_color;
+    }
+    return m;
+  }, [members]);
 
   const filteredAppointments = useMemo(() => {
     let list = appointments.filter((a) => a.status === "scheduled" || a.status === "completed");
@@ -167,6 +174,7 @@ export function DiaryView({
           <select
             value={view}
             onChange={(e) => setView(e.target.value as "day" | "week")}
+            aria-label="View"
             className="rounded-lg border border-border bg-background px-3 py-1 text-sm"
           >
             <option value="day">Day</option>
@@ -175,6 +183,7 @@ export function DiaryView({
           <select
             value={filterStylistId ?? ""}
             onChange={(e) => setFilterStylistId(e.target.value || null)}
+            aria-label="Filter by stylist"
             className="rounded-lg border border-border bg-background px-3 py-1 text-sm"
           >
             <option value="">All stylists</option>
@@ -253,6 +262,7 @@ export function DiaryView({
                         const service = Array.isArray(a.services) ? a.services[0] : a.services;
                         const label = (client?.name || a.guest_name || "—") as string;
                         const sub = (service?.name || "") as string;
+                        const blockColor = stylistColorMap[a.stylist_id];
                         return (
                           <div
                             key={a.id}
@@ -263,8 +273,15 @@ export function DiaryView({
                               e.dataTransfer.effectAllowed = "move";
                             }}
                             onDragEnd={() => setMovingId(null)}
-                            className="absolute left-1 right-1 rounded border border-accent/50 bg-accent/20 px-2 py-1 cursor-move overflow-hidden"
-                            style={{ top: `${top}px`, minHeight: `${Math.max(24, height)}px` }}
+                            className="absolute left-1 right-1 rounded border px-2 py-1 cursor-move overflow-hidden"
+                            style={{
+                              top: `${top}px`,
+                              minHeight: `${Math.max(24, height)}px`,
+                              ...(blockColor
+                                ? { borderColor: `${blockColor}99`, backgroundColor: `${blockColor}20` }
+                                : {}),
+                            }}
+                            className="absolute left-1 right-1 rounded border px-2 py-1 cursor-move overflow-hidden border-accent/50 bg-accent/20"
                           >
                             <span className="font-medium truncate block">{label}</span>
                             {sub && <span className="text-xs text-muted truncate block">{sub}</span>}

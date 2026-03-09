@@ -11,7 +11,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
 export async function inviteOrAddTeamMember(
   salonId: string,
-  data: { display_name: string; role: string; email?: string }
+  data: { display_name: string; role: string; email?: string; calendar_color?: string | null }
 ) {
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
@@ -38,14 +38,16 @@ export async function inviteOrAddTeamMember(
   // Add team member without email (display-only until they sign up and get linked)
   const displayName = data.display_name?.trim() || null;
   if (!displayName) return { error: "Display name is required" };
+  const row: Record<string, unknown> = {
+    salon_id: salonId,
+    user_id: null,
+    role: data.role,
+    display_name: displayName,
+  };
+  if (data.calendar_color !== undefined) row.calendar_color = data.calendar_color?.trim() || null;
   const { data: inserted, error } = await supabase
     .from("salon_members")
-    .insert({
-      salon_id: salonId,
-      user_id: null,
-      role: data.role,
-      display_name: displayName,
-    })
+    .insert(row)
     .select("id")
     .single();
   if (error) return { error: error.message };
@@ -55,7 +57,7 @@ export async function inviteOrAddTeamMember(
 
 export async function updateTeamMember(
   id: string,
-  updates: { display_name?: string; role?: string; holiday_ranges?: string[]; is_active?: boolean; employment_type?: "EMPLOYEE" | "RENTER"; avatar_url?: string | null }
+  updates: { display_name?: string; role?: string; holiday_ranges?: string[]; is_active?: boolean; employment_type?: "EMPLOYEE" | "RENTER"; avatar_url?: string | null; calendar_color?: string | null }
 ) {
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
@@ -69,6 +71,7 @@ export async function updateTeamMember(
   if (updates.is_active !== undefined) payload.is_active = updates.is_active;
   if (updates.employment_type !== undefined) payload.employment_type = updates.employment_type;
   if (updates.avatar_url !== undefined) payload.avatar_url = updates.avatar_url;
+  if (updates.calendar_color !== undefined) payload.calendar_color = updates.calendar_color?.trim() || null;
   if (updates.holiday_ranges !== undefined) {
     payload.holiday_ranges = updates.holiday_ranges;
   }
