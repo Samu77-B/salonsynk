@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { switchAdminSalon } from "./admin/actions";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Diary" },
@@ -15,9 +16,13 @@ const NAV_LINKS = [
 export function AppHeader({
   userEmail,
   isSuperAdmin = false,
+  currentSalon,
+  adminSalons = [],
 }: {
   userEmail: string | undefined;
   isSuperAdmin?: boolean;
+  currentSalon?: { id: string; name: string; slug: string };
+  adminSalons?: { id: string; name: string }[];
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -38,6 +43,28 @@ export function AppHeader({
 
       {/* Desktop nav */}
       <nav className="hidden md:flex items-center gap-4 text-sm shrink-0">
+        {isSuperAdmin && adminSalons.length > 0 && (
+          <ul className="flex items-center gap-2">
+            <li className="text-muted text-xs">Salon:</li>
+            <li>
+              <select
+                value={currentSalon?.id ?? ""}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  if (id) switchAdminSalon(id);
+                }}
+                className="rounded border border-border bg-background px-2 py-1 text-sm max-w-[160px] truncate"
+                aria-label="Switch salon"
+              >
+                {adminSalons.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </li>
+          </ul>
+        )}
         {NAV_LINKS.map(({ href, label }) => (
           <Link key={href} href={href} className="text-muted hover:text-foreground whitespace-nowrap">
             {label}
@@ -92,6 +119,25 @@ export function AppHeader({
           >
             <div className="flex items-center justify-between mb-4">
               <span className="font-semibold">Menu</span>
+              {isSuperAdmin && adminSalons.length > 0 && (
+                <div className="flex gap-2 items-center">
+                  <select
+                    value={currentSalon?.id ?? ""}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      if (id) switchAdminSalon(id);
+                    }}
+                    className="rounded border border-border bg-background px-2 py-1 text-sm max-w-[140px]"
+                    aria-label="Switch salon"
+                  >
+                    {adminSalons.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => setMenuOpen(false)}

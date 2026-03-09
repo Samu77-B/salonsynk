@@ -20,6 +20,11 @@ export default async function CheckoutPage() {
     employmentType: (s.employment_type as string) || "EMPLOYEE",
   }));
 
+  const defaultStylistId =
+    stylists.some((s) => s.id === context.member.id)
+      ? context.member.id
+      : stylists[0]?.id ?? "";
+
   return (
     <main className="p-4 md:p-6 max-w-lg min-w-0">
       <h1 className="text-2xl font-bold mb-6">Checkout</h1>
@@ -28,7 +33,7 @@ export default async function CheckoutPage() {
         clients={clientsRes.data ?? []}
         services={servicesRes.data ?? []}
         stylists={stylists}
-        defaultStylistId={context.member.id}
+        defaultStylistId={defaultStylistId}
       />
     </main>
   );
