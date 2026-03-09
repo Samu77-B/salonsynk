@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { TeamView } from "./team-view";
 
+export const dynamic = "force-dynamic";
+
 export default async function TeamPage() {
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");
@@ -36,8 +38,15 @@ export default async function TeamPage() {
   const settings = (salonRes.data?.settings as Record<string, unknown>) ?? {};
   const customRoles = (settings.team_roles as string[]) ?? [];
 
+  const dbError = membersRes.error?.message ?? invitesRes.error?.message ?? salonRes.error?.message;
+
   return (
     <main className="p-4 md:p-6 min-w-0">
+      {dbError && (
+        <p className="mb-4 rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+          Database error: {dbError}
+        </p>
+      )}
       <TeamView
         salonId={context.salon.id}
         members={members}
