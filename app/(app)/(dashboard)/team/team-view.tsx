@@ -1,16 +1,22 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { inviteOrAddTeamMember, updateTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles } from "./actions";
 
 type Member = { id: string; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string; avatar_url?: string | null };
 type Invite = { id: string; email: string; role: string; display_name: string | null; created_at: string };
 
-const BUILTIN_ROLES = [
-  { value: "stylist", label: "Stylist" },
+const PREDEFINED_ROLES = [
   { value: "owner", label: "Owner" },
+  { value: "Creative Director", label: "Creative Director" },
+  { value: "Advanced Senior Stylist", label: "Advanced Senior Stylist" },
+  { value: "Senior Stylist", label: "Senior Stylist" },
+  { value: "Junior Stylist", label: "Junior Stylist" },
+  { value: "stylist", label: "Stylist" },
 ] as const;
+
+const ADD_ROLE_VALUE = "__add_role__";
 
 export function TeamView({
   salonId,
@@ -37,12 +43,22 @@ export function TeamView({
   const [editEmploymentType, setEditEmploymentType] = useState<"EMPLOYEE" | "RENTER">("EMPLOYEE");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [newRoleName, setNewRoleName] = useState("");
   const [rolesLoading, setRolesLoading] = useState(false);
+  const [bespokeRoleInput, setBespokeRoleInput] = useState("");
+  const [editBespokeRoleInput, setEditBespokeRoleInput] = useState("");
+  const [localCustomRoles, setLocalCustomRoles] = useState<string[]>(customRoles);
   const editAvatarInputRef = useRef<HTMLInputElement>(null);
   const addAvatarInputRef = useRef<HTMLInputElement>(null);
 
-  const roleOptions = [...BUILTIN_ROLES, ...customRoles.map((r) => ({ value: r, label: r }))];
+  useEffect(() => {
+    setLocalCustomRoles(customRoles);
+  }, [customRoles]);
+
+  const roleOptions = [
+    ...PREDEFINED_ROLES,
+    ...localCustomRoles.map((r) => ({ value: r, label: r })),
+    { value: ADD_ROLE_VALUE, label: "(add role)" },
+  ];
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -66,6 +82,7 @@ export function TeamView({
     setDisplayName("");
     setEmail("");
     setRole("stylist");
+    setBespokeRoleInput("");
     addAvatarInputRef.current && (addAvatarInputRef.current.value = "");
   }
 
@@ -111,22 +128,25 @@ export function TeamView({
     if (result.error) setError(result.error);
   }
 
-  async function handleAddRole() {
-    const name = newRoleName.trim();
+  async function handleAddBespokeRole(fromAddModal: boolean) {
+    const name = (fromAddModal ? bespokeRoleInput : editBespokeRoleInput).trim();
     if (!name) return;
     setError(null);
     setRolesLoading(true);
-    const result = await updateSalonTeamRoles(salonId, [...customRoles, name]);
+    const nextCustom = [...localCustomRoles, name];
+    const result = await updateSalonTeamRoles(salonId, nextCustom);
     setRolesLoading(false);
     if (result.error) setError(result.error);
-    else setNewRoleName("");
-  }
-
-  async function handleRemoveRole(roleName: string) {
-    setError(null);
-    setRolesLoading(true);
-    await updateSalonTeamRoles(salonId, customRoles.filter((r) => r !== roleName));
-    setRolesLoading(false);
+    else {
+      setLocalCustomRoles(nextCustom);
+      if (fromAddModal) {
+        setRole(name);
+        setBespokeRoleInput("");
+      } else {
+        setEditRole(name);
+        setEditBespokeRoleInput("");
+      }
+    }
   }
 
   return (
@@ -144,50 +164,6 @@ export function TeamView({
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
-
-      {isOwner && (
-        <section className="rounded-lg border border-border p-4">
-          <h2 className="text-lg font-semibold mb-2">Manage roles</h2>
-          <p className="text-sm text-muted mb-3">Add role names that you can assign when adding or editing team members (e.g. Receptionist, Senior Stylist).</p>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {customRoles.map((r) => (
-              <span
-                key={r}
-                className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
-              >
-                {r}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveRole(r)}
-                  disabled={rolesLoading}
-                  className="ml-1 rounded-full hover:bg-background/80 disabled:opacity-50"
-                  aria-label={`Remove role ${r}`}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newRoleName}
-              onChange={(e) => setNewRoleName(e.target.value)}
-              placeholder="e.g. Receptionist"
-              aria-label="New role name"
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm flex-1 min-w-0"
-            />
-            <button
-              type="button"
-              onClick={handleAddRole}
-              disabled={rolesLoading || !newRoleName.trim()}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
-            >
-              Add role
-            </button>
-          </div>
-        </section>
-      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {members.map((m) => (
@@ -316,6 +292,27 @@ export function TeamView({
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
+                {role === ADD_ROLE_VALUE && (
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="text"
+                      value={bespokeRoleInput}
+                      onChange={(e) => setBespokeRoleInput(e.target.value)}
+                      placeholder="Enter role name"
+                      aria-label="Bespoke role name"
+                      className="rounded-lg border border-border bg-background px-3 py-2 text-sm flex-1 min-w-0"
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddBespokeRole(true))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddBespokeRole(true)}
+                      disabled={rolesLoading || !bespokeRoleInput.trim()}
+                      className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-background disabled:opacity-50"
+                    >
+                      Add
+                    </button>
+                  </div>
+                )}
               </div>
               {isOwner && (
                 <div>
@@ -334,7 +331,7 @@ export function TeamView({
                 <button type="button" onClick={() => setAddOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm">
                   Cancel
                 </button>
-                <button type="submit" disabled={loading || !displayName.trim()} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50">
+                <button type="submit" disabled={loading || !displayName.trim() || role === ADD_ROLE_VALUE} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50">
                   {loading ? "Adding…" : email.trim() ? "Send invite" : "Add member"}
                 </button>
               </div>
@@ -345,8 +342,9 @@ export function TeamView({
 
       {editId && (() => {
         const member = members.find((m) => m.id === editId);
-        const editRoleOptions = member && !roleOptions.some((o) => o.value === member.role)
-          ? [...roleOptions, { value: member.role, label: member.role }]
+        const baseEditRoleOptions = roleOptions.filter((o) => o.value !== ADD_ROLE_VALUE);
+        const editRoleOptions = member && !baseEditRoleOptions.some((o) => o.value === member.role)
+          ? [...baseEditRoleOptions, { value: member.role, label: member.role }, { value: ADD_ROLE_VALUE, label: "(add role)" }]
           : roleOptions;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setEditId(null)}>
@@ -409,6 +407,27 @@ export function TeamView({
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
+                    {editRole === ADD_ROLE_VALUE && (
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          type="text"
+                          value={editBespokeRoleInput}
+                          onChange={(e) => setEditBespokeRoleInput(e.target.value)}
+                          placeholder="Enter role name"
+                          aria-label="Bespoke role name"
+                          className="rounded-lg border border-border bg-background px-3 py-2 text-sm flex-1 min-w-0"
+                          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddBespokeRole(false))}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleAddBespokeRole(false)}
+                          disabled={rolesLoading || !editBespokeRoleInput.trim()}
+                          className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-background disabled:opacity-50"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Employment type</label>
@@ -428,7 +447,7 @@ export function TeamView({
                   <button type="button" onClick={() => setEditId(null)} className="rounded-lg border border-border px-4 py-2 text-sm">
                     Cancel
                   </button>
-                  <button type="submit" disabled={loading} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50">
+                  <button type="submit" disabled={loading || editRole === ADD_ROLE_VALUE} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50">
                     Save
                   </button>
                 </div>
