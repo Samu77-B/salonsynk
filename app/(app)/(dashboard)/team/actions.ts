@@ -13,7 +13,6 @@ export async function inviteOrAddTeamMember(
   salonId: string,
   data: { display_name: string; role: string; email?: string; calendar_color?: string | null }
 ) {
-  const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
   if (context.member.role !== "owner") return { error: "Only owners can add team members" };
@@ -45,7 +44,9 @@ export async function inviteOrAddTeamMember(
     display_name: displayName,
   };
   if (data.calendar_color !== undefined) row.calendar_color = data.calendar_color?.trim() || null;
-  const { data: inserted, error } = await supabase
+  // Use admin client to bypass RLS insert restrictions for placeholder members without user_id
+  const admin = createAdminClient();
+  const { data: inserted, error } = await admin
     .from("salon_members")
     .insert(row)
     .select("id")
