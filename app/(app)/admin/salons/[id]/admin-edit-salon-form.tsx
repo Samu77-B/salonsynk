@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   adminUpdateSalon,
   adminAssignOwner,
+  adminInviteOwner,
   adminDeleteSalon,
   type BrandingInput,
 } from "../actions";
@@ -41,6 +42,11 @@ export function AdminEditSalonForm({
   const [assignLoading, setAssignLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteMsg, setInviteMsg] = useState<"saved" | "error" | null>(null);
+  const [inviteErrorText, setInviteErrorText] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -157,31 +163,88 @@ export function AdminEditSalonForm({
               ))}
           </ul>
         )}
-        <form onSubmit={handleAssignOwner} className="flex gap-2 flex-wrap items-end">
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Add owner by email</label>
-            <input
-              type="email"
-              value={ownerEmail}
-              onChange={(e) => setOwnerEmail(e.target.value)}
-              placeholder="owner@example.com"
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-64"
-            />
+            <h3 className="text-sm font-medium mb-1">Invite new owner (no account yet)</h3>
+            <p className="text-xs text-muted mb-2">Sends them an email to create their login. They become owner when they sign up.</p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!inviteEmail.trim()) return;
+                setInviteMsg(null);
+                setInviteErrorText("");
+                setInviteLoading(true);
+                const result = await adminInviteOwner(salonId, inviteEmail, inviteName || undefined);
+                setInviteLoading(false);
+                setInviteMsg(result.error ? "error" : "saved");
+                if (result.error) setInviteErrorText(result.error);
+                else {
+                  setInviteEmail("");
+                  setInviteName("");
+                }
+              }}
+              className="flex flex-wrap gap-2 items-end"
+            >
+              <div>
+                <label htmlFor="invite-email" className="sr-only">Email</label>
+                <input
+                  id="invite-email"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="kiri@fabhair.london"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-64"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="invite-name" className="sr-only">Name</label>
+                <input
+                  id="invite-name"
+                  type="text"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  placeholder="Kiri (optional)"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-40"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={inviteLoading || !inviteEmail.trim()}
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+              >
+                {inviteLoading ? "Sending…" : "Invite owner"}
+              </button>
+            </form>
+            {inviteMsg === "saved" && <p className="text-sm text-green-400 mt-2">Invite sent. They will receive an email to create their login.</p>}
+            {inviteMsg === "error" && <p className="text-sm text-red-400 mt-2">{inviteErrorText || "Could not send invite."}</p>}
           </div>
-          <button
-            type="submit"
-            disabled={assignLoading || !ownerEmail.trim()}
-            className="rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-50"
-          >
-            {assignLoading ? "Adding…" : "Add owner"}
-          </button>
-        </form>
-        {assignMsg === "saved" && (
-          <p className="text-sm text-green-400 mt-2">Owner added.</p>
-        )}
-        {assignMsg === "error" && (
-          <p className="text-sm text-red-400 mt-2">Could not add (user may not exist).</p>
-        )}
+          <div>
+            <h3 className="text-sm font-medium mb-1">Add existing owner (already has account)</h3>
+            <form onSubmit={handleAssignOwner} className="flex gap-2 flex-wrap items-end">
+              <div>
+                <label htmlFor="owner-email" className="sr-only">Email</label>
+                <input
+                  id="owner-email"
+                  type="email"
+                  value={ownerEmail}
+                  onChange={(e) => setOwnerEmail(e.target.value)}
+                  placeholder="owner@example.com"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-64"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={assignLoading || !ownerEmail.trim()}
+                className="rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-50"
+              >
+                {assignLoading ? "Adding…" : "Add owner"}
+              </button>
+            </form>
+            {assignMsg === "saved" && <p className="text-sm text-green-400 mt-2">Owner added.</p>}
+            {assignMsg === "error" && <p className="text-sm text-red-400 mt-2">Could not add (user may not exist).</p>}
+          </div>
+        </div>
       </section>
 
       <section className="pt-8 border-t border-border">

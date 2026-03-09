@@ -140,6 +140,51 @@ export async function adminAssignOwner(salonId: string, email: string) {
   return {};
 }
 
+/** Invite a new user by email and add them as salon owner. Sends a signup email. */
+export async function adminInviteOwner(
+  salonId: string,
+  email: string,
+  displayName?: string
+) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) return { error: "Email is required" };
+
+  const name = (displayName?.trim() || trimmed.split("@")[0]) || "Owner";
+
+  const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+    trimmed,
+    { data: { full_name: name } }
+  );
+
+  if (inviteError) {
+    if (inviteError.message?.includes("already been registered")) {
+      return { error: "That email is already registered. Use Add owner instead." };
+    }
+    return { error: inviteError.message };
+  }
+
+  const userId = inviteData?.user?.id;
+  if (!userId) return { error: "Invite sent but could not add as owner. Add them manually after they sign up." };
+
+  const { error: memberError } = await supabase.from("salon_members").upsert(
+    {
+      salon_id: salonId,
+      user_id: userId,
+      role: "owner",
+      display_name: name,
+      is_active: true,
+    },
+    { onConflict: "salon_id,user_id" }
+  );
+
+  if (memberError) return { error: memberError.message };
+  revalidatePath("/admin/salons");
+  revalidatePath(`/admin/salons/${salonId}`);
+  return {};
+}
+
 export async function adminAddServices(
   salonId: string,
   services: { name: string; duration_minutes: number }[]
