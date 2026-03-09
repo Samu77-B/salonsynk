@@ -3,6 +3,10 @@ import { Resend } from "resend";
 const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
 
+/** From address. Use a verified domain (e.g. noreply@salonsynk.com) to send to any recipient. onboarding@resend.dev only allows your own email. */
+const fromAddress =
+  process.env.RESEND_FROM_ADDRESS || "SalonSynk <onboarding@resend.dev>";
+
 function normalizeResendError(error: unknown): string | undefined {
   if (!error) return undefined;
   if (typeof error === "string") return error;
@@ -19,7 +23,7 @@ export async function sendAppointmentReminder(
 ): Promise<{ error?: string }> {
   if (!resend) return { error: "Resend not configured" };
   const { error } = await resend.emails.send({
-    from: "salonbooking@urnextevent.com>",
+    from: fromAddress,
     to: [to],
     subject: "Appointment reminder: " + details.salonName,
     html: `<p>Reminder: appointment on ${details.date} at ${details.time}.</p>`,
@@ -34,7 +38,7 @@ export async function sendReceipt(
 ): Promise<{ error?: string }> {
   if (!resend) return { error: "Resend not configured" };
   const { error } = await resend.emails.send({
-    from: "SalonSynk <onboarding@resend.dev>",
+    from: fromAddress,
     to: [to],
     subject: "Your receipt",
     html: `<p>Thank you. Amount: ${amount}. Items: ${items}</p>`,
@@ -51,7 +55,7 @@ export async function sendBookingConfirmation(
   let html = `<p>Your appointment is confirmed for ${details.date} at ${details.time}.</p>`;
   if (manageLink) html += `<p><a href="${manageLink}">Manage booking</a></p>`;
   const { error } = await resend.emails.send({
-    from: "SalonSynk <onboarding@resend.dev>",
+    from: fromAddress,
     to: [to],
     subject: "Booking confirmed: " + details.salonName,
     html,
@@ -71,7 +75,7 @@ export async function sendOwnerInviteLink(
     <p>This link lets you set your password and log in. If you didn't expect this, you can ignore this email.</p>
   `;
   const { error } = await resend.emails.send({
-    from: "SalonSynk <onboarding@resend.dev>",
+    from: fromAddress,
     to: [to],
     subject: `You're invited to manage ${salonName} on SalonSynk`,
     html,
@@ -92,7 +96,7 @@ export async function sendReviewRequest(
     html += `<p>Please take a moment to leave us a review – it really helps.</p>`;
   }
   const { error } = await resend.emails.send({
-    from: "SalonSynk <onboarding@resend.dev>",
+    from: fromAddress,
     to: [to],
     subject: `How was your visit to ${details.salonName}?`,
     html,

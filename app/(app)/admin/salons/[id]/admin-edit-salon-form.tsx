@@ -6,6 +6,7 @@ import {
   adminUpdateSalon,
   adminAssignOwner,
   adminInviteOwner,
+  adminCreateOwnerWithPassword,
   adminResendOwnerInvite,
   adminDeleteSalon,
   type BrandingInput,
@@ -52,6 +53,12 @@ export function AdminEditSalonForm({
   const [resendMsg, setResendMsg] = useState<"saved" | "error" | null>(null);
   const [resendErrorText, setResendErrorText] = useState("");
   const [resendLoading, setResendLoading] = useState(false);
+  const [createEmail, setCreateEmail] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
+  const [createName, setCreateName] = useState("");
+  const [createMsg, setCreateMsg] = useState<"saved" | "error" | null>(null);
+  const [createErrorText, setCreateErrorText] = useState("");
+  const [createLoading, setCreateLoading] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -170,7 +177,76 @@ export function AdminEditSalonForm({
         )}
         <div className="space-y-4">
           <div>
-            <h3 className="text-sm font-medium mb-1">Invite new owner (no account yet)</h3>
+            <h3 className="text-sm font-medium mb-1">Create owner (no email verification)</h3>
+            <p className="text-xs text-muted mb-2">Set email and password directly. They can log in immediately.</p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!createEmail.trim() || !createPassword.trim()) return;
+                setCreateMsg(null);
+                setCreateErrorText("");
+                setCreateLoading(true);
+                const result = await adminCreateOwnerWithPassword(salonId, createEmail, createPassword, createName || undefined);
+                setCreateLoading(false);
+                setCreateMsg(result.error ? "error" : "saved");
+                if (result.error) setCreateErrorText(result.error);
+                else {
+                  setCreateEmail("");
+                  setCreatePassword("");
+                  setCreateName("");
+                }
+              }}
+              className="flex flex-wrap gap-2 items-end"
+            >
+              <div>
+                <label htmlFor="create-email" className="sr-only">Email</label>
+                <input
+                  id="create-email"
+                  type="email"
+                  value={createEmail}
+                  onChange={(e) => setCreateEmail(e.target.value)}
+                  placeholder="kc@fabhair.london"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-64"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="create-password" className="sr-only">Password</label>
+                <input
+                  id="create-password"
+                  type="password"
+                  value={createPassword}
+                  onChange={(e) => setCreatePassword(e.target.value)}
+                  placeholder="Password (min 6 chars)"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-40"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div>
+                <label htmlFor="create-name" className="sr-only">Name</label>
+                <input
+                  id="create-name"
+                  type="text"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  placeholder="Name (optional)"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-32"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={createLoading || !createEmail.trim() || !createPassword.trim()}
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+              >
+                {createLoading ? "Creating…" : "Create owner"}
+              </button>
+            </form>
+            {createMsg === "saved" && <p className="text-sm text-green-400 mt-2">Owner created. They can log in with that email and password.</p>}
+            {createMsg === "error" && <p className="text-sm text-red-400 mt-2">{createErrorText || "Could not create."}</p>}
+          </div>
+          <div>
+            <h3 className="text-sm font-medium mb-1">Invite new owner (sends email)</h3>
             <p className="text-xs text-muted mb-2">Sends them an email to create their login. They become owner when they sign up.</p>
             <form
               onSubmit={async (e) => {

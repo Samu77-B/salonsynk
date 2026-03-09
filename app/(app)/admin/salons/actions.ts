@@ -141,6 +141,55 @@ export async function adminAssignOwner(salonId: string, email: string) {
   return {};
 }
 
+/** Create owner with email + password directly. No email verification. */
+export async function adminCreateOwnerWithPassword(
+  salonId: string,
+  email: string,
+  password: string,
+  displayName?: string
+) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) return { error: "Email is required" };
+  if (!password || password.length < 6) return { error: "Password must be at least 6 characters" };
+
+  const name = (displayName?.trim() || trimmed.split("@")[0]) || "Owner";
+
+  const { data: userData, error: createError } = await supabase.auth.admin.createUser({
+    email: trimmed,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: name },
+  });
+
+  if (createError) {
+    if (createError.message?.toLowerCase().includes("already") || createError.message?.toLowerCase().includes("registered")) {
+      return { error: "That email is already registered. Use Add owner instead." };
+    }
+    return { error: createError.message };
+  }
+
+  const userId = userData?.user?.id;
+  if (!userId) return { error: "User created but could not add as owner." };
+
+  const { error: memberError } = await supabase.from("salon_members").upsert(
+    {
+      salon_id: salonId,
+      user_id: userId,
+      role: "owner",
+      display_name: name,
+      is_active: true,
+    },
+    { onConflict: "salon_id,user_id" }
+  );
+
+  if (memberError) return { error: memberError.message };
+  revalidatePath("/admin/salons");
+  revalidatePath(`/admin/salons/${salonId}`);
+  return {};
+}
+
 /** Invite a new user by email and add them as salon owner. Sends a signup email. */
 export async function adminInviteOwner(
   salonId: string,
