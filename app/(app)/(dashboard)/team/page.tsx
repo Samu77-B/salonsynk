@@ -8,7 +8,7 @@ export default async function TeamPage() {
   if (!context) redirect("/onboarding");
 
   const supabase = await createClient();
-  const [membersRes, invitesRes, countsRes] = await Promise.all([
+  const [membersRes, invitesRes, countsRes, salonRes] = await Promise.all([
     supabase
       .from("salon_members")
       .select("id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url")
@@ -23,6 +23,7 @@ export default async function TeamPage() {
       .select("stylist_id")
       .eq("salon_id", context.salon.id)
       .gte("start_time", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+    supabase.from("salons").select("settings").eq("id", context.salon.id).single(),
   ]);
 
   const members = membersRes.data ?? [];
@@ -32,6 +33,8 @@ export default async function TeamPage() {
   for (const a of appointments) {
     if (a.stylist_id) appointmentCountByStylist[a.stylist_id] = (appointmentCountByStylist[a.stylist_id] ?? 0) + 1;
   }
+  const settings = (salonRes.data?.settings as Record<string, unknown>) ?? {};
+  const customRoles = (settings.team_roles as string[]) ?? [];
 
   return (
     <main className="p-4 md:p-6 min-w-0">
@@ -41,6 +44,7 @@ export default async function TeamPage() {
         invites={invites}
         appointmentCountByStylist={appointmentCountByStylist}
         isOwner={context.member.role === "owner"}
+        customRoles={customRoles}
       />
     </main>
   );

@@ -11,7 +11,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
 export async function inviteOrAddTeamMember(
   salonId: string,
-  data: { display_name: string; role: "owner" | "stylist"; email?: string }
+  data: { display_name: string; role: string; email?: string }
 ) {
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
@@ -55,15 +55,17 @@ export async function inviteOrAddTeamMember(
 
 export async function updateTeamMember(
   id: string,
-  updates: { display_name?: string; holiday_ranges?: string[]; is_active?: boolean; employment_type?: "EMPLOYEE" | "RENTER"; avatar_url?: string | null }
+  updates: { display_name?: string; role?: string; holiday_ranges?: string[]; is_active?: boolean; employment_type?: "EMPLOYEE" | "RENTER"; avatar_url?: string | null }
 ) {
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
   if (updates.employment_type !== undefined && context.member.role !== "owner") return { error: "Only owners can set employment type" };
+  if (updates.role !== undefined && context.member.role !== "owner") return { error: "Only owners can change roles" };
 
   const payload: Record<string, unknown> = {};
   if (updates.display_name !== undefined) payload.display_name = updates.display_name;
+  if (updates.role !== undefined) payload.role = updates.role.trim() || "stylist";
   if (updates.is_active !== undefined) payload.is_active = updates.is_active;
   if (updates.employment_type !== undefined) payload.employment_type = updates.employment_type;
   if (updates.avatar_url !== undefined) payload.avatar_url = updates.avatar_url;
@@ -77,6 +79,35 @@ export async function updateTeamMember(
     .eq("id", id)
     .eq("salon_id", context.salon.id);
 
+  if (error) return { error: error.message };
+  revalidatePath("/team");
+  return { error: null };
+}
+
+export async function getSalonTeamRoles(salonId: string): Promise<{ error: string | null; roles?: string[] }> {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("salons").select("settings").eq("id", salonId).single();
+  if (error) return { error: error.message };
+  const settings = (data?.settings as Record<string, unknown>) ?? {};
+  const roles = (settings.team_roles as string[]) ?? [];
+  return { error: null, roles };
+}
+
+export async function updateSalonTeamRoles(salonId: string, roles: string[]) {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
+  const trimmed = roles.map((r) => r.trim()).filter(Boolean);
+  const unique = [...new Set(trimmed)];
+  const supabase = await createClient();
+  const { data: existing } = await supabase.from("salons").select("settings").eq("id", salonId).single();
+  if (!existing) return { error: "Salon not found" };
+  const current = (existing.settings as Record<string, unknown>) ?? {};
+  const { error } = await supabase
+    .from("salons")
+    .update({ settings: { ...current, team_roles: unique } })
+    .eq("id", salonId);
   if (error) return { error: error.message };
   revalidatePath("/team");
   return { error: null };
@@ -106,10 +137,13 @@ export async function uploadTeamMemberAvatar(
   if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
   if (context.member.role !== "owner") return { error: "Only owners can update team avatars" };
 
-  const file = formData.get("avatar") as File | null;
-  if (!file || !(file instanceof File) || file.size === 0) return { error: "No file provided" };
-  if (file.size > MAX_AVATAR_BYTES) return { error: "Image must be under 2MB" };
-  if (!ALLOWED_TYPES.includes(file.type)) return { error: "Allowed types: JPEG, PNG, GIF, WebP" };
+  const raw = formData.get("avatar");
+  if (!raw || typeof raw !== "object" || !("size" in raw) || !("type" in raw)) return { error: "No file provided" };
+  const size = Number((raw as { size?: number }).size) || 0;
+  const type = String((raw as { type?: string }).type || "").toLowerCase();
+  if (size === 0) return { error: "No file provided" };
+  if (size > MAX_AVATAR_BYTES) return { error: "Image must be under 2MB" };
+  if (!ALLOWED_TYPES.includes(type)) return { error: "Allowed types: JPEG, PNG, GIF, WebP" };
 
   const supabase = await createClient();
   const { data: member } = await supabase
@@ -120,12 +154,16 @@ export async function uploadTeamMemberAvatar(
     .single();
   if (!member) return { error: "Member not found" };
 
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const name = (raw as { name?: string }).name || "image.jpg";
+  const ext = name.split(".").pop()?.toLowerCase() || "jpg";
   const path = `${salonId}/${memberId}.${ext}`;
   const admin = createAdminClient();
+
+  const arrayBuffer = await (raw as Blob).arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
   const { error: uploadError } = await admin.storage
     .from(AVATAR_BUCKET)
-    .upload(path, file, { upsert: true, contentType: file.type });
+    .upload(path, buffer, { upsert: true, contentType: type });
 
   if (uploadError) return { error: uploadError.message };
 

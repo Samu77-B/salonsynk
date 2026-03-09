@@ -2,10 +2,15 @@
 
 import { useState, useRef } from "react";
 import Image from "next/image";
-import { inviteOrAddTeamMember, updateTeamMember, deleteInvite, uploadTeamMemberAvatar } from "./actions";
+import { inviteOrAddTeamMember, updateTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles } from "./actions";
 
 type Member = { id: string; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string; avatar_url?: string | null };
 type Invite = { id: string; email: string; role: string; display_name: string | null; created_at: string };
+
+const BUILTIN_ROLES = [
+  { value: "stylist", label: "Stylist" },
+  { value: "owner", label: "Owner" },
+] as const;
 
 export function TeamView({
   salonId,
@@ -13,24 +18,31 @@ export function TeamView({
   invites,
   appointmentCountByStylist,
   isOwner,
+  customRoles = [],
 }: {
   salonId: string;
   members: Member[];
   invites: Invite[];
   appointmentCountByStylist: Record<string, number>;
   isOwner: boolean;
+  customRoles?: string[];
 }) {
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
-  const [role, setRole] = useState<"owner" | "stylist">("stylist");
+  const [role, setRole] = useState<string>("stylist");
   const [email, setEmail] = useState("");
   const [editDisplayName, setEditDisplayName] = useState("");
+  const [editRole, setEditRole] = useState<string>("stylist");
   const [editEmploymentType, setEditEmploymentType] = useState<"EMPLOYEE" | "RENTER">("EMPLOYEE");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [rolesLoading, setRolesLoading] = useState(false);
   const editAvatarInputRef = useRef<HTMLInputElement>(null);
   const addAvatarInputRef = useRef<HTMLInputElement>(null);
+
+  const roleOptions = [...BUILTIN_ROLES, ...customRoles.map((r) => ({ value: r, label: r }))];
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -75,7 +87,7 @@ export function TeamView({
     }
     const result = await updateTeamMember(editId, {
       display_name: editDisplayName,
-      ...(isOwner ? { employment_type: editEmploymentType } : {}),
+      ...(isOwner ? { employment_type: editEmploymentType, role: editRole } : {}),
     });
     setLoading(false);
     if (result.error) setError(result.error);
@@ -99,6 +111,24 @@ export function TeamView({
     if (result.error) setError(result.error);
   }
 
+  async function handleAddRole() {
+    const name = newRoleName.trim();
+    if (!name) return;
+    setError(null);
+    setRolesLoading(true);
+    const result = await updateSalonTeamRoles(salonId, [...customRoles, name]);
+    setRolesLoading(false);
+    if (result.error) setError(result.error);
+    else setNewRoleName("");
+  }
+
+  async function handleRemoveRole(roleName: string) {
+    setError(null);
+    setRolesLoading(true);
+    await updateSalonTeamRoles(salonId, customRoles.filter((r) => r !== roleName));
+    setRolesLoading(false);
+  }
+
   return (
     <div className="space-y-6 min-w-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -114,6 +144,50 @@ export function TeamView({
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
+
+      {isOwner && (
+        <section className="rounded-lg border border-border p-4">
+          <h2 className="text-lg font-semibold mb-2">Manage roles</h2>
+          <p className="text-sm text-muted mb-3">Add role names that you can assign when adding or editing team members (e.g. Receptionist, Senior Stylist).</p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {customRoles.map((r) => (
+              <span
+                key={r}
+                className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
+              >
+                {r}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveRole(r)}
+                  disabled={rolesLoading}
+                  className="ml-1 rounded-full hover:bg-background/80 disabled:opacity-50"
+                  aria-label={`Remove role ${r}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newRoleName}
+              onChange={(e) => setNewRoleName(e.target.value)}
+              placeholder="e.g. Receptionist"
+              aria-label="New role name"
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm flex-1 min-w-0"
+            />
+            <button
+              type="button"
+              onClick={handleAddRole}
+              disabled={rolesLoading || !newRoleName.trim()}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+            >
+              Add role
+            </button>
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {members.map((m) => (
@@ -158,6 +232,7 @@ export function TeamView({
                     onClick={() => {
                       setEditId(m.id);
                       setEditDisplayName(m.display_name ?? "");
+                      setEditRole(m.role || "stylist");
                       setEditEmploymentType((m.employment_type as "EMPLOYEE" | "RENTER") || "EMPLOYEE");
                     }}
                     className="text-sm text-accent hover:underline"
@@ -233,12 +308,13 @@ export function TeamView({
                 <label className="block text-sm font-medium mb-1">Role</label>
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value as "owner" | "stylist")}
+                  onChange={(e) => setRole(e.target.value)}
                   aria-label="Role"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 >
-                  <option value="stylist">Stylist</option>
-                  <option value="owner">Owner</option>
+                  {roleOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
               </div>
               {isOwner && (
@@ -269,6 +345,9 @@ export function TeamView({
 
       {editId && (() => {
         const member = members.find((m) => m.id === editId);
+        const editRoleOptions = member && !roleOptions.some((o) => o.value === member.role)
+          ? [...roleOptions, { value: member.role, label: member.role }]
+          : roleOptions;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setEditId(null)}>
             <div className="w-full max-w-md rounded-lg border border-border bg-background p-6" onClick={(e) => e.stopPropagation()}>
@@ -317,6 +396,20 @@ export function TeamView({
                   />
                 </div>
                 {isOwner && (
+                  <>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Role</label>
+                    <select
+                      value={editRole}
+                      onChange={(e) => setEditRole(e.target.value)}
+                      aria-label="Role"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    >
+                      {editRoleOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Employment type</label>
                     <select
@@ -329,6 +422,7 @@ export function TeamView({
                       <option value="RENTER">Renter (split: stylist + admin fee to salon)</option>
                     </select>
                   </div>
+                  </>
                 )}
                 <div className="flex gap-2 pt-2">
                   <button type="button" onClick={() => setEditId(null)} className="rounded-lg border border-border px-4 py-2 text-sm">
