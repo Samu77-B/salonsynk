@@ -216,6 +216,20 @@ export async function adminResendOwnerInvite(
     "https://salonsynk.vercel.app";
   const redirectTo = `${baseUrl}/auth/callback`;
 
+  function getActionLink(d: unknown): string | null {
+    if (!d || typeof d !== "object") return null;
+    const o = d as Record<string, unknown>;
+    const direct = o.action_link;
+    if (typeof direct === "string") return direct;
+    const props = o.properties as Record<string, unknown> | undefined;
+    const fromProps = props?.action_link;
+    if (typeof fromProps === "string") return fromProps;
+    const user = o.user as Record<string, unknown> | undefined;
+    const fromUser = user?.action_link;
+    if (typeof fromUser === "string") return fromUser;
+    return null;
+  }
+
   const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
     type: "invite",
     email: trimmed,
@@ -229,16 +243,16 @@ export async function adminResendOwnerInvite(
       options: { redirectTo },
     });
     if (recoveryError) return { error: linkError.message };
-    const actionLink = (recoveryData as { action_link?: string })?.action_link;
-    if (!actionLink) return { error: "Could not generate link" };
+    const actionLink = getActionLink(recoveryData);
+    if (!actionLink) return { error: "Could not generate link. User may need to be invited first." };
     const err = await sendOwnerInviteLink(trimmed, actionLink, salonName);
     if (err.error) return err;
     revalidatePath(`/admin/salons/${salonId}`);
     return {};
   }
 
-  const actionLink = (linkData as { action_link?: string })?.action_link;
-  if (!actionLink) return { error: "Could not generate link" };
+  const actionLink = getActionLink(linkData);
+  if (!actionLink) return { error: "Could not generate link. User may need to be invited first." };
 
   const err = await sendOwnerInviteLink(trimmed, actionLink, salonName);
   if (err.error) return err;
