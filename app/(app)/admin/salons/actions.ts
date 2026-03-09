@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
+import { sendOwnerInviteLink } from "@/lib/email";
 
 export type BrandingInput = {
   logo_url?: string;
@@ -153,9 +154,15 @@ export async function adminInviteOwner(
 
   const name = (displayName?.trim() || trimmed.split("@")[0]) || "Owner";
 
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+    "https://salonsynk.vercel.app";
+  const redirectTo = `${baseUrl}/auth/callback`;
+
   const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
     trimmed,
-    { data: { full_name: name } }
+    { data: { full_name: name }, redirectTo }
   );
 
   if (inviteError) {
@@ -181,6 +188,60 @@ export async function adminInviteOwner(
 
   if (memberError) return { error: memberError.message };
   revalidatePath("/admin/salons");
+  revalidatePath(`/admin/salons/${salonId}`);
+  return {};
+}
+
+/** Resend invite link to an owner's email (e.g. after fixing Site URL). Uses generateLink + Resend. */
+export async function adminResendOwnerInvite(
+  salonId: string,
+  email: string
+) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) return { error: "Email is required" };
+
+  const { data: salon } = await supabase
+    .from("salons")
+    .select("name")
+    .eq("id", salonId)
+    .single();
+  if (!salon) return { error: "Salon not found" };
+  const salonName = (salon.name as string) || "the salon";
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+    "https://salonsynk.vercel.app";
+  const redirectTo = `${baseUrl}/auth/callback`;
+
+  const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+    type: "invite",
+    email: trimmed,
+    options: { redirectTo },
+  });
+
+  if (linkError) {
+    const { data: recoveryData, error: recoveryError } = await supabase.auth.admin.generateLink({
+      type: "recovery",
+      email: trimmed,
+      options: { redirectTo },
+    });
+    if (recoveryError) return { error: linkError.message };
+    const actionLink = (recoveryData as { action_link?: string })?.action_link;
+    if (!actionLink) return { error: "Could not generate link" };
+    const err = await sendOwnerInviteLink(trimmed, actionLink, salonName);
+    if (err.error) return err;
+    revalidatePath(`/admin/salons/${salonId}`);
+    return {};
+  }
+
+  const actionLink = (linkData as { action_link?: string })?.action_link;
+  if (!actionLink) return { error: "Could not generate link" };
+
+  const err = await sendOwnerInviteLink(trimmed, actionLink, salonName);
+  if (err.error) return err;
   revalidatePath(`/admin/salons/${salonId}`);
   return {};
 }

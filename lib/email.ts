@@ -59,6 +59,26 @@ export async function sendBookingConfirmation(
   return { error: normalizeResendError(error) };
 }
 
+export async function sendOwnerInviteLink(
+  to: string,
+  inviteLink: string,
+  salonName: string
+): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured" };
+  const html = `
+    <p>You've been invited to manage <strong>${salonName}</strong> on SalonSynk.</p>
+    <p><a href="${inviteLink}" style="display:inline-block;background:#7c3aed;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:600;">Accept the invite</a></p>
+    <p>This link lets you set your password and log in. If you didn't expect this, you can ignore this email.</p>
+  `;
+  const { error } = await resend.emails.send({
+    from: "SalonSynk <onboarding@resend.dev>",
+    to: [to],
+    subject: `You're invited to manage ${salonName} on SalonSynk`,
+    html,
+  });
+  return { error: normalizeResendError(error) };
+}
+
 export async function sendReviewRequest(
   to: string,
   details: { clientName?: string; salonName: string; reviewUrl?: string }

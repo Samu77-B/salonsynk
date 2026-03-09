@@ -6,6 +6,7 @@ import {
   adminUpdateSalon,
   adminAssignOwner,
   adminInviteOwner,
+  adminResendOwnerInvite,
   adminDeleteSalon,
   type BrandingInput,
 } from "../actions";
@@ -47,6 +48,10 @@ export function AdminEditSalonForm({
   const [inviteMsg, setInviteMsg] = useState<"saved" | "error" | null>(null);
   const [inviteErrorText, setInviteErrorText] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendMsg, setResendMsg] = useState<"saved" | "error" | null>(null);
+  const [resendErrorText, setResendErrorText] = useState("");
+  const [resendLoading, setResendLoading] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -243,6 +248,47 @@ export function AdminEditSalonForm({
             </form>
             {assignMsg === "saved" && <p className="text-sm text-green-400 mt-2">Owner added.</p>}
             {assignMsg === "error" && <p className="text-sm text-red-400 mt-2">Could not add (user may not exist).</p>}
+          </div>
+          <div>
+            <h3 className="text-sm font-medium mb-1">Resend invite link</h3>
+            <p className="text-xs text-muted mb-2">Send a new invite link (e.g. after fixing the Site URL). Uses production URL.</p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!resendEmail.trim()) return;
+                setResendMsg(null);
+                setResendErrorText("");
+                setResendLoading(true);
+                const result = await adminResendOwnerInvite(salonId, resendEmail);
+                setResendLoading(false);
+                setResendMsg(result.error ? "error" : "saved");
+                if (result.error) setResendErrorText(result.error);
+                else setResendEmail("");
+              }}
+              className="flex gap-2 flex-wrap items-end"
+            >
+              <div>
+                <label htmlFor="resend-email" className="sr-only">Email</label>
+                <input
+                  id="resend-email"
+                  type="email"
+                  value={resendEmail}
+                  onChange={(e) => setResendEmail(e.target.value)}
+                  placeholder="kiri@fabhair.london"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-64"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={resendLoading || !resendEmail.trim()}
+                className="rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-50"
+              >
+                {resendLoading ? "Sending…" : "Resend invite"}
+              </button>
+            </form>
+            {resendMsg === "saved" && <p className="text-sm text-green-400 mt-2">New invite link sent to that email.</p>}
+            {resendMsg === "error" && <p className="text-sm text-red-400 mt-2">{resendErrorText || "Could not send."}</p>}
           </div>
         </div>
       </section>
