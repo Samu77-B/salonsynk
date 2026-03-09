@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { inviteOrAddTeamMember, updateTeamMember, deleteInvite } from "./actions";
+import { useState, useRef } from "react";
+import Image from "next/image";
+import { inviteOrAddTeamMember, updateTeamMember, deleteInvite, uploadTeamMemberAvatar } from "./actions";
 
-type Member = { id: string; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string };
+type Member = { id: string; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string; avatar_url?: string | null };
 type Invite = { id: string; email: string; role: string; display_name: string | null; created_at: string };
 
 export function TeamView({
@@ -28,20 +29,32 @@ export function TeamView({
   const [editEmploymentType, setEditEmploymentType] = useState<"EMPLOYEE" | "RENTER">("EMPLOYEE");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const editAvatarInputRef = useRef<HTMLInputElement>(null);
+  const addAvatarInputRef = useRef<HTMLInputElement>(null);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     const result = await inviteOrAddTeamMember(salonId, { display_name: displayName, role, email: email || undefined });
-    setLoading(false);
-    if (result.error) setError(result.error);
-    else {
-      setAddOpen(false);
-      setDisplayName("");
-      setEmail("");
-      setRole("stylist");
+    if (result.error) {
+      setLoading(false);
+      setError(result.error);
+      return;
     }
+    const avatarFile = addAvatarInputRef.current?.files?.[0];
+    if (result.memberId && avatarFile && isOwner) {
+      const formData = new FormData();
+      formData.append("avatar", avatarFile);
+      const uploadResult = await uploadTeamMemberAvatar(salonId, result.memberId, formData);
+      if (uploadResult.error) setError(uploadResult.error);
+    }
+    setLoading(false);
+    setAddOpen(false);
+    setDisplayName("");
+    setEmail("");
+    setRole("stylist");
+    addAvatarInputRef.current && (addAvatarInputRef.current.value = "");
   }
 
   async function handleUpdateMember(e: React.FormEvent) {
@@ -49,13 +62,27 @@ export function TeamView({
     if (!editId) return;
     setError(null);
     setLoading(true);
+    const avatarFile = editAvatarInputRef.current?.files?.[0];
+    if (avatarFile && isOwner) {
+      const formData = new FormData();
+      formData.append("avatar", avatarFile);
+      const uploadResult = await uploadTeamMemberAvatar(salonId, editId, formData);
+      if (uploadResult.error) {
+        setError(uploadResult.error);
+        setLoading(false);
+        return;
+      }
+    }
     const result = await updateTeamMember(editId, {
       display_name: editDisplayName,
       ...(isOwner ? { employment_type: editEmploymentType } : {}),
     });
     setLoading(false);
     if (result.error) setError(result.error);
-    else setEditId(null);
+    else {
+      setEditId(null);
+      editAvatarInputRef.current && (editAvatarInputRef.current.value = "");
+    }
   }
 
   async function handleDeactivate(id: string) {
@@ -95,17 +122,34 @@ export function TeamView({
             className={`rounded-lg border border-border p-4 ${!m.is_active ? "opacity-60" : ""}`}
           >
             <div className="flex items-start justify-between gap-2 min-w-0">
-              <div className="min-w-0">
-                <p className="font-medium truncate">{m.display_name || m.role}</p>
-                <p className="text-sm text-muted capitalize">{m.role}</p>
-                {m.role === "stylist" && (
-                  <p className="text-xs text-muted">
-                    {(m.employment_type as string) === "RENTER" ? "Renter" : "Employee"}
+              <div className="flex gap-3 min-w-0 flex-1">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
+                  {m.avatar_url ? (
+                    <Image
+                      src={m.avatar_url}
+                      alt={m.display_name || "Team member"}
+                      fill
+                      className="object-cover"
+                      sizes="48px"
+                    />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-lg font-medium text-muted-foreground">
+                      {(m.display_name || m.role).charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{m.display_name || m.role}</p>
+                  <p className="text-sm text-muted capitalize">{m.role}</p>
+                  {m.role === "stylist" && (
+                    <p className="text-xs text-muted">
+                      {(m.employment_type as string) === "RENTER" ? "Renter" : "Employee"}
+                    </p>
+                  )}
+                  <p className="mt-2 text-xs text-muted">
+                    Appointments (last 30 days): {appointmentCountByStylist[m.id] ?? 0}
                   </p>
-                )}
-                <p className="mt-2 text-xs text-muted">
-                  Appointments (last 30 days): {appointmentCountByStylist[m.id] ?? 0}
-                </p>
+                </div>
               </div>
               {isOwner && m.is_active && (
                 <div className="flex gap-2">
@@ -159,44 +203,63 @@ export function TeamView({
       {addOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setAddOpen(false)}>
           <div className="w-full max-w-md rounded-lg border border-border bg-background p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4">Invite team member</h2>
+            <h2 className="text-lg font-semibold mb-4">Add team member</h2>
             <form onSubmit={handleInvite} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                />
-              </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Display name</label>
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="e.g. Jane Smith"
+                  aria-label="Display name"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Email (optional)</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Invite by email later"
+                  aria-label="Email (optional)"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
+                <p className="text-xs text-muted mt-1">Leave blank to add them without an account. You can invite by email later.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Role</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as "owner" | "stylist")}
+                  aria-label="Role"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 >
                   <option value="stylist">Stylist</option>
                   <option value="owner">Owner</option>
                 </select>
               </div>
+              {isOwner && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Profile image (optional)</label>
+                  <input
+                    ref={addAvatarInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    aria-label="Upload profile image"
+                    className="block w-full text-sm text-muted file:mr-2 file:rounded file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-background"
+                  />
+                  <p className="text-xs text-muted mt-1">JPEG, PNG, GIF or WebP. Max 2MB.</p>
+                </div>
+              )}
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setAddOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm">
                   Cancel
                 </button>
-                <button type="submit" disabled={loading} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50">
-                  {loading ? "Sending…" : "Send invite"}
+                <button type="submit" disabled={loading || !displayName.trim()} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50">
+                  {loading ? "Adding…" : email.trim() ? "Send invite" : "Add member"}
                 </button>
               </div>
             </form>
@@ -204,45 +267,82 @@ export function TeamView({
         </div>
       )}
 
-      {editId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setEditId(null)}>
-          <div className="w-full max-w-md rounded-lg border border-border bg-background p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4">Edit member</h2>
-            <form onSubmit={handleUpdateMember} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Display name</label>
-                <input
-                  type="text"
-                  value={editDisplayName}
-                  onChange={(e) => setEditDisplayName(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                />
-              </div>
-              {isOwner && (
+      {editId && (() => {
+        const member = members.find((m) => m.id === editId);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setEditId(null)}>
+            <div className="w-full max-w-md rounded-lg border border-border bg-background p-6" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-lg font-semibold mb-4">Edit member</h2>
+              <form onSubmit={handleUpdateMember} className="space-y-4">
+                {isOwner && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Profile image</label>
+                    <div className="flex items-center gap-4">
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
+                        {member?.avatar_url ? (
+                          <Image
+                            src={member.avatar_url}
+                            alt={member.display_name || "Member"}
+                            fill
+                            className="object-cover"
+                            sizes="64px"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-xl font-medium text-muted-foreground">
+                            {(member?.display_name || "?").charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <input
+                          ref={editAvatarInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/gif,image/webp"
+                          aria-label="Upload profile image"
+                          className="block w-full text-sm text-muted file:mr-2 file:rounded file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-background"
+                        />
+                        <p className="text-xs text-muted mt-1">JPEG, PNG, GIF or WebP. Max 2MB.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div>
-                  <label className="block text-sm font-medium mb-1">Employment type</label>
-                  <select
-                    value={editEmploymentType}
-                    onChange={(e) => setEditEmploymentType(e.target.value as "EMPLOYEE" | "RENTER")}
+                  <label className="block text-sm font-medium mb-1">Display name</label>
+                  <input
+                    type="text"
+                    value={editDisplayName}
+                    onChange={(e) => setEditDisplayName(e.target.value)}
+                    aria-label="Display name"
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="EMPLOYEE">Employee (100% to salon)</option>
-                    <option value="RENTER">Renter (split: stylist + admin fee to salon)</option>
-                  </select>
+                  />
                 </div>
-              )}
-              <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setEditId(null)} className="rounded-lg border border-border px-4 py-2 text-sm">
-                  Cancel
-                </button>
-                <button type="submit" disabled={loading} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50">
-                  Save
-                </button>
-              </div>
-            </form>
+                {isOwner && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Employment type</label>
+                    <select
+                      value={editEmploymentType}
+                      onChange={(e) => setEditEmploymentType(e.target.value as "EMPLOYEE" | "RENTER")}
+                      aria-label="Employment type"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="EMPLOYEE">Employee (100% to salon)</option>
+                      <option value="RENTER">Renter (split: stylist + admin fee to salon)</option>
+                    </select>
+                  </div>
+                )}
+                <div className="flex gap-2 pt-2">
+                  <button type="button" onClick={() => setEditId(null)} className="rounded-lg border border-border px-4 py-2 text-sm">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={loading} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50">
+                    Save
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
