@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { sendAftercareEmail } from "./email";
 import { canSendSms, canSendWhatsApp, sendSms, sendWhatsApp } from "./sms";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -59,12 +60,6 @@ export async function sendAftercare(hoursAfterEnd = 2) {
         else lastError = error;
       }
     }
-    if (!sent && email) {
-      const { error } = await sendAftercareEmail(email, message, salonName);
-      if (!error) sent = true;
-      else lastError = error;
-    }
-
     if (!sent && email) {
       const { error } = await sendAftercareEmail(email, message, salonName);
       if (!error) sent = true;
