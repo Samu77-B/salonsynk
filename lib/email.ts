@@ -71,7 +71,7 @@ export async function sendOwnerInviteLink(
   if (!resend) return { error: "Resend not configured" };
   const html = `
     <p>You've been invited to manage <strong>${salonName}</strong> on SalonSynk.</p>
-    <p><a href="${inviteLink}" style="display:inline-block;background:#7c3aed;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:600;">Accept the invite</a></p>
+    <p><a href="${inviteLink}" style="display:inline-block;background:#7c3aed;color:white;padding:12px 24px;text-decoration:none;border-radius:0;font-weight:600;">Accept the invite</a></p>
     <p>This link lets you set your password and log in. If you didn't expect this, you can ignore this email.</p>
   `;
   const { error } = await resend.emails.send({

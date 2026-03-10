@@ -37,8 +37,6 @@ function formatDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
-const CELL_HEIGHT_PX = 48;
-
 function AppointmentBlock({
   a,
   cellStart,
@@ -70,30 +68,32 @@ function AppointmentBlock({
   const end = new Date(a.end_time);
   const startOffset = (start.getTime() - cellStart.getTime()) / 60000;
   const durationMinutes = (end.getTime() - start.getTime()) / 60000;
-  const top =
-    slotCount > 1
-      ? (slotIndex / slotCount) * CELL_HEIGHT_PX
-      : startOffset * 0.8;
-  const height =
-    slotCount > 1
-      ? (1 / slotCount) * CELL_HEIGHT_PX
-      : durationMinutes * 0.8;
+  const top = startOffset * 0.8;
+  const height = durationMinutes * 0.8;
   const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
   const service = Array.isArray(a.services) ? a.services[0] : a.services;
   const stylist = members.find((m) => m.id === a.stylist_id)?.display_name;
   const label = (client?.name || a.guest_name || "—") as string;
   const sub = (service?.name || "") as string;
   const blockColor = stylistColorMap[a.stylist_id];
-  const isCompact = slotCount > 1 && height < 36;
+  const isRow = slotCount > 1;
+  const isCompact = isRow;
   return (
     <div
-      className="absolute left-1 right-1 rounded-lg border overflow-hidden border-accent/50 bg-accent/20 flex flex-col shadow-sm"
-      style={{
-        top: `${top}px`,
-        minHeight: `${slotCount > 1 ? Math.max(24, height) : Math.max(48, height)}px`,
-        padding: isCompact ? "2px 6px" : "4px 8px",
-        ...(blockColor ? { borderColor: `${blockColor}99`, backgroundColor: `${blockColor}20` } : {}),
-      }}
+      className={`rounded-lg border overflow-hidden border-accent/50 bg-accent/20 flex flex-col shadow-sm ${isRow ? "flex-1 min-w-0" : "absolute left-1 right-1"}`}
+      style={
+        isRow
+          ? {
+              padding: "4px 6px",
+              ...(blockColor ? { borderColor: `${blockColor}99`, backgroundColor: `${blockColor}20` } : {}),
+            }
+          : {
+              top: `${top}px`,
+              minHeight: `${Math.max(48, height)}px`,
+              padding: "4px 8px",
+              ...(blockColor ? { borderColor: `${blockColor}99`, backgroundColor: `${blockColor}20` } : {}),
+            }
+      }
     >
       <div
         draggable
@@ -411,23 +411,62 @@ export function DiaryView({
                                 handleReschedule(id, newStart, newEnd);
                               }}
                             >
-                              {inCell.map((a, idx) => (
-                                <AppointmentBlock
-                                  key={a.id}
-                                  a={a}
-                                  cellStart={cellStart}
-                                  members={members}
-                                  stylistColorMap={stylistColorMap}
-                                  appointments={appointments}
-                                  onReschedule={handleReschedule}
-                                  onEdit={() => setEditId(a.id)}
-                                  onDelete={() => handleDelete(a.id)}
-                                  onDragStart={() => setMovingId(a.id)}
-                                  onDragEnd={() => setMovingId(null)}
-                                  slotIndex={idx}
-                                  slotCount={inCell.length}
-                                />
-                              ))}
+                              {inCell.length > 1 ? (
+                                <div
+                                  className="flex flex-row gap-1 h-full min-h-[48px]"
+                                  onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.dataTransfer.dropEffect = "move";
+                                  }}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    const id = e.dataTransfer.getData("text/plain");
+                                    if (!id) return;
+                                    const apt = appointments.find((a) => a.id === id);
+                                    if (!apt) return;
+                                    const newStart = new Date(cellStart);
+                                    const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
+                                    const newEnd = new Date(newStart.getTime() + durationMs);
+                                    handleReschedule(id, newStart, newEnd);
+                                  }}
+                                >
+                                  {inCell.map((a, idx) => (
+                                    <AppointmentBlock
+                                      key={a.id}
+                                      a={a}
+                                      cellStart={cellStart}
+                                      members={members}
+                                      stylistColorMap={stylistColorMap}
+                                      appointments={appointments}
+                                      onReschedule={handleReschedule}
+                                      onEdit={() => setEditId(a.id)}
+                                      onDelete={() => handleDelete(a.id)}
+                                      onDragStart={() => setMovingId(a.id)}
+                                      onDragEnd={() => setMovingId(null)}
+                                      slotIndex={idx}
+                                      slotCount={inCell.length}
+                                    />
+                                  ))}
+                                </div>
+                              ) : (
+                                inCell.map((a, idx) => (
+                                  <AppointmentBlock
+                                    key={a.id}
+                                    a={a}
+                                    cellStart={cellStart}
+                                    members={members}
+                                    stylistColorMap={stylistColorMap}
+                                    appointments={appointments}
+                                    onReschedule={handleReschedule}
+                                    onEdit={() => setEditId(a.id)}
+                                    onDelete={() => handleDelete(a.id)}
+                                    onDragStart={() => setMovingId(a.id)}
+                                    onDragEnd={() => setMovingId(null)}
+                                    slotIndex={idx}
+                                    slotCount={inCell.length}
+                                  />
+                                ))
+                              )}
                             </td>
                           </tr>
                         );
@@ -494,23 +533,62 @@ export function DiaryView({
                           handleReschedule(id, newStart, newEnd);
                         }}
                       >
-                        {inCell.map((a, idx) => (
-                          <AppointmentBlock
-                            key={a.id}
-                            a={a}
-                            cellStart={cellStart}
-                            members={members}
-                            stylistColorMap={stylistColorMap}
-                            appointments={appointments}
-                            onReschedule={handleReschedule}
-                            onEdit={() => setEditId(a.id)}
-                            onDelete={() => handleDelete(a.id)}
-                            onDragStart={() => setMovingId(a.id)}
-                            onDragEnd={() => setMovingId(null)}
-                            slotIndex={idx}
-                            slotCount={inCell.length}
-                          />
-                        ))}
+                        {inCell.length > 1 ? (
+                          <div
+                            className="flex flex-row gap-1 h-full min-h-[48px]"
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = "move";
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const id = e.dataTransfer.getData("text/plain");
+                              if (!id) return;
+                              const apt = appointments.find((a) => a.id === id);
+                              if (!apt) return;
+                              const newStart = new Date(cellStart);
+                              const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
+                              const newEnd = new Date(newStart.getTime() + durationMs);
+                              handleReschedule(id, newStart, newEnd);
+                            }}
+                          >
+                            {inCell.map((a, idx) => (
+                              <AppointmentBlock
+                                key={a.id}
+                                a={a}
+                                cellStart={cellStart}
+                                members={members}
+                                stylistColorMap={stylistColorMap}
+                                appointments={appointments}
+                                onReschedule={handleReschedule}
+                                onEdit={() => setEditId(a.id)}
+                                onDelete={() => handleDelete(a.id)}
+                                onDragStart={() => setMovingId(a.id)}
+                                onDragEnd={() => setMovingId(null)}
+                                slotIndex={idx}
+                                slotCount={inCell.length}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          inCell.map((a, idx) => (
+                            <AppointmentBlock
+                              key={a.id}
+                              a={a}
+                              cellStart={cellStart}
+                              members={members}
+                              stylistColorMap={stylistColorMap}
+                              appointments={appointments}
+                              onReschedule={handleReschedule}
+                              onEdit={() => setEditId(a.id)}
+                              onDelete={() => handleDelete(a.id)}
+                              onDragStart={() => setMovingId(a.id)}
+                              onDragEnd={() => setMovingId(null)}
+                              slotIndex={idx}
+                              slotCount={inCell.length}
+                            />
+                          ))
+                        )}
                       </td>
                     );
                   })}
