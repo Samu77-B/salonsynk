@@ -271,36 +271,7 @@ export function DiaryView({
                         return (
                           <div
                             key={a.id}
-                            draggable
-                            onDragStart={(e) => {
-                              const hit = document.elementFromPoint(e.clientX, e.clientY);
-                              if (hit?.closest("button")) {
-                                e.preventDefault();
-                                return;
-                              }
-                              setMovingId(a.id);
-                              e.dataTransfer.setData("text/plain", a.id);
-                              e.dataTransfer.effectAllowed = "move";
-                            }}
-                            onDragEnd={() => setMovingId(null)}
-                            onDragOver={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              e.dataTransfer.dropEffect = "move";
-                            }}
-                            onDrop={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const id = e.dataTransfer.getData("text/plain");
-                              if (!id || id === a.id) return;
-                              const apt = appointments.find((ap) => ap.id === id);
-                              if (!apt) return;
-                              const newStart = new Date(cellStart);
-                              const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
-                              const newEnd = new Date(newStart.getTime() + durationMs);
-                              handleReschedule(id, newStart, newEnd);
-                            }}
-                            className="absolute left-1 right-1 rounded border px-2 py-1 cursor-move overflow-hidden border-accent/50 bg-accent/20"
+                            className="absolute left-1 right-1 rounded border px-2 py-1 overflow-hidden border-accent/50 bg-accent/20 flex flex-col"
                             style={{
                               top: `${top}px`,
                               minHeight: `${Math.max(24, height)}px`,
@@ -309,10 +280,43 @@ export function DiaryView({
                                 : {}),
                             }}
                           >
-                            <span className="font-medium truncate block">{label}</span>
-                            {stylist && <span className="text-xs text-muted truncate block">{stylist}</span>}
-                            {sub && <span className="text-xs text-muted truncate block">{sub}</span>}
-                            <div className="mt-1 flex gap-1" onPointerDown={(e) => e.stopPropagation()}>
+                            <div
+                              draggable
+                              onDragStart={(e) => {
+                                setMovingId(a.id);
+                                e.dataTransfer.setData("text/plain", a.id);
+                                e.dataTransfer.effectAllowed = "move";
+                                const el = e.currentTarget.parentElement;
+                                if (el) {
+                                  const rect = el.getBoundingClientRect();
+                                  e.dataTransfer.setDragImage(el, e.clientX - rect.left, e.clientY - rect.top);
+                                }
+                              }}
+                              onDragEnd={() => setMovingId(null)}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.dataTransfer.dropEffect = "move";
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const id = e.dataTransfer.getData("text/plain");
+                                if (!id || id === a.id) return;
+                                const apt = appointments.find((ap) => ap.id === id);
+                                if (!apt) return;
+                                const newStart = new Date(cellStart);
+                                const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
+                                const newEnd = new Date(newStart.getTime() + durationMs);
+                                handleReschedule(id, newStart, newEnd);
+                              }}
+                              className="flex-1 min-h-0 cursor-move"
+                            >
+                              <span className="font-medium truncate block">{label}</span>
+                              {stylist && <span className="text-xs text-muted truncate block">{stylist}</span>}
+                              {sub && <span className="text-xs text-muted truncate block">{sub}</span>}
+                            </div>
+                            <div className="mt-1 flex gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => setEditId(a.id)}
