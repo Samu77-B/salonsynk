@@ -206,7 +206,7 @@ export function DiaryView({
   }, [members]);
 
   const daysToShow = view === "day"
-    ? Array.from({ length: 3 }, (_, i) => {
+    ? Array.from({ length: 2 }, (_, i) => {
         const d = new Date(dateObj);
         d.setDate(d.getDate() + i);
         return d;
@@ -290,7 +290,7 @@ export function DiaryView({
           <button
             onClick={() => {
               const d = new Date(currentDate + "T12:00:00");
-              d.setDate(d.getDate() - (view === "day" ? 3 : 7));
+              d.setDate(d.getDate() - (view === "day" ? 2 : 7));
               setCurrentDate(formatDate(d));
             }}
             className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
@@ -299,13 +299,13 @@ export function DiaryView({
           </button>
           <span className="text-sm text-muted min-w-0 sm:min-w-[180px] text-center shrink-0 font-medium">
             {view === "day"
-              ? `${daysToShow[0].toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} – ${daysToShow[2].toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`
+              ? `${daysToShow[0].toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} – ${daysToShow[1].toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`
               : `${daysToShow[0].toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${daysToShow[6].toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
           </span>
           <button
             onClick={() => {
               const d = new Date(currentDate + "T12:00:00");
-              d.setDate(d.getDate() + (view === "day" ? 3 : 7));
+              d.setDate(d.getDate() + (view === "day" ? 2 : 7));
               setCurrentDate(formatDate(d));
             }}
             className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
@@ -318,7 +318,7 @@ export function DiaryView({
             aria-label="View"
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
           >
-            <option value="day">3 days</option>
+            <option value="day">2 days</option>
             <option value="week">Week</option>
           </select>
           <select
