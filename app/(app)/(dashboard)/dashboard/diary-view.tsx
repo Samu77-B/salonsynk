@@ -36,6 +36,96 @@ const HOURS = Array.from({ length: 15 }, (_, i) => i + 6); // 6am–8pm
 function formatDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
+
+function AppointmentBlock({
+  a,
+  cellStart,
+  members,
+  stylistColorMap,
+  appointments,
+  onReschedule,
+  onEdit,
+  onDelete,
+  onDragStart,
+  onDragEnd,
+}: {
+  a: Appointment;
+  cellStart: Date;
+  members: Member[];
+  stylistColorMap: Record<string, string>;
+  appointments: Appointment[];
+  onReschedule: (id: string, newStart: Date, newEnd: Date) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+}) {
+  const start = new Date(a.start_time);
+  const end = new Date(a.end_time);
+  const top = ((start.getTime() - cellStart.getTime()) / 60000) * 0.8;
+  const height = ((end.getTime() - start.getTime()) / 60000) * 0.8;
+  const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
+  const service = Array.isArray(a.services) ? a.services[0] : a.services;
+  const stylist = members.find((m) => m.id === a.stylist_id)?.display_name;
+  const label = (client?.name || a.guest_name || "—") as string;
+  const sub = (service?.name || "") as string;
+  const blockColor = stylistColorMap[a.stylist_id];
+  return (
+    <div
+      className="absolute left-1 right-1 rounded-lg border px-2 py-1 overflow-hidden border-accent/50 bg-accent/20 flex flex-col shadow-sm"
+      style={{
+        top: `${top}px`,
+        minHeight: `${Math.max(24, height)}px`,
+        ...(blockColor ? { borderColor: `${blockColor}99`, backgroundColor: `${blockColor}20` } : {}),
+      }}
+    >
+      <div
+        draggable
+        onDragStart={(e) => {
+          onDragStart?.();
+          e.dataTransfer.setData("text/plain", a.id);
+          e.dataTransfer.effectAllowed = "move";
+          const el = e.currentTarget.parentElement;
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            e.dataTransfer.setDragImage(el, e.clientX - rect.left, e.clientY - rect.top);
+          }
+        }}
+        onDragEnd={() => onDragEnd?.()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = "move";
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = e.dataTransfer.getData("text/plain");
+          if (!id || id === a.id) return;
+          const apt = appointments.find((ap) => ap.id === id);
+          if (!apt) return;
+          const newStart = new Date(cellStart);
+          const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
+          const newEnd = new Date(newStart.getTime() + durationMs);
+          onReschedule(id, newStart, newEnd);
+        }}
+        className="flex-1 min-h-0 cursor-move"
+      >
+        <span className="font-medium truncate block">{label}</span>
+        {stylist && <span className="text-xs text-muted truncate block">{stylist}</span>}
+        {sub && <span className="text-xs text-muted truncate block">{sub}</span>}
+      </div>
+      <div className="mt-1 flex gap-1 shrink-0">
+        <button type="button" onClick={onEdit} className="text-xs text-accent hover:underline">
+          Edit
+        </button>
+        <button type="button" onClick={onDelete} className="text-xs text-red-400 hover:underline">
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
 function toLocalISO(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -78,24 +168,31 @@ export function DiaryView({
     return m;
   }, [members]);
 
+  const daysToShow = view === "day"
+    ? Array.from({ length: 3 }, (_, i) => {
+        const d = new Date(dateObj);
+        d.setDate(d.getDate() + i);
+        return d;
+      })
+    : Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(dateObj);
+        d.setDate(d.getDate() - dateObj.getDay() + i);
+        return d;
+      });
+
   const filteredAppointments = useMemo(() => {
     let list = appointments.filter((a) => a.status === "scheduled" || a.status === "completed");
     if (filterStylistId) list = list.filter((a) => a.stylist_id === filterStylistId);
-    const dayStart = new Date(dateObj);
+    const dayStart = new Date(daysToShow[0]);
     dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + (view === "day" ? 1 : 7));
+    const dayEnd = new Date(daysToShow[daysToShow.length - 1]);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    dayEnd.setHours(0, 0, 0, 0);
     return list.filter((a) => {
       const s = new Date(a.start_time);
       return s >= dayStart && s < dayEnd;
     });
-  }, [appointments, filterStylistId, dateObj, view]);
-
-  const daysToShow = view === "day" ? [dateObj] : Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(dateObj);
-    d.setDate(d.getDate() - dateObj.getDay() + i);
-    return d;
-  });
+  }, [appointments, filterStylistId, daysToShow]);
 
   function getRangesForDay(day: Date, stylistId: string, excludeId?: string): TimeRange[] {
     const dayStart = new Date(day);
@@ -146,33 +243,35 @@ export function DiaryView({
     if (result.error) setError(result.error);
   }
 
+  const todayStr = formatDate(new Date());
+
   return (
-    <div className="space-y-4 min-w-0">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="space-y-6 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-xl sm:text-2xl font-bold truncate min-w-0">{salonName}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => {
               const d = new Date(currentDate + "T12:00:00");
-              d.setDate(d.getDate() - (view === "day" ? 1 : 7));
+              d.setDate(d.getDate() - (view === "day" ? 3 : 7));
               setCurrentDate(formatDate(d));
             }}
-            className="rounded-lg border border-border px-3 py-1 text-sm"
+            className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
           >
             Prev
           </button>
-          <span className="text-sm text-muted min-w-0 sm:min-w-[140px] text-center shrink-0">
+          <span className="text-sm text-muted min-w-0 sm:min-w-[180px] text-center shrink-0 font-medium">
             {view === "day"
-              ? dateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+              ? `${daysToShow[0].toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} – ${daysToShow[2].toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`
               : `${daysToShow[0].toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${daysToShow[6].toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
           </span>
           <button
             onClick={() => {
               const d = new Date(currentDate + "T12:00:00");
-              d.setDate(d.getDate() + (view === "day" ? 1 : 7));
+              d.setDate(d.getDate() + (view === "day" ? 3 : 7));
               setCurrentDate(formatDate(d));
             }}
-            className="rounded-lg border border-border px-3 py-1 text-sm"
+            className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
           >
             Next
           </button>
@@ -180,16 +279,16 @@ export function DiaryView({
             value={view}
             onChange={(e) => setView(e.target.value as "day" | "week")}
             aria-label="View"
-            className="rounded-lg border border-border bg-background px-3 py-1 text-sm"
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
           >
-            <option value="day">Day</option>
+            <option value="day">3 days</option>
             <option value="week">Week</option>
           </select>
           <select
             value={filterStylistId ?? ""}
             onChange={(e) => setFilterStylistId(e.target.value || null)}
             aria-label="Filter by stylist"
-            className="rounded-lg border border-border bg-background px-3 py-1 text-sm"
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
           >
             <option value="">All stylists</option>
             {members.map((m) => (
@@ -200,7 +299,7 @@ export function DiaryView({
           </select>
           <button
             onClick={() => setAddOpen(true)}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background w-full sm:w-auto"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90 transition-opacity w-full sm:w-auto"
           >
             Add appointment
           </button>
@@ -208,143 +307,162 @@ export function DiaryView({
       </div>
 
       {error && (
-        <p className="text-sm text-red-400">{error}</p>
+        <p className="text-sm text-red-400 px-1">{error}</p>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[600px] border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="w-16 p-2 text-left text-muted">Time</th>
-              {daysToShow.map((d) => (
-                <th key={d.toISOString()} className="p-2 text-left text-muted">
-                  {d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" })}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {HOURS.map((hour) => (
-              <tr key={hour} className="border-b border-border/50">
-                <td className="p-2 text-muted">{hour}:00</td>
-                {daysToShow.map((day) => {
-                  const cellStart = new Date(day);
-                  cellStart.setHours(hour, 0, 0, 0);
-                  const cellEnd = new Date(day);
-                  cellEnd.setHours(hour + 1, 0, 0, 0);
-                  const inCell = filteredAppointments.filter((a) => {
-                    const s = new Date(a.start_time);
-                    return s >= cellStart && s < cellEnd && formatDate(s) === formatDate(day);
-                  });
-                  return (
-                    <td
-                      key={day.toISOString()}
-                      className="relative h-12 min-h-12 align-top p-1 overflow-visible"
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const id = e.dataTransfer.getData("text/plain");
-                        if (!id) return;
-                        const apt = appointments.find((a) => a.id === id);
-                        if (!apt) return;
-                        const newStart = new Date(cellStart);
-                        const durationMs =
-                          new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
-                        const newEnd = new Date(newStart.getTime() + durationMs);
-                        handleReschedule(id, newStart, newEnd);
-                      }}
-                    >
-                      {inCell.map((a) => {
-                        const start = new Date(a.start_time);
-                        const end = new Date(a.end_time);
-                        const top = ((start.getTime() - cellStart.getTime()) / 60000) * 0.8;
-                        const height = ((end.getTime() - start.getTime()) / 60000) * 0.8;
-                        const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
-                        const service = Array.isArray(a.services) ? a.services[0] : a.services;
-                        const stylist = members.find((m) => m.id === a.stylist_id)?.display_name;
-                        const label = (client?.name || a.guest_name || "—") as string;
-                        const sub = (service?.name || "") as string;
-                        const blockColor = stylistColorMap[a.stylist_id];
+      {view === "day" ? (
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          {daysToShow.map((day) => {
+            const dayStr = formatDate(day);
+            const isToday = dayStr === todayStr;
+            return (
+              <div
+                key={dayStr}
+                className="flex-1 min-w-0 rounded-xl border border-border bg-background shadow-sm overflow-hidden"
+              >
+                <div className="px-4 py-3 border-b border-border bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm">
+                      {day.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+                    </span>
+                    {isToday && (
+                      <span className="rounded-full bg-accent/20 text-accent px-2 py-0.5 text-xs font-medium">
+                        Today
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[200px] border-collapse text-sm">
+                    <tbody>
+                      {HOURS.map((hour) => {
+                        const cellStart = new Date(day);
+                        cellStart.setHours(hour, 0, 0, 0);
+                        const cellEnd = new Date(day);
+                        cellEnd.setHours(hour + 1, 0, 0, 0);
+                        const inCell = filteredAppointments.filter((a) => {
+                          const s = new Date(a.start_time);
+                          return s >= cellStart && s < cellEnd && formatDate(s) === dayStr;
+                        });
                         return (
-                          <div
-                            key={a.id}
-                            className="absolute left-1 right-1 rounded border px-2 py-1 overflow-hidden border-accent/50 bg-accent/20 flex flex-col"
-                            style={{
-                              top: `${top}px`,
-                              minHeight: `${Math.max(24, height)}px`,
-                              ...(blockColor
-                                ? { borderColor: `${blockColor}99`, backgroundColor: `${blockColor}20` }
-                                : {}),
-                            }}
-                          >
-                            <div
-                              draggable
-                              onDragStart={(e) => {
-                                setMovingId(a.id);
-                                e.dataTransfer.setData("text/plain", a.id);
-                                e.dataTransfer.effectAllowed = "move";
-                                const el = e.currentTarget.parentElement;
-                                if (el) {
-                                  const rect = el.getBoundingClientRect();
-                                  e.dataTransfer.setDragImage(el, e.clientX - rect.left, e.clientY - rect.top);
-                                }
-                              }}
-                              onDragEnd={() => setMovingId(null)}
+                          <tr key={hour} className="border-b border-border/50">
+                            <td className="w-12 p-2 text-muted text-xs align-top">{hour}:00</td>
+                            <td
+                              className="relative h-12 min-h-12 align-top p-1 overflow-visible"
                               onDragOver={(e) => {
                                 e.preventDefault();
-                                e.stopPropagation();
                                 e.dataTransfer.dropEffect = "move";
                               }}
                               onDrop={(e) => {
                                 e.preventDefault();
-                                e.stopPropagation();
                                 const id = e.dataTransfer.getData("text/plain");
-                                if (!id || id === a.id) return;
-                                const apt = appointments.find((ap) => ap.id === id);
+                                if (!id) return;
+                                const apt = appointments.find((a) => a.id === id);
                                 if (!apt) return;
                                 const newStart = new Date(cellStart);
                                 const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
                                 const newEnd = new Date(newStart.getTime() + durationMs);
                                 handleReschedule(id, newStart, newEnd);
                               }}
-                              className="flex-1 min-h-0 cursor-move"
                             >
-                              <span className="font-medium truncate block">{label}</span>
-                              {stylist && <span className="text-xs text-muted truncate block">{stylist}</span>}
-                              {sub && <span className="text-xs text-muted truncate block">{sub}</span>}
-                            </div>
-                            <div className="mt-1 flex gap-1 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => setEditId(a.id)}
-                                className="text-xs text-accent hover:underline"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(a.id)}
-                                className="text-xs text-red-400 hover:underline"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </div>
+                              {inCell.map((a) => (
+                                <AppointmentBlock
+                                  key={a.id}
+                                  a={a}
+                                  cellStart={cellStart}
+                                  members={members}
+                                  stylistColorMap={stylistColorMap}
+                                  appointments={appointments}
+                                  onReschedule={handleReschedule}
+                                  onEdit={() => setEditId(a.id)}
+                                  onDelete={() => handleDelete(a.id)}
+                                  onDragStart={() => setMovingId(a.id)}
+                                  onDragEnd={() => setMovingId(null)}
+                                />
+                              ))}
+                            </td>
+                          </tr>
                         );
                       })}
-                    </td>
-                  );
-                })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-border bg-background shadow-sm">
+          <table className="w-full min-w-[600px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                <th className="w-16 p-3 text-left text-muted font-medium">Time</th>
+                {daysToShow.map((d) => (
+                  <th key={d.toISOString()} className="p-3 text-left text-muted font-medium">
+                    {d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" })}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {HOURS.map((hour) => (
+                <tr key={hour} className="border-b border-border/50">
+                  <td className="p-2 text-muted">{hour}:00</td>
+                  {daysToShow.map((day) => {
+                    const cellStart = new Date(day);
+                    cellStart.setHours(hour, 0, 0, 0);
+                    const cellEnd = new Date(day);
+                    cellEnd.setHours(hour + 1, 0, 0, 0);
+                    const inCell = filteredAppointments.filter((a) => {
+                      const s = new Date(a.start_time);
+                      return s >= cellStart && s < cellEnd && formatDate(s) === formatDate(day);
+                    });
+                    return (
+                      <td
+                        key={day.toISOString()}
+                        className="relative h-12 min-h-12 align-top p-1 overflow-visible"
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const id = e.dataTransfer.getData("text/plain");
+                          if (!id) return;
+                          const apt = appointments.find((a) => a.id === id);
+                          if (!apt) return;
+                          const newStart = new Date(cellStart);
+                          const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
+                          const newEnd = new Date(newStart.getTime() + durationMs);
+                          handleReschedule(id, newStart, newEnd);
+                        }}
+                      >
+                        {inCell.map((a) => (
+                          <AppointmentBlock
+                            key={a.id}
+                            a={a}
+                            cellStart={cellStart}
+                            members={members}
+                            stylistColorMap={stylistColorMap}
+                            appointments={appointments}
+                            onReschedule={handleReschedule}
+                            onEdit={() => setEditId(a.id)}
+                            onDelete={() => handleDelete(a.id)}
+                            onDragStart={() => setMovingId(a.id)}
+                            onDragEnd={() => setMovingId(null)}
+                          />
+                        ))}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      <p className="text-xs text-muted">Drag appointments onto a time slot to reschedule. Use Add / Delete for new or remove.</p>
+      <p className="text-xs text-muted px-1">Drag appointments onto a time slot to reschedule. Use Add / Delete for new or remove.</p>
 
       {addOpen && (
         <AddAppointmentModal
