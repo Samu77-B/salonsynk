@@ -273,6 +273,10 @@ export function DiaryView({
                             key={a.id}
                             draggable
                             onDragStart={(e) => {
+                              if ((e.target as HTMLElement).closest("button")) {
+                                e.preventDefault();
+                                return;
+                              }
                               setMovingId(a.id);
                               e.dataTransfer.setData("text/plain", a.id);
                               e.dataTransfer.effectAllowed = "move";
@@ -307,10 +311,10 @@ export function DiaryView({
                             <span className="font-medium truncate block">{label}</span>
                             {stylist && <span className="text-xs text-muted truncate block">{stylist}</span>}
                             {sub && <span className="text-xs text-muted truncate block">{sub}</span>}
-                            <div className="mt-1 flex gap-1">
+                            <div className="mt-1 flex gap-1" onPointerDown={(e) => e.stopPropagation()}>
                               <button
                                 type="button"
-                                onClick={(e) => { e.stopPropagation(); setEditId(a.id); }}
+                                onClick={() => setEditId(a.id)}
                                 className="text-xs text-accent hover:underline"
                               >
                                 Edit
