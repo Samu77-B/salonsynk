@@ -273,7 +273,8 @@ export function DiaryView({
                             key={a.id}
                             draggable
                             onDragStart={(e) => {
-                              if ((e.target as HTMLElement).closest("button")) {
+                              const hit = document.elementFromPoint(e.clientX, e.clientY);
+                              if (hit?.closest("button")) {
                                 e.preventDefault();
                                 return;
                               }
