@@ -75,7 +75,7 @@ function AppointmentBlock({
       className="absolute left-1 right-1 rounded-lg border px-2 py-1 overflow-hidden border-accent/50 bg-accent/20 flex flex-col shadow-sm"
       style={{
         top: `${top}px`,
-        minHeight: `${Math.max(24, height)}px`,
+        minHeight: `${Math.max(48, height)}px`,
         ...(blockColor ? { borderColor: `${blockColor}99`, backgroundColor: `${blockColor}20` } : {}),
       }}
     >
@@ -115,11 +115,29 @@ function AppointmentBlock({
         {stylist && <span className="text-xs text-muted truncate block">{stylist}</span>}
         {sub && <span className="text-xs text-muted truncate block">{sub}</span>}
       </div>
-      <div className="mt-1 flex gap-1 shrink-0">
-        <button type="button" onClick={onEdit} className="text-xs text-accent hover:underline">
+      <div
+        className="mt-1 flex gap-1 shrink-0 relative z-10"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          className="text-xs text-accent hover:underline touch-manipulation py-1 px-0.5 -my-1 -mx-0.5"
+        >
           Edit
         </button>
-        <button type="button" onClick={onDelete} className="text-xs text-red-400 hover:underline">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="text-xs text-red-400 hover:underline touch-manipulation py-1 px-0.5 -my-1 -mx-0.5"
+        >
           Delete
         </button>
       </div>
