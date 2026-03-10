@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { inviteOrAddTeamMember, updateTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles } from "./actions";
+import { inviteOrAddTeamMember, updateTeamMember, deleteTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles } from "./actions";
 
 type Member = { id: string; user_id?: string | null; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string; avatar_url?: string | null; calendar_color?: string | null };
 type Invite = { id: string; email: string; role: string; display_name: string | null; created_at: string };
@@ -137,6 +137,19 @@ export function TeamView({
     if (result.error) setError(result.error);
   }
 
+  async function handleReactivate(id: string) {
+    setError(null);
+    const result = await updateTeamMember(id, { is_active: true });
+    if (result.error) setError(result.error);
+  }
+
+  async function handleDeleteMember(id: string) {
+    if (!confirm("Permanently delete this team member? This cannot be undone.")) return;
+    setError(null);
+    const result = await deleteTeamMember(salonId, id);
+    if (result.error) setError(result.error);
+  }
+
   async function handleDeleteInvite(id: string) {
     if (!confirm("Cancel this invite?")) return;
     setError(null);
@@ -232,27 +245,47 @@ export function TeamView({
                   </p>
                 </div>
               </div>
-              {isOwner && m.is_active && (
-                <div className="flex gap-2">
+              {isOwner && (
+                <div className="flex flex-wrap gap-2">
+                  {m.is_active && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditId(m.id);
+                          setEditDisplayName(m.display_name ?? "");
+                          setEditRole(m.role || "stylist");
+                          setEditCalendarColor(m.calendar_color ?? "");
+                          setEditEmploymentType((m.employment_type as "EMPLOYEE" | "RENTER") || "EMPLOYEE");
+                        }}
+                        className="text-sm text-accent hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeactivate(m.id)}
+                        className="text-sm text-amber-500 hover:underline"
+                      >
+                        Deactivate
+                      </button>
+                    </>
+                  )}
+                  {!m.is_active && (
+                    <button
+                      type="button"
+                      onClick={() => handleReactivate(m.id)}
+                      className="text-sm text-green-500 hover:underline"
+                    >
+                      Reactivate
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => {
-                      setEditId(m.id);
-                      setEditDisplayName(m.display_name ?? "");
-                      setEditRole(m.role || "stylist");
-                      setEditCalendarColor(m.calendar_color ?? "");
-                      setEditEmploymentType((m.employment_type as "EMPLOYEE" | "RENTER") || "EMPLOYEE");
-                    }}
-                    className="text-sm text-accent hover:underline"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeactivate(m.id)}
+                    onClick={() => handleDeleteMember(m.id)}
                     className="text-sm text-red-400 hover:underline"
                   >
-                    Deactivate
+                    Delete
                   </button>
                 </div>
               )}

@@ -118,6 +118,48 @@ export async function updateSalonTeamRoles(salonId: string, roles: string[]) {
   return { error: null };
 }
 
+export async function deleteTeamMember(salonId: string, memberId: string) {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
+  if (context.member.role !== "owner") return { error: "Only owners can delete team members" };
+
+  const supabase = await createClient();
+  const { data: member } = await supabase
+    .from("salon_members")
+    .select("id, role")
+    .eq("id", memberId)
+    .eq("salon_id", salonId)
+    .single();
+  if (!member) return { error: "Member not found" };
+
+  if (member.role === "owner") {
+    const { count } = await supabase
+      .from("salon_members")
+      .select("id", { count: "exact", head: true })
+      .eq("salon_id", salonId)
+      .eq("role", "owner");
+    if ((count ?? 0) <= 1) return { error: "Cannot delete the last owner" };
+  }
+
+  const { count: appointmentCount } = await supabase
+    .from("appointments")
+    .select("id", { count: "exact", head: true })
+    .eq("stylist_id", memberId);
+  if ((appointmentCount ?? 0) > 0) {
+    return { error: "Cannot delete: this member has appointments. Deactivate instead." };
+  }
+
+  const { error } = await supabase
+    .from("salon_members")
+    .delete()
+    .eq("id", memberId)
+    .eq("salon_id", salonId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/team");
+  return { error: null };
+}
+
 export async function deleteInvite(inviteId: string) {
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
