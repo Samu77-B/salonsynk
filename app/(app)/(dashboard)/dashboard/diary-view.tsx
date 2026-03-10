@@ -37,6 +37,8 @@ function formatDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+const CELL_HEIGHT_PX = 48;
+
 function AppointmentBlock({
   a,
   cellStart,
@@ -48,6 +50,8 @@ function AppointmentBlock({
   onDelete,
   onDragStart,
   onDragEnd,
+  slotIndex = 0,
+  slotCount = 1,
 }: {
   a: Appointment;
   cellStart: Date;
@@ -59,23 +63,35 @@ function AppointmentBlock({
   onDelete: () => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  slotIndex?: number;
+  slotCount?: number;
 }) {
   const start = new Date(a.start_time);
   const end = new Date(a.end_time);
-  const top = ((start.getTime() - cellStart.getTime()) / 60000) * 0.8;
-  const height = ((end.getTime() - start.getTime()) / 60000) * 0.8;
+  const startOffset = (start.getTime() - cellStart.getTime()) / 60000;
+  const durationMinutes = (end.getTime() - start.getTime()) / 60000;
+  const top =
+    slotCount > 1
+      ? (slotIndex / slotCount) * CELL_HEIGHT_PX
+      : startOffset * 0.8;
+  const height =
+    slotCount > 1
+      ? (1 / slotCount) * CELL_HEIGHT_PX
+      : durationMinutes * 0.8;
   const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
   const service = Array.isArray(a.services) ? a.services[0] : a.services;
   const stylist = members.find((m) => m.id === a.stylist_id)?.display_name;
   const label = (client?.name || a.guest_name || "—") as string;
   const sub = (service?.name || "") as string;
   const blockColor = stylistColorMap[a.stylist_id];
+  const isCompact = slotCount > 1 && height < 36;
   return (
     <div
-      className="absolute left-1 right-1 rounded-lg border px-2 py-1 overflow-hidden border-accent/50 bg-accent/20 flex flex-col shadow-sm"
+      className="absolute left-1 right-1 rounded-lg border overflow-hidden border-accent/50 bg-accent/20 flex flex-col shadow-sm"
       style={{
         top: `${top}px`,
-        minHeight: `${Math.max(48, height)}px`,
+        minHeight: `${slotCount > 1 ? Math.max(24, height) : Math.max(48, height)}px`,
+        padding: isCompact ? "2px 6px" : "4px 8px",
         ...(blockColor ? { borderColor: `${blockColor}99`, backgroundColor: `${blockColor}20` } : {}),
       }}
     >
@@ -111,12 +127,15 @@ function AppointmentBlock({
         }}
         className="flex-1 min-h-0 cursor-move"
       >
-        <span className="font-medium truncate block">{label}</span>
-        {stylist && <span className="text-xs text-muted truncate block">{stylist}</span>}
-        {sub && <span className="text-xs text-muted truncate block">{sub}</span>}
+        <span className={`font-medium truncate block ${isCompact ? "text-xs" : ""}`}>{label}</span>
+        {!isCompact && stylist && <span className="text-xs text-muted truncate block">{stylist}</span>}
+        {!isCompact && sub && <span className="text-xs text-muted truncate block">{sub}</span>}
+        {isCompact && (stylist || sub) && (
+          <span className="text-[10px] text-muted truncate block">{[stylist, sub].filter(Boolean).join(" · ")}</span>
+        )}
       </div>
       <div
-        className="mt-1 flex gap-1 shrink-0 relative z-10"
+        className={`flex gap-1 shrink-0 relative z-10 ${isCompact ? "mt-0.5" : "mt-1"}`}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
@@ -358,10 +377,19 @@ export function DiaryView({
                         cellStart.setHours(hour, 0, 0, 0);
                         const cellEnd = new Date(day);
                         cellEnd.setHours(hour + 1, 0, 0, 0);
-                        const inCell = filteredAppointments.filter((a) => {
-                          const s = new Date(a.start_time);
-                          return s >= cellStart && s < cellEnd && formatDate(s) === dayStr;
-                        });
+                        const inCell = filteredAppointments
+                          .filter((a) => {
+                            const s = new Date(a.start_time);
+                            return s >= cellStart && s < cellEnd && formatDate(s) === dayStr;
+                          })
+                          .sort((a, b) => {
+                            const sa = new Date(a.start_time).getTime();
+                            const sb = new Date(b.start_time).getTime();
+                            if (sa !== sb) return sa - sb;
+                            const stylistA = members.find((m) => m.id === a.stylist_id)?.display_name ?? "";
+                            const stylistB = members.find((m) => m.id === b.stylist_id)?.display_name ?? "";
+                            return stylistA.localeCompare(stylistB);
+                          });
                         return (
                           <tr key={hour} className="border-b border-border/50">
                             <td className="w-12 p-2 text-muted text-xs align-top">{hour}:00</td>
@@ -383,7 +411,7 @@ export function DiaryView({
                                 handleReschedule(id, newStart, newEnd);
                               }}
                             >
-                              {inCell.map((a) => (
+                              {inCell.map((a, idx) => (
                                 <AppointmentBlock
                                   key={a.id}
                                   a={a}
@@ -396,6 +424,8 @@ export function DiaryView({
                                   onDelete={() => handleDelete(a.id)}
                                   onDragStart={() => setMovingId(a.id)}
                                   onDragEnd={() => setMovingId(null)}
+                                  slotIndex={idx}
+                                  slotCount={inCell.length}
                                 />
                               ))}
                             </td>
@@ -431,10 +461,19 @@ export function DiaryView({
                     cellStart.setHours(hour, 0, 0, 0);
                     const cellEnd = new Date(day);
                     cellEnd.setHours(hour + 1, 0, 0, 0);
-                    const inCell = filteredAppointments.filter((a) => {
-                      const s = new Date(a.start_time);
-                      return s >= cellStart && s < cellEnd && formatDate(s) === formatDate(day);
-                    });
+                    const inCell = filteredAppointments
+                      .filter((a) => {
+                        const s = new Date(a.start_time);
+                        return s >= cellStart && s < cellEnd && formatDate(s) === formatDate(day);
+                      })
+                      .sort((a, b) => {
+                        const sa = new Date(a.start_time).getTime();
+                        const sb = new Date(b.start_time).getTime();
+                        if (sa !== sb) return sa - sb;
+                        const stylistA = members.find((m) => m.id === a.stylist_id)?.display_name ?? "";
+                        const stylistB = members.find((m) => m.id === b.stylist_id)?.display_name ?? "";
+                        return stylistA.localeCompare(stylistB);
+                      });
                     return (
                       <td
                         key={day.toISOString()}
@@ -455,7 +494,7 @@ export function DiaryView({
                           handleReschedule(id, newStart, newEnd);
                         }}
                       >
-                        {inCell.map((a) => (
+                        {inCell.map((a, idx) => (
                           <AppointmentBlock
                             key={a.id}
                             a={a}
@@ -468,6 +507,8 @@ export function DiaryView({
                             onDelete={() => handleDelete(a.id)}
                             onDragStart={() => setMovingId(a.id)}
                             onDragEnd={() => setMovingId(null)}
+                            slotIndex={idx}
+                            slotCount={inCell.length}
                           />
                         ))}
                       </td>
