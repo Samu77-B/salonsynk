@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { createClient } from "./server";
+import { createAdminClient } from "./admin";
 import { getIsSuperAdmin } from "./admin-auth";
 
 export type SalonWithMember = {
@@ -13,6 +14,7 @@ const ADMIN_SALON_COOKIE = "admin_salon_id";
  * Fetch the current user's salon and membership (for layout/dashboard).
  * Super admins: can switch to any salon via cookie; get owner-level access.
  * Returns null if user has no salon (needs onboarding).
+ * Uses admin client for salon_members/salons queries to avoid RLS blocking the lookup.
  */
 export async function getCurrentUserSalon(): Promise<SalonWithMember | null> {
   const supabase = await createClient();
@@ -22,13 +24,14 @@ export async function getCurrentUserSalon(): Promise<SalonWithMember | null> {
   if (!user) return null;
 
   const isSuperAdmin = await getIsSuperAdmin();
+  const admin = createAdminClient();
 
   // Super admin: check cookie for selected salon
   if (isSuperAdmin) {
     const cookieStore = await cookies();
     const salonId = cookieStore.get(ADMIN_SALON_COOKIE)?.value;
     if (salonId) {
-      const { data: salon } = await supabase
+      const { data: salon } = await admin
         .from("salons")
         .select("id, name, slug")
         .eq("id", salonId)
@@ -45,14 +48,14 @@ export async function getCurrentUserSalon(): Promise<SalonWithMember | null> {
       }
     }
     // No valid cookie: use first salon from membership, or first salon in DB
-    const { data: members } = await supabase
+    const { data: members } = await admin
       .from("salon_members")
       .select("id, salon_id, role, display_name")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .limit(1);
     if (members?.length) {
-      const { data: salon } = await supabase
+      const { data: salon } = await admin
         .from("salons")
         .select("id, name, slug")
         .eq("id", members[0].salon_id)
@@ -69,7 +72,7 @@ export async function getCurrentUserSalon(): Promise<SalonWithMember | null> {
       }
     }
     // No membership: pick first salon in DB
-    const { data: firstSalon } = await supabase
+    const { data: firstSalon } = await admin
       .from("salons")
       .select("id, name, slug")
       .order("created_at", { ascending: true })
@@ -83,8 +86,8 @@ export async function getCurrentUserSalon(): Promise<SalonWithMember | null> {
     }
   }
 
-  // Regular user: must be a member
-  const { data: members } = await supabase
+  // Regular user: must be a member (admin client bypasses RLS for this trusted lookup)
+  const { data: members } = await admin
     .from("salon_members")
     .select("id, salon_id, role, display_name")
     .eq("user_id", user.id)
@@ -93,7 +96,7 @@ export async function getCurrentUserSalon(): Promise<SalonWithMember | null> {
 
   if (!members?.length) return null;
 
-  const { data: salon } = await supabase
+  const { data: salon } = await admin
     .from("salons")
     .select("id, name, slug")
     .eq("id", members[0].salon_id)

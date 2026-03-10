@@ -8,6 +8,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 type AppointmentRow = {
   id: string;
   start_time: string;
+  send_reminder_sms?: boolean;
   guest_email: string | null;
   guest_name: string | null;
   guest_phone: string | null;
@@ -16,7 +17,7 @@ type AppointmentRow = {
 };
 
 /**
- * Get appointments starting within the next hoursAhead (e.g. 24 for tomorrow).
+ * Get appointments starting within the next hoursAhead (e.g. 24 for tomorrow) that have send_reminder_sms enabled.
  */
 export async function getUpcomingAppointmentsForReminder(hoursAhead: number) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -24,8 +25,9 @@ export async function getUpcomingAppointmentsForReminder(hoursAhead: number) {
   const to = new Date(from.getTime() + hoursAhead * 60 * 60 * 1000);
   const { data } = await supabase
     .from("appointments")
-    .select("id, start_time, guest_email, guest_name, guest_phone, clients(email, phone), salons(name)")
+    .select("id, start_time, send_reminder_sms, guest_email, guest_name, guest_phone, clients(email, phone), salons(name)")
     .eq("status", "scheduled")
+    .eq("send_reminder_sms", true)
     .gte("start_time", from.toISOString())
     .lte("start_time", to.toISOString());
   return (data ?? []) as unknown as AppointmentRow[];

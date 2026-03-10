@@ -76,6 +76,7 @@ In **Supabase** → **Authentication** → **URL Configuration**:
 - In Supabase **SQL Editor**, run `supabase/migrations/001_initial_schema.sql` if you haven’t already.
 - If you use team invites, run `supabase/migrations/002_salon_invites.sql`.
 - For review-request tracking, run `supabase/migrations/003_appointment_review_request.sql`.
+- For per-appointment SMS options (reminder, review, aftercare), run `supabase/migrations/011_appointment_sms_options.sql`.
 
 ---
 
@@ -89,6 +90,8 @@ After deploy:
 - Configure Stripe Connect and webhooks when you’re ready for payments.
 - Set up crons (e.g. Vercel Cron or external):
   - **Reminders:** hit `GET /api/cron/send-reminders` (e.g. daily). Sends email and/or SMS/WhatsApp to clients with upcoming appointments (24h ahead). Configure Twilio for SMS/WhatsApp.
-  - **Review requests:** hit `GET /api/cron/send-review-requests` (e.g. every few hours). Sends email and/or SMS/WhatsApp ~2 hours after a completed appointment asking for a review. Use the same `Authorization: Bearer <CRON_SECRET>` header for both.
+  - **Review requests:** hit `GET /api/cron/send-review-requests` (e.g. every few hours). Sends email and/or SMS/WhatsApp ~2 hours after a completed appointment asking for a review.
+  - **Aftercare:** hit `GET /api/cron/send-aftercare` (e.g. every few hours). Sends aftercare instructions ~2 hours after completed appointments where "Send aftercare" was checked at booking.
+  - Use the same `Authorization: Bearer <CRON_SECRET>` header for all crons.
 
 Future code changes: push to your Git branch; Vercel will redeploy automatically if the project is connected to the repo.

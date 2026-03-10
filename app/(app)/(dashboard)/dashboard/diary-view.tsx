@@ -27,7 +27,7 @@ type Appointment = {
 };
 
 const VIEWS = ["day", "week"] as const;
-const HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 7am–8pm
+const HOURS = Array.from({ length: 15 }, (_, i) => i + 6); // 6am–8pm
 
 function formatDate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -229,13 +229,12 @@ export function DiaryView({
                   cellEnd.setHours(hour + 1, 0, 0, 0);
                   const inCell = filteredAppointments.filter((a) => {
                     const s = new Date(a.start_time);
-                    const e = new Date(a.end_time);
-                    return s < cellEnd && e > cellStart && formatDate(s) === formatDate(day);
+                    return s >= cellStart && s < cellEnd && formatDate(s) === formatDate(day);
                   });
                   return (
                     <td
                       key={day.toISOString()}
-                      className="relative h-12 align-top p-1"
+                      className="relative h-12 min-h-12 align-top p-1 overflow-visible"
                       onDragOver={(e) => {
                         e.preventDefault();
                         e.dataTransfer.dropEffect = "move";
@@ -256,10 +255,11 @@ export function DiaryView({
                       {inCell.map((a) => {
                         const start = new Date(a.start_time);
                         const end = new Date(a.end_time);
-                        const top = (start.getHours() - day.getHours() + start.getMinutes() / 60 - day.getMinutes() / 60) * 48;
+                        const top = ((start.getTime() - cellStart.getTime()) / 60000) * 0.8;
                         const height = ((end.getTime() - start.getTime()) / 60000) * 0.8;
                         const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
                         const service = Array.isArray(a.services) ? a.services[0] : a.services;
+                        const stylist = members.find((m) => m.id === a.stylist_id)?.display_name;
                         const label = (client?.name || a.guest_name || "—") as string;
                         const sub = (service?.name || "") as string;
                         const blockColor = stylistColorMap[a.stylist_id];
@@ -273,6 +273,23 @@ export function DiaryView({
                               e.dataTransfer.effectAllowed = "move";
                             }}
                             onDragEnd={() => setMovingId(null)}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              e.dataTransfer.dropEffect = "move";
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const id = e.dataTransfer.getData("text/plain");
+                              if (!id || id === a.id) return;
+                              const apt = appointments.find((ap) => ap.id === id);
+                              if (!apt) return;
+                              const newStart = new Date(cellStart);
+                              const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
+                              const newEnd = new Date(newStart.getTime() + durationMs);
+                              handleReschedule(id, newStart, newEnd);
+                            }}
                             className="absolute left-1 right-1 rounded border px-2 py-1 cursor-move overflow-hidden border-accent/50 bg-accent/20"
                             style={{
                               top: `${top}px`,
@@ -283,6 +300,7 @@ export function DiaryView({
                             }}
                           >
                             <span className="font-medium truncate block">{label}</span>
+                            {stylist && <span className="text-xs text-muted truncate block">{stylist}</span>}
                             {sub && <span className="text-xs text-muted truncate block">{sub}</span>}
                             <div className="mt-1 flex gap-1">
                               <button

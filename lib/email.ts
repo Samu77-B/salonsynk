@@ -108,6 +108,22 @@ export async function sendSupportMessage(
   return { error: normalizeResendError(error) };
 }
 
+export async function sendAftercareEmail(
+  to: string,
+  message: string,
+  salonName: string
+): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured" };
+  const html = `<p>${message.replace(/\n/g, "<br />")}</p>`;
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [to],
+    subject: `Aftercare from ${salonName}`,
+    html,
+  });
+  return { error: normalizeResendError(error) };
+}
+
 export async function sendReviewRequest(
   to: string,
   details: { clientName?: string; salonName: string; reviewUrl?: string }

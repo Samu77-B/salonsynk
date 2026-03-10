@@ -40,6 +40,9 @@ export function AddAppointmentModal({
   const [date, setDate] = useState(currentDate);
   const [time, setTime] = useState("09:00");
   const [notes, setNotes] = useState("");
+  const [sendReminderSms, setSendReminderSms] = useState(true);
+  const [sendReviewRequest, setSendReviewRequest] = useState(true);
+  const [sendAftercare, setSendAftercare] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const service = services.find((s) => s.id === serviceId);
@@ -63,6 +66,9 @@ export function AddAppointmentModal({
       endTime: toLocalISO(end),
       guestName: guestName || null,
       notes: notes || null,
+      sendReminderSms,
+      sendReviewRequest,
+      sendAftercare,
     });
     setLoading(false);
   };
@@ -153,6 +159,36 @@ export function AddAppointmentModal({
               onChange={(e) => setNotes(e.target.value)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             />
+          </div>
+          <div className="rounded-lg border border-border p-3 space-y-2">
+            <p className="text-sm font-medium">Messages to client</p>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sendReminderSms}
+                onChange={(e) => setSendReminderSms(e.target.checked)}
+                className="rounded border-border"
+              />
+              <span className="text-sm">Send reminder (SMS/text) before appointment</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sendReviewRequest}
+                onChange={(e) => setSendReviewRequest(e.target.checked)}
+                className="rounded border-border"
+              />
+              <span className="text-sm">Ask how their experience was after appointment</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sendAftercare}
+                onChange={(e) => setSendAftercare(e.target.checked)}
+                className="rounded border-border"
+              />
+              <span className="text-sm">Send aftercare instructions after appointment</span>
+            </label>
           </div>
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm">

@@ -16,6 +16,9 @@ export type CreateAppointmentInput = {
   guestEmail?: string | null;
   guestPhone?: string | null;
   notes?: string | null;
+  sendReminderSms?: boolean;
+  sendReviewRequest?: boolean;
+  sendAftercare?: boolean;
 };
 
 export async function createAppointment(input: CreateAppointmentInput) {
@@ -23,7 +26,7 @@ export async function createAppointment(input: CreateAppointmentInput) {
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== input.salonId) return { error: "Unauthorized" };
 
-  const { error } = await supabase.from("appointments").insert({
+  const row: Record<string, unknown> = {
     salon_id: input.salonId,
     stylist_id: input.stylistId,
     client_id: input.clientId || null,
@@ -35,7 +38,12 @@ export async function createAppointment(input: CreateAppointmentInput) {
     guest_phone: input.guestPhone || null,
     notes: input.notes || null,
     status: "scheduled",
-  });
+  };
+  if (input.sendReminderSms !== undefined) row.send_reminder_sms = input.sendReminderSms;
+  if (input.sendReviewRequest !== undefined) row.send_review_request = input.sendReviewRequest;
+  if (input.sendAftercare !== undefined) row.send_aftercare = input.sendAftercare;
+
+  const { error } = await supabase.from("appointments").insert(row);
 
   if (error) return { error: error.message };
   revalidatePath("/dashboard");
