@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { inviteOrAddTeamMember, updateTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles } from "./actions";
 
-type Member = { id: string; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string; avatar_url?: string | null; calendar_color?: string | null };
+type Member = { id: string; user_id?: string | null; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string; avatar_url?: string | null; calendar_color?: string | null };
 type Invite = { id: string; email: string; role: string; display_name: string | null; created_at: string };
 
 const CALENDAR_COLORS = [
@@ -27,6 +27,7 @@ const ADD_ROLE_VALUE = "__add_role__";
 export function TeamView({
   salonId,
   members,
+  memberEmails = {},
   invites,
   appointmentCountByStylist,
   isOwner,
@@ -34,6 +35,7 @@ export function TeamView({
 }: {
   salonId: string;
   members: Member[];
+  memberEmails?: Record<string, string>;
   invites: Invite[];
   appointmentCountByStylist: Record<string, number>;
   isOwner: boolean;
@@ -214,6 +216,12 @@ export function TeamView({
                     )}
                   </div>
                   <p className="text-sm text-muted capitalize">{m.role}</p>
+                  {m.user_id && memberEmails[m.user_id] && (
+                    <p className="text-xs text-muted" title="Has login">Login: {memberEmails[m.user_id]}</p>
+                  )}
+                  {!m.user_id && (
+                    <p className="text-xs text-muted">No account (display only)</p>
+                  )}
                   {m.role === "stylist" && (
                     <p className="text-xs text-muted">
                       {(m.employment_type as string) === "RENTER" ? "Renter" : "Employee"}

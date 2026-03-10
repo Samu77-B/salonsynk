@@ -13,7 +13,7 @@ export default async function TeamPage() {
   const [membersRes, invitesRes, countsRes, salonRes] = await Promise.all([
     supabase
       .from("salon_members")
-      .select("id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url, calendar_color")
+      .select("id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url, calendar_color")
       .eq("salon_id", context.salon.id)
       .order("role", { ascending: false }),
     supabase
@@ -29,6 +29,17 @@ export default async function TeamPage() {
   ]);
 
   const members = membersRes.data ?? [];
+  const userIds = [...new Set(members.map((m) => m.user_id).filter(Boolean))] as string[];
+  const profilesMap: Record<string, string> = {};
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, email")
+      .in("id", userIds);
+    for (const p of profiles ?? []) {
+      if (p.email) profilesMap[p.id] = p.email;
+    }
+  }
   const invites = invitesRes.data ?? [];
   const appointments = countsRes.data ?? [];
   const appointmentCountByStylist: Record<string, number> = {};
@@ -50,6 +61,7 @@ export default async function TeamPage() {
       <TeamView
         salonId={context.salon.id}
         members={members}
+        memberEmails={profilesMap}
         invites={invites}
         appointmentCountByStylist={appointmentCountByStylist}
         isOwner={context.member.role === "owner"}
