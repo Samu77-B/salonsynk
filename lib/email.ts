@@ -83,6 +83,31 @@ export async function sendOwnerInviteLink(
   return { error: normalizeResendError(error) };
 }
 
+export async function sendSupportMessage(
+  fromEmail: string,
+  salonName: string,
+  subject: string,
+  message: string
+): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured" };
+  const to = "hello@salonsynk.com";
+  const html = `
+    <p><strong>From:</strong> ${fromEmail || "(not provided)"}</p>
+    <p><strong>Salon:</strong> ${salonName}</p>
+    <p><strong>Subject:</strong> ${subject}</p>
+    <hr />
+    <p>${message.replace(/\n/g, "<br />")}</p>
+  `;
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [to],
+    replyTo: fromEmail || undefined,
+    subject: `[SalonSynk Support] ${subject}`,
+    html,
+  });
+  return { error: normalizeResendError(error) };
+}
+
 export async function sendReviewRequest(
   to: string,
   details: { clientName?: string; salonName: string; reviewUrl?: string }

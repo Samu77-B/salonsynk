@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: "/clients", label: "Clients" },
   { href: "/checkout", label: "Checkout" },
   { href: "/settings", label: "Settings" },
+  { href: "/help", label: "Help" },
 ] as const;
 
 export function AppHeader({
