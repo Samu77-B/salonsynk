@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createAppointment, updateAppointment, deleteAppointment } from "./actions";
 import { AddAppointmentModal } from "./add-appointment-modal";
+import { EditAppointmentModal } from "./edit-appointment-modal";
 import { getAllowedSlots, validateMove, rangeToMinutes, type TimeRange } from "@/lib/diary-rules";
 
 type Member = { id: string; display_name: string | null; role: string; calendar_color?: string | null };
@@ -21,6 +22,9 @@ type Appointment = {
   guest_phone: string | null;
   stylist_id: string;
   service_id: string | null;
+  send_reminder_sms?: boolean;
+  send_review_request?: boolean;
+  send_aftercare?: boolean;
   clients: { name: string | null; email: string | null; phone: string | null } | { name: string | null; email: string | null; phone: string | null }[] | null;
   services: { name: string; duration_minutes: number } | { name: string; duration_minutes: number }[] | null;
   salon_members: { display_name: string | null } | { display_name: string | null }[] | null;
@@ -60,6 +64,7 @@ export function DiaryView({
   const [currentDate, setCurrentDate] = useState(() => formatDate(new Date()));
   const [filterStylistId, setFilterStylistId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -305,6 +310,13 @@ export function DiaryView({
                             <div className="mt-1 flex gap-1">
                               <button
                                 type="button"
+                                onClick={(e) => { e.stopPropagation(); setEditId(a.id); }}
+                                className="text-xs text-accent hover:underline"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => handleDelete(a.id)}
                                 className="text-xs text-red-400 hover:underline"
                               >
@@ -340,6 +352,29 @@ export function DiaryView({
           onClose={() => setAddOpen(false)}
         />
       )}
+
+      {editId && (() => {
+        const apt = appointments.find((a) => a.id === editId);
+        if (!apt) return null;
+        return (
+          <EditAppointmentModal
+            key={editId}
+            appointment={apt}
+            members={members}
+            services={services}
+            clients={clients}
+            onUpdate={async (id, data) => {
+              const result = await updateAppointment(id, data);
+              if (result.error) setError(result.error);
+              else {
+                setEditId(null);
+                router.refresh();
+              }
+            }}
+            onClose={() => setEditId(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
