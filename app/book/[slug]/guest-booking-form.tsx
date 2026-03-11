@@ -87,8 +87,8 @@ export function GuestBookingForm({
           ))}
         </select>
       </div>
-      <div className="flex gap-2">
-        <div>
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+        <div className="flex-1 min-w-0">
           <label className="block text-sm font-medium mb-1">Date</label>
           <input
             type="date"
@@ -98,7 +98,7 @@ export function GuestBookingForm({
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
           />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <label className="block text-sm font-medium mb-1">Time</label>
           <input
             type="time"

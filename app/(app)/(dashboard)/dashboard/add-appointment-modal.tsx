@@ -91,8 +91,8 @@ export function AddAppointmentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto" onClick={onClose}>
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-lg border border-border bg-background p-6 shadow-xl my-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold mb-4">Add appointment</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -133,7 +133,7 @@ export function AddAppointmentModal({
               />
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label className="block text-sm font-medium mb-1">Email</label>
               <input
@@ -173,8 +173,8 @@ export function AddAppointmentModal({
               ))}
             </select>
           </div>
-          <div className="flex gap-2">
-            <div>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+            <div className="flex-1 min-w-0">
               <label className="block text-sm font-medium mb-1">Date</label>
               <input
                 type="date"
@@ -184,7 +184,7 @@ export function AddAppointmentModal({
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
               />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <label className="block text-sm font-medium mb-1">Time</label>
               <input
                 type="time"
