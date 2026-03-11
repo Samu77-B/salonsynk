@@ -51,11 +51,14 @@ export function EditAppointmentModal({
   onUpdate: (id: string, data: UpdateAppointmentInput) => Promise<void>;
   onClose: () => void;
 }) {
+  const client = clients.find((c) => c.id === appointment.client_id);
   const start = new Date(appointment.start_time);
   const [stylistId, setStylistId] = useState(appointment.stylist_id);
   const [clientId, setClientId] = useState(appointment.client_id ?? "");
   const [serviceId, setServiceId] = useState(appointment.service_id ?? "");
   const [guestName, setGuestName] = useState(appointment.guest_name ?? "");
+  const [email, setEmail] = useState(appointment.guest_email ?? client?.email ?? "");
+  const [phone, setPhone] = useState(appointment.guest_phone ?? client?.phone ?? "");
   const [date, setDate] = useState(start.toISOString().slice(0, 10));
   const [time, setTime] = useState(timeFromISO(appointment.start_time));
   const [notes, setNotes] = useState(appointment.notes ?? "");
@@ -65,17 +68,23 @@ export function EditAppointmentModal({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const c = clients.find((x) => x.id === appointment.client_id);
     setStylistId(appointment.stylist_id);
     setClientId(appointment.client_id ?? "");
     setServiceId(appointment.service_id ?? "");
     setGuestName(appointment.guest_name ?? "");
+    setEmail(appointment.guest_email ?? c?.email ?? "");
+    setPhone(appointment.guest_phone ?? c?.phone ?? "");
     setDate(new Date(appointment.start_time).toISOString().slice(0, 10));
     setTime(timeFromISO(appointment.start_time));
     setNotes(appointment.notes ?? "");
     setSendReminderSms(appointment.send_reminder_sms ?? true);
     setSendReviewRequest(appointment.send_review_request ?? true);
     setSendAftercare(appointment.send_aftercare ?? false);
-  }, [appointment]);
+  }, [appointment, clients]);
+
+  const messagingOn = sendReminderSms || sendReviewRequest || sendAftercare;
+  const hasContact = !!(email?.trim() || phone?.trim());
 
   const service = services.find((s) => s.id === serviceId);
   const durationMinutes = service?.duration_minutes ?? 60;
@@ -94,6 +103,8 @@ export function EditAppointmentModal({
       client_id: clientId || null,
       service_id: serviceId || null,
       guest_name: guestName || null,
+      guest_email: email?.trim() || null,
+      guest_phone: phone?.trim() || null,
       start_time: toLocalISO(startDate),
       end_time: toLocalISO(endDate),
       notes: notes || null,
@@ -126,7 +137,18 @@ export function EditAppointmentModal({
             <label className="block text-sm font-medium mb-1">Client</label>
             <select
               value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
+              onChange={(e) => {
+                const newId = e.target.value;
+                setClientId(newId);
+                if (newId) {
+                  const c = clients.find((x) => x.id === newId);
+                  setEmail(c?.email ?? "");
+                  setPhone(c?.phone ?? "");
+                } else {
+                  setEmail("");
+                  setPhone("");
+                }
+              }}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             >
               <option value="">Walk-in (guest)</option>
@@ -146,6 +168,33 @@ export function EditAppointmentModal({
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
               />
             </div>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="client@example.com"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Phone</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="07xxx xxxxxx"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+          {messagingOn && !hasContact && (
+            <p className="text-sm text-amber-600">
+              No email or phone – reminders won&apos;t be sent.
+            </p>
           )}
           <div>
             <label className="block text-sm font-medium mb-1">Service</label>

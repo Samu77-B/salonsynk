@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { CreateAppointmentInput } from "./actions";
 
 type Member = { id: string; display_name: string | null; role: string };
@@ -37,6 +37,8 @@ export function AddAppointmentModal({
   const [clientId, setClientId] = useState<string>("");
   const [serviceId, setServiceId] = useState<string>("");
   const [guestName, setGuestName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [date, setDate] = useState(currentDate);
   const [time, setTime] = useState("09:00");
   const [notes, setNotes] = useState("");
@@ -45,7 +47,20 @@ export function AddAppointmentModal({
   const [sendAftercare, setSendAftercare] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (clientId) {
+      const client = clients.find((c) => c.id === clientId);
+      setEmail(client?.email ?? "");
+      setPhone(client?.phone ?? "");
+    } else {
+      setEmail("");
+      setPhone("");
+    }
+  }, [clientId, clients]);
+
   const service = services.find((s) => s.id === serviceId);
+  const messagingOn = sendReminderSms || sendReviewRequest || sendAftercare;
+  const hasContact = !!(email?.trim() || phone?.trim());
   const durationMinutes = service?.duration_minutes ?? 60;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,6 +80,8 @@ export function AddAppointmentModal({
       startTime: toLocalISO(start),
       endTime: toLocalISO(end),
       guestName: guestName || null,
+      guestEmail: email?.trim() || null,
+      guestPhone: phone?.trim() || null,
       notes: notes || null,
       sendReminderSms,
       sendReviewRequest,
@@ -115,6 +132,33 @@ export function AddAppointmentModal({
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
               />
             </div>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="client@example.com"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Phone</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="07xxx xxxxxx"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+          {messagingOn && !hasContact && (
+            <p className="text-sm text-amber-600">
+              No email or phone – reminders won&apos;t be sent.
+            </p>
           )}
           <div>
             <label className="block text-sm font-medium mb-1">Service</label>

@@ -71,6 +71,22 @@ export async function createAppointment(input: CreateAppointmentInput) {
   const { error } = await supabase.from("appointments").insert(row);
 
   if (error) return { error: error.message };
+
+  if (input.clientId && (input.guestEmail?.trim() || input.guestPhone?.trim())) {
+    const clientUpdates: Record<string, unknown> = {};
+    if (input.guestEmail?.trim()) clientUpdates.email = input.guestEmail.trim();
+    if (input.guestPhone?.trim()) clientUpdates.phone = input.guestPhone.trim();
+    if (Object.keys(clientUpdates).length > 0) {
+      await supabase
+        .from("clients")
+        .update(clientUpdates)
+        .eq("id", input.clientId)
+        .eq("salon_id", input.salonId);
+      revalidatePath("/clients");
+      revalidatePath(`/clients/${input.clientId}`);
+    }
+  }
+
   revalidatePath("/dashboard");
   return { error: null };
 }
@@ -154,6 +170,25 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
     .in("salon_id", [context.salon.id]);
 
   if (error) return { error: error.message };
+
+  const hasContact = !!(updates.guest_email?.trim() || updates.guest_phone?.trim());
+  if (hasContact) {
+    const clientId =
+      updates.client_id !== undefined
+        ? updates.client_id
+        : (await supabase.from("appointments").select("client_id").eq("id", id).eq("salon_id", context.salon.id).single()).data?.client_id;
+    if (clientId) {
+      const clientUpdates: Record<string, unknown> = {};
+      if (updates.guest_email?.trim()) clientUpdates.email = updates.guest_email.trim();
+      if (updates.guest_phone?.trim()) clientUpdates.phone = updates.guest_phone.trim();
+      if (Object.keys(clientUpdates).length > 0) {
+        await supabase.from("clients").update(clientUpdates).eq("id", clientId).eq("salon_id", context.salon.id);
+        revalidatePath("/clients");
+        revalidatePath(`/clients/${clientId}`);
+      }
+    }
+  }
+
   revalidatePath("/dashboard");
   return { error: null };
 }
