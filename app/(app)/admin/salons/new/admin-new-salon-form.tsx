@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { adminCreateSalon } from "../actions";
+import { adminCreateSalon, adminUploadSalonLogo } from "../actions";
 
 function slugFromName(name: string): string {
   return name
@@ -16,19 +16,32 @@ export function AdminNewSalonForm() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     const result = await adminCreateSalon(name, slug || slugFromName(name), ownerEmail || undefined);
-    setLoading(false);
     if (result.error) {
+      setLoading(false);
       setError(result.error);
       return;
     }
+    if (result.salonId && logoFile) {
+      const formData = new FormData();
+      formData.append("logo", logoFile);
+      const uploadResult = await adminUploadSalonLogo(result.salonId, formData);
+      if (uploadResult.error) {
+        setError(uploadResult.error);
+        setLoading(false);
+        return;
+      }
+    }
+    setLoading(false);
     if (result.salonId) {
       router.push(`/admin/salons/${result.salonId}`);
       router.refresh();
@@ -82,6 +95,38 @@ export function AdminNewSalonForm() {
         />
         <p className="text-xs text-muted mt-1">
           If the user has already signed up, they will be added as owner.
+        </p>
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Logo (optional)</label>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={() => logoFileInputRef.current?.click()}
+            className="rounded-lg border border-border px-3 py-2 text-sm font-medium w-fit"
+          >
+            {logoFile ? logoFile.name : "Choose logo image"}
+          </button>
+          {logoFile && (
+            <button
+              type="button"
+              onClick={() => setLogoFile(null)}
+              className="text-sm text-muted hover:text-foreground w-fit"
+            >
+              Remove
+            </button>
+          )}
+          <input
+            ref={logoFileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+            className="hidden"
+            aria-label="Upload logo image"
+          />
+        </div>
+        <p className="text-xs text-muted mt-1">
+          PNG, JPEG, GIF, WebP, or SVG up to 2MB. Used on the public booking page.
         </p>
       </div>
       {error && <p className="text-sm text-red-400">{error}</p>}
