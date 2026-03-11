@@ -78,6 +78,9 @@ export function validateMove(
 
   for (let i = 1; i < merged.length; i++) {
     const gap = merged[i].startMinutes - merged[i - 1].endMinutes;
+    if (gap < 0) {
+      return { valid: false, message: "Appointments would overlap. A stylist cannot have two appointments at the same time." };
+    }
     if (gap > 0 && gap < MIN_GAP_MINUTES) {
       return { valid: false, message: `Would leave a ${gap}-minute gap. Minimum is ${MIN_GAP_MINUTES} minutes.` };
     }
@@ -87,4 +90,19 @@ export function validateMove(
 
 export function minutesToTime(minutes: number): { hours: number; mins: number } {
   return { hours: Math.floor(minutes / 60), mins: minutes % 60 };
+}
+
+/**
+ * Check if a new time range overlaps with any existing ranges.
+ * Returns true if there is overlap.
+ */
+export function hasOverlap(
+  existingRanges: TimeRange[],
+  newStartMinutes: number,
+  newEndMinutes: number
+): boolean {
+  for (const r of existingRanges) {
+    if (newStartMinutes < r.endMinutes && newEndMinutes > r.startMinutes) return true;
+  }
+  return false;
 }

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { findClientsForEmptySlots, type SlotWithCandidates } from "@/lib/gap-filler";
+import { hasOverlap, rangeToMinutes } from "@/lib/diary-rules";
 import { revalidatePath } from "next/cache";
 
 export type CreateAppointmentInput = {
@@ -25,6 +26,30 @@ export async function createAppointment(input: CreateAppointmentInput) {
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== input.salonId) return { error: "Unauthorized" };
+
+  const start = new Date(input.startTime);
+  const end = new Date(input.endTime);
+  const dayStart = new Date(start);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
+  const { data: existing } = await supabase
+    .from("appointments")
+    .select("start_time, end_time")
+    .eq("salon_id", input.salonId)
+    .eq("stylist_id", input.stylistId)
+    .in("status", ["scheduled", "completed"])
+    .gte("start_time", dayStart.toISOString())
+    .lt("start_time", dayEnd.toISOString());
+
+  const existingRanges = (existing ?? []).map((a) =>
+    rangeToMinutes(new Date(a.start_time), new Date(a.end_time))
+  );
+  const { startMinutes, endMinutes } = rangeToMinutes(start, end);
+  if (hasOverlap(existingRanges, startMinutes, endMinutes)) {
+    return { error: "This would overlap with another appointment for the same stylist." };
+  }
 
   const row: Record<string, unknown> = {
     salon_id: input.salonId,
@@ -69,6 +94,44 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
+
+  if (updates.start_time !== undefined || updates.end_time !== undefined || updates.stylist_id !== undefined) {
+    const { data: current } = await supabase
+      .from("appointments")
+      .select("start_time, end_time, stylist_id")
+      .eq("id", id)
+      .eq("salon_id", context.salon.id)
+      .single();
+
+    if (!current) return { error: "Appointment not found" };
+
+    const start = new Date(updates.start_time ?? current.start_time);
+    const end = new Date(updates.end_time ?? current.end_time);
+    const stylistId = updates.stylist_id ?? current.stylist_id;
+
+    const dayStart = new Date(start);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
+    const { data: existing } = await supabase
+      .from("appointments")
+      .select("start_time, end_time")
+      .eq("salon_id", context.salon.id)
+      .eq("stylist_id", stylistId)
+      .neq("id", id)
+      .in("status", ["scheduled", "completed"])
+      .gte("start_time", dayStart.toISOString())
+      .lt("start_time", dayEnd.toISOString());
+
+    const existingRanges = (existing ?? []).map((a) =>
+      rangeToMinutes(new Date(a.start_time), new Date(a.end_time))
+    );
+    const { startMinutes, endMinutes } = rangeToMinutes(start, end);
+    if (hasOverlap(existingRanges, startMinutes, endMinutes)) {
+      return { error: "This would overlap with another appointment for the same stylist." };
+    }
+  }
 
   const payload: Record<string, unknown> = {};
   if (updates.start_time !== undefined) payload.start_time = updates.start_time;

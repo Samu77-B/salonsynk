@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendBookingConfirmation } from "@/lib/email";
+import { hasOverlap, rangeToMinutes } from "@/lib/diary-rules";
 
 export async function createGuestBooking(
   salonId: string,
@@ -32,6 +33,30 @@ export async function createGuestBooking(
     data.stylistId = first.id;
   }
 
+  const start = new Date(data.startTime);
+  const end = new Date(data.endTime);
+  const dayStart = new Date(start);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
+  const { data: existing } = await supabase
+    .from("appointments")
+    .select("start_time, end_time")
+    .eq("salon_id", salonId)
+    .eq("stylist_id", data.stylistId)
+    .in("status", ["scheduled", "completed"])
+    .gte("start_time", dayStart.toISOString())
+    .lt("start_time", dayEnd.toISOString());
+
+  const existingRanges = (existing ?? []).map((a) =>
+    rangeToMinutes(new Date(a.start_time), new Date(a.end_time))
+  );
+  const { startMinutes, endMinutes } = rangeToMinutes(start, end);
+  if (hasOverlap(existingRanges, startMinutes, endMinutes)) {
+    return { error: "This time slot is no longer available. Please choose another time." };
+  }
+
   const { data: appointment, error } = await supabase
     .from("appointments")
     .insert({
@@ -51,7 +76,6 @@ export async function createGuestBooking(
 
   if (error) return { error: error.message };
 
-  const start = new Date(data.startTime);
   await sendBookingConfirmation(data.guestEmail, {
     date: start.toLocaleDateString("en-GB"),
     time: start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
