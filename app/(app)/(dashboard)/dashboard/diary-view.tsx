@@ -399,7 +399,7 @@ export function DiaryView({
                     >
                       {inCell.length > 1 ? (
                         <div
-                          className="flex flex-row gap-1 h-full min-h-[12px]"
+                          className="flex flex-col sm:flex-row gap-1 h-full min-h-[12px]"
                           onDragOver={(e) => {
                             e.preventDefault();
                             e.dataTransfer.dropEffect = "move";
@@ -474,8 +474,8 @@ export function DiaryView({
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col md:flex-row gap-0 md:gap-0">
-                  <div className="flex-1 min-w-0 border-b md:border-b-0 md:border-r border-border">
+                <div className="flex flex-col lg:flex-row gap-0 lg:gap-0">
+                  <div className="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-border">
                     <div className="px-4 py-2 bg-muted/20 text-xs font-medium text-muted border-b border-border">
                       AM (6am–1pm)
                     </div>
@@ -559,7 +559,7 @@ export function DiaryView({
                       >
                         {inCell.length > 1 ? (
                           <div
-                            className="flex flex-row gap-1 h-full min-h-[12px]"
+                            className="flex flex-col sm:flex-row gap-1 h-full min-h-[12px]"
                             onDragOver={(e) => {
                               e.preventDefault();
                               e.dataTransfer.dropEffect = "move";
