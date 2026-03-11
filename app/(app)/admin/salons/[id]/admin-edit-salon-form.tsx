@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   adminUpdateSalon,
+  adminUploadSalonLogo,
   adminAssignOwner,
   adminInviteOwner,
   adminCreateOwnerWithPassword,
@@ -59,6 +60,8 @@ export function AdminEditSalonForm({
   const [createMsg, setCreateMsg] = useState<"saved" | "error" | null>(null);
   const [createErrorText, setCreateErrorText] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -76,6 +79,23 @@ export function AdminEditSalonForm({
     });
     setLoading(false);
     setSaveMsg(result.error ? "error" : "saved");
+  }
+
+  async function handleLogoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSaveMsg(null);
+    setLogoUploading(true);
+    const formData = new FormData();
+    formData.append("logo", file);
+    const result = await adminUploadSalonLogo(salonId, formData);
+    setLogoUploading(false);
+    if (result.error) setSaveMsg("error");
+    else if (result.url) {
+      setLogoUrl(result.url);
+      setSaveMsg("saved");
+    }
+    e.target.value = "";
   }
 
   async function handleAssignOwner(e: React.FormEvent) {
@@ -118,14 +138,37 @@ export function AdminEditSalonForm({
           Used on the public booking page so clients see the salon&apos;s brand.
         </p>
         <div>
-          <label className="block text-sm font-medium mb-1">Logo URL</label>
-          <input
-            type="url"
-            value={logoUrl}
-            onChange={(e) => setLogoUrl(e.target.value)}
-            placeholder="https://..."
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          />
+          <label className="block text-sm font-medium mb-1">Logo</label>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input
+              type="url"
+              value={logoUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full sm:flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => logoFileInputRef.current?.click()}
+              className="rounded-lg border border-border px-3 py-2 text-sm font-medium shrink-0 disabled:opacity-50"
+              disabled={logoUploading}
+              title="Upload logo image from your device"
+            >
+              {logoUploading ? "Uploading…" : "Upload logo"}
+            </button>
+            <input
+              ref={logoFileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleLogoFileChange}
+              className="hidden"
+              aria-label="Upload logo image"
+              title="Upload logo image"
+            />
+          </div>
+          <p className="text-xs text-muted mt-1">
+            Paste a URL or upload an image file. PNG, JPEG, GIF, WebP, or SVG up to 2MB.
+          </p>
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Primary colour (hex)</label>
