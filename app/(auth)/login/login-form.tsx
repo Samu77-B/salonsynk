@@ -15,17 +15,23 @@ export function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setMessage({ type: "error", text: error.message });
-      return;
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+      const res = await fetch("/api/auth/me");
+      const data = res.ok ? await res.json() : { isSuperAdmin: false };
+      router.refresh();
+      router.push(data.isSuperAdmin ? "/admin" : "/dashboard");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setMessage({ type: "error", text: msg });
+    } finally {
+      setLoading(false);
     }
-    const res = await fetch("/api/auth/me");
-    const data = res.ok ? await res.json() : { isSuperAdmin: false };
-    router.refresh();
-    router.push(data.isSuperAdmin ? "/admin" : "/dashboard");
   }
 
   return (
