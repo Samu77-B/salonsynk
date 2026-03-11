@@ -37,6 +37,9 @@ const SLOTS_15MIN = Array.from({ length: 56 }, (_, i) => {
   const totalMins = 6 * 60 + i * 15;
   return { hour: Math.floor(totalMins / 60), minute: totalMins % 60 };
 });
+// Day view: split into AM (6am–1pm) and PM (1pm–8pm)
+const SLOTS_AM = SLOTS_15MIN.slice(0, 28); // 6:00–12:45
+const SLOTS_PM = SLOTS_15MIN.slice(28, 56); // 13:00–19:45
 
 function formatDate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -211,11 +214,7 @@ export function DiaryView({
   }, [members]);
 
   const daysToShow = view === "day"
-    ? Array.from({ length: 2 }, (_, i) => {
-        const d = new Date(dateObj);
-        d.setDate(d.getDate() + i);
-        return d;
-      })
+    ? [dateObj]
     : Array.from({ length: 7 }, (_, i) => {
         const d = new Date(dateObj);
         d.setDate(d.getDate() - dateObj.getDay() + i);
@@ -295,7 +294,7 @@ export function DiaryView({
           <button
             onClick={() => {
               const d = new Date(currentDate + "T12:00:00");
-              d.setDate(d.getDate() - (view === "day" ? 2 : 7));
+              d.setDate(d.getDate() - (view === "day" ? 1 : 7));
               setCurrentDate(formatDate(d));
             }}
             className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
@@ -304,13 +303,13 @@ export function DiaryView({
           </button>
           <span className="text-sm text-muted min-w-0 sm:min-w-[180px] text-center shrink-0 font-medium">
             {view === "day"
-              ? `${daysToShow[0].toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} – ${daysToShow[1].toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`
+              ? daysToShow[0].toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
               : `${daysToShow[0].toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${daysToShow[6].toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
           </span>
           <button
             onClick={() => {
               const d = new Date(currentDate + "T12:00:00");
-              d.setDate(d.getDate() + (view === "day" ? 2 : 7));
+              d.setDate(d.getDate() + (view === "day" ? 1 : 7));
               setCurrentDate(formatDate(d));
             }}
             className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
@@ -323,7 +322,7 @@ export function DiaryView({
             aria-label="View"
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
           >
-            <option value="day">2 days</option>
+            <option value="day">Day</option>
             <option value="week">Week</option>
           </select>
           <select
@@ -353,14 +352,115 @@ export function DiaryView({
       )}
 
       {view === "day" ? (
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        <div className="flex flex-col gap-4">
           {daysToShow.map((day) => {
             const dayStr = formatDate(day);
             const isToday = dayStr === todayStr;
+            const renderSlotColumn = (slots: typeof SLOTS_15MIN) =>
+              slots.map((slot, idx) => {
+                const cellStart = new Date(day);
+                cellStart.setHours(slot.hour, slot.minute, 0, 0);
+                const cellEnd = new Date(cellStart);
+                cellEnd.setMinutes(cellEnd.getMinutes() + 15);
+                const inCell = filteredAppointments
+                  .filter((a) => {
+                    const s = new Date(a.start_time);
+                    return s >= cellStart && s < cellEnd && formatDate(s) === dayStr;
+                  })
+                  .sort((a, b) => {
+                    const sa = new Date(a.start_time).getTime();
+                    const sb = new Date(b.start_time).getTime();
+                    if (sa !== sb) return sa - sb;
+                    const stylistA = members.find((m) => m.id === a.stylist_id)?.display_name ?? "";
+                    const stylistB = members.find((m) => m.id === b.stylist_id)?.display_name ?? "";
+                    return stylistA.localeCompare(stylistB);
+                  });
+                const timeLabel = `${slot.hour}:${String(slot.minute).padStart(2, "0")}`;
+                return (
+                  <tr key={idx} className="border-b border-border/30">
+                    <td className="w-14 p-1 text-muted text-[10px] align-top">{timeLabel}</td>
+                    <td
+                      className="relative h-3 min-h-3 align-top p-0.5 overflow-visible"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const id = e.dataTransfer.getData("text/plain");
+                        if (!id) return;
+                        const apt = appointments.find((a) => a.id === id);
+                        if (!apt) return;
+                        const newStart = new Date(cellStart);
+                        const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
+                        const newEnd = new Date(newStart.getTime() + durationMs);
+                        handleReschedule(id, newStart, newEnd);
+                      }}
+                    >
+                      {inCell.length > 1 ? (
+                        <div
+                          className="flex flex-row gap-1 h-full min-h-[12px]"
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const id = e.dataTransfer.getData("text/plain");
+                            if (!id) return;
+                            const apt = appointments.find((a) => a.id === id);
+                            if (!apt) return;
+                            const newStart = new Date(cellStart);
+                            const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
+                            const newEnd = new Date(newStart.getTime() + durationMs);
+                            handleReschedule(id, newStart, newEnd);
+                          }}
+                        >
+                          {inCell.map((a, idx) => (
+                            <AppointmentBlock
+                              key={a.id}
+                              a={a}
+                              cellStart={cellStart}
+                              members={members}
+                              stylistColorMap={stylistColorMap}
+                              appointments={appointments}
+                              onReschedule={handleReschedule}
+                              onEdit={() => setEditId(a.id)}
+                              onDelete={() => handleDelete(a.id)}
+                              onDragStart={() => setMovingId(a.id)}
+                              onDragEnd={() => setMovingId(null)}
+                              slotIndex={idx}
+                              slotCount={inCell.length}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        inCell.map((a, idx) => (
+                          <AppointmentBlock
+                            key={a.id}
+                            a={a}
+                            cellStart={cellStart}
+                            members={members}
+                            stylistColorMap={stylistColorMap}
+                            appointments={appointments}
+                            onReschedule={handleReschedule}
+                            onEdit={() => setEditId(a.id)}
+                            onDelete={() => handleDelete(a.id)}
+                            onDragStart={() => setMovingId(a.id)}
+                            onDragEnd={() => setMovingId(null)}
+                            slotIndex={idx}
+                            slotCount={inCell.length}
+                          />
+                        ))
+                      )}
+                    </td>
+                  </tr>
+                );
+              });
             return (
               <div
                 key={dayStr}
-                className="flex-1 min-w-0 rounded-xl border border-border bg-background shadow-sm overflow-hidden"
+                className="rounded-xl border border-border bg-background shadow-sm overflow-hidden"
               >
                 <div className="px-4 py-3 border-b border-border bg-muted/30">
                   <div className="flex items-center gap-2">
@@ -374,111 +474,27 @@ export function DiaryView({
                     )}
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[200px] border-collapse text-sm">
-                    <tbody>
-                      {SLOTS_15MIN.map((slot, idx) => {
-                        const cellStart = new Date(day);
-                        cellStart.setHours(slot.hour, slot.minute, 0, 0);
-                        const cellEnd = new Date(cellStart);
-                        cellEnd.setMinutes(cellEnd.getMinutes() + 15);
-                        const inCell = filteredAppointments
-                          .filter((a) => {
-                            const s = new Date(a.start_time);
-                            return s >= cellStart && s < cellEnd && formatDate(s) === dayStr;
-                          })
-                          .sort((a, b) => {
-                            const sa = new Date(a.start_time).getTime();
-                            const sb = new Date(b.start_time).getTime();
-                            if (sa !== sb) return sa - sb;
-                            const stylistA = members.find((m) => m.id === a.stylist_id)?.display_name ?? "";
-                            const stylistB = members.find((m) => m.id === b.stylist_id)?.display_name ?? "";
-                            return stylistA.localeCompare(stylistB);
-                          });
-                        const timeLabel = `${slot.hour}:${String(slot.minute).padStart(2, "0")}`;
-                        return (
-                          <tr key={idx} className="border-b border-border/30">
-                            <td className="w-14 p-1 text-muted text-[10px] align-top">{timeLabel}</td>
-                            <td
-                              className="relative h-3 min-h-3 align-top p-0.5 overflow-visible"
-                              onDragOver={(e) => {
-                                e.preventDefault();
-                                e.dataTransfer.dropEffect = "move";
-                              }}
-                              onDrop={(e) => {
-                                e.preventDefault();
-                                const id = e.dataTransfer.getData("text/plain");
-                                if (!id) return;
-                                const apt = appointments.find((a) => a.id === id);
-                                if (!apt) return;
-                                const newStart = new Date(cellStart);
-                                const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
-                                const newEnd = new Date(newStart.getTime() + durationMs);
-                                handleReschedule(id, newStart, newEnd);
-                              }}
-                            >
-                              {inCell.length > 1 ? (
-                                <div
-                                  className="flex flex-row gap-1 h-full min-h-[12px]"
-                                  onDragOver={(e) => {
-                                    e.preventDefault();
-                                    e.dataTransfer.dropEffect = "move";
-                                  }}
-                                  onDrop={(e) => {
-                                    e.preventDefault();
-                                    const id = e.dataTransfer.getData("text/plain");
-                                    if (!id) return;
-                                    const apt = appointments.find((a) => a.id === id);
-                                    if (!apt) return;
-                                    const newStart = new Date(cellStart);
-                                    const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
-                                    const newEnd = new Date(newStart.getTime() + durationMs);
-                                    handleReschedule(id, newStart, newEnd);
-                                  }}
-                                >
-                                  {inCell.map((a, idx) => (
-                                    <AppointmentBlock
-                                      key={a.id}
-                                      a={a}
-                                      cellStart={cellStart}
-                                      members={members}
-                                      stylistColorMap={stylistColorMap}
-                                      appointments={appointments}
-                                      onReschedule={handleReschedule}
-                                      onEdit={() => setEditId(a.id)}
-                                      onDelete={() => handleDelete(a.id)}
-                                      onDragStart={() => setMovingId(a.id)}
-                                      onDragEnd={() => setMovingId(null)}
-                                      slotIndex={idx}
-                                      slotCount={inCell.length}
-                                    />
-                                  ))}
-                                </div>
-                              ) : (
-                                inCell.map((a, idx) => (
-                                  <AppointmentBlock
-                                    key={a.id}
-                                    a={a}
-                                    cellStart={cellStart}
-                                    members={members}
-                                    stylistColorMap={stylistColorMap}
-                                    appointments={appointments}
-                                    onReschedule={handleReschedule}
-                                    onEdit={() => setEditId(a.id)}
-                                    onDelete={() => handleDelete(a.id)}
-                                    onDragStart={() => setMovingId(a.id)}
-                                    onDragEnd={() => setMovingId(null)}
-                                    slotIndex={idx}
-                                    slotCount={inCell.length}
-                                  />
-                                ))
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div className="flex flex-col md:flex-row gap-0 md:gap-0">
+                  <div className="flex-1 min-w-0 border-b md:border-b-0 md:border-r border-border">
+                    <div className="px-4 py-2 bg-muted/20 text-xs font-medium text-muted border-b border-border">
+                      AM (6am–1pm)
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[200px] border-collapse text-sm">
+                        <tbody>{renderSlotColumn(SLOTS_AM)}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="px-4 py-2 bg-muted/20 text-xs font-medium text-muted border-b border-border">
+                      PM (1pm–8pm)
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[200px] border-collapse text-sm">
+                        <tbody>{renderSlotColumn(SLOTS_PM)}</tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
