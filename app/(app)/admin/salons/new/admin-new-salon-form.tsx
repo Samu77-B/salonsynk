@@ -4,11 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { adminCreateSalon } from "../actions";
 
-export function AdminNewSalonForm({
-  slugFromName,
-}: {
-  slugFromName: (name: string) => string;
-}) {
+function slugFromName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export function AdminNewSalonForm() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");

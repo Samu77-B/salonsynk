@@ -1,13 +1,6 @@
 import Link from "next/link";
 import { AdminNewSalonForm } from "./admin-new-salon-form";
 
-function slugFromName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
 export default function AdminNewSalonPage() {
   return (
     <div className="max-w-lg">
@@ -17,7 +10,7 @@ export default function AdminNewSalonPage() {
         </Link>
         <h1 className="text-2xl font-bold">Add salon</h1>
       </div>
-      <AdminNewSalonForm slugFromName={slugFromName} />
+      <AdminNewSalonForm />
     </div>
   );
 }
