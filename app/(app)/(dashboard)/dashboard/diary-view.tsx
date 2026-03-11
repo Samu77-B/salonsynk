@@ -32,6 +32,11 @@ type Appointment = {
 
 const VIEWS = ["day", "week"] as const;
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 6); // 6am–8pm
+// 15-minute slots: 6:00–20:00 (56 slots)
+const SLOTS_15MIN = Array.from({ length: 56 }, (_, i) => {
+  const totalMins = 6 * 60 + i * 15;
+  return { hour: Math.floor(totalMins / 60), minute: totalMins % 60 };
+});
 
 function formatDate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -372,11 +377,11 @@ export function DiaryView({
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[200px] border-collapse text-sm">
                     <tbody>
-                      {HOURS.map((hour) => {
+                      {SLOTS_15MIN.map((slot, idx) => {
                         const cellStart = new Date(day);
-                        cellStart.setHours(hour, 0, 0, 0);
-                        const cellEnd = new Date(day);
-                        cellEnd.setHours(hour + 1, 0, 0, 0);
+                        cellStart.setHours(slot.hour, slot.minute, 0, 0);
+                        const cellEnd = new Date(cellStart);
+                        cellEnd.setMinutes(cellEnd.getMinutes() + 15);
                         const inCell = filteredAppointments
                           .filter((a) => {
                             const s = new Date(a.start_time);
@@ -390,11 +395,12 @@ export function DiaryView({
                             const stylistB = members.find((m) => m.id === b.stylist_id)?.display_name ?? "";
                             return stylistA.localeCompare(stylistB);
                           });
+                        const timeLabel = `${slot.hour}:${String(slot.minute).padStart(2, "0")}`;
                         return (
-                          <tr key={hour} className="border-b border-border/50">
-                            <td className="w-12 p-2 text-muted text-xs align-top">{hour}:00</td>
+                          <tr key={idx} className="border-b border-border/30">
+                            <td className="w-14 p-1 text-muted text-[10px] align-top">{timeLabel}</td>
                             <td
-                              className="relative h-12 min-h-12 align-top p-1 overflow-visible"
+                              className="relative h-3 min-h-3 align-top p-0.5 overflow-visible"
                               onDragOver={(e) => {
                                 e.preventDefault();
                                 e.dataTransfer.dropEffect = "move";
@@ -413,7 +419,7 @@ export function DiaryView({
                             >
                               {inCell.length > 1 ? (
                                 <div
-                                  className="flex flex-row gap-1 h-full min-h-[48px]"
+                                  className="flex flex-row gap-1 h-full min-h-[12px]"
                                   onDragOver={(e) => {
                                     e.preventDefault();
                                     e.dataTransfer.dropEffect = "move";
@@ -483,27 +489,29 @@ export function DiaryView({
           <table className="w-full min-w-[600px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="w-16 p-3 text-left text-muted font-medium">Time</th>
+                <th className="w-14 p-2 text-left text-muted font-medium text-xs">Time</th>
                 {daysToShow.map((d) => (
-                  <th key={d.toISOString()} className="p-3 text-left text-muted font-medium">
+                  <th key={d.toISOString()} className="p-2 text-left text-muted font-medium text-xs">
                     {d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" })}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {HOURS.map((hour) => (
-                <tr key={hour} className="border-b border-border/50">
-                  <td className="p-2 text-muted">{hour}:00</td>
+              {SLOTS_15MIN.map((slot, idx) => {
+                const timeLabel = `${slot.hour}:${String(slot.minute).padStart(2, "0")}`;
+                return (
+                <tr key={idx} className="border-b border-border/30">
+                  <td className="p-1 text-muted text-[10px]">{timeLabel}</td>
                   {daysToShow.map((day) => {
-                    const cellStart = new Date(day);
-                    cellStart.setHours(hour, 0, 0, 0);
-                    const cellEnd = new Date(day);
-                    cellEnd.setHours(hour + 1, 0, 0, 0);
+                    const dayCellStart = new Date(day);
+                    dayCellStart.setHours(slot.hour, slot.minute, 0, 0);
+                    const dayCellEnd = new Date(dayCellStart);
+                    dayCellEnd.setMinutes(dayCellEnd.getMinutes() + 15);
                     const inCell = filteredAppointments
                       .filter((a) => {
                         const s = new Date(a.start_time);
-                        return s >= cellStart && s < cellEnd && formatDate(s) === formatDate(day);
+                        return s >= dayCellStart && s < dayCellEnd && formatDate(s) === formatDate(day);
                       })
                       .sort((a, b) => {
                         const sa = new Date(a.start_time).getTime();
@@ -516,7 +524,7 @@ export function DiaryView({
                     return (
                       <td
                         key={day.toISOString()}
-                        className="relative h-12 min-h-12 align-top p-1 overflow-visible"
+                        className="relative h-3 min-h-3 align-top p-0.5 overflow-visible"
                         onDragOver={(e) => {
                           e.preventDefault();
                           e.dataTransfer.dropEffect = "move";
@@ -527,7 +535,7 @@ export function DiaryView({
                           if (!id) return;
                           const apt = appointments.find((a) => a.id === id);
                           if (!apt) return;
-                          const newStart = new Date(cellStart);
+                          const newStart = new Date(dayCellStart);
                           const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
                           const newEnd = new Date(newStart.getTime() + durationMs);
                           handleReschedule(id, newStart, newEnd);
@@ -535,7 +543,7 @@ export function DiaryView({
                       >
                         {inCell.length > 1 ? (
                           <div
-                            className="flex flex-row gap-1 h-full min-h-[48px]"
+                            className="flex flex-row gap-1 h-full min-h-[12px]"
                             onDragOver={(e) => {
                               e.preventDefault();
                               e.dataTransfer.dropEffect = "move";
@@ -546,7 +554,7 @@ export function DiaryView({
                               if (!id) return;
                               const apt = appointments.find((a) => a.id === id);
                               if (!apt) return;
-                              const newStart = new Date(cellStart);
+                              const newStart = new Date(dayCellStart);
                               const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
                               const newEnd = new Date(newStart.getTime() + durationMs);
                               handleReschedule(id, newStart, newEnd);
@@ -556,7 +564,7 @@ export function DiaryView({
                               <AppointmentBlock
                                 key={a.id}
                                 a={a}
-                                cellStart={cellStart}
+                                cellStart={dayCellStart}
                                 members={members}
                                 stylistColorMap={stylistColorMap}
                                 appointments={appointments}
@@ -575,7 +583,7 @@ export function DiaryView({
                             <AppointmentBlock
                               key={a.id}
                               a={a}
-                              cellStart={cellStart}
+                              cellStart={dayCellStart}
                               members={members}
                               stylistColorMap={stylistColorMap}
                               appointments={appointments}
@@ -593,7 +601,8 @@ export function DiaryView({
                     );
                   })}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
