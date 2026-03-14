@@ -23,7 +23,7 @@ export default async function SettingsPage() {
       .single(),
     supabase
       .from("services")
-      .select("id, name, duration_minutes, price_minor")
+      .select("id, name, duration_minutes, price_minor, processing_time_minutes")
       .eq("salon_id", context.salon.id)
       .order("name"),
   ]);
@@ -31,6 +31,13 @@ export default async function SettingsPage() {
   const settings = (salon?.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | undefined>) ?? {};
   const adminFeePercent = Number(settings.admin_fee_percent) || 10;
+  const depositRequired = Boolean(settings.deposit_required);
+  const depositType = (settings.deposit_type as "percent" | "flat") || "percent";
+  const depositValue = Number(settings.deposit_value) ?? 20;
+  const googleReviewUrl = String(settings.google_review_url ?? "");
+  const weMissYouWeeksMin = Number(settings.we_miss_you_weeks_min) || 6;
+  const weMissYouWeeksMax = Number(settings.we_miss_you_weeks_max) || 10;
+  const weMissYouDiscountCode = String(settings.we_miss_you_discount_code ?? "");
 
   const isOwner = context.member.role === "owner";
   const employmentType = (member?.employment_type as string) ?? "EMPLOYEE";
@@ -63,7 +70,15 @@ export default async function SettingsPage() {
           name: s.name,
           duration_minutes: s.duration_minutes,
           price_minor: s.price_minor ?? 0,
+          processing_time_minutes: s.processing_time_minutes ?? 0,
         }))}
+        depositRequired={depositRequired}
+        depositType={depositType}
+        depositValue={depositValue}
+        googleReviewUrl={googleReviewUrl}
+        weMissYouWeeksMin={weMissYouWeeksMin}
+        weMissYouWeeksMax={weMissYouWeeksMax}
+        weMissYouDiscountCode={weMissYouDiscountCode}
       />
     </main>
   );

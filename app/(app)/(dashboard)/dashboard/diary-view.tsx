@@ -22,6 +22,9 @@ type Appointment = {
   guest_phone: string | null;
   stylist_id: string;
   service_id: string | null;
+  deposit_payment_intent_id?: string | null;
+  before_photo_url?: string | null;
+  after_photo_url?: string | null;
   send_reminder_sms?: boolean;
   send_review_request?: boolean;
   send_aftercare?: boolean;
@@ -661,6 +664,7 @@ export function DiaryView({
               }
             }}
             onClose={() => setEditId(null)}
+            onNoShowCharged={() => router.refresh()}
           />
         );
       })()}

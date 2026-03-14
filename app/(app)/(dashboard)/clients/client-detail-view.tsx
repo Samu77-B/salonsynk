@@ -3,7 +3,15 @@
 import { useState } from "react";
 import { updateClientAction } from "./actions";
 
-type Formula = { text?: string; image_url?: string };
+export type ColorFormula = {
+  text?: string;
+  brand?: string;
+  formula?: string;
+  processing_time?: string;
+  result_notes?: string;
+  image_url?: string;
+  appointment_id?: string;
+};
 type Appointment = { id: string; start_time: string; end_time: string; status: string; services: { name: string } | { name: string }[] | null };
 
 export function ClientDetailView({
@@ -13,12 +21,18 @@ export function ClientDetailView({
   onPatchTestDueAt,
 }: {
   clientId: string;
-  formulas: Formula[];
+  formulas: ColorFormula[];
   appointments: Appointment[];
   onPatchTestDueAt: string | null;
 }) {
   const [patchDate, setPatchDate] = useState(onPatchTestDueAt?.slice(0, 10) ?? "");
   const [formulaText, setFormulaText] = useState("");
+  const [brand, setBrand] = useState("");
+  const [formula, setFormula] = useState("");
+  const [processingTime, setProcessingTime] = useState("");
+  const [resultNotes, setResultNotes] = useState("");
+  const [formulaImageUrl, setFormulaImageUrl] = useState("");
+  const [useStructured, setUseStructured] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,14 +47,38 @@ export function ClientDetailView({
   }
 
   async function handleAddFormula() {
-    if (!formulaText.trim()) return;
-    setError(null);
-    setLoading(true);
-    const newFormulas = [...formulas, { text: formulaText.trim() }];
-    const result = await updateClientAction(clientId, { color_formulas: newFormulas });
-    setLoading(false);
-    if (result.error) setError(result.error);
-    else setFormulaText("");
+    if (useStructured) {
+      if (!formula.trim() && !brand.trim()) return;
+      setError(null);
+      setLoading(true);
+      const entry: ColorFormula = {
+        brand: brand.trim() || undefined,
+        formula: formula.trim() || undefined,
+        processing_time: processingTime.trim() || undefined,
+        result_notes: resultNotes.trim() || undefined,
+        image_url: formulaImageUrl.trim() || undefined,
+      };
+      const newFormulas = [...formulas, entry];
+      const result = await updateClientAction(clientId, { color_formulas: newFormulas });
+      setLoading(false);
+      if (result.error) setError(result.error);
+      else {
+        setBrand("");
+        setFormula("");
+        setProcessingTime("");
+        setResultNotes("");
+        setFormulaImageUrl("");
+      }
+    } else {
+      if (!formulaText.trim()) return;
+      setError(null);
+      setLoading(true);
+      const newFormulas = [...formulas, { text: formulaText.trim() }];
+      const result = await updateClientAction(clientId, { color_formulas: newFormulas });
+      setLoading(false);
+      if (result.error) setError(result.error);
+      else setFormulaText("");
+    }
   }
 
   const serviceName = (s: Appointment["services"]) =>
@@ -49,23 +87,49 @@ export function ClientDetailView({
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="text-lg font-semibold mb-2">Color formulas</h2>
+        <h2 className="text-lg font-semibold mb-2">Color history</h2>
         <ul className="space-y-2 mb-4">
           {formulas.map((f, i) => (
-            <li key={i} className="rounded-lg border border-border p-3 text-sm">
-              {f.text}
-              {f.image_url && <p className="text-muted mt-1">Image: {f.image_url}</p>}
+            <li key={i} className="rounded-lg border border-border p-3 text-sm space-y-1">
+              {f.text && <p>{f.text}</p>}
+              {(f.brand || f.formula || f.processing_time || f.result_notes) && (
+                <div className="grid gap-1 text-muted">
+                  {f.brand && <span><strong>Brand:</strong> {f.brand}</span>}
+                  {f.formula && <span><strong>Formula:</strong> {f.formula}</span>}
+                  {f.processing_time && <span><strong>Processing:</strong> {f.processing_time}</span>}
+                  {f.result_notes && <span><strong>Result:</strong> {f.result_notes}</span>}
+                </div>
+              )}
+              {f.image_url && (
+                <p className="mt-1">
+                  <a href={f.image_url} target="_blank" rel="noopener noreferrer" className="text-accent underline">View image</a>
+                </p>
+              )}
             </li>
           ))}
         </ul>
-        <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
-          <input
-            type="text"
-            value={formulaText}
-            onChange={(e) => setFormulaText(e.target.value)}
-            placeholder="Add formula (e.g. 6.0 + 30vol)"
-            className="flex-1 min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          />
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={useStructured} onChange={(e) => setUseStructured(e.target.checked)} className="rounded border-border" />
+            <span className="text-sm">Structured fields (Brand, Formula, etc.)</span>
+          </label>
+          {useStructured ? (
+            <div className="grid gap-2 rounded-lg border border-border p-3">
+              <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              <input type="text" value={formula} onChange={(e) => setFormula(e.target.value)} placeholder="Formula (e.g. 6.0 + 20vol)" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              <input type="text" value={processingTime} onChange={(e) => setProcessingTime(e.target.value)} placeholder="Processing time" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              <input type="text" value={resultNotes} onChange={(e) => setResultNotes(e.target.value)} placeholder="Result notes" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              <input type="url" value={formulaImageUrl} onChange={(e) => setFormulaImageUrl(e.target.value)} placeholder="Image URL" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            </div>
+          ) : (
+            <input
+              type="text"
+              value={formulaText}
+              onChange={(e) => setFormulaText(e.target.value)}
+              placeholder="Add formula (e.g. 6.0 + 30vol)"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+          )}
           <button
             type="button"
             onClick={handleAddFormula}

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, addService, updateService, deleteService } from "./actions";
+import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, addService, updateService, deleteService, updateDepositSettings, updateSalonMarketingSettings } from "./actions";
 
-type ServiceRow = { id: string; name: string; duration_minutes: number; price_minor: number };
+type ServiceRow = { id: string; name: string; duration_minutes: number; price_minor: number; processing_time_minutes?: number };
 
 export function SettingsView({
   salonId,
@@ -20,6 +20,13 @@ export function SettingsView({
   isOwner,
   adminFeePercent,
   services = [],
+  depositRequired = false,
+  depositType = "percent",
+  depositValue = 20,
+  googleReviewUrl = "",
+  weMissYouWeeksMin = 6,
+  weMissYouWeeksMax = 10,
+  weMissYouDiscountCode = "",
 }: {
   salonId: string;
   salonName: string;
@@ -35,6 +42,13 @@ export function SettingsView({
   isOwner?: boolean;
   adminFeePercent?: number;
   services?: ServiceRow[];
+  depositRequired?: boolean;
+  depositType?: "percent" | "flat";
+  depositValue?: number;
+  googleReviewUrl?: string;
+  weMissYouWeeksMin?: number;
+  weMissYouWeeksMax?: number;
+  weMissYouDiscountCode?: string;
 }) {
   const connectUrl = `/api/stripe/connect?salonId=${encodeURIComponent(salonId)}`;
   const [logoUrl, setLogoUrl] = useState(branding.logo_url);
@@ -56,6 +70,21 @@ export function SettingsView({
   const [editName, setEditName] = useState("");
   const [editDuration, setEditDuration] = useState(60);
   const [editPrice, setEditPrice] = useState("");
+  const [newServiceProcessing, setNewServiceProcessing] = useState(0);
+  const [editProcessing, setEditProcessing] = useState(0);
+  const [depositReq, setDepositReq] = useState(depositRequired);
+  const [depositTypeVal, setDepositTypeVal] = useState<"percent" | "flat">(depositType);
+  const [depositVal, setDepositVal] = useState(
+    depositType === "flat" && depositValue > 0 ? (depositValue / 100).toFixed(2) : String(depositValue)
+  );
+  const [depositMsg, setDepositMsg] = useState<"saved" | "error" | null>(null);
+  const [depositLoading, setDepositLoading] = useState(false);
+  const [googleReviewUrlVal, setGoogleReviewUrlVal] = useState(googleReviewUrl);
+  const [wmWeeksMin, setWmWeeksMin] = useState(String(weMissYouWeeksMin));
+  const [wmWeeksMax, setWmWeeksMax] = useState(String(weMissYouWeeksMax));
+  const [wmDiscountCode, setWmDiscountCode] = useState(weMissYouDiscountCode);
+  const [marketingMsg, setMarketingMsg] = useState<"saved" | "error" | null>(null);
+  const [marketingLoading, setMarketingLoading] = useState(false);
 
   async function handleBrandingSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -185,6 +214,7 @@ export function SettingsView({
                 name: newServiceName.trim(),
                 duration_minutes: newServiceDuration,
                 price_minor: priceMinor,
+                processing_time_minutes: newServiceProcessing,
               });
               setServiceLoading(false);
               setServiceMsg(result.error ? "error" : "saved");
@@ -192,6 +222,7 @@ export function SettingsView({
                 setNewServiceName("");
                 setNewServiceDuration(60);
                 setNewServicePrice("");
+                setNewServiceProcessing(0);
               }
             }}
             className="flex flex-wrap gap-2 items-end mb-4"
@@ -231,6 +262,19 @@ export function SettingsView({
                 placeholder="0"
                 className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-20"
                 aria-label="Price in pounds"
+              />
+            </div>
+            <div>
+              <label htmlFor="new-service-processing" className="block text-sm font-medium mb-1">Processing (min)</label>
+              <input
+                id="new-service-processing"
+                type="number"
+                min={0}
+                max={480}
+                value={newServiceProcessing}
+                onChange={(e) => setNewServiceProcessing(Number(e.target.value) || 0)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-20"
+                aria-label="Processing time (e.g. color development)"
               />
             </div>
             <button
@@ -273,6 +317,15 @@ export function SettingsView({
                       className="rounded border border-border px-2 py-1 text-sm w-16"
                       aria-label="Price in pounds"
                     />
+                    <input
+                      type="number"
+                      min={0}
+                      max={480}
+                      value={editProcessing}
+                      onChange={(e) => setEditProcessing(Number(e.target.value) || 0)}
+                      className="rounded border border-border px-2 py-1 text-sm w-14"
+                      aria-label="Processing minutes"
+                    />
                     <button
                       type="button"
                       onClick={async () => {
@@ -281,6 +334,7 @@ export function SettingsView({
                           name: editName.trim(),
                           duration_minutes: editDuration,
                           price_minor: editPrice.trim() ? Math.round(parseFloat(editPrice) * 100) : 0,
+                          processing_time_minutes: editProcessing,
                         });
                         setServiceLoading(false);
                         setEditingId(null);
@@ -298,6 +352,9 @@ export function SettingsView({
                   <>
                     <span className="flex-1 min-w-0 font-medium truncate">{s.name}</span>
                     <span className="text-sm text-muted">{s.duration_minutes} min</span>
+                    {(s.processing_time_minutes ?? 0) > 0 && (
+                      <span className="text-xs text-muted">+{s.processing_time_minutes} proc</span>
+                    )}
                     {s.price_minor > 0 && (
                       <span className="text-sm text-muted">£{(s.price_minor / 100).toFixed(2)}</span>
                     )}
@@ -308,6 +365,7 @@ export function SettingsView({
                         setEditName(s.name);
                         setEditDuration(s.duration_minutes);
                         setEditPrice(s.price_minor > 0 ? (s.price_minor / 100).toFixed(2) : "");
+                        setEditProcessing(s.processing_time_minutes ?? 0);
                       }}
                       className="text-sm text-accent hover:underline"
                     >
@@ -378,6 +436,78 @@ export function SettingsView({
         </section>
       )}
 
+      {isOwner && (
+        <section>
+          <h2 className="text-lg font-semibold mb-2">No-Show & Deposit</h2>
+          <p className="text-muted text-sm mb-4">
+            Require a deposit at booking (percentage or flat fee). Use &quot;Charge No-Show Fee&quot; in the appointment details to capture it if the client doesn&apos;t show.
+          </p>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setDepositMsg(null);
+              setDepositLoading(true);
+              const val =
+                depositTypeVal === "percent"
+                  ? Math.min(100, Math.max(0, Math.round(Number(depositVal) || 0)))
+                  : Math.max(0, Math.round((Number(depositVal) || 0) * 100));
+              const result = await updateDepositSettings(salonId, {
+                deposit_required: depositReq,
+                deposit_type: depositTypeVal,
+                deposit_value: val,
+              });
+              setDepositLoading(false);
+              setDepositMsg(result.error ? "error" : "saved");
+            }}
+            className="space-y-3"
+          >
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={depositReq}
+                onChange={(e) => setDepositReq(e.target.checked)}
+                className="rounded border-border"
+              />
+              <span className="text-sm font-medium">Require deposit at booking</span>
+            </label>
+            {depositReq && (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={depositTypeVal}
+                    onChange={(e) => setDepositTypeVal(e.target.value as "percent" | "flat")}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="percent">Percentage of service</option>
+                    <option value="flat">Flat fee (£)</option>
+                  </select>
+                  <input
+                    type="number"
+                    min={0}
+                    max={depositTypeVal === "percent" ? 100 : undefined}
+                    step={depositTypeVal === "percent" ? 1 : 0.01}
+                    value={depositVal}
+                    onChange={(e) => setDepositVal(e.target.value)}
+                    placeholder={depositTypeVal === "percent" ? "20" : "5.00"}
+                    className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <span className="text-sm text-muted">{depositTypeVal === "percent" ? "%" : "£"}</span>
+                </div>
+              </>
+            )}
+            <button
+              type="submit"
+              disabled={depositLoading}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+            >
+              {depositLoading ? "Saving…" : "Save deposit settings"}
+            </button>
+            {depositMsg === "saved" && <span className="text-sm text-green-400">Saved.</span>}
+            {depositMsg === "error" && <span className="text-sm text-red-400">Failed.</span>}
+          </form>
+        </section>
+      )}
+
       <section>
         <h2 className="text-lg font-semibold mb-2">Payments (Stripe Connect)</h2>
         <p className="text-muted text-sm mb-4">
@@ -404,6 +534,81 @@ export function SettingsView({
           Status: <span className="capitalize">{subscriptionStatus}</span>
         </p>
       </section>
+
+      {isOwner && (
+        <section>
+          <h2 className="text-lg font-semibold mb-2">Marketing &amp; Reviews</h2>
+          <p className="text-muted text-sm mb-4">
+            Google review link is sent in post-appointment review requests. We Miss You: optional discount code for lapsed-client campaigns.
+          </p>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setMarketingMsg(null);
+              setMarketingLoading(true);
+              const result = await updateSalonMarketingSettings(salonId, {
+                google_review_url: googleReviewUrlVal.trim() || undefined,
+                we_miss_you_weeks_min: Math.max(0, Math.round(Number(wmWeeksMin) || 0)),
+                we_miss_you_weeks_max: Math.max(0, Math.round(Number(wmWeeksMax) || 0)),
+                we_miss_you_discount_code: wmDiscountCode.trim() || undefined,
+              });
+              setMarketingLoading(false);
+              setMarketingMsg(result.error ? "error" : "saved");
+            }}
+            className="space-y-3"
+          >
+            <div>
+              <label className="block text-sm font-medium mb-1">Google review URL</label>
+              <input
+                type="url"
+                value={googleReviewUrlVal}
+                onChange={(e) => setGoogleReviewUrlVal(e.target.value)}
+                placeholder="https://g.page/r/..."
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="block text-sm font-medium">We Miss You: weeks since last visit</label>
+              <input
+                type="number"
+                min={1}
+                max={52}
+                value={wmWeeksMin}
+                onChange={(e) => setWmWeeksMin(e.target.value)}
+                className="w-16 rounded-lg border border-border bg-background px-2 py-1 text-sm"
+              />
+              <span className="text-muted">to</span>
+              <input
+                type="number"
+                min={1}
+                max={52}
+                value={wmWeeksMax}
+                onChange={(e) => setWmWeeksMax(e.target.value)}
+                className="w-16 rounded-lg border border-border bg-background px-2 py-1 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">We Miss You discount code (optional)</label>
+              <input
+                type="text"
+                value={wmDiscountCode}
+                onChange={(e) => setWmDiscountCode(e.target.value)}
+                placeholder="e.g. COMEBACK10"
+                className="w-full max-w-xs rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={marketingLoading}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+            >
+              {marketingLoading ? "Saving…" : "Save"}
+            </button>
+            {marketingMsg === "saved" && <span className="text-sm text-green-400">Saved.</span>}
+            {marketingMsg === "error" && <span className="text-sm text-red-400">Failed.</span>}
+          </form>
+        </section>
+      )}
 
       {showSalonTaxVault && (
         <section>

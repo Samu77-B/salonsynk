@@ -38,6 +38,7 @@ export default async function DashboardPage() {
         id, start_time, end_time, status, notes,
         client_id, guest_name, guest_email, guest_phone,
         stylist_id, service_id, send_reminder_sms, send_review_request, send_aftercare,
+        deposit_payment_intent_id, before_photo_url, after_photo_url,
         clients(name, email, phone),
         services(name, duration_minutes),
         salon_members(display_name)

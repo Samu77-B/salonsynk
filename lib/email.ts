@@ -144,3 +144,25 @@ export async function sendReviewRequest(
   });
   return { error: normalizeResendError(error) };
 }
+
+export async function sendWeMissYouEmail(
+  to: string,
+  details: { clientName?: string; salonName: string; bookUrl?: string; discountCode?: string }
+): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured" };
+  const name = details.clientName ? ` ${details.clientName}` : "";
+  let html = `<p>Hi${name},</p><p>We miss you at ${details.salonName}! It's been a while since we've seen you.</p>`;
+  if (details.bookUrl) {
+    html += `<p><a href="${details.bookUrl}">Book your next visit</a></p>`;
+  }
+  if (details.discountCode) {
+    html += `<p>Use code <strong>${details.discountCode}</strong> for a discount.</p>`;
+  }
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [to],
+    subject: `We miss you at ${details.salonName}`,
+    html,
+  });
+  return { error: normalizeResendError(error) };
+}

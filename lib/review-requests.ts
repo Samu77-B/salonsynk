@@ -15,7 +15,7 @@ type Row = {
   guest_name: string | null;
   guest_phone: string | null;
   clients: { email?: string; phone?: string; name?: string } | null;
-  salons: { name?: string; slug?: string } | null;
+  salons: { name?: string; slug?: string; settings?: { google_review_url?: string } } | null;
 };
 
 /**
@@ -27,7 +27,7 @@ export async function getAppointmentsEligibleForReviewRequest(hoursAfterEnd: num
   cutoff.setHours(cutoff.getHours() - hoursAfterEnd);
   const { data } = await supabase
     .from("appointments")
-    .select("id, end_time, guest_email, guest_name, guest_phone, clients(email, phone, name), salons(name, slug)")
+    .select("id, end_time, guest_email, guest_name, guest_phone, clients(email, phone, name), salons(name, slug, settings)")
     .eq("status", "completed")
     .eq("send_review_request", true)
     .is("review_request_sent_at", null)
@@ -44,8 +44,11 @@ export async function sendReviewRequests(hoursAfterEnd = 2) {
     const salonName = a.salons?.name ?? "the salon";
     const clientName = a.guest_name ?? a.clients?.name ?? undefined;
     const slug = a.salons?.slug;
-    const reviewUrl = slug ? `${siteUrl.replace(/\/$/, "")}/review?salon=${encodeURIComponent(slug)}` : undefined;
-    const shortMessage = `Thanks for visiting ${salonName}. We’d love your feedback – leave a review: ${reviewUrl ?? "contact us"}`;
+    const settings = (a.salons as { settings?: { google_review_url?: string } } | undefined)?.settings;
+    const reviewUrl =
+      (settings?.google_review_url?.trim() as string | undefined) ||
+      (slug ? `${siteUrl.replace(/\/$/, "")}/review?salon=${encodeURIComponent(slug)}` : undefined);
+    const shortMessage = `Thanks for visiting ${salonName}. We'd love your feedback – leave a review: ${reviewUrl ?? "contact us"}`;
 
     let sent = false;
     let lastError: string | undefined;

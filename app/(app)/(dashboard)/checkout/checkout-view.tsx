@@ -25,6 +25,7 @@ export function CheckoutView({
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [customAmountMinor, setCustomAmountMinor] = useState<number | null>(null);
   const [silentAppointment, setSilentAppointment] = useState(false);
+  const [cancellationPolicyAccepted, setCancellationPolicyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -35,6 +36,10 @@ export function CheckoutView({
   }, 0);
 
   async function handlePay() {
+    if (!cancellationPolicyAccepted) {
+      setError("Please accept the cancellation policy to proceed.");
+      return;
+    }
     if (totalMinor < 50) {
       setError("Minimum amount is £0.50");
       return;
@@ -143,6 +148,16 @@ export function CheckoutView({
         />
       </div>
       <p className="font-medium">Total: £{(totalMinor / 100).toFixed(2)}</p>
+      <label className="flex items-center gap-2 py-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={cancellationPolicyAccepted}
+          onChange={(e) => setCancellationPolicyAccepted(e.target.checked)}
+          className="rounded border-border bg-background"
+          aria-label="Accept cancellation policy"
+        />
+        <span className="text-sm font-medium">I agree to the cancellation policy (deposits may be charged for no-shows or late cancellations).</span>
+      </label>
       <label className="flex items-center gap-2 py-2 cursor-pointer">
         <input
           type="checkbox"

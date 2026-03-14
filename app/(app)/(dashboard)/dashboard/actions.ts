@@ -104,6 +104,8 @@ export type UpdateAppointmentInput = {
   send_reminder_sms?: boolean;
   send_review_request?: boolean;
   send_aftercare?: boolean;
+  before_photo_url?: string | null;
+  after_photo_url?: string | null;
 };
 
 export async function updateAppointment(id: string, updates: UpdateAppointmentInput) {
@@ -162,6 +164,8 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
   if (updates.send_reminder_sms !== undefined) payload.send_reminder_sms = updates.send_reminder_sms;
   if (updates.send_review_request !== undefined) payload.send_review_request = updates.send_review_request;
   if (updates.send_aftercare !== undefined) payload.send_aftercare = updates.send_aftercare;
+  if (updates.before_photo_url !== undefined) payload.before_photo_url = updates.before_photo_url;
+  if (updates.after_photo_url !== undefined) payload.after_photo_url = updates.after_photo_url;
 
   const { error } = await supabase
     .from("appointments")

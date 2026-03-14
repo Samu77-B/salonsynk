@@ -10,6 +10,10 @@ type Appointment = {
   id: string;
   start_time: string;
   end_time: string;
+  status?: string;
+  deposit_payment_intent_id?: string | null;
+  before_photo_url?: string | null;
+  after_photo_url?: string | null;
   client_id: string | null;
   guest_name: string | null;
   guest_email: string | null;
@@ -43,6 +47,7 @@ export function EditAppointmentModal({
   clients,
   onUpdate,
   onClose,
+  onNoShowCharged,
 }: {
   appointment: Appointment;
   members: Member[];
@@ -50,6 +55,7 @@ export function EditAppointmentModal({
   clients: Client[];
   onUpdate: (id: string, data: UpdateAppointmentInput) => Promise<void>;
   onClose: () => void;
+  onNoShowCharged?: () => void;
 }) {
   const client = clients.find((c) => c.id === appointment.client_id);
   const start = new Date(appointment.start_time);
@@ -65,7 +71,11 @@ export function EditAppointmentModal({
   const [sendReminderSms, setSendReminderSms] = useState(appointment.send_reminder_sms ?? true);
   const [sendReviewRequest, setSendReviewRequest] = useState(appointment.send_review_request ?? true);
   const [sendAftercare, setSendAftercare] = useState(appointment.send_aftercare ?? false);
+  const [beforePhotoUrl, setBeforePhotoUrl] = useState(appointment.before_photo_url ?? "");
+  const [afterPhotoUrl, setAfterPhotoUrl] = useState(appointment.after_photo_url ?? "");
   const [loading, setLoading] = useState(false);
+  const [noShowLoading, setNoShowLoading] = useState(false);
+  const canChargeNoShow = appointment.status === "scheduled";
 
   useEffect(() => {
     const c = clients.find((x) => x.id === appointment.client_id);
@@ -81,6 +91,8 @@ export function EditAppointmentModal({
     setSendReminderSms(appointment.send_reminder_sms ?? true);
     setSendReviewRequest(appointment.send_review_request ?? true);
     setSendAftercare(appointment.send_aftercare ?? false);
+    setBeforePhotoUrl(appointment.before_photo_url ?? "");
+    setAfterPhotoUrl(appointment.after_photo_url ?? "");
   }, [appointment, clients]);
 
   const messagingOn = sendReminderSms || sendReviewRequest || sendAftercare;
@@ -111,6 +123,8 @@ export function EditAppointmentModal({
       send_reminder_sms: sendReminderSms,
       send_review_request: sendReviewRequest,
       send_aftercare: sendAftercare,
+      before_photo_url: beforePhotoUrl?.trim() || null,
+      after_photo_url: afterPhotoUrl?.trim() || null,
     });
     setLoading(false);
   };
@@ -240,6 +254,26 @@ export function EditAppointmentModal({
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Before photo (URL)</label>
+            <input
+              type="url"
+              value={beforePhotoUrl}
+              onChange={(e) => setBeforePhotoUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">After photo (URL)</label>
+            <input
+              type="url"
+              value={afterPhotoUrl}
+              onChange={(e) => setAfterPhotoUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+          </div>
           <div className="rounded-lg border border-border p-3 space-y-2">
             <p className="text-sm font-medium">Messages to client</p>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -270,6 +304,37 @@ export function EditAppointmentModal({
               <span className="text-sm">Send aftercare instructions after</span>
             </label>
           </div>
+          {canChargeNoShow && (
+          <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 space-y-2">
+            <p className="text-sm font-medium">No-show</p>
+            <p className="text-xs text-muted-foreground">
+              If the client did not arrive, mark as no-show and charge the deposit (if one was taken).
+            </p>
+            <button
+              type="button"
+              disabled={noShowLoading}
+              onClick={async () => {
+                if (!confirm("Mark this appointment as no-show and charge the no-show fee (if a deposit was taken)?")) return;
+                setNoShowLoading(true);
+                try {
+                  const res = await fetch(`/api/appointments/${appointment.id}/no-show`, { method: "POST" });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    alert(data.error ?? "Failed to charge no-show fee");
+                    return;
+                  }
+                  onNoShowCharged?.();
+                  onClose();
+                } finally {
+                  setNoShowLoading(false);
+                }
+              }}
+              className="rounded-lg border border-amber-500 px-4 py-2 text-sm font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 disabled:opacity-50"
+            >
+              {noShowLoading ? "Charging…" : "Charge No-Show Fee"}
+            </button>
+          </div>
+        )}
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm">
               Cancel

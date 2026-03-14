@@ -52,6 +52,50 @@ export async function updateRenterAdminFee(salonId: string, adminFeePercent: num
   return {};
 }
 
+export type DepositSettings = {
+  deposit_required?: boolean;
+  deposit_type?: "percent" | "flat";
+  deposit_value?: number; // percent 1-100 or flat amount in minor units
+};
+
+export async function updateDepositSettings(salonId: string, settings: DepositSettings) {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
+  const supabase = await createClient();
+  const { data: existing } = await supabase.from("salons").select("settings").eq("id", salonId).single();
+  if (!existing) return { error: "Salon not found" };
+  const current = (existing.settings as Record<string, unknown>) ?? {};
+  const next = { ...current };
+  if (settings.deposit_required !== undefined) next.deposit_required = settings.deposit_required;
+  if (settings.deposit_type !== undefined) next.deposit_type = settings.deposit_type;
+  if (settings.deposit_value !== undefined) next.deposit_value = Math.max(0, settings.deposit_value);
+  const { error } = await supabase.from("salons").update({ settings: next }).eq("id", salonId);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return {};
+}
+
+export async function updateSalonMarketingSettings(
+  salonId: string,
+  settings: { google_review_url?: string; we_miss_you_weeks_min?: number; we_miss_you_weeks_max?: number; we_miss_you_discount_code?: string }
+) {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
+  const supabase = await createClient();
+  const { data: existing } = await supabase.from("salons").select("settings").eq("id", salonId).single();
+  if (!existing) return { error: "Salon not found" };
+  const current = (existing.settings as Record<string, unknown>) ?? {};
+  const next = { ...current };
+  if (settings.google_review_url !== undefined) next.google_review_url = settings.google_review_url;
+  if (settings.we_miss_you_weeks_min !== undefined) next.we_miss_you_weeks_min = Math.max(0, settings.we_miss_you_weeks_min);
+  if (settings.we_miss_you_weeks_max !== undefined) next.we_miss_you_weeks_max = Math.max(0, settings.we_miss_you_weeks_max);
+  if (settings.we_miss_you_discount_code !== undefined) next.we_miss_you_discount_code = settings.we_miss_you_discount_code;
+  const { error } = await supabase.from("salons").update({ settings: next }).eq("id", salonId);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return {};
+}
+
 // Upload a logo image to Supabase Storage and update branding.logo_url
 const LOGO_BUCKET = "team-avatars";
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
@@ -113,7 +157,7 @@ export async function uploadSalonLogo(
 // Services management (owners only)
 export async function addService(
   salonId: string,
-  data: { name: string; duration_minutes: number; price_minor?: number }
+  data: { name: string; duration_minutes: number; price_minor?: number; processing_time_minutes?: number }
 ) {
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
@@ -121,12 +165,14 @@ export async function addService(
   if (!name) return { error: "Service name is required" };
   const duration = Math.max(1, Math.min(480, Math.round(data.duration_minutes ?? 60)));
   const price = Math.max(0, Math.round(data.price_minor ?? 0));
+  const processing = Math.max(0, Math.min(duration, Math.round(data.processing_time_minutes ?? 0)));
   const supabase = await createClient();
   const { error } = await supabase.from("services").insert({
     salon_id: salonId,
     name,
     duration_minutes: duration,
     price_minor: price,
+    processing_time_minutes: processing,
   });
   if (error) return { error: error.message };
   revalidatePath("/settings");
@@ -137,7 +183,7 @@ export async function addService(
 export async function updateService(
   salonId: string,
   serviceId: string,
-  data: { name?: string; duration_minutes?: number; price_minor?: number }
+  data: { name?: string; duration_minutes?: number; price_minor?: number; processing_time_minutes?: number }
 ) {
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
@@ -145,6 +191,7 @@ export async function updateService(
   if (data.name !== undefined) payload.name = data.name.trim();
   if (data.duration_minutes !== undefined) payload.duration_minutes = Math.max(1, Math.min(480, Math.round(data.duration_minutes)));
   if (data.price_minor !== undefined) payload.price_minor = Math.max(0, Math.round(data.price_minor));
+  if (data.processing_time_minutes !== undefined) payload.processing_time_minutes = Math.max(0, Math.round(data.processing_time_minutes));
   if (Object.keys(payload).length === 0) return {};
   const supabase = await createClient();
   const { error } = await supabase

@@ -3,8 +3,6 @@ import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/server";
 
-const PLATFORM_FEE_PENCE = 200; // £2
-
 export async function POST(request: Request) {
   const context = await getCurrentUserSalon();
   if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -34,7 +32,7 @@ export async function POST(request: Request) {
 
   const { data: salon } = await supabase
     .from("salons")
-    .select("stripe_connect_account_id")
+    .select("stripe_connect_account_id, settings")
     .eq("id", salonId)
     .single();
 
@@ -69,20 +67,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ clientSecret: paymentIntent.client_secret });
     }
 
-    // RENTER: route payment to stylist's Connect account; £2 platform fee via application_fee_amount
+    // RENTER: route payment to stylist's Connect account; booth rent (admin_fee_percent) to platform
     if (!stylist.stripe_connect_account_id) {
       return NextResponse.json(
         { error: "Renter must connect their Stripe account in Settings before receiving payments" },
         { status: 400 }
       );
     }
+    const settings = (salon.settings as Record<string, unknown>) ?? {};
+    const adminFeePercent = Math.min(100, Math.max(0, Number(settings.admin_fee_percent) || 0));
+    const applicationFeeAmount = Math.round((amountMinor * adminFeePercent) / 100);
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountMinor,
       currency: "gbp",
       transfer_data: {
         destination: stylist.stripe_connect_account_id,
       },
-      application_fee_amount: Math.min(PLATFORM_FEE_PENCE, amountMinor),
+      application_fee_amount: Math.min(Math.max(0, applicationFeeAmount), amountMinor),
       metadata,
     });
     return NextResponse.json({ clientSecret: paymentIntent.client_secret });
