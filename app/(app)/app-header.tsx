@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { switchAdminSalon } from "./admin/actions";
-import dashboardLogo from "../../../salonsynk-light.png";
+import dashboardLogo from "../../salonsynk-light.png";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Diary" },
