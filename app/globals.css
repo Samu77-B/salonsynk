@@ -12,11 +12,11 @@
 
 /* Logged-in app shell: modern dark theme, scoped to dashboard area only */
 .app-shell-dark {
-  --background: #050816;
+  --background: #050505; /* near-black neutral */
   --foreground: #f9fafb;
   --muted: #9ca3af;
-  --accent: #6366f1;
-  --border: #1f2937;
+  --accent: #4b5563; /* neutral grey accents */
+  --border: #27272a; /* neutral-800 */
 }
 
 * {
