@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { sendWeMissYouEmail } from "./email";
-import { canSendSms, sendSms, sendWhatsApp } from "./sms";
+import { canSendSms, canSendWhatsApp, sendSms, sendWhatsApp } from "./sms";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
