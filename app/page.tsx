@@ -2,13 +2,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { SITE } from "@/config/site";
 import { formatFlatFee, FLAT_FEE } from "@/config/subscription";
-// Bundled so the hero image is always available in the build
+// Bundled so the hero image and logo are always available in the build
 import heroImage from "../imgs/hero01.png";
 import plansImage from "../imgs/plans_img_01.jpg";
 import featureDiary from "../imgs/one_dairy.png";
 import featureTeam from "../imgs/team.png";
 import featureOnline from "../imgs/online.png";
 import featureCom from "../imgs/com.png";
+import siteLogo from "../salonsynk_logo.png";
 
 const FEATURES = [
   {
@@ -64,7 +65,7 @@ export default function HomePage() {
         <div className="flex h-20 w-full items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center shrink-0">
             <Image
-              src="/synk-logo2.gif"
+              src={siteLogo}
               alt={SITE.name}
               width={560}
               height={160}

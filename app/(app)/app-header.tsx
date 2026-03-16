@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { switchAdminSalon } from "./admin/actions";
+import dashboardLogo from "../../salonsynk-light.png";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Diary" },
@@ -31,7 +32,7 @@ export function AppHeader({
     <header className="border-b border-border px-4 py-4 flex items-center justify-between gap-4 min-h-[4.5rem]">
       <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
         <Image
-          src="/synk-logo2.gif"
+          src={dashboardLogo}
           alt="SalonSynk logo"
           width={280}
           height={80}

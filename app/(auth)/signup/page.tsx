@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { SignupForm } from "./signup-form";
+import siteLogo from "../../salonsynk_logo.png";
 
 export default async function SignupPage() {
   const supabase = await createClient();
@@ -17,15 +18,15 @@ export default async function SignupPage() {
         <div className="text-center">
           <Link href="/" className="inline-block mb-6">
             <Image
-            src="/synk-logo2.gif"
-            alt="SalonSynk"
-            width={560}
-            height={160}
-            className="mx-auto h-16 w-auto sm:h-20 md:h-24"
-            sizes="(max-width: 768px) 128px, (max-width: 1024px) 160px, 192px"
-            quality={95}
-            priority
-          />
+              src={siteLogo}
+              alt="SalonSynk"
+              width={560}
+              height={160}
+              className="mx-auto h-16 w-auto sm:h-20 md:h-24"
+              sizes="(max-width: 768px) 128px, (max-width: 1024px) 160px, 192px"
+              quality={95}
+              priority
+            />
           </Link>
           <h1 className="text-2xl font-bold">Create account</h1>
           <p className="text-muted text-sm mt-1">Get started with SalonSynk</p>

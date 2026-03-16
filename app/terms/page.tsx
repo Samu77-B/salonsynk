@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SITE } from "@/config/site";
+import siteLogo from "../../salonsynk_logo.png";
 
 export const metadata = {
   title: `Terms and Conditions — ${SITE.name}`,
@@ -14,7 +15,7 @@ export default function TermsPage() {
         <div className="flex h-20 w-full items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center shrink-0">
             <Image
-              src="/synk-logo2.gif"
+              src={siteLogo}
               alt={SITE.name}
               width={560}
               height={160}
