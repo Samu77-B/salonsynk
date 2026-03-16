@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { LoginForm } from "./login-form";
-import siteLogo from "../../salonsynk_logo.png";
+import siteLogo from "../../../salonsynk_logo.png";
 
 export default async function LoginPage() {
   const supabase = await createClient();

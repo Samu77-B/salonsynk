@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import Image from "next/image";
-import siteLogo from "../salonsynk_logo.png";
+import siteLogo from "../../salonsynk_logo.png";
 
 export default async function ReviewPage({
   searchParams,
