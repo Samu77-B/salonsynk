@@ -39,7 +39,7 @@ export async function getLapsedClientsForWeMissYou(weeksMin = 6, weeksMax = 10) 
     .not("client_id", "is", null)
     .order("end_time", { ascending: false });
 
-  const lastVisitByClient = new Map<string | null, string>();
+  const lastVisitByClient = new Map<string, string>();
   for (const row of lastVisits ?? []) {
     if (row.client_id && !lastVisitByClient.has(row.client_id)) {
       lastVisitByClient.set(row.client_id, row.end_time);

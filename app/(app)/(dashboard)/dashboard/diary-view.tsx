@@ -216,13 +216,17 @@ export function DiaryView({
     return m;
   }, [members]);
 
-  const daysToShow = view === "day"
-    ? [dateObj]
-    : Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(dateObj);
-        d.setDate(d.getDate() - dateObj.getDay() + i);
-        return d;
-      });
+  const daysToShow = useMemo(
+    () =>
+      view === "day"
+        ? [dateObj]
+        : Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(dateObj);
+            d.setDate(d.getDate() - dateObj.getDay() + i);
+            return d;
+          }),
+    [view, dateObj]
+  );
 
   const filteredAppointments = useMemo(() => {
     let list = appointments.filter((a) => a.status === "scheduled" || a.status === "completed");
