@@ -10,6 +10,15 @@
   --border: #c0c0c0;
 }
 
+/* Logged-in app shell: modern dark theme, scoped to dashboard area only */
+.app-shell-dark {
+  --background: #050816;
+  --foreground: #f9fafb;
+  --muted: #9ca3af;
+  --accent: #6366f1;
+  --border: #1f2937;
+}
+
 * {
   box-sizing: border-box;
   padding: 0;

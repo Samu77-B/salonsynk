@@ -29,7 +29,7 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden">
+    <div className="app-shell-dark min-h-screen flex flex-col overflow-x-hidden bg-background text-foreground">
       <AppHeader
         userEmail={user.email}
         isSuperAdmin={isSuperAdmin}
