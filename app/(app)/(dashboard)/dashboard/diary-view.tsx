@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { createAppointment, updateAppointment, deleteAppointment } from "./actions";
 import { AddAppointmentModal } from "./add-appointment-modal";
 import { EditAppointmentModal } from "./edit-appointment-modal";
-import { getAllowedSlots, validateMove, rangeToMinutes, type TimeRange } from "@/lib/diary-rules";
+import { validateMoveWithProcessing, type AppointmentBlockingInput } from "@/lib/diary-rules";
 
 type Member = { id: string; display_name: string | null; role: string; calendar_color?: string | null };
-type Service = { id: string; name: string; duration_minutes: number };
+type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number };
 type Client = { id: string; name: string | null; email: string | null; phone: string | null };
 type Appointment = {
   id: string;
@@ -29,7 +29,10 @@ type Appointment = {
   send_review_request?: boolean;
   send_aftercare?: boolean;
   clients: { name: string | null; email: string | null; phone: string | null } | { name: string | null; email: string | null; phone: string | null }[] | null;
-  services: { name: string; duration_minutes: number } | { name: string; duration_minutes: number }[] | null;
+  services:
+    | { name: string; duration_minutes: number; processing_time_minutes?: number }
+    | { name: string; duration_minutes: number; processing_time_minutes?: number }[]
+    | null;
   salon_members: { display_name: string | null } | { display_name: string | null }[] | null;
 };
 
@@ -40,10 +43,6 @@ const SLOTS_15MIN = Array.from({ length: 56 }, (_, i) => {
   const totalMins = 6 * 60 + i * 15;
   return { hour: Math.floor(totalMins / 60), minute: totalMins % 60 };
 });
-// Day view: split into AM (6am–1pm) and PM (1pm–8pm)
-const SLOTS_AM = SLOTS_15MIN.slice(0, 28); // 6:00–12:45
-const SLOTS_PM = SLOTS_15MIN.slice(28, 56); // 13:00–19:45
-
 function formatDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
@@ -183,6 +182,37 @@ function toLocalISO(d: Date): string {
   return `${y}-${m}-${day}T${h}:${min}:00`;
 }
 
+function blockingInputsForStylistOnDay(
+  allAppointments: Appointment[],
+  day: Date,
+  stylistId: string
+): AppointmentBlockingInput[] {
+  const dayStr = formatDate(day);
+  const dayStart = new Date(day);
+  dayStart.setHours(0, 0, 0, 0);
+  return allAppointments
+    .filter(
+      (a) =>
+        a.stylist_id === stylistId &&
+        formatDate(new Date(a.start_time)) === dayStr &&
+        (a.status === "scheduled" || a.status === "completed")
+    )
+    .map((a) => {
+      const start = new Date(a.start_time);
+      const end = new Date(a.end_time);
+      const startM = (start.getTime() - dayStart.getTime()) / 60000;
+      const endM = (end.getTime() - dayStart.getTime()) / 60000;
+      const svc = Array.isArray(a.services) ? a.services[0] : a.services;
+      const proc = svc?.processing_time_minutes ?? 0;
+      return {
+        id: a.id,
+        startMinutes: startM,
+        endMinutes: endM,
+        processingMinutes: Number(proc) || 0,
+      };
+    });
+}
+
 export function DiaryView({
   salonId,
   salonName,
@@ -242,33 +272,18 @@ export function DiaryView({
     });
   }, [appointments, filterStylistId, daysToShow]);
 
-  function getRangesForDay(day: Date, stylistId: string, excludeId?: string): TimeRange[] {
-    const dayStart = new Date(day);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayStr = formatDate(day);
-    return filteredAppointments
-      .filter((a) => a.stylist_id === stylistId && formatDate(new Date(a.start_time)) === dayStr && a.id !== excludeId)
-      .map((a) => {
-        const start = new Date(a.start_time);
-        const end = new Date(a.end_time);
-        return {
-          startMinutes: (start.getTime() - dayStart.getTime()) / 60000,
-          endMinutes: (end.getTime() - dayStart.getTime()) / 60000,
-        };
-      })
-      .filter((r) => r.startMinutes >= 0 && r.endMinutes <= 24 * 60);
-  }
-
   async function handleReschedule(appointmentId: string, newStart: Date, newEnd: Date) {
     setError(null);
     const appointment = appointments.find((a) => a.id === appointmentId);
     if (!appointment) return;
     const day = new Date(newStart);
     day.setHours(0, 0, 0, 0);
-    const othersExcludingThis = getRangesForDay(day, appointment.stylist_id, appointmentId);
+    const blocking = blockingInputsForStylistOnDay(appointments, day, appointment.stylist_id);
     const newStartM = (newStart.getTime() - day.getTime()) / 60000;
     const newEndM = (newEnd.getTime() - day.getTime()) / 60000;
-    const validation = validateMove(othersExcludingThis, newStartM, newEndM);
+    const svc = Array.isArray(appointment.services) ? appointment.services[0] : appointment.services;
+    const proc = Number(svc?.processing_time_minutes) || 0;
+    const validation = validateMoveWithProcessing(blocking, appointment.id, newStartM, newEndM, proc);
     if (!validation.valid) {
       setError(validation.message ?? "Invalid move");
       return;
@@ -481,27 +496,16 @@ export function DiaryView({
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col lg:flex-row gap-0 lg:gap-0">
-                  <div className="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-border">
-                    <div className="px-4 py-2 bg-muted/20 text-xs font-medium text-muted border-b border-border">
-                      AM (6am–1pm)
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[200px] border-collapse text-sm">
-                        <tbody>{renderSlotColumn(SLOTS_AM)}</tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="px-4 py-2 bg-muted/20 text-xs font-medium text-muted border-b border-border">
-                      PM (1pm–8pm)
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[200px] border-collapse text-sm">
-                        <tbody>{renderSlotColumn(SLOTS_PM)}</tbody>
-                      </table>
-                    </div>
-                  </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[360px] border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/20">
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted">Time</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted">Appointments</th>
+                      </tr>
+                    </thead>
+                    <tbody>{renderSlotColumn(SLOTS_15MIN)}</tbody>
+                  </table>
                 </div>
               </div>
             );
@@ -643,7 +647,10 @@ export function DiaryView({
           onCreate={async (data) => {
             const result = await createAppointment(data);
             if (result.error) setError(result.error);
-            else setAddOpen(false);
+            else {
+              setAddOpen(false);
+              router.refresh();
+            }
           }}
           onClose={() => setAddOpen(false)}
         />

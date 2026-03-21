@@ -10,11 +10,14 @@ export default async function DashboardPage() {
 
   const supabase = await createClient();
   const today = new Date();
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - today.getDay());
-  weekStart.setHours(0, 0, 0, 0);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 7);
+  today.setHours(0, 0, 0, 0);
+  // Load a wide window so Prev/Next week in the diary still shows appointments (not only "this" week).
+  const rangeStart = new Date(today);
+  rangeStart.setDate(rangeStart.getDate() - 21);
+  rangeStart.setHours(0, 0, 0, 0);
+  const rangeEnd = new Date(today);
+  rangeEnd.setDate(rangeEnd.getDate() + 77);
+  rangeEnd.setHours(0, 0, 0, 0);
 
   const [membersRes, servicesRes, clientsRes, appointmentsRes] = await Promise.all([
     supabase
@@ -25,7 +28,7 @@ export default async function DashboardPage() {
       .order("role", { ascending: false }),
     supabase
       .from("services")
-      .select("id, name, duration_minutes")
+      .select("id, name, duration_minutes, processing_time_minutes")
       .eq("salon_id", context.salon.id),
     supabase
       .from("clients")
@@ -40,12 +43,12 @@ export default async function DashboardPage() {
         stylist_id, service_id, send_reminder_sms, send_review_request, send_aftercare,
         deposit_payment_intent_id, before_photo_url, after_photo_url,
         clients(name, email, phone),
-        services(name, duration_minutes),
+        services(name, duration_minutes, processing_time_minutes),
         salon_members(display_name)
       `)
       .eq("salon_id", context.salon.id)
-      .gte("start_time", weekStart.toISOString())
-      .lt("start_time", weekEnd.toISOString())
+      .gte("start_time", rangeStart.toISOString())
+      .lt("start_time", rangeEnd.toISOString())
       .order("start_time"),
   ]);
 

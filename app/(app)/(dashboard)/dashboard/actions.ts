@@ -3,7 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { findClientsForEmptySlots, type SlotWithCandidates } from "@/lib/gap-filler";
-import { hasOverlap, rangeToMinutes } from "@/lib/diary-rules";
+import {
+  hasBlockingOverlapWithExisting,
+  rangeToMinutes,
+  type AppointmentBlockingInput,
+} from "@/lib/diary-rules";
 import { revalidatePath } from "next/cache";
 
 export type CreateAppointmentInput = {
@@ -36,19 +40,44 @@ export async function createAppointment(input: CreateAppointmentInput) {
 
   const { data: existing } = await supabase
     .from("appointments")
-    .select("start_time, end_time")
+    .select("id, start_time, end_time, services(processing_time_minutes)")
     .eq("salon_id", input.salonId)
     .eq("stylist_id", input.stylistId)
     .in("status", ["scheduled", "completed"])
     .gte("start_time", dayStart.toISOString())
     .lt("start_time", dayEnd.toISOString());
 
-  const existingRanges = (existing ?? []).map((a) =>
-    rangeToMinutes(new Date(a.start_time), new Date(a.end_time))
-  );
+  let newProcessing = 0;
+  if (input.serviceId) {
+    const { data: svc } = await supabase
+      .from("services")
+      .select("processing_time_minutes")
+      .eq("id", input.serviceId)
+      .eq("salon_id", input.salonId)
+      .maybeSingle();
+    newProcessing = Number(svc?.processing_time_minutes) || 0;
+  }
+
+  const blockingExisting: AppointmentBlockingInput[] = (existing ?? []).map((row) => {
+    const s = new Date(row.start_time);
+    const e = new Date(row.end_time);
+    const r = rangeToMinutes(s, e);
+    const svc = row.services as { processing_time_minutes?: number } | { processing_time_minutes?: number }[] | null;
+    const proc = Array.isArray(svc) ? svc[0]?.processing_time_minutes : svc?.processing_time_minutes;
+    return {
+      id: row.id,
+      startMinutes: r.startMinutes,
+      endMinutes: r.endMinutes,
+      processingMinutes: Number(proc) || 0,
+    };
+  });
+
   const { startMinutes, endMinutes } = rangeToMinutes(start, end);
-  if (hasOverlap(existingRanges, startMinutes, endMinutes)) {
-    return { error: "This would overlap with another appointment for the same stylist." };
+  if (hasBlockingOverlapWithExisting(blockingExisting, startMinutes, endMinutes, newProcessing)) {
+    return {
+      error:
+        "This would overlap with another appointment during hands-on time. If the service has processing time (e.g. colour developing), another booking can sit in that window — set processing minutes on the service in Settings.",
+    };
   }
 
   const row: Record<string, unknown> = {
@@ -134,20 +163,58 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
 
     const { data: existing } = await supabase
       .from("appointments")
-      .select("start_time, end_time")
+      .select("id, start_time, end_time, services(processing_time_minutes)")
       .eq("salon_id", context.salon.id)
       .eq("stylist_id", stylistId)
-      .neq("id", id)
       .in("status", ["scheduled", "completed"])
       .gte("start_time", dayStart.toISOString())
       .lt("start_time", dayEnd.toISOString());
 
-    const existingRanges = (existing ?? []).map((a) =>
-      rangeToMinutes(new Date(a.start_time), new Date(a.end_time))
-    );
+    const serviceIdForProc =
+      updates.service_id !== undefined
+        ? updates.service_id
+        : (
+            await supabase
+              .from("appointments")
+              .select("service_id")
+              .eq("id", id)
+              .eq("salon_id", context.salon.id)
+              .single()
+          ).data?.service_id;
+
+    let newProcessing = 0;
+    if (serviceIdForProc) {
+      const { data: svc } = await supabase
+        .from("services")
+        .select("processing_time_minutes")
+        .eq("id", serviceIdForProc)
+        .eq("salon_id", context.salon.id)
+        .maybeSingle();
+      newProcessing = Number(svc?.processing_time_minutes) || 0;
+    }
+
+    const blockingExisting: AppointmentBlockingInput[] = (existing ?? [])
+      .filter((row) => row.id !== id)
+      .map((row) => {
+        const s = new Date(row.start_time);
+        const e = new Date(row.end_time);
+        const r = rangeToMinutes(s, e);
+        const svc = row.services as { processing_time_minutes?: number } | { processing_time_minutes?: number }[] | null;
+        const proc = Array.isArray(svc) ? svc[0]?.processing_time_minutes : svc?.processing_time_minutes;
+        return {
+          id: row.id,
+          startMinutes: r.startMinutes,
+          endMinutes: r.endMinutes,
+          processingMinutes: Number(proc) || 0,
+        };
+      });
+
     const { startMinutes, endMinutes } = rangeToMinutes(start, end);
-    if (hasOverlap(existingRanges, startMinutes, endMinutes)) {
-      return { error: "This would overlap with another appointment for the same stylist." };
+    if (hasBlockingOverlapWithExisting(blockingExisting, startMinutes, endMinutes, newProcessing)) {
+      return {
+        error:
+          "This would overlap with another appointment during hands-on time. Adjust time or use a service with processing time so another client can sit during developing.",
+      };
     }
   }
 

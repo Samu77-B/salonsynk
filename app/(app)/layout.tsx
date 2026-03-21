@@ -37,7 +37,7 @@ export default async function AppLayout({
         adminSalons={adminSalons}
       />
       <main className="flex-1 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 text-foreground">
-        <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        <div className="w-full max-w-[1600px] mx-auto px-4 py-6 sm:px-6 lg:px-8">
           {children}
         </div>
       </main>

@@ -106,3 +106,126 @@ export function hasOverlap(
   }
   return false;
 }
+
+/**
+ * Blocking segments when the stylist is busy (hands-on).
+ * `processingMinutes` = client processing (e.g. colour developing); stylist can take another client then.
+ * Processing is placed in the middle of the slot; hands-on time is split before/after.
+ */
+export function blockingSegmentsFromRange(
+  startMinutes: number,
+  endMinutes: number,
+  processingMinutes: number
+): TimeRange[] {
+  const dur = endMinutes - startMinutes;
+  if (dur <= 0) return [];
+  const p = Math.max(0, Math.min(processingMinutes, dur));
+  if (p <= 0 || p >= dur) {
+    return [{ startMinutes, endMinutes }];
+  }
+  const hands = dur - p;
+  const before = Math.floor(hands / 2);
+  const after = hands - before;
+  const pStart = startMinutes + before;
+  const pEnd = pStart + p;
+  const out: TimeRange[] = [];
+  if (before > 0) out.push({ startMinutes, endMinutes: pStart });
+  if (after > 0) out.push({ startMinutes: pEnd, endMinutes });
+  return out.length ? out : [{ startMinutes, endMinutes }];
+}
+
+export function segmentsOverlap(a: TimeRange, b: TimeRange): boolean {
+  return a.startMinutes < b.endMinutes && a.endMinutes > b.startMinutes;
+}
+
+export type AppointmentBlockingInput = {
+  id: string;
+  startMinutes: number;
+  endMinutes: number;
+  processingMinutes: number;
+};
+
+/** True if new appointment's blocking time overlaps any existing appointment's blocking time. */
+export function hasBlockingOverlapWithExisting(
+  existing: AppointmentBlockingInput[],
+  newStartMinutes: number,
+  newEndMinutes: number,
+  newProcessingMinutes: number,
+  excludeAppointmentId?: string
+): boolean {
+  const newSegs = blockingSegmentsFromRange(newStartMinutes, newEndMinutes, newProcessingMinutes);
+  for (const ex of existing) {
+    if (excludeAppointmentId && ex.id === excludeAppointmentId) continue;
+    const exSegs = blockingSegmentsFromRange(ex.startMinutes, ex.endMinutes, ex.processingMinutes);
+    for (const ns of newSegs) {
+      for (const es of exSegs) {
+        if (segmentsOverlap(ns, es)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Validate drag-reschedule: no blocking overlap; gaps between different appointments >= MIN_GAP (same-appt gaps ignored).
+ */
+export function validateMoveWithProcessing(
+  existing: AppointmentBlockingInput[],
+  newAppointmentId: string,
+  newStartMinutes: number,
+  newEndMinutes: number,
+  newProcessingMinutes: number
+): { valid: boolean; message?: string } {
+  const others = existing.filter((a) => a.id !== newAppointmentId);
+  const moved: AppointmentBlockingInput = {
+    id: newAppointmentId,
+    startMinutes: newStartMinutes,
+    endMinutes: newEndMinutes,
+    processingMinutes: newProcessingMinutes,
+  };
+  const all = [...others, moved];
+
+  const flat: { start: number; end: number; apptId: string }[] = [];
+  for (const a of all) {
+    for (const seg of blockingSegmentsFromRange(a.startMinutes, a.endMinutes, a.processingMinutes)) {
+      flat.push({ start: seg.startMinutes, end: seg.endMinutes, apptId: a.id });
+    }
+  }
+  flat.sort((x, y) => x.start - y.start || x.end - y.end);
+
+  for (let i = 0; i < flat.length; i++) {
+    for (let j = i + 1; j < flat.length; j++) {
+      const A = flat[i];
+      const B = flat[j];
+      if (B.start >= A.end) break;
+      if (A.apptId === B.apptId) continue;
+      if (
+        segmentsOverlap(
+          { startMinutes: A.start, endMinutes: A.end },
+          { startMinutes: B.start, endMinutes: B.end }
+        )
+      ) {
+        return {
+          valid: false,
+          message:
+            "Appointments would overlap. A stylist cannot be with two clients at once during hands-on time.",
+        };
+      }
+    }
+  }
+
+  for (let i = 1; i < flat.length; i++) {
+    const prev = flat[i - 1];
+    const curr = flat[i];
+    const gap = curr.start - prev.end;
+    if (gap < 0) continue;
+    if (prev.apptId !== curr.apptId && gap > 0 && gap < MIN_GAP_MINUTES) {
+      return {
+        valid: false,
+        message: `Would leave a ${gap}-minute gap between bookings. Minimum is ${MIN_GAP_MINUTES} minutes.`,
+      };
+    }
+  }
+
+  return { valid: true };
+}
