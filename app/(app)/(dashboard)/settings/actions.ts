@@ -11,6 +11,11 @@ export type BrandingInput = {
   company_name?: string;
 };
 
+function isMissingProcessingColumnError(error: { message?: string } | null | undefined) {
+  const msg = error?.message?.toLowerCase() ?? "";
+  return msg.includes("processing_time_minutes") && msg.includes("column");
+}
+
 export async function updateSalonBranding(salonId: string, branding: BrandingInput) {
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
@@ -167,14 +172,25 @@ export async function addService(
   const price = Math.max(0, Math.round(data.price_minor ?? 0));
   const processing = Math.max(0, Math.min(duration, Math.round(data.processing_time_minutes ?? 0)));
   const supabase = await createClient();
-  const { error } = await supabase.from("services").insert({
+  const payload = {
     salon_id: salonId,
     name,
     duration_minutes: duration,
     price_minor: price,
     processing_time_minutes: processing,
-  });
-  if (error) return { error: error.message };
+  };
+  const { error } = await supabase.from("services").insert(payload);
+  if (error && isMissingProcessingColumnError(error)) {
+    const fallback = await supabase.from("services").insert({
+      salon_id: salonId,
+      name,
+      duration_minutes: duration,
+      price_minor: price,
+    });
+    if (fallback.error) return { error: fallback.error.message };
+  } else if (error) {
+    return { error: error.message };
+  }
   revalidatePath("/settings");
   revalidatePath("/dashboard");
   return {};
@@ -199,7 +215,17 @@ export async function updateService(
     .update(payload)
     .eq("id", serviceId)
     .eq("salon_id", salonId);
-  if (error) return { error: error.message };
+  if (error && isMissingProcessingColumnError(error)) {
+    const { processing_time_minutes: _ignored, ...fallbackPayload } = payload;
+    const fallback = await supabase
+      .from("services")
+      .update(fallbackPayload)
+      .eq("id", serviceId)
+      .eq("salon_id", salonId);
+    if (fallback.error) return { error: fallback.error.message };
+  } else if (error) {
+    return { error: error.message };
+  }
   revalidatePath("/settings");
   revalidatePath("/dashboard");
   return {};

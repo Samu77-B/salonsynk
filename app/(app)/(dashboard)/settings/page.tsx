@@ -4,11 +4,31 @@ import { redirect } from "next/navigation";
 import { formatFlatFee } from "@/config/subscription";
 import { SettingsView } from "./settings-view";
 
+function isMissingProcessingColumnError(error: { message?: string } | null | undefined) {
+  const msg = error?.message?.toLowerCase() ?? "";
+  return msg.includes("processing_time_minutes") && msg.includes("column");
+}
+
 export default async function SettingsPage() {
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");
 
   const supabase = await createClient();
+  const servicesPromise = (async () => {
+    const withProcessing = await supabase
+      .from("services")
+      .select("id, name, duration_minutes, price_minor, processing_time_minutes")
+      .eq("salon_id", context.salon.id)
+      .order("name");
+    if (!withProcessing.error) return withProcessing;
+    if (!isMissingProcessingColumnError(withProcessing.error)) return withProcessing;
+    return supabase
+      .from("services")
+      .select("id, name, duration_minutes, price_minor")
+      .eq("salon_id", context.salon.id)
+      .order("name");
+  })();
+
   const [{ data: salon }, { data: member }, { data: services }] = await Promise.all([
     supabase
       .from("salons")
@@ -21,11 +41,7 @@ export default async function SettingsPage() {
       .eq("id", context.member.id)
       .eq("salon_id", context.salon.id)
       .single(),
-    supabase
-      .from("services")
-      .select("id, name, duration_minutes, price_minor, processing_time_minutes")
-      .eq("salon_id", context.salon.id)
-      .order("name"),
+    servicesPromise,
   ]);
 
   const settings = (salon?.settings as Record<string, unknown>) ?? {};

@@ -65,6 +65,7 @@ export function SettingsView({
   const [newServiceDuration, setNewServiceDuration] = useState(60);
   const [newServicePrice, setNewServicePrice] = useState("");
   const [serviceMsg, setServiceMsg] = useState<"saved" | "error" | null>(null);
+  const [serviceError, setServiceError] = useState("");
   const [serviceLoading, setServiceLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -208,6 +209,7 @@ export function SettingsView({
               e.preventDefault();
               if (!newServiceName.trim()) return;
               setServiceMsg(null);
+              setServiceError("");
               setServiceLoading(true);
               const priceMinor = newServicePrice.trim() ? Math.round(parseFloat(newServicePrice) * 100) : 0;
               const result = await addService(salonId, {
@@ -218,6 +220,7 @@ export function SettingsView({
               });
               setServiceLoading(false);
               setServiceMsg(result.error ? "error" : "saved");
+              if (result.error) setServiceError(result.error);
               if (!result.error) {
                 setNewServiceName("");
                 setNewServiceDuration(60);
@@ -286,6 +289,7 @@ export function SettingsView({
             </button>
             {serviceMsg === "saved" && <span className="text-sm text-green-400">Added.</span>}
             {serviceMsg === "error" && <span className="text-sm text-red-400">Failed.</span>}
+            {serviceMsg === "error" && serviceError && <span className="text-sm text-red-400">{serviceError}</span>}
           </form>
           <ul className="space-y-2">
             {services.map((s) => (
@@ -329,6 +333,7 @@ export function SettingsView({
                     <button
                       type="button"
                       onClick={async () => {
+                        setServiceError("");
                         setServiceLoading(true);
                         const result = await updateService(salonId, s.id, {
                           name: editName.trim(),
@@ -338,7 +343,10 @@ export function SettingsView({
                         });
                         setServiceLoading(false);
                         setEditingId(null);
-                        if (result.error) setServiceMsg("error");
+                        if (result.error) {
+                          setServiceMsg("error");
+                          setServiceError(result.error);
+                        }
                       }}
                       className="text-sm text-accent hover:underline"
                     >
