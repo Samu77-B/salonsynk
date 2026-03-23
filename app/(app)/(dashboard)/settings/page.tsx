@@ -1,17 +1,20 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
+import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { redirect } from "next/navigation";
 import { formatFlatFee } from "@/config/subscription";
 import { SettingsView } from "./settings-view";
 
 function isMissingProcessingColumnError(error: { message?: string } | null | undefined) {
-  const msg = error?.message?.toLowerCase() ?? "";
-  return msg.includes("processing_time_minutes") && msg.includes("column");
+  const msg = (error?.message ?? "").toLowerCase();
+  return msg.includes("processing_time_minutes");
 }
 
 export default async function SettingsPage() {
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");
+
+  const isSuperAdmin = await getIsSuperAdmin();
 
   const supabase = await createClient();
   const servicesPromise = (async () => {
@@ -56,6 +59,7 @@ export default async function SettingsPage() {
   const weMissYouDiscountCode = String(settings.we_miss_you_discount_code ?? "");
 
   const isOwner = context.member.role === "owner";
+  const canManageServices = isOwner || isSuperAdmin;
   const employmentType = (member?.employment_type as string) ?? "EMPLOYEE";
   const showSalonTaxVault = isOwner;
   const showRenterTaxVault = !isOwner && employmentType === "RENTER";
@@ -80,6 +84,7 @@ export default async function SettingsPage() {
         showRenterTaxVault={showRenterTaxVault}
         renterTaxVaultMinor={showRenterTaxVault ? Number(member?.tax_vault_minor ?? 0) : 0}
         isOwner={isOwner}
+        canManageServices={canManageServices}
         adminFeePercent={adminFeePercent}
         services={(services ?? []).map((s) => ({
           id: s.id,

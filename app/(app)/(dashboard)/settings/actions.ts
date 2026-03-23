@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
 
 export type BrandingInput = {
@@ -11,9 +12,18 @@ export type BrandingInput = {
   company_name?: string;
 };
 
+/** True when DB doesn't have processing_time_minutes yet (or schema cache still references it). */
 function isMissingProcessingColumnError(error: { message?: string } | null | undefined) {
-  const msg = error?.message?.toLowerCase() ?? "";
-  return msg.includes("processing_time_minutes") && msg.includes("column");
+  const msg = (error?.message ?? "").toLowerCase();
+  return msg.includes("processing_time_minutes");
+}
+
+async function assertCanManageServices(salonId: string): Promise<{ ok: true } | { error: string }> {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
+  const isSuperAdmin = await getIsSuperAdmin();
+  if (context.member.role !== "owner" && !isSuperAdmin) return { error: "Unauthorized" };
+  return { ok: true };
 }
 
 export async function updateSalonBranding(salonId: string, branding: BrandingInput) {
@@ -164,8 +174,8 @@ export async function addService(
   salonId: string,
   data: { name: string; duration_minutes: number; price_minor?: number; processing_time_minutes?: number }
 ) {
-  const context = await getCurrentUserSalon();
-  if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
+  const auth = await assertCanManageServices(salonId);
+  if ("error" in auth) return auth;
   const name = data.name?.trim();
   if (!name) return { error: "Service name is required" };
   const duration = Math.max(1, Math.min(480, Math.round(data.duration_minutes ?? 60)));
@@ -201,8 +211,8 @@ export async function updateService(
   serviceId: string,
   data: { name?: string; duration_minutes?: number; price_minor?: number; processing_time_minutes?: number }
 ) {
-  const context = await getCurrentUserSalon();
-  if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
+  const auth = await assertCanManageServices(salonId);
+  if ("error" in auth) return auth;
   const payload: Record<string, unknown> = {};
   if (data.name !== undefined) payload.name = data.name.trim();
   if (data.duration_minutes !== undefined) payload.duration_minutes = Math.max(1, Math.min(480, Math.round(data.duration_minutes)));
@@ -232,8 +242,8 @@ export async function updateService(
 }
 
 export async function deleteService(salonId: string, serviceId: string) {
-  const context = await getCurrentUserSalon();
-  if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
+  const auth = await assertCanManageServices(salonId);
+  if ("error" in auth) return auth;
   const supabase = await createClient();
   const { error } = await supabase
     .from("services")

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, addService, updateService, deleteService, updateDepositSettings, updateSalonMarketingSettings } from "./actions";
 
 type ServiceRow = { id: string; name: string; duration_minutes: number; price_minor: number; processing_time_minutes?: number };
@@ -18,6 +19,7 @@ export function SettingsView({
   showRenterTaxVault,
   renterTaxVaultMinor,
   isOwner,
+  canManageServices = false,
   adminFeePercent,
   services = [],
   depositRequired = false,
@@ -40,6 +42,8 @@ export function SettingsView({
   showRenterTaxVault?: boolean;
   renterTaxVaultMinor?: number;
   isOwner?: boolean;
+  /** Owner or super admin — can add/edit/delete services (server action enforces the same). */
+  canManageServices?: boolean;
   adminFeePercent?: number;
   services?: ServiceRow[];
   depositRequired?: boolean;
@@ -50,6 +54,7 @@ export function SettingsView({
   weMissYouWeeksMax?: number;
   weMissYouDiscountCode?: string;
 }) {
+  const router = useRouter();
   const connectUrl = `/api/stripe/connect?salonId=${encodeURIComponent(salonId)}`;
   const [logoUrl, setLogoUrl] = useState(branding.logo_url);
   const [adminFee, setAdminFee] = useState(String(adminFeePercent ?? 10));
@@ -198,7 +203,7 @@ export function SettingsView({
         </form>
       </section>
 
-      {isOwner && (
+      {canManageServices && (
         <section>
           <h2 className="text-lg font-semibold mb-2">Services</h2>
           <p className="text-muted text-sm mb-4">
@@ -211,21 +216,34 @@ export function SettingsView({
               setServiceMsg(null);
               setServiceError("");
               setServiceLoading(true);
-              const priceMinor = newServicePrice.trim() ? Math.round(parseFloat(newServicePrice) * 100) : 0;
-              const result = await addService(salonId, {
-                name: newServiceName.trim(),
-                duration_minutes: newServiceDuration,
-                price_minor: priceMinor,
-                processing_time_minutes: newServiceProcessing,
-              });
-              setServiceLoading(false);
-              setServiceMsg(result.error ? "error" : "saved");
-              if (result.error) setServiceError(result.error);
-              if (!result.error) {
-                setNewServiceName("");
-                setNewServiceDuration(60);
-                setNewServicePrice("");
-                setNewServiceProcessing(0);
+              try {
+                const rawPrice = newServicePrice.trim();
+                const priceMinor = rawPrice ? Math.round(parseFloat(rawPrice) * 100) : 0;
+                if (rawPrice && !Number.isFinite(priceMinor)) {
+                  setServiceMsg("error");
+                  setServiceError("Enter a valid price.");
+                  return;
+                }
+                const result = await addService(salonId, {
+                  name: newServiceName.trim(),
+                  duration_minutes: newServiceDuration,
+                  price_minor: priceMinor,
+                  processing_time_minutes: newServiceProcessing,
+                });
+                setServiceMsg(result.error ? "error" : "saved");
+                if (result.error) setServiceError(result.error);
+                else {
+                  setNewServiceName("");
+                  setNewServiceDuration(60);
+                  setNewServicePrice("");
+                  setNewServiceProcessing(0);
+                  router.refresh();
+                }
+              } catch (err) {
+                setServiceMsg("error");
+                setServiceError(err instanceof Error ? err.message : "Could not add service. Check your connection and try again.");
+              } finally {
+                setServiceLoading(false);
               }
             }}
             className="flex flex-wrap gap-2 items-end mb-4"
@@ -234,10 +252,12 @@ export function SettingsView({
               <label htmlFor="new-service-name" className="block text-sm font-medium mb-1">Name</label>
               <input
                 id="new-service-name"
+                name="new_service_name"
                 type="text"
                 value={newServiceName}
                 onChange={(e) => setNewServiceName(e.target.value)}
                 placeholder="e.g. Balayage"
+                autoComplete="off"
                 className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-40"
                 aria-label="Service name"
               />
@@ -246,11 +266,13 @@ export function SettingsView({
               <label htmlFor="new-service-duration" className="block text-sm font-medium mb-1">Duration (min)</label>
               <input
                 id="new-service-duration"
+                name="new_service_duration_min"
                 type="number"
                 min={5}
                 max={480}
                 value={newServiceDuration}
                 onChange={(e) => setNewServiceDuration(Number(e.target.value) || 60)}
+                autoComplete="off"
                 className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-20"
                 aria-label="Duration in minutes"
               />
@@ -259,10 +281,13 @@ export function SettingsView({
               <label htmlFor="new-service-price" className="block text-sm font-medium mb-1">Price (£)</label>
               <input
                 id="new-service-price"
+                name="new_service_price_gbp"
                 type="text"
+                inputMode="decimal"
                 value={newServicePrice}
                 onChange={(e) => setNewServicePrice(e.target.value)}
                 placeholder="0"
+                autoComplete="off"
                 className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-20"
                 aria-label="Price in pounds"
               />
@@ -271,11 +296,13 @@ export function SettingsView({
               <label htmlFor="new-service-processing" className="block text-sm font-medium mb-1">Processing (min)</label>
               <input
                 id="new-service-processing"
+                name="new_service_processing_min"
                 type="number"
                 min={0}
                 max={480}
                 value={newServiceProcessing}
                 onChange={(e) => setNewServiceProcessing(Number(e.target.value) || 0)}
+                autoComplete="off"
                 className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-20"
                 aria-label="Processing time (e.g. color development)"
               />
@@ -288,8 +315,11 @@ export function SettingsView({
               {serviceLoading ? "Adding…" : "Add"}
             </button>
             {serviceMsg === "saved" && <span className="text-sm text-green-400">Added.</span>}
-            {serviceMsg === "error" && <span className="text-sm text-red-400">Failed.</span>}
-            {serviceMsg === "error" && serviceError && <span className="text-sm text-red-400">{serviceError}</span>}
+            {serviceMsg === "error" && (
+              <span className="text-sm text-red-400" role="alert">
+                {serviceError ? `Failed: ${serviceError}` : "Failed."}
+              </span>
+            )}
           </form>
           <ul className="space-y-2">
             {services.map((s) => (
@@ -342,10 +372,12 @@ export function SettingsView({
                           processing_time_minutes: editProcessing,
                         });
                         setServiceLoading(false);
-                        setEditingId(null);
                         if (result.error) {
                           setServiceMsg("error");
                           setServiceError(result.error);
+                        } else {
+                          setEditingId(null);
+                          router.refresh();
                         }
                       }}
                       className="text-sm text-accent hover:underline"
@@ -384,8 +416,15 @@ export function SettingsView({
                       onClick={async () => {
                         if (!confirm(`Delete "${s.name}"?`)) return;
                         setServiceLoading(true);
-                        await deleteService(salonId, s.id);
+                        setServiceError("");
+                        const result = await deleteService(salonId, s.id);
                         setServiceLoading(false);
+                        if (result.error) {
+                          setServiceMsg("error");
+                          setServiceError(result.error);
+                        } else {
+                          router.refresh();
+                        }
                       }}
                       className="text-sm text-red-400 hover:underline"
                     >
