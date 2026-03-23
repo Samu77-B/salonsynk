@@ -44,7 +44,15 @@ const SLOTS_15MIN = Array.from({ length: 56 }, (_, i) => {
   return { hour: Math.floor(totalMins / 60), minute: totalMins % 60 };
 });
 function formatDate(d: Date) {
+  const time = d.getTime();
+  if (!Number.isFinite(time)) return "";
   return d.toISOString().slice(0, 10);
+}
+
+function parseDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isFinite(d.getTime()) ? d : null;
 }
 
 function AppointmentBlock({
@@ -198,8 +206,9 @@ function blockingInputsForStylistOnDay(
         (a.status === "scheduled" || a.status === "completed")
     )
     .map((a) => {
-      const start = new Date(a.start_time);
-      const end = new Date(a.end_time);
+      const start = parseDate(a.start_time);
+      const end = parseDate(a.end_time);
+      if (!start || !end) return null;
       const startM = (start.getTime() - dayStart.getTime()) / 60000;
       const endM = (end.getTime() - dayStart.getTime()) / 60000;
       const svc = Array.isArray(a.services) ? a.services[0] : a.services;
@@ -210,7 +219,8 @@ function blockingInputsForStylistOnDay(
         endMinutes: endM,
         processingMinutes: Number(proc) || 0,
       };
-    });
+    })
+    .filter((v): v is AppointmentBlockingInput => v !== null);
 }
 
 export function DiaryView({
@@ -267,7 +277,8 @@ export function DiaryView({
     dayEnd.setDate(dayEnd.getDate() + 1);
     dayEnd.setHours(0, 0, 0, 0);
     return list.filter((a) => {
-      const s = new Date(a.start_time);
+      const s = parseDate(a.start_time);
+      if (!s) return false;
       return s >= dayStart && s < dayEnd;
     });
   }, [appointments, filterStylistId, daysToShow]);
@@ -386,7 +397,8 @@ export function DiaryView({
                 cellEnd.setMinutes(cellEnd.getMinutes() + 15);
                 const inCell = filteredAppointments
                   .filter((a) => {
-                    const s = new Date(a.start_time);
+                    const s = parseDate(a.start_time);
+                    if (!s) return false;
                     return s >= cellStart && s < cellEnd && formatDate(s) === dayStr;
                   })
                   .sort((a, b) => {
@@ -537,7 +549,8 @@ export function DiaryView({
                     dayCellEnd.setMinutes(dayCellEnd.getMinutes() + 15);
                     const inCell = filteredAppointments
                       .filter((a) => {
-                        const s = new Date(a.start_time);
+                        const s = parseDate(a.start_time);
+                        if (!s) return false;
                         return s >= dayCellStart && s < dayCellEnd && formatDate(s) === formatDate(day);
                       })
                       .sort((a, b) => {
