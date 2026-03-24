@@ -1,4 +1,4 @@
-const CACHE_NAME = "salonsynk-v4";
+const CACHE_NAME = "salonsynk-v5";
 
 function shouldCache(request, response) {
   if (!response || !response.ok || response.type !== "basic") return false;
@@ -33,7 +33,12 @@ function shouldBypassServiceWorker(request) {
 }
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(["/offline.html"]).catch(() => {}))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -44,6 +49,30 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  // Full navigations use network-first with an offline document fallback.
+  if (event.request.mode === "navigate" || event.request.destination === "document") {
+    event.respondWith(
+      (async () => {
+        try {
+          return await fetch(event.request);
+        } catch {
+          try {
+            const cache = await caches.open(CACHE_NAME);
+            const offlineDoc = await cache.match("/offline.html");
+            if (offlineDoc) return offlineDoc;
+          } catch {
+            // Fall through to minimal inline fallback.
+          }
+          return new Response(
+            "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Offline</title></head><body style='font-family:system-ui,sans-serif;padding:24px;line-height:1.4'><h1>You're offline</h1><p>Please check your connection and try again.</p></body></html>",
+            { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } }
+          );
+        }
+      })()
+    );
+    return;
+  }
+
   if (shouldBypassServiceWorker(event.request)) return;
 
   event.respondWith(
@@ -72,12 +101,16 @@ self.addEventListener("fetch", (event) => {
 
         const res = await network;
         if (res) return res;
-        return fetch(event.request);
+        // Await so rejection is caught by outer try/catch and doesn't reject respondWith.
+        return await fetch(event.request);
       } catch {
         try {
           return await fetch(event.request);
         } catch {
-          return Response.error();
+          return new Response("Offline", {
+            status: 503,
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+          });
         }
       }
     })()
