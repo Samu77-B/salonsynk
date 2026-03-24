@@ -32,6 +32,14 @@ function formatDbError(error: { message?: string; details?: string; hint?: strin
   return parts.length ? parts.join(" | ") : "Unknown database error";
 }
 
+function getOptionalAdminClient() {
+  try {
+    return createAdminClient();
+  } catch {
+    return null;
+  }
+}
+
 export async function updateSalonBranding(salonId: string, branding: BrandingInput) {
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
@@ -180,36 +188,54 @@ export async function addService(
   salonId: string,
   data: { name: string; duration_minutes: number; price_minor?: number; processing_time_minutes?: number }
 ) {
-  const auth = await assertCanManageServices(salonId);
-  if ("error" in auth) return auth;
-  const name = data.name?.trim();
-  if (!name) return { error: "Service name is required" };
-  const duration = Math.max(1, Math.min(480, Math.round(data.duration_minutes ?? 60)));
-  const price = Math.max(0, Math.round(data.price_minor ?? 0));
-  const processing = Math.max(0, Math.min(duration, Math.round(data.processing_time_minutes ?? 0)));
-  const admin = createAdminClient();
-  const payload = {
-    salon_id: salonId,
-    name,
-    duration_minutes: duration,
-    price_minor: price,
-    processing_time_minutes: processing,
-  };
-  const { error } = await admin.from("services").insert(payload);
-  if (error && isMissingProcessingColumnError(error)) {
-    const fallback = await admin.from("services").insert({
+  try {
+    const auth = await assertCanManageServices(salonId);
+    if ("error" in auth) return auth;
+    const name = data.name?.trim();
+    if (!name) return { error: "Service name is required" };
+    const duration = Math.max(1, Math.min(480, Math.round(data.duration_minutes ?? 60)));
+    const price = Math.max(0, Math.round(data.price_minor ?? 0));
+    const processing = Math.max(0, Math.min(duration, Math.round(data.processing_time_minutes ?? 0)));
+    const supabase = await createClient();
+    const admin = getOptionalAdminClient();
+    const db = admin ?? supabase;
+    const payload = {
       salon_id: salonId,
       name,
       duration_minutes: duration,
       price_minor: price,
-    });
-    if (fallback.error) return { error: formatDbError(fallback.error) };
-  } else if (error) {
-    return { error: formatDbError(error) };
+      processing_time_minutes: processing,
+    };
+    let { error } = await db.from("services").insert(payload);
+    if (error && admin) {
+      const adminRetry = await admin.from("services").insert(payload);
+      error = adminRetry.error;
+    }
+    if (error && isMissingProcessingColumnError(error)) {
+      let fallback = await db.from("services").insert({
+        salon_id: salonId,
+        name,
+        duration_minutes: duration,
+        price_minor: price,
+      });
+      if (fallback.error && admin) {
+        fallback = await admin.from("services").insert({
+          salon_id: salonId,
+          name,
+          duration_minutes: duration,
+          price_minor: price,
+        });
+      }
+      if (fallback.error) return { error: formatDbError(fallback.error) };
+    } else if (error) {
+      return { error: formatDbError(error) };
+    }
+    revalidatePath("/settings");
+    revalidatePath("/dashboard");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to add service" };
   }
-  revalidatePath("/settings");
-  revalidatePath("/dashboard");
-  return {};
 }
 
 export async function updateService(
@@ -217,47 +243,82 @@ export async function updateService(
   serviceId: string,
   data: { name?: string; duration_minutes?: number; price_minor?: number; processing_time_minutes?: number }
 ) {
-  const auth = await assertCanManageServices(salonId);
-  if ("error" in auth) return auth;
-  const payload: Record<string, unknown> = {};
-  if (data.name !== undefined) payload.name = data.name.trim();
-  if (data.duration_minutes !== undefined) payload.duration_minutes = Math.max(1, Math.min(480, Math.round(data.duration_minutes)));
-  if (data.price_minor !== undefined) payload.price_minor = Math.max(0, Math.round(data.price_minor));
-  if (data.processing_time_minutes !== undefined) payload.processing_time_minutes = Math.max(0, Math.round(data.processing_time_minutes));
-  if (Object.keys(payload).length === 0) return {};
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from("services")
-    .update(payload)
-    .eq("id", serviceId)
-    .eq("salon_id", salonId);
-  if (error && isMissingProcessingColumnError(error)) {
-    const { processing_time_minutes: _ignored, ...fallbackPayload } = payload;
-    const fallback = await admin
+  try {
+    const auth = await assertCanManageServices(salonId);
+    if ("error" in auth) return auth;
+    const payload: Record<string, unknown> = {};
+    if (data.name !== undefined) payload.name = data.name.trim();
+    if (data.duration_minutes !== undefined) payload.duration_minutes = Math.max(1, Math.min(480, Math.round(data.duration_minutes)));
+    if (data.price_minor !== undefined) payload.price_minor = Math.max(0, Math.round(data.price_minor));
+    if (data.processing_time_minutes !== undefined) payload.processing_time_minutes = Math.max(0, Math.round(data.processing_time_minutes));
+    if (Object.keys(payload).length === 0) return {};
+    const supabase = await createClient();
+    const admin = getOptionalAdminClient();
+    const db = admin ?? supabase;
+    let { error } = await db
       .from("services")
-      .update(fallbackPayload)
+      .update(payload)
       .eq("id", serviceId)
       .eq("salon_id", salonId);
-    if (fallback.error) return { error: formatDbError(fallback.error) };
-  } else if (error) {
-    return { error: formatDbError(error) };
+    if (error && admin) {
+      const adminRetry = await admin
+        .from("services")
+        .update(payload)
+        .eq("id", serviceId)
+        .eq("salon_id", salonId);
+      error = adminRetry.error;
+    }
+    if (error && isMissingProcessingColumnError(error)) {
+      const { processing_time_minutes: _ignored, ...fallbackPayload } = payload;
+      let fallback = await db
+        .from("services")
+        .update(fallbackPayload)
+        .eq("id", serviceId)
+        .eq("salon_id", salonId);
+      if (fallback.error && admin) {
+        fallback = await admin
+          .from("services")
+          .update(fallbackPayload)
+          .eq("id", serviceId)
+          .eq("salon_id", salonId);
+      }
+      if (fallback.error) return { error: formatDbError(fallback.error) };
+    } else if (error) {
+      return { error: formatDbError(error) };
+    }
+    revalidatePath("/settings");
+    revalidatePath("/dashboard");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update service" };
   }
-  revalidatePath("/settings");
-  revalidatePath("/dashboard");
-  return {};
 }
 
 export async function deleteService(salonId: string, serviceId: string) {
-  const auth = await assertCanManageServices(salonId);
-  if ("error" in auth) return auth;
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from("services")
-    .delete()
-    .eq("id", serviceId)
-    .eq("salon_id", salonId);
-  if (error) return { error: formatDbError(error) };
-  revalidatePath("/settings");
-  revalidatePath("/dashboard");
-  return {};
+  try {
+    const auth = await assertCanManageServices(salonId);
+    if ("error" in auth) return auth;
+    const supabase = await createClient();
+    const admin = getOptionalAdminClient();
+    const db = admin ?? supabase;
+    let { error } = await db
+      .from("services")
+      .delete()
+      .eq("id", serviceId)
+      .eq("salon_id", salonId);
+    if (error && admin) {
+      const adminRetry = await admin
+        .from("services")
+        .delete()
+        .eq("id", serviceId)
+        .eq("salon_id", salonId);
+      error = adminRetry.error;
+    }
+    if (error) return { error: formatDbError(error) };
+    revalidatePath("/settings");
+    revalidatePath("/dashboard");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to delete service" };
+  }
 }
