@@ -8,12 +8,13 @@ export async function POST(request: Request) {
   if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
   const body = await request.json();
-  const { amountMinor, clientId, salonId, stylistId, silentAppointment } = body as {
+  const { amountMinor, clientId, salonId, stylistId, silentAppointment, serviceIds } = body as {
     amountMinor: number;
     clientId?: string;
     salonId: string;
     stylistId?: string;
     silentAppointment?: boolean;
+    serviceIds?: string[];
   };
   if (!amountMinor || amountMinor < 50 || !salonId || context.salon.id !== salonId) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -44,6 +45,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid stylist" }, { status: 400 });
   }
 
+  const normalizedServiceIds = Array.isArray(serviceIds)
+    ? [...new Set(serviceIds.filter((id): id is string => typeof id === "string" && id.length > 0))]
+    : [];
+  let allowedServiceIds: string[] = [];
+  if (normalizedServiceIds.length > 0) {
+    const { data: matchedServices } = await supabase
+      .from("services")
+      .select("id")
+      .eq("salon_id", salonId)
+      .in("id", normalizedServiceIds);
+    allowedServiceIds = (matchedServices ?? []).map((service) => service.id);
+  }
+
   const employmentType = (stylist.employment_type as string) || "EMPLOYEE";
 
   try {
@@ -54,6 +68,7 @@ export async function POST(request: Request) {
       employment_type: employmentType,
       stylist_id: stylist.id,
       silent_appointment: silentAppointment === true ? "true" : "false",
+      service_ids: allowedServiceIds.join(",").slice(0, 450),
     };
 
     if (employmentType === "EMPLOYEE") {

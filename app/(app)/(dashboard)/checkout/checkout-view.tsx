@@ -56,6 +56,7 @@ export function CheckoutView({
           clientId: clientId || undefined,
           stylistId: stylistId || undefined,
           silentAppointment: silentAppointment || undefined,
+          serviceIds: selectedServiceIds,
         }),
       });
       const data = await res.json();

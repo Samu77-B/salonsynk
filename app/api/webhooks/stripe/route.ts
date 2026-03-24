@@ -25,12 +25,28 @@ export async function POST(request: Request) {
   type PaymentIntentObject = {
     id: string;
     amount: number;
-    metadata?: { salon_id?: string; stylist_id?: string; employment_type?: string };
+    currency?: string;
+    created?: number;
+    metadata?: {
+      salon_id?: string;
+      stylist_id?: string;
+      client_id?: string;
+      employment_type?: string;
+      service_ids?: string;
+    };
   };
   type CheckoutSessionObject = {
     id: string;
     amount_total?: number | null;
-    metadata?: { salon_id?: string; stylist_id?: string; employment_type?: string } | null;
+    payment_intent?: string | null;
+    currency?: string | null;
+    metadata?: {
+      salon_id?: string;
+      stylist_id?: string;
+      client_id?: string;
+      employment_type?: string;
+      service_ids?: string;
+    } | null;
   };
   let event: {
     type: string;
@@ -78,6 +94,44 @@ export async function POST(request: Request) {
     }
   }
 
+  async function upsertSalesTransaction(args: {
+    paymentIntentId: string;
+    amountMinor: number;
+    currency?: string | null;
+    paidAt?: Date;
+    metadata?: {
+      salon_id?: string;
+      stylist_id?: string;
+      client_id?: string;
+      employment_type?: string;
+      service_ids?: string;
+    } | null;
+  }): Promise<void> {
+    const { paymentIntentId, amountMinor, currency, paidAt, metadata } = args;
+    const salonId = metadata?.salon_id;
+    if (!paymentIntentId || !salonId || amountMinor <= 0) return;
+    const stylistId = metadata?.stylist_id?.trim() || null;
+    const clientId = metadata?.client_id?.trim() || null;
+    const serviceIds = (metadata?.service_ids ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    await supabase.from("sales_transactions").upsert(
+      {
+        salon_id: salonId,
+        stylist_id: stylistId,
+        client_id: clientId,
+        stripe_payment_intent_id: paymentIntentId,
+        amount_minor: amountMinor,
+        currency: (currency ?? "gbp").toLowerCase(),
+        employment_type: metadata?.employment_type ?? null,
+        service_ids: serviceIds,
+        paid_at: (paidAt ?? new Date()).toISOString(),
+      },
+      { onConflict: "stripe_payment_intent_id" }
+    );
+  }
+
   if (event.type === "payment_intent.succeeded") {
     const pi = event.data?.object as PaymentIntentObject | undefined;
     const amount = pi?.amount ?? 0;
@@ -86,6 +140,15 @@ export async function POST(request: Request) {
     const stylistId = pi?.metadata?.stylist_id;
     if (amount > 0 && employmentType && salonId) {
       await applyTaxVault(amount, employmentType, salonId, stylistId);
+    }
+    if (pi?.id && amount > 0) {
+      await upsertSalesTransaction({
+        paymentIntentId: pi.id,
+        amountMinor: amount,
+        currency: pi.currency,
+        paidAt: pi.created ? new Date(pi.created * 1000) : undefined,
+        metadata: pi.metadata,
+      });
     }
   }
 
@@ -98,6 +161,15 @@ export async function POST(request: Request) {
     const stylistId = metadata.stylist_id;
     if (amountTotal > 0 && employmentType && salonId) {
       await applyTaxVault(amountTotal, employmentType, salonId, stylistId);
+    }
+    const paymentIntentId = session?.payment_intent ?? "";
+    if (paymentIntentId && amountTotal > 0) {
+      await upsertSalesTransaction({
+        paymentIntentId,
+        amountMinor: amountTotal,
+        currency: session?.currency ?? "gbp",
+        metadata,
+      });
     }
   }
 
