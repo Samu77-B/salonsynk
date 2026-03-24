@@ -18,18 +18,24 @@ type ClientRow = {
   salons: { slug?: string; name?: string; settings?: { we_miss_you_weeks_min?: number; we_miss_you_weeks_max?: number; we_miss_you_discount_code?: string } } | null;
 };
 
+function resolveCampaignWindowWeeks(
+  salonSettings: { we_miss_you_weeks_min?: number; we_miss_you_weeks_max?: number } | undefined,
+  overrideWeeksMin?: number,
+  overrideWeeksMax?: number
+) {
+  const minWeeks = Math.max(0, Math.round(overrideWeeksMin ?? Number(salonSettings?.we_miss_you_weeks_min) || 6));
+  const maxWeeks = Math.max(minWeeks, Math.round(overrideWeeksMax ?? Number(salonSettings?.we_miss_you_weeks_max) || 10));
+  return { minWeeks, maxWeeks };
+}
+
 /**
  * Get clients whose last completed appointment ended between weeksMin and weeksMax ago,
  * and we haven't already sent a We Miss You since that visit.
  */
-export async function getLapsedClientsForWeMissYou(weeksMin = 6, weeksMax = 10) {
+export async function getLapsedClientsForWeMissYou(overrideWeeksMin?: number, overrideWeeksMax?: number) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   const now = new Date();
-  const minDate = new Date(now);
-  minDate.setDate(minDate.getDate() - weeksMax * 7);
-  const maxDate = new Date(now);
-  maxDate.setDate(maxDate.getDate() - weeksMin * 7);
 
   // Subquery: last completed appointment end_time per client
   const { data: lastVisits } = await supabase
@@ -46,23 +52,26 @@ export async function getLapsedClientsForWeMissYou(weeksMin = 6, weeksMax = 10) 
     }
   }
 
-  const clientIdsInWindow: string[] = [];
-  for (const [clientId, endTime] of lastVisitByClient) {
-    const end = new Date(endTime);
-    if (end >= minDate && end <= maxDate) clientIdsInWindow.push(clientId);
-  }
-
-  if (clientIdsInWindow.length === 0) return [];
+  const candidateClientIds = [...lastVisitByClient.keys()];
+  if (candidateClientIds.length === 0) return [];
 
   const { data: clients } = await supabase
     .from("clients")
     .select("id, name, email, phone, we_miss_you_sent_at, salon_id, salons(slug, name, settings)")
-    .in("id", clientIdsInWindow);
+    .in("id", candidateClientIds);
 
   const results: (ClientRow & { last_appointment_end: string })[] = [];
   for (const c of clients ?? []) {
     const lastEnd = lastVisitByClient.get(c.id);
     if (!lastEnd) continue;
+    const settings = (c.salons as { settings?: { we_miss_you_weeks_min?: number; we_miss_you_weeks_max?: number } } | null)?.settings;
+    const { minWeeks, maxWeeks } = resolveCampaignWindowWeeks(settings, overrideWeeksMin, overrideWeeksMax);
+    const minDate = new Date(now);
+    minDate.setDate(minDate.getDate() - maxWeeks * 7);
+    const maxDate = new Date(now);
+    maxDate.setDate(maxDate.getDate() - minWeeks * 7);
+    const end = new Date(lastEnd);
+    if (end < minDate || end > maxDate) continue;
     const sentAt = (c as { we_miss_you_sent_at?: string | null }).we_miss_you_sent_at;
     if (sentAt && new Date(sentAt) >= new Date(lastEnd)) continue;
     results.push({ ...c, last_appointment_end: lastEnd } as ClientRow & { last_appointment_end: string });
@@ -70,9 +79,9 @@ export async function getLapsedClientsForWeMissYou(weeksMin = 6, weeksMax = 10) 
   return results;
 }
 
-export async function sendWeMissYouCampaign(weeksMin = 6, weeksMax = 10) {
+export async function sendWeMissYouCampaign(overrideWeeksMin?: number, overrideWeeksMax?: number) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  const clients = await getLapsedClientsForWeMissYou(weeksMin, weeksMax);
+  const clients = await getLapsedClientsForWeMissYou(overrideWeeksMin, overrideWeeksMax);
   const results: { clientId: string; ok: boolean; error?: string }[] = [];
 
   for (const client of clients) {

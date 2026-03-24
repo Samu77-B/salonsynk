@@ -7,7 +7,8 @@ export async function GET(request: Request) {
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const results = await sendWeMissYouCampaign(6, 10);
+  // Uses each salon's configured window from Settings by default.
+  const results = await sendWeMissYouCampaign();
   return NextResponse.json({ sent: results.filter((r) => r.ok).length, results });
 }
 
