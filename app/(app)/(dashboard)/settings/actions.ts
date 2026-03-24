@@ -26,6 +26,12 @@ async function assertCanManageServices(salonId: string): Promise<{ ok: true } | 
   return { ok: true };
 }
 
+function formatDbError(error: { message?: string; details?: string; hint?: string } | null | undefined): string {
+  if (!error) return "Unknown database error";
+  const parts = [error.message, error.details, error.hint].filter(Boolean);
+  return parts.length ? parts.join(" | ") : "Unknown database error";
+}
+
 export async function updateSalonBranding(salonId: string, branding: BrandingInput) {
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
@@ -181,7 +187,7 @@ export async function addService(
   const duration = Math.max(1, Math.min(480, Math.round(data.duration_minutes ?? 60)));
   const price = Math.max(0, Math.round(data.price_minor ?? 0));
   const processing = Math.max(0, Math.min(duration, Math.round(data.processing_time_minutes ?? 0)));
-  const supabase = await createClient();
+  const admin = createAdminClient();
   const payload = {
     salon_id: salonId,
     name,
@@ -189,17 +195,17 @@ export async function addService(
     price_minor: price,
     processing_time_minutes: processing,
   };
-  const { error } = await supabase.from("services").insert(payload);
+  const { error } = await admin.from("services").insert(payload);
   if (error && isMissingProcessingColumnError(error)) {
-    const fallback = await supabase.from("services").insert({
+    const fallback = await admin.from("services").insert({
       salon_id: salonId,
       name,
       duration_minutes: duration,
       price_minor: price,
     });
-    if (fallback.error) return { error: fallback.error.message };
+    if (fallback.error) return { error: formatDbError(fallback.error) };
   } else if (error) {
-    return { error: error.message };
+    return { error: formatDbError(error) };
   }
   revalidatePath("/settings");
   revalidatePath("/dashboard");
@@ -219,22 +225,22 @@ export async function updateService(
   if (data.price_minor !== undefined) payload.price_minor = Math.max(0, Math.round(data.price_minor));
   if (data.processing_time_minutes !== undefined) payload.processing_time_minutes = Math.max(0, Math.round(data.processing_time_minutes));
   if (Object.keys(payload).length === 0) return {};
-  const supabase = await createClient();
-  const { error } = await supabase
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("services")
     .update(payload)
     .eq("id", serviceId)
     .eq("salon_id", salonId);
   if (error && isMissingProcessingColumnError(error)) {
     const { processing_time_minutes: _ignored, ...fallbackPayload } = payload;
-    const fallback = await supabase
+    const fallback = await admin
       .from("services")
       .update(fallbackPayload)
       .eq("id", serviceId)
       .eq("salon_id", salonId);
-    if (fallback.error) return { error: fallback.error.message };
+    if (fallback.error) return { error: formatDbError(fallback.error) };
   } else if (error) {
-    return { error: error.message };
+    return { error: formatDbError(error) };
   }
   revalidatePath("/settings");
   revalidatePath("/dashboard");
@@ -244,13 +250,13 @@ export async function updateService(
 export async function deleteService(salonId: string, serviceId: string) {
   const auth = await assertCanManageServices(salonId);
   if ("error" in auth) return auth;
-  const supabase = await createClient();
-  const { error } = await supabase
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("services")
     .delete()
     .eq("id", serviceId)
     .eq("salon_id", salonId);
-  if (error) return { error: error.message };
+  if (error) return { error: formatDbError(error) };
   revalidatePath("/settings");
   revalidatePath("/dashboard");
   return {};
