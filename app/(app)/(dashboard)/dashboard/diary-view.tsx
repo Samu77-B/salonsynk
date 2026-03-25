@@ -46,7 +46,11 @@ const SLOTS_15MIN = Array.from({ length: 56 }, (_, i) => {
 function formatDate(d: Date) {
   const time = d.getTime();
   if (!Number.isFinite(time)) return "";
-  return d.toISOString().slice(0, 10);
+  // Use local date (not UTC) so diary days match what users pick.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function parseDate(value: string | null | undefined): Date | null {
