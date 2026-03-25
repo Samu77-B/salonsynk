@@ -2,11 +2,7 @@ import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { redirect } from "next/navigation";
-
-function isMissingProcessingColumnError(error: { message?: string } | null | undefined) {
-  const msg = (error?.message ?? "").toLowerCase();
-  return msg.includes("processing_time_minutes");
-}
+import { isMissingProcessingColumnError } from "@/lib/db/service-schema";
 
 export async function getSettingsData() {
   const context = await getCurrentUserSalon();

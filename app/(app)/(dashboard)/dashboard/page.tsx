@@ -1,8 +1,11 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { isMissingProcessingColumnError } from "@/lib/db/service-schema";
 import { DiaryView } from "./diary-view";
 import { GapFillerSection } from "./gap-filler-section";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const context = await getCurrentUserSalon();
@@ -19,6 +22,21 @@ export default async function DashboardPage() {
   rangeEnd.setDate(rangeEnd.getDate() + 77);
   rangeEnd.setHours(0, 0, 0, 0);
 
+  const servicesPromise = (async () => {
+    const withProcessing = await supabase
+      .from("services")
+      .select("id, name, duration_minutes, processing_time_minutes")
+      .eq("salon_id", context.salon.id)
+      .order("name");
+    if (!withProcessing.error) return withProcessing;
+    if (!isMissingProcessingColumnError(withProcessing.error)) return withProcessing;
+    return supabase
+      .from("services")
+      .select("id, name, duration_minutes")
+      .eq("salon_id", context.salon.id)
+      .order("name");
+  })();
+
   const [membersRes, servicesRes, clientsRes, appointmentsRes] = await Promise.all([
     supabase
       .from("salon_members")
@@ -26,10 +44,7 @@ export default async function DashboardPage() {
       .eq("salon_id", context.salon.id)
       .eq("is_active", true)
       .order("role", { ascending: false }),
-    supabase
-      .from("services")
-      .select("id, name, duration_minutes, processing_time_minutes")
-      .eq("salon_id", context.salon.id),
+    servicesPromise,
     supabase
       .from("clients")
       .select("id, name, email, phone")
@@ -53,7 +68,20 @@ export default async function DashboardPage() {
   ]);
 
   const members = membersRes.data ?? [];
-  const services = servicesRes.data ?? [];
+  const services = (servicesRes.data ?? []).map((s) => {
+    const row = s as {
+      id: string;
+      name: string;
+      duration_minutes: number;
+      processing_time_minutes?: number | null;
+    };
+    return {
+      id: row.id,
+      name: row.name,
+      duration_minutes: row.duration_minutes,
+      processing_time_minutes: row.processing_time_minutes ?? 0,
+    };
+  });
   const clients = clientsRes.data ?? [];
   const appointments = appointmentsRes.data ?? [];
 

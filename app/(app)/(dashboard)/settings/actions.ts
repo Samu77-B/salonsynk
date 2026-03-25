@@ -5,18 +5,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
+import { isMissingProcessingColumnError } from "@/lib/db/service-schema";
 
 export type BrandingInput = {
   logo_url?: string;
   primary_color?: string;
   company_name?: string;
 };
-
-/** True when DB doesn't have processing_time_minutes yet (or schema cache still references it). */
-function isMissingProcessingColumnError(error: { message?: string } | null | undefined) {
-  const msg = (error?.message ?? "").toLowerCase();
-  return msg.includes("processing_time_minutes");
-}
 
 async function assertCanManageServices(salonId: string): Promise<{ ok: true } | { error: string }> {
   const context = await getCurrentUserSalon();

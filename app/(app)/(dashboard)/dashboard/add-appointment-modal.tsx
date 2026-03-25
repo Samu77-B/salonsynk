@@ -167,7 +167,7 @@ export function AddAppointmentModal({
               onChange={(e) => setServiceId(e.target.value)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             >
-              <option value="">—</option>
+              <option value="">Select service</option>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>{s.name} ({s.duration_minutes} min)</option>
               ))}
