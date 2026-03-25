@@ -183,14 +183,16 @@ export async function uploadSalonLogo(
   return { error: null, url };
 }
 
+export type ServiceMutationResult = { error?: string };
+
 // Services management (owners only)
 export async function addService(
   salonId: string,
   data: { name: string; duration_minutes: number; price_minor?: number; processing_time_minutes?: number }
-) {
+): Promise<ServiceMutationResult> {
   try {
     const auth = await assertCanManageServices(salonId);
-    if ("error" in auth) return auth;
+    if ("error" in auth) return { error: auth.error };
     const name = data.name?.trim();
     if (!name) return { error: "Service name is required" };
     const duration = Math.max(1, Math.min(480, Math.round(data.duration_minutes ?? 60)));
@@ -243,10 +245,10 @@ export async function updateService(
   salonId: string,
   serviceId: string,
   data: { name?: string; duration_minutes?: number; price_minor?: number; processing_time_minutes?: number }
-) {
+): Promise<ServiceMutationResult> {
   try {
     const auth = await assertCanManageServices(salonId);
-    if ("error" in auth) return auth;
+    if ("error" in auth) return { error: auth.error };
     const payload: Record<string, unknown> = {};
     if (data.name !== undefined) payload.name = data.name.trim();
     if (data.duration_minutes !== undefined) payload.duration_minutes = Math.max(1, Math.min(480, Math.round(data.duration_minutes)));
@@ -296,10 +298,10 @@ export async function updateService(
   }
 }
 
-export async function deleteService(salonId: string, serviceId: string) {
+export async function deleteService(salonId: string, serviceId: string): Promise<ServiceMutationResult> {
   try {
     const auth = await assertCanManageServices(salonId);
-    if ("error" in auth) return auth;
+    if ("error" in auth) return { error: auth.error };
     const supabase = await createClient();
     const admin = getOptionalAdminClient();
     const db = admin ?? supabase;

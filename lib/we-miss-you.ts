@@ -23,8 +23,8 @@ function resolveCampaignWindowWeeks(
   overrideWeeksMin?: number,
   overrideWeeksMax?: number
 ) {
-  const minWeeks = Math.max(0, Math.round(overrideWeeksMin ?? Number(salonSettings?.we_miss_you_weeks_min) || 6));
-  const maxWeeks = Math.max(minWeeks, Math.round(overrideWeeksMax ?? Number(salonSettings?.we_miss_you_weeks_max) || 10));
+  const minWeeks = Math.max(0, Math.round(overrideWeeksMin ?? (Number(salonSettings?.we_miss_you_weeks_min) || 6)));
+  const maxWeeks = Math.max(minWeeks, Math.round(overrideWeeksMax ?? (Number(salonSettings?.we_miss_you_weeks_max) || 10)));
   return { minWeeks, maxWeeks };
 }
 

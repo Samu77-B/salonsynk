@@ -65,13 +65,22 @@ export async function getSettingsData() {
     context,
     salon,
     member,
-    services: (services ?? []).map((s) => ({
-      id: s.id,
-      name: s.name,
-      duration_minutes: s.duration_minutes,
-      price_minor: s.price_minor ?? 0,
-      processing_time_minutes: s.processing_time_minutes ?? 0,
-    })),
+    services: (services ?? []).map((s) => {
+      const row = s as {
+        id: string;
+        name: string;
+        duration_minutes: number;
+        price_minor: number | null;
+        processing_time_minutes?: number | null;
+      };
+      return {
+        id: row.id,
+        name: row.name,
+        duration_minutes: row.duration_minutes,
+        price_minor: row.price_minor ?? 0,
+        processing_time_minutes: row.processing_time_minutes ?? 0,
+      };
+    }),
     branding: {
       logo_url: branding.logo_url ?? "",
       primary_color: branding.primary_color ?? "",
