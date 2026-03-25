@@ -59,6 +59,16 @@ function parseDate(value: string | null | undefined): Date | null {
   return Number.isFinite(d.getTime()) ? d : null;
 }
 
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
+function minutesSinceDayStart(d: Date, day: Date): number {
+  const dayStart = new Date(day);
+  dayStart.setHours(0, 0, 0, 0);
+  return (d.getTime() - dayStart.getTime()) / 60000;
+}
+
 function AppointmentBlock({
   a,
   cellStart,
@@ -304,8 +314,8 @@ export function DiaryView({
       return;
     }
     const result = await updateAppointment(appointmentId, {
-      start_time: toLocalISO(newStart),
-      end_time: toLocalISO(newEnd),
+      start_time: newStart.toISOString(),
+      end_time: newEnd.toISOString(),
     });
     if (result.error) setError(result.error);
     else {
@@ -322,6 +332,11 @@ export function DiaryView({
   }
 
   const todayStr = formatDate(new Date());
+  const activeStylistId = filterStylistId ?? members[0]?.id ?? null;
+  const activeStylistName =
+    (activeStylistId ? members.find((m) => m.id === activeStylistId)?.display_name : null) ||
+    (activeStylistId ? members.find((m) => m.id === activeStylistId)?.role : null) ||
+    "";
 
   return (
     <div className="space-y-6 min-w-0">
@@ -389,36 +404,69 @@ export function DiaryView({
       )}
 
       {view === "day" ? (
-        <div className="flex flex-col gap-4">
-          {daysToShow.map((day) => {
-            const dayStr = formatDate(day);
-            const isToday = dayStr === todayStr;
-            const renderSlotColumn = (slots: typeof SLOTS_15MIN) =>
-              slots.map((slot, idx) => {
-                const cellStart = new Date(day);
-                cellStart.setHours(slot.hour, slot.minute, 0, 0);
-                const cellEnd = new Date(cellStart);
-                cellEnd.setMinutes(cellEnd.getMinutes() + 15);
-                const inCell = filteredAppointments
-                  .filter((a) => {
-                    const s = parseDate(a.start_time);
-                    if (!s) return false;
-                    return s >= cellStart && s < cellEnd && formatDate(s) === dayStr;
-                  })
-                  .sort((a, b) => {
-                    const sa = new Date(a.start_time).getTime();
-                    const sb = new Date(b.start_time).getTime();
-                    if (sa !== sb) return sa - sb;
-                    const stylistA = members.find((m) => m.id === a.stylist_id)?.display_name ?? "";
-                    const stylistB = members.find((m) => m.id === b.stylist_id)?.display_name ?? "";
-                    return stylistA.localeCompare(stylistB);
-                  });
-                const timeLabel = `${slot.hour}:${String(slot.minute).padStart(2, "0")}`;
-                return (
-                  <tr key={idx} className="border-b border-border/30">
-                    <td className="w-14 p-1 text-muted text-[10px] align-top">{timeLabel}</td>
-                    <td
-                      className="relative h-3 min-h-3 align-top p-0.5 overflow-visible"
+        <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-border bg-muted/30">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-semibold truncate">
+                  {activeStylistName ? `${activeStylistName} — ` : ""}
+                  {daysToShow[0].toLocaleDateString("en-GB", { weekday: "long", month: "long", day: "numeric" })}
+                </div>
+                <div className="text-xs text-muted">
+                  Drag cards to reschedule. Click to edit.
+                </div>
+              </div>
+              {formatDate(daysToShow[0]) === todayStr && (
+                <span className="rounded-full bg-accent/15 text-accent px-2 py-0.5 text-xs font-medium shrink-0">
+                  Today
+                </span>
+              )}
+            </div>
+          </div>
+
+          {!activeStylistId ? (
+            <div className="p-4 text-sm text-muted">Add a team member first.</div>
+          ) : (
+            (() => {
+              const day = daysToShow[0];
+              const dayStr = formatDate(day);
+              const startHour = 6;
+              const endHour = 19;
+              const pxPerMin = 1.1;
+              const gutterW = 88;
+
+              const dayAppointments = filteredAppointments
+                .filter((a) => a.stylist_id === activeStylistId)
+                .filter((a) => {
+                  const s = parseDate(a.start_time);
+                  return s ? formatDate(s) === dayStr : false;
+                })
+                .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+              const heightPx = (endHour - startHour + 1) * 60 * pxPerMin;
+
+              return (
+                <div className="relative overflow-x-auto">
+                  <div className="relative min-w-[520px]" style={{ height: `${heightPx}px` }}>
+                    {/* Time gutter + horizontal grid lines */}
+                    {Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i).map((h) => {
+                      const top = (h - startHour) * 60 * pxPerMin;
+                      return (
+                        <div key={h} className="absolute left-0 right-0" style={{ top: `${top}px` }}>
+                          <div className="absolute left-0" style={{ width: `${gutterW}px` }}>
+                            <div className="pl-4 pr-2 text-xs text-muted leading-6">
+                              {new Date(0, 0, 0, h, 0).toLocaleTimeString("en-GB", { hour: "numeric" })}
+                            </div>
+                          </div>
+                          <div className="absolute left-0 right-0 border-t border-border/40" style={{ marginLeft: `${gutterW}px` }} />
+                        </div>
+                      );
+                    })}
+
+                    {/* Drop zone */}
+                    <div
+                      className="absolute inset-0"
+                      style={{ marginLeft: `${gutterW}px` }}
                       onDragOver={(e) => {
                         e.preventDefault();
                         e.dataTransfer.dropEffect = "move";
@@ -429,103 +477,70 @@ export function DiaryView({
                         if (!id) return;
                         const apt = appointments.find((a) => a.id === id);
                         if (!apt) return;
-                        const newStart = new Date(cellStart);
-                        const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
+
+                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        const y = e.clientY - rect.top;
+                        const minsFromStart = Math.max(0, Math.round(y / pxPerMin / 15) * 15);
+                        const newStart = new Date(day);
+                        newStart.setHours(startHour, 0, 0, 0);
+                        newStart.setMinutes(newStart.getMinutes() + minsFromStart);
+                        const durationMs =
+                          new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
                         const newEnd = new Date(newStart.getTime() + durationMs);
                         handleReschedule(id, newStart, newEnd);
                       }}
-                    >
-                      {inCell.length > 1 ? (
-                        <div
-                          className="flex flex-col sm:flex-row gap-1 h-full min-h-[12px]"
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = "move";
+                    />
+
+                    {/* Appointment cards */}
+                    {dayAppointments.map((a) => {
+                      const start = parseDate(a.start_time);
+                      const end = parseDate(a.end_time);
+                      if (!start || !end) return null;
+                      const topMins = minutesSinceDayStart(start, day) - startHour * 60;
+                      const durMins = (end.getTime() - start.getTime()) / 60000;
+                      const top = Math.max(0, topMins) * pxPerMin;
+                      const height = Math.max(44, durMins * pxPerMin);
+
+                      const svc = Array.isArray(a.services) ? a.services[0] : a.services;
+                      const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
+                      const phone = client?.phone ?? a.guest_phone ?? "";
+                      const label = client?.name || a.guest_name || "Walk-in";
+                      const serviceName = svc?.name || "Service";
+                      const color = stylistColorMap[a.stylist_id] || "#7c3aed";
+
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => setEditId(a.id)}
+                          draggable
+                          onDragStart={(e) => {
+                            setMovingId(a.id);
+                            e.dataTransfer.setData("text/plain", a.id);
                           }}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            const id = e.dataTransfer.getData("text/plain");
-                            if (!id) return;
-                            const apt = appointments.find((a) => a.id === id);
-                            if (!apt) return;
-                            const newStart = new Date(cellStart);
-                            const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
-                            const newEnd = new Date(newStart.getTime() + durationMs);
-                            handleReschedule(id, newStart, newEnd);
+                          onDragEnd={() => setMovingId(null)}
+                          className="absolute left-0 right-3 text-left rounded-xl border shadow-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent/40"
+                          style={{
+                            top: `${top}px`,
+                            height: `${height}px`,
+                            marginLeft: `${gutterW + 12}px`,
+                            borderColor: `${color}99`,
+                            backgroundColor: `${color}22`,
+                            opacity: movingId === a.id ? 0.7 : 1,
                           }}
                         >
-                          {inCell.map((a, idx) => (
-                            <AppointmentBlock
-                              key={a.id}
-                              a={a}
-                              cellStart={cellStart}
-                              members={members}
-                              stylistColorMap={stylistColorMap}
-                              appointments={appointments}
-                              onReschedule={handleReschedule}
-                              onEdit={() => setEditId(a.id)}
-                              onDelete={() => handleDelete(a.id)}
-                              onDragStart={() => setMovingId(a.id)}
-                              onDragEnd={() => setMovingId(null)}
-                              slotIndex={idx}
-                              slotCount={inCell.length}
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        inCell.map((a, idx) => (
-                          <AppointmentBlock
-                            key={a.id}
-                            a={a}
-                            cellStart={cellStart}
-                            members={members}
-                            stylistColorMap={stylistColorMap}
-                            appointments={appointments}
-                            onReschedule={handleReschedule}
-                            onEdit={() => setEditId(a.id)}
-                            onDelete={() => handleDelete(a.id)}
-                            onDragStart={() => setMovingId(a.id)}
-                            onDragEnd={() => setMovingId(null)}
-                            slotIndex={idx}
-                            slotCount={inCell.length}
-                          />
-                        ))
-                      )}
-                    </td>
-                  </tr>
-                );
-              });
-            return (
-              <div
-                key={dayStr}
-                className="rounded-xl border border-border bg-background shadow-sm overflow-hidden"
-              >
-                <div className="px-4 py-3 border-b border-border bg-muted/30">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm">
-                      {day.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
-                    </span>
-                    {isToday && (
-                      <span className="rounded-full bg-accent/20 text-accent px-2 py-0.5 text-xs font-medium">
-                        Today
-                      </span>
-                    )}
+                          <div className="text-sm font-semibold text-foreground truncate">
+                            {formatTime(start)}–{formatTime(end)} · {label} · {serviceName}
+                          </div>
+                          {phone && <div className="text-xs text-muted truncate">{phone}</div>}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[360px] border-collapse text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/20">
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted">Time</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted">Appointments</th>
-                      </tr>
-                    </thead>
-                    <tbody>{renderSlotColumn(SLOTS_15MIN)}</tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })()
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border bg-background shadow-sm">
