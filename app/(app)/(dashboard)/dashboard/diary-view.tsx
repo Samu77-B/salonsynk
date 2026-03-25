@@ -664,6 +664,7 @@ export function DiaryView({
               setAddOpen(false);
               router.refresh();
             }
+            return result;
           }}
           onClose={() => setAddOpen(false)}
         />
@@ -686,6 +687,7 @@ export function DiaryView({
                 setEditId(null);
                 router.refresh();
               }
+              return result;
             }}
             onClose={() => setEditId(null)}
             onNoShowCharged={() => router.refresh()}

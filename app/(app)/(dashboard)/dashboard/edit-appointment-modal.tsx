@@ -26,15 +26,6 @@ type Appointment = {
   send_aftercare?: boolean;
 };
 
-function toLocalISO(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const h = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${day}T${h}:${min}:00`;
-}
-
 function timeFromISO(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -53,7 +44,7 @@ export function EditAppointmentModal({
   members: Member[];
   services: Service[];
   clients: Client[];
-  onUpdate: (id: string, data: UpdateAppointmentInput) => Promise<void>;
+  onUpdate: (id: string, data: UpdateAppointmentInput) => Promise<{ error?: string | null }>;
   onClose: () => void;
   onNoShowCharged?: () => void;
 }) {
@@ -75,6 +66,7 @@ export function EditAppointmentModal({
   const [afterPhotoUrl, setAfterPhotoUrl] = useState(appointment.after_photo_url ?? "");
   const [loading, setLoading] = useState(false);
   const [noShowLoading, setNoShowLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const canChargeNoShow = appointment.status === "scheduled";
 
   useEffect(() => {
@@ -109,24 +101,31 @@ export function EditAppointmentModal({
     startDate.setHours(hours, mins, 0, 0);
     const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000);
 
+    setSubmitError(null);
     setLoading(true);
-    await onUpdate(appointment.id, {
-      stylist_id: stylistId,
-      client_id: clientId || null,
-      service_id: serviceId || null,
-      guest_name: guestName || null,
-      guest_email: email?.trim() || null,
-      guest_phone: phone?.trim() || null,
-      start_time: toLocalISO(startDate),
-      end_time: toLocalISO(endDate),
-      notes: notes || null,
-      send_reminder_sms: sendReminderSms,
-      send_review_request: sendReviewRequest,
-      send_aftercare: sendAftercare,
-      before_photo_url: beforePhotoUrl?.trim() || null,
-      after_photo_url: afterPhotoUrl?.trim() || null,
-    });
-    setLoading(false);
+    try {
+      const result = await onUpdate(appointment.id, {
+        stylist_id: stylistId,
+        client_id: clientId || null,
+        service_id: serviceId || null,
+        guest_name: guestName || null,
+        guest_email: email?.trim() || null,
+        guest_phone: phone?.trim() || null,
+        start_time: startDate.toISOString(),
+        end_time: endDate.toISOString(),
+        notes: notes || null,
+        send_reminder_sms: sendReminderSms,
+        send_review_request: sendReviewRequest,
+        send_aftercare: sendAftercare,
+        before_photo_url: beforePhotoUrl?.trim() || null,
+        after_photo_url: afterPhotoUrl?.trim() || null,
+      });
+      if (result?.error) setSubmitError(result.error);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Could not save appointment.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -335,6 +334,11 @@ export function EditAppointmentModal({
             </button>
           </div>
         )}
+          {submitError && (
+            <p className="text-sm text-red-400" role="alert">
+              {submitError}
+            </p>
+          )}
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm">
               Cancel

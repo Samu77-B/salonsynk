@@ -1,7 +1,10 @@
 "use server";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { findClientsForEmptySlots, type SlotWithCandidates } from "@/lib/gap-filler";
 import {
   hasBlockingOverlapWithExisting,
@@ -9,6 +12,51 @@ import {
   type AppointmentBlockingInput,
 } from "@/lib/diary-rules";
 import { revalidatePath } from "next/cache";
+
+/** Super admins often view a salon via cookie without a salon_members row; RLS would block inserts. */
+async function getMutateClient(): Promise<SupabaseClient> {
+  const userSb = await createClient();
+  if (!(await getIsSuperAdmin())) return userSb;
+  try {
+    return createAdminClient();
+  } catch {
+    return userSb;
+  }
+}
+
+type OverlapAppointmentRow = {
+  id: string;
+  start_time: string;
+  end_time: string;
+  services?: { processing_time_minutes?: number } | { processing_time_minutes?: number }[] | null;
+};
+
+async function fetchAppointmentsForOverlapCheck(
+  db: SupabaseClient,
+  salonId: string,
+  stylistId: string,
+  dayStartIso: string,
+  dayEndIso: string
+) {
+  const withSvc = await db
+    .from("appointments")
+    .select("id, start_time, end_time, services(processing_time_minutes)")
+    .eq("salon_id", salonId)
+    .eq("stylist_id", stylistId)
+    .in("status", ["scheduled", "completed"])
+    .gte("start_time", dayStartIso)
+    .lt("start_time", dayEndIso);
+  if (!withSvc.error) return withSvc.data ?? [];
+  const minimal = await db
+    .from("appointments")
+    .select("id, start_time, end_time")
+    .eq("salon_id", salonId)
+    .eq("stylist_id", stylistId)
+    .in("status", ["scheduled", "completed"])
+    .gte("start_time", dayStartIso)
+    .lt("start_time", dayEndIso);
+  return minimal.data ?? [];
+}
 
 export type CreateAppointmentInput = {
   salonId: string;
@@ -27,29 +75,33 @@ export type CreateAppointmentInput = {
 };
 
 export async function createAppointment(input: CreateAppointmentInput) {
-  const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== input.salonId) return { error: "Unauthorized" };
 
+  const db = await getMutateClient();
+
   const start = new Date(input.startTime);
   const end = new Date(input.endTime);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+    return { error: "Invalid date or time." };
+  }
+
   const dayStart = new Date(start);
   dayStart.setHours(0, 0, 0, 0);
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const { data: existing } = await supabase
-    .from("appointments")
-    .select("id, start_time, end_time, services(processing_time_minutes)")
-    .eq("salon_id", input.salonId)
-    .eq("stylist_id", input.stylistId)
-    .in("status", ["scheduled", "completed"])
-    .gte("start_time", dayStart.toISOString())
-    .lt("start_time", dayEnd.toISOString());
+  const existing = await fetchAppointmentsForOverlapCheck(
+    db,
+    input.salonId,
+    input.stylistId,
+    dayStart.toISOString(),
+    dayEnd.toISOString()
+  );
 
   let newProcessing = 0;
   if (input.serviceId) {
-    const { data: svc } = await supabase
+    const { data: svc } = await db
       .from("services")
       .select("processing_time_minutes")
       .eq("id", input.serviceId)
@@ -58,7 +110,7 @@ export async function createAppointment(input: CreateAppointmentInput) {
     newProcessing = Number(svc?.processing_time_minutes) || 0;
   }
 
-  const blockingExisting: AppointmentBlockingInput[] = (existing ?? []).map((row) => {
+  const blockingExisting: AppointmentBlockingInput[] = (existing as OverlapAppointmentRow[]).map((row) => {
     const s = new Date(row.start_time);
     const e = new Date(row.end_time);
     const r = rangeToMinutes(s, e);
@@ -97,7 +149,7 @@ export async function createAppointment(input: CreateAppointmentInput) {
   if (input.sendReviewRequest !== undefined) row.send_review_request = input.sendReviewRequest;
   if (input.sendAftercare !== undefined) row.send_aftercare = input.sendAftercare;
 
-  const { error } = await supabase.from("appointments").insert(row);
+  const { error } = await db.from("appointments").insert(row);
 
   if (error) return { error: error.message };
 
@@ -106,7 +158,7 @@ export async function createAppointment(input: CreateAppointmentInput) {
     if (input.guestEmail?.trim()) clientUpdates.email = input.guestEmail.trim();
     if (input.guestPhone?.trim()) clientUpdates.phone = input.guestPhone.trim();
     if (Object.keys(clientUpdates).length > 0) {
-      await supabase
+      await db
         .from("clients")
         .update(clientUpdates)
         .eq("id", input.clientId)
@@ -138,12 +190,13 @@ export type UpdateAppointmentInput = {
 };
 
 export async function updateAppointment(id: string, updates: UpdateAppointmentInput) {
-  const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
 
+  const db = await getMutateClient();
+
   if (updates.start_time !== undefined || updates.end_time !== undefined || updates.stylist_id !== undefined) {
-    const { data: current } = await supabase
+    const { data: current } = await db
       .from("appointments")
       .select("start_time, end_time, stylist_id")
       .eq("id", id)
@@ -154,6 +207,9 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
 
     const start = new Date(updates.start_time ?? current.start_time);
     const end = new Date(updates.end_time ?? current.end_time);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+      return { error: "Invalid date or time." };
+    }
     const stylistId = updates.stylist_id ?? current.stylist_id;
 
     const dayStart = new Date(start);
@@ -161,20 +217,19 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
     const dayEnd = new Date(dayStart);
     dayEnd.setDate(dayEnd.getDate() + 1);
 
-    const { data: existing } = await supabase
-      .from("appointments")
-      .select("id, start_time, end_time, services(processing_time_minutes)")
-      .eq("salon_id", context.salon.id)
-      .eq("stylist_id", stylistId)
-      .in("status", ["scheduled", "completed"])
-      .gte("start_time", dayStart.toISOString())
-      .lt("start_time", dayEnd.toISOString());
+    const existing = await fetchAppointmentsForOverlapCheck(
+      db,
+      context.salon.id,
+      stylistId,
+      dayStart.toISOString(),
+      dayEnd.toISOString()
+    );
 
     const serviceIdForProc =
       updates.service_id !== undefined
         ? updates.service_id
         : (
-            await supabase
+            await db
               .from("appointments")
               .select("service_id")
               .eq("id", id)
@@ -184,7 +239,7 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
 
     let newProcessing = 0;
     if (serviceIdForProc) {
-      const { data: svc } = await supabase
+      const { data: svc } = await db
         .from("services")
         .select("processing_time_minutes")
         .eq("id", serviceIdForProc)
@@ -193,7 +248,7 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
       newProcessing = Number(svc?.processing_time_minutes) || 0;
     }
 
-    const blockingExisting: AppointmentBlockingInput[] = (existing ?? [])
+    const blockingExisting: AppointmentBlockingInput[] = (existing as OverlapAppointmentRow[])
       .filter((row) => row.id !== id)
       .map((row) => {
         const s = new Date(row.start_time);
@@ -234,7 +289,7 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
   if (updates.before_photo_url !== undefined) payload.before_photo_url = updates.before_photo_url;
   if (updates.after_photo_url !== undefined) payload.after_photo_url = updates.after_photo_url;
 
-  const { error } = await supabase
+  const { error } = await db
     .from("appointments")
     .update(payload)
     .eq("id", id)
@@ -247,13 +302,13 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
     const clientId =
       updates.client_id !== undefined
         ? updates.client_id
-        : (await supabase.from("appointments").select("client_id").eq("id", id).eq("salon_id", context.salon.id).single()).data?.client_id;
+        : (await db.from("appointments").select("client_id").eq("id", id).eq("salon_id", context.salon.id).single()).data?.client_id;
     if (clientId) {
       const clientUpdates: Record<string, unknown> = {};
       if (updates.guest_email?.trim()) clientUpdates.email = updates.guest_email.trim();
       if (updates.guest_phone?.trim()) clientUpdates.phone = updates.guest_phone.trim();
       if (Object.keys(clientUpdates).length > 0) {
-        await supabase.from("clients").update(clientUpdates).eq("id", clientId).eq("salon_id", context.salon.id);
+        await db.from("clients").update(clientUpdates).eq("id", clientId).eq("salon_id", context.salon.id);
         revalidatePath("/clients");
         revalidatePath(`/clients/${clientId}`);
       }
@@ -265,11 +320,12 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
 }
 
 export async function deleteAppointment(id: string) {
-  const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
 
-  const { error } = await supabase
+  const db = await getMutateClient();
+
+  const { error } = await db
     .from("appointments")
     .delete()
     .eq("id", id)

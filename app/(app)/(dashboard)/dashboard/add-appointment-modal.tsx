@@ -7,15 +7,6 @@ type Member = { id: string; display_name: string | null; role: string };
 type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number };
 type Client = { id: string; name: string | null; email: string | null; phone: string | null };
 
-function toLocalISO(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const h = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${day}T${h}:${min}:00`;
-}
-
 export function AddAppointmentModal({
   salonId,
   members,
@@ -30,7 +21,7 @@ export function AddAppointmentModal({
   services: Service[];
   clients: Client[];
   currentDate: string;
-  onCreate: (data: CreateAppointmentInput) => Promise<void>;
+  onCreate: (data: CreateAppointmentInput) => Promise<{ error?: string | null }>;
   onClose: () => void;
 }) {
   const [stylistId, setStylistId] = useState(members[0]?.id ?? "");
@@ -46,6 +37,7 @@ export function AddAppointmentModal({
   const [sendReviewRequest, setSendReviewRequest] = useState(true);
   const [sendAftercare, setSendAftercare] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (clientId) {
@@ -71,23 +63,30 @@ export function AddAppointmentModal({
     start.setHours(hours, mins, 0, 0);
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
+    setSubmitError(null);
     setLoading(true);
-    await onCreate({
-      salonId,
-      stylistId,
-      clientId: clientId || null,
-      serviceId: serviceId || null,
-      startTime: toLocalISO(start),
-      endTime: toLocalISO(end),
-      guestName: guestName || null,
-      guestEmail: email?.trim() || null,
-      guestPhone: phone?.trim() || null,
-      notes: notes || null,
-      sendReminderSms,
-      sendReviewRequest,
-      sendAftercare,
-    });
-    setLoading(false);
+    try {
+      const result = await onCreate({
+        salonId,
+        stylistId,
+        clientId: clientId || null,
+        serviceId: serviceId || null,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+        guestName: guestName || null,
+        guestEmail: email?.trim() || null,
+        guestPhone: phone?.trim() || null,
+        notes: notes || null,
+        sendReminderSms,
+        sendReviewRequest,
+        sendAftercare,
+      });
+      if (result?.error) setSubmitError(result.error);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Could not save appointment.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -240,6 +239,11 @@ export function AddAppointmentModal({
               <span className="text-sm">Send aftercare instructions after appointment</span>
             </label>
           </div>
+          {submitError && (
+            <p className="text-sm text-red-400" role="alert">
+              {submitError}
+            </p>
+          )}
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm">
               Cancel
