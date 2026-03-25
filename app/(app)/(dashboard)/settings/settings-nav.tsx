@@ -10,7 +10,7 @@ export function SettingsNav({ current = "general" }: { current?: "general" | "se
       <Link href="/settings" className={`${base} ${current === "general" ? active : inactive}`}>
         General
       </Link>
-      <Link href="/settings/services" className={`${base} ${current === "services" ? active : inactive}`}>
+      <Link href="/services" className={`${base} ${current === "services" ? active : inactive}`}>
         Services
       </Link>
     </nav>

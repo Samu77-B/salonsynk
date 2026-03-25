@@ -231,7 +231,7 @@ export async function addService(
       return { error: formatDbError(error) };
     }
     revalidatePath("/settings");
-    revalidatePath("/settings/services");
+    revalidatePath("/services");
     revalidatePath("/dashboard");
     return {};
   } catch (err) {
@@ -288,7 +288,7 @@ export async function updateService(
       return { error: formatDbError(error) };
     }
     revalidatePath("/settings");
-    revalidatePath("/settings/services");
+    revalidatePath("/services");
     revalidatePath("/dashboard");
     return {};
   } catch (err) {
@@ -318,7 +318,7 @@ export async function deleteService(salonId: string, serviceId: string) {
     }
     if (error) return { error: formatDbError(error) };
     revalidatePath("/settings");
-    revalidatePath("/settings/services");
+    revalidatePath("/services");
     revalidatePath("/dashboard");
     return {};
   } catch (err) {

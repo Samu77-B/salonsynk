@@ -175,7 +175,7 @@ export function AddAppointmentModal({
             {service && (service.processing_time_minutes ?? 0) > 0 && (
               <p className="text-xs text-muted mt-1">
                 This service has <strong>{service.processing_time_minutes}</strong> min processing time (e.g. colour developing).
-                Another appointment can overlap that window for the same stylist — configure under Settings → Services.
+                Another appointment can overlap that window for the same stylist — configure under the Services tab.
               </p>
             )}
           </div>
