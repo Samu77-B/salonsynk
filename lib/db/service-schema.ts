@@ -3,3 +3,9 @@ export function isMissingProcessingColumnError(error: { message?: string } | nul
   const msg = (error?.message ?? "").toLowerCase();
   return msg.includes("processing_time_minutes");
 }
+
+/** True when services.description column is not present yet. */
+export function isMissingDescriptionColumnError(error: { message?: string } | null | undefined) {
+  const msg = (error?.message ?? "").toLowerCase();
+  return msg.includes("description") && (msg.includes("does not exist") || msg.includes("schema cache"));
+}

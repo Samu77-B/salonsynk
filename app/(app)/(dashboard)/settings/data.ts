@@ -2,7 +2,6 @@ import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { redirect } from "next/navigation";
-import { isMissingProcessingColumnError } from "@/lib/db/service-schema";
 
 export async function getSettingsData() {
   const context = await getCurrentUserSalon();
@@ -12,13 +11,20 @@ export async function getSettingsData() {
   const supabase = await createClient();
 
   const servicesPromise = (async () => {
-    const withProcessing = await supabase
-      .from("services")
-      .select("id, name, duration_minutes, price_minor, processing_time_minutes")
-      .eq("salon_id", context.salon.id)
-      .order("name");
-    if (!withProcessing.error) return withProcessing;
-    if (!isMissingProcessingColumnError(withProcessing.error)) return withProcessing;
+    const attempts = [
+      "id, name, duration_minutes, price_minor, processing_time_minutes, description",
+      "id, name, duration_minutes, price_minor, processing_time_minutes",
+      "id, name, duration_minutes, price_minor, description",
+      "id, name, duration_minutes, price_minor",
+    ] as const;
+    for (const cols of attempts) {
+      const res = await supabase
+        .from("services")
+        .select(cols)
+        .eq("salon_id", context.salon.id)
+        .order("name");
+      if (!res.error) return res;
+    }
     return supabase
       .from("services")
       .select("id, name, duration_minutes, price_minor")
@@ -68,6 +74,7 @@ export async function getSettingsData() {
         duration_minutes: number;
         price_minor: number | null;
         processing_time_minutes?: number | null;
+        description?: string | null;
       };
       return {
         id: row.id,
@@ -75,6 +82,7 @@ export async function getSettingsData() {
         duration_minutes: row.duration_minutes,
         price_minor: row.price_minor ?? 0,
         processing_time_minutes: row.processing_time_minutes ?? 0,
+        description: row.description ?? "",
       };
     }),
     branding: {

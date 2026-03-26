@@ -1,10 +1,207 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addService, updateService, deleteService } from "./actions";
 
-type ServiceRow = { id: string; name: string; duration_minutes: number; price_minor: number; processing_time_minutes?: number };
+const DESCRIPTION_MAX = 2000;
+
+type ServiceRow = {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  price_minor: number;
+  processing_time_minutes?: number;
+  description?: string;
+};
+
+const inputClass =
+  "rounded-lg border border-border bg-background px-3 py-2 text-sm w-full min-w-0 placeholder:text-muted-foreground/60";
+
+function ServiceCard({ salonId, service }: { salonId: string; service: ServiceRow }) {
+  const router = useRouter();
+  const [name, setName] = useState(service.name);
+  const [duration, setDuration] = useState(service.duration_minutes);
+  const [price, setPrice] = useState(service.price_minor > 0 ? (service.price_minor / 100).toFixed(2) : "");
+  const [processing, setProcessing] = useState(service.processing_time_minutes ?? 0);
+  const [description, setDescription] = useState(service.description ?? "");
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [feedback, setFeedback] = useState<"saved" | "error" | null>(null);
+  const [feedbackText, setFeedbackText] = useState("");
+
+  useEffect(() => {
+    setName(service.name);
+    setDuration(service.duration_minutes);
+    setPrice(service.price_minor > 0 ? (service.price_minor / 100).toFixed(2) : "");
+    setProcessing(service.processing_time_minutes ?? 0);
+    setDescription(service.description ?? "");
+  }, [
+    service.id,
+    service.name,
+    service.duration_minutes,
+    service.price_minor,
+    service.processing_time_minutes,
+    service.description,
+  ]);
+
+  async function save() {
+    const n = name.trim();
+    if (!n) {
+      setFeedback("error");
+      setFeedbackText("Name is required.");
+      return;
+    }
+    setSaving(true);
+    setFeedback(null);
+    setFeedbackText("");
+    const rawPrice = price.trim();
+    const priceMinor = rawPrice ? Math.round(parseFloat(rawPrice) * 100) : 0;
+    if (rawPrice && !Number.isFinite(priceMinor)) {
+      setSaving(false);
+      setFeedback("error");
+      setFeedbackText("Enter a valid price.");
+      return;
+    }
+    const result = await updateService(salonId, service.id, {
+      name: n,
+      duration_minutes: duration,
+      price_minor: priceMinor,
+      processing_time_minutes: processing,
+      description,
+    });
+    setSaving(false);
+    if (result.error) {
+      setFeedback("error");
+      setFeedbackText(result.error);
+    } else {
+      setFeedback("saved");
+      window.setTimeout(() => setFeedback(null), 2000);
+      router.refresh();
+    }
+  }
+
+  async function remove() {
+    if (!confirm(`Delete "${service.name}"?`)) return;
+    setDeleting(true);
+    setFeedback(null);
+    const result = await deleteService(salonId, service.id);
+    setDeleting(false);
+    if (result.error) {
+      setFeedback("error");
+      setFeedbackText(result.error);
+    } else {
+      router.refresh();
+    }
+  }
+
+  return (
+    <article className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-background p-4 shadow-sm">
+      <div>
+        <label htmlFor={`svc-name-${service.id}`} className="mb-1 block text-sm font-medium">
+          Service name
+        </label>
+        <input
+          id={`svc-name-${service.id}`}
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Balayage"
+          autoComplete="off"
+          className={inputClass}
+        />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div>
+          <label htmlFor={`svc-dur-${service.id}`} className="mb-1 block text-sm font-medium">
+            Duration (min)
+          </label>
+          <input
+            id={`svc-dur-${service.id}`}
+            type="number"
+            min={5}
+            max={480}
+            value={duration}
+            onChange={(e) => setDuration(Number(e.target.value) || 60)}
+            autoComplete="off"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor={`svc-price-${service.id}`} className="mb-1 block text-sm font-medium">
+            Price (GBP)
+          </label>
+          <input
+            id={`svc-price-${service.id}`}
+            type="text"
+            inputMode="decimal"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="0"
+            autoComplete="off"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor={`svc-proc-${service.id}`} className="mb-1 block text-sm font-medium">
+            Processing (min)
+          </label>
+          <input
+            id={`svc-proc-${service.id}`}
+            type="number"
+            min={0}
+            max={480}
+            value={processing}
+            onChange={(e) => setProcessing(Number(e.target.value) || 0)}
+            autoComplete="off"
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <div>
+        <label htmlFor={`svc-desc-${service.id}`} className="mb-1 block text-sm font-medium">
+          More info
+        </label>
+        <textarea
+          id={`svc-desc-${service.id}`}
+          value={description}
+          onChange={(e) => setDescription(e.target.value.slice(0, DESCRIPTION_MAX))}
+          placeholder="What is included, prep notes, or anything clients or staff should know."
+          rows={4}
+          maxLength={DESCRIPTION_MAX}
+          className={`${inputClass} resize-y min-h-[5rem]`}
+        />
+        <p className="mt-1 text-xs text-muted">
+          {description.length} / {DESCRIPTION_MAX}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={saving || deleting || !name.trim()}
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save changes"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void remove()}
+          disabled={saving || deleting}
+          className="rounded-lg px-3 py-2 text-sm text-red-400 hover:underline disabled:opacity-50"
+        >
+          {deleting ? "Deleting…" : "Delete"}
+        </button>
+        {feedback === "saved" && <span className="text-sm text-green-400">Saved.</span>}
+        {feedback === "error" && (
+          <span className="text-sm text-red-400" role="alert">
+            {feedbackText || "Something went wrong."}
+          </span>
+        )}
+      </div>
+    </article>
+  );
+}
 
 export function ServicesView({
   salonId,
@@ -20,254 +217,178 @@ export function ServicesView({
   const [newServiceDuration, setNewServiceDuration] = useState(60);
   const [newServicePrice, setNewServicePrice] = useState("");
   const [newServiceProcessing, setNewServiceProcessing] = useState(0);
-  const [serviceMsg, setServiceMsg] = useState<"saved" | "error" | null>(null);
-  const [serviceError, setServiceError] = useState("");
-  const [serviceLoading, setServiceLoading] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editDuration, setEditDuration] = useState(60);
-  const [editPrice, setEditPrice] = useState("");
-  const [editProcessing, setEditProcessing] = useState(0);
+  const [newServiceDescription, setNewServiceDescription] = useState("");
+  const [addMsg, setAddMsg] = useState<"saved" | "error" | null>(null);
+  const [addError, setAddError] = useState("");
+  const [addLoading, setAddLoading] = useState(false);
 
   if (!canManageServices) {
     return <p className="text-sm text-muted">Only owners can manage services.</p>;
   }
 
   return (
-    <section>
-      <h2 className="text-lg font-semibold mb-2">Services</h2>
-      <p className="text-muted text-sm mb-4">
-        Add and edit the services clients can book. Set duration and price (optional).
+    <section className="space-y-6">
+      <p className="text-sm text-muted">
+        Each service is a card: set timing and price, then use <span className="font-medium text-foreground">More info</span> for
+        details, aftercare, or internal notes.
       </p>
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (!newServiceName.trim()) return;
-          setServiceMsg(null);
-          setServiceError("");
-          setServiceLoading(true);
-          try {
-            const rawPrice = newServicePrice.trim();
-            const priceMinor = rawPrice ? Math.round(parseFloat(rawPrice) * 100) : 0;
-            if (rawPrice && !Number.isFinite(priceMinor)) {
-              setServiceMsg("error");
-              setServiceError("Enter a valid price.");
-              return;
+
+      <div className="rounded-xl border border-dashed border-border bg-background/60 p-4 shadow-sm sm:p-5">
+        <h2 className="mb-3 text-base font-semibold">Add a service</h2>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!newServiceName.trim()) return;
+            setAddMsg(null);
+            setAddError("");
+            setAddLoading(true);
+            try {
+              const rawPrice = newServicePrice.trim();
+              const priceMinor = rawPrice ? Math.round(parseFloat(rawPrice) * 100) : 0;
+              if (rawPrice && !Number.isFinite(priceMinor)) {
+                setAddMsg("error");
+                setAddError("Enter a valid price.");
+                return;
+              }
+              const result = await addService(salonId, {
+                name: newServiceName.trim(),
+                duration_minutes: newServiceDuration,
+                price_minor: priceMinor,
+                processing_time_minutes: newServiceProcessing,
+                description: newServiceDescription,
+              });
+              setAddMsg(result.error ? "error" : "saved");
+              if (result.error) setAddError(result.error);
+              else {
+                setNewServiceName("");
+                setNewServiceDuration(60);
+                setNewServicePrice("");
+                setNewServiceProcessing(0);
+                setNewServiceDescription("");
+                router.refresh();
+              }
+            } catch (err) {
+              setAddMsg("error");
+              setAddError(err instanceof Error ? err.message : "Could not add service. Check your connection and try again.");
+            } finally {
+              setAddLoading(false);
             }
-            const result = await addService(salonId, {
-              name: newServiceName.trim(),
-              duration_minutes: newServiceDuration,
-              price_minor: priceMinor,
-              processing_time_minutes: newServiceProcessing,
-            });
-            setServiceMsg(result.error ? "error" : "saved");
-            if (result.error) setServiceError(result.error);
-            else {
-              setNewServiceName("");
-              setNewServiceDuration(60);
-              setNewServicePrice("");
-              setNewServiceProcessing(0);
-              router.refresh();
-            }
-          } catch (err) {
-            setServiceMsg("error");
-            setServiceError(err instanceof Error ? err.message : "Could not add service. Check your connection and try again.");
-          } finally {
-            setServiceLoading(false);
-          }
-        }}
-        className="flex flex-wrap gap-2 items-end mb-4"
-      >
-        <div>
-          <label htmlFor="new-service-name" className="block text-sm font-medium mb-1">Name</label>
-          <input
-            id="new-service-name"
-            name="new_service_name"
-            type="text"
-            value={newServiceName}
-            onChange={(e) => setNewServiceName(e.target.value)}
-            placeholder="e.g. Balayage"
-            autoComplete="off"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-40"
-            aria-label="Service name"
-          />
-        </div>
-        <div>
-          <label htmlFor="new-service-duration" className="block text-sm font-medium mb-1">Duration (min)</label>
-          <input
-            id="new-service-duration"
-            name="new_service_duration_min"
-            type="number"
-            min={5}
-            max={480}
-            value={newServiceDuration}
-            onChange={(e) => setNewServiceDuration(Number(e.target.value) || 60)}
-            autoComplete="off"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-20"
-            aria-label="Duration in minutes"
-          />
-        </div>
-        <div>
-          <label htmlFor="new-service-price" className="block text-sm font-medium mb-1">Price (GBP)</label>
-          <input
-            id="new-service-price"
-            name="new_service_price_gbp"
-            type="text"
-            inputMode="decimal"
-            value={newServicePrice}
-            onChange={(e) => setNewServicePrice(e.target.value)}
-            placeholder="0"
-            autoComplete="off"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-20"
-            aria-label="Price in pounds"
-          />
-        </div>
-        <div>
-          <label htmlFor="new-service-processing" className="block text-sm font-medium mb-1">Processing (min)</label>
-          <input
-            id="new-service-processing"
-            name="new_service_processing_min"
-            type="number"
-            min={0}
-            max={480}
-            value={newServiceProcessing}
-            onChange={(e) => setNewServiceProcessing(Number(e.target.value) || 0)}
-            autoComplete="off"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-20"
-            aria-label="Processing time (e.g. color development)"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={serviceLoading || !newServiceName.trim()}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+          }}
+          className="space-y-4"
         >
-          {serviceLoading ? "Adding..." : "Add"}
-        </button>
-        {serviceMsg === "saved" && <span className="text-sm text-green-400">Added.</span>}
-        {serviceMsg === "error" && (
-          <span className="text-sm text-red-400" role="alert">
-            {serviceError ? `Failed: ${serviceError}` : "Failed."}
-          </span>
-        )}
-      </form>
-      <ul className="space-y-2">
-        {services.map((s) => (
-          <li key={s.id} className="flex flex-wrap items-center gap-2 py-2 border-b border-border last:border-0">
-            {editingId === s.id ? (
-              <>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="rounded border border-border px-2 py-1 text-sm flex-1 min-w-0"
-                  aria-label="Service name"
-                  placeholder="Service name"
-                />
-                <input
-                  type="number"
-                  min={5}
-                  max={480}
-                  value={editDuration}
-                  onChange={(e) => setEditDuration(Number(e.target.value) || 60)}
-                  className="rounded border border-border px-2 py-1 text-sm w-16"
-                  aria-label="Duration in minutes"
-                />
-                <input
-                  type="text"
-                  value={editPrice}
-                  onChange={(e) => setEditPrice(e.target.value)}
-                  placeholder="0"
-                  className="rounded border border-border px-2 py-1 text-sm w-16"
-                  aria-label="Price in pounds"
-                />
-                <input
-                  type="number"
-                  min={0}
-                  max={480}
-                  value={editProcessing}
-                  onChange={(e) => setEditProcessing(Number(e.target.value) || 0)}
-                  className="rounded border border-border px-2 py-1 text-sm w-14"
-                  aria-label="Processing minutes"
-                />
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setServiceError("");
-                    setServiceLoading(true);
-                    const result = await updateService(salonId, s.id, {
-                      name: editName.trim(),
-                      duration_minutes: editDuration,
-                      price_minor: editPrice.trim() ? Math.round(parseFloat(editPrice) * 100) : 0,
-                      processing_time_minutes: editProcessing,
-                    });
-                    setServiceLoading(false);
-                    if (result.error) {
-                      setServiceMsg("error");
-                      setServiceError(result.error);
-                    } else {
-                      setEditingId(null);
-                      router.refresh();
-                    }
-                  }}
-                  className="text-sm text-accent hover:underline"
-                >
-                  Save
-                </button>
-                <button type="button" onClick={() => setEditingId(null)} className="text-sm text-muted hover:underline">
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <span className="flex-1 min-w-0 font-medium truncate">{s.name}</span>
-                <span className="text-sm text-muted">{s.duration_minutes} min</span>
-                {(s.processing_time_minutes ?? 0) > 0 && (
-                  <span className="text-xs text-muted">+{s.processing_time_minutes} proc</span>
-                )}
-                {s.price_minor > 0 && (
-                  <span className="text-sm text-muted">GBP {(s.price_minor / 100).toFixed(2)}</span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingId(s.id);
-                    setEditName(s.name);
-                    setEditDuration(s.duration_minutes);
-                    setEditPrice(s.price_minor > 0 ? (s.price_minor / 100).toFixed(2) : "");
-                    setEditProcessing(s.processing_time_minutes ?? 0);
-                  }}
-                  className="text-sm text-accent hover:underline"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!confirm(`Delete "${s.name}"?`)) return;
-                    setServiceLoading(true);
-                    setServiceError("");
-                    const result = await deleteService(salonId, s.id);
-                    setServiceLoading(false);
-                    if (result.error) {
-                      setServiceMsg("error");
-                      setServiceError(result.error);
-                    } else {
-                      router.refresh();
-                    }
-                  }}
-                  className="text-sm text-red-400 hover:underline"
-                >
-                  Delete
-                </button>
-              </>
+          <div>
+            <label htmlFor="new-service-name" className="mb-1 block text-sm font-medium">
+              Service name
+            </label>
+            <input
+              id="new-service-name"
+              name="new_service_name"
+              type="text"
+              value={newServiceName}
+              onChange={(e) => setNewServiceName(e.target.value)}
+              placeholder="e.g. Balayage"
+              autoComplete="off"
+              className={inputClass}
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label htmlFor="new-service-duration" className="mb-1 block text-sm font-medium">
+                Duration (min)
+              </label>
+              <input
+                id="new-service-duration"
+                name="new_service_duration_min"
+                type="number"
+                min={5}
+                max={480}
+                value={newServiceDuration}
+                onChange={(e) => setNewServiceDuration(Number(e.target.value) || 60)}
+                autoComplete="off"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="new-service-price" className="mb-1 block text-sm font-medium">
+                Price (GBP)
+              </label>
+              <input
+                id="new-service-price"
+                name="new_service_price_gbp"
+                type="text"
+                inputMode="decimal"
+                value={newServicePrice}
+                onChange={(e) => setNewServicePrice(e.target.value)}
+                placeholder="0"
+                autoComplete="off"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="new-service-processing" className="mb-1 block text-sm font-medium">
+                Processing (min)
+              </label>
+              <input
+                id="new-service-processing"
+                name="new_service_processing_min"
+                type="number"
+                min={0}
+                max={480}
+                value={newServiceProcessing}
+                onChange={(e) => setNewServiceProcessing(Number(e.target.value) || 0)}
+                autoComplete="off"
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="new-service-description" className="mb-1 block text-sm font-medium">
+              More info
+            </label>
+            <textarea
+              id="new-service-description"
+              name="new_service_description"
+              value={newServiceDescription}
+              onChange={(e) => setNewServiceDescription(e.target.value.slice(0, DESCRIPTION_MAX))}
+              placeholder="Optional: what is included, timing notes, or client-facing copy."
+              rows={3}
+              maxLength={DESCRIPTION_MAX}
+              className={`${inputClass} resize-y min-h-[4.5rem]`}
+            />
+            <p className="mt-1 text-xs text-muted">
+              {newServiceDescription.length} / {DESCRIPTION_MAX}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="submit"
+              disabled={addLoading || !newServiceName.trim()}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+            >
+              {addLoading ? "Adding…" : "Add service"}
+            </button>
+            {addMsg === "saved" && <span className="text-sm text-green-400">Added.</span>}
+            {addMsg === "error" && (
+              <span className="text-sm text-red-400" role="alert">
+                {addError ? `Failed: ${addError}` : "Failed."}
+              </span>
             )}
-          </li>
-        ))}
-      </ul>
-      {services.length === 0 && (
-        <p className="text-sm text-muted">No services yet. Add one above.</p>
+          </div>
+        </form>
+      </div>
+
+      {services.length > 0 && (
+        <div>
+          <h2 className="mb-3 text-base font-semibold">Your services</h2>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {services.map((s) => (
+              <ServiceCard key={s.id} salonId={salonId} service={s} />
+            ))}
+          </div>
+        </div>
       )}
+
+      {services.length === 0 && <p className="text-sm text-muted">No services yet. Add one in the form above.</p>}
     </section>
   );
 }

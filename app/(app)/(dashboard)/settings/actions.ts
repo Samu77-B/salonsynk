@@ -5,7 +5,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
-import { isMissingProcessingColumnError } from "@/lib/db/service-schema";
+import { isMissingDescriptionColumnError, isMissingProcessingColumnError } from "@/lib/db/service-schema";
+
+const SERVICE_DESCRIPTION_MAX_LEN = 2000;
+
+function normalizeServiceDescription(raw: string | undefined): string | null {
+  const t = raw?.trim() ?? "";
+  if (!t) return null;
+  return t.length > SERVICE_DESCRIPTION_MAX_LEN ? t.slice(0, SERVICE_DESCRIPTION_MAX_LEN) : t;
+}
 
 export type BrandingInput = {
   logo_url?: string;
@@ -183,7 +191,13 @@ export type ServiceMutationResult = { error?: string };
 // Services management (owners only)
 export async function addService(
   salonId: string,
-  data: { name: string; duration_minutes: number; price_minor?: number; processing_time_minutes?: number }
+  data: {
+    name: string;
+    duration_minutes: number;
+    price_minor?: number;
+    processing_time_minutes?: number;
+    description?: string;
+  }
 ): Promise<ServiceMutationResult> {
   try {
     const auth = await assertCanManageServices(salonId);
@@ -193,40 +207,43 @@ export async function addService(
     const duration = Math.max(1, Math.min(480, Math.round(data.duration_minutes ?? 60)));
     const price = Math.max(0, Math.round(data.price_minor ?? 0));
     const processing = Math.max(0, Math.min(duration, Math.round(data.processing_time_minutes ?? 0)));
+    const description = normalizeServiceDescription(data.description);
     const supabase = await createClient();
     const admin = getOptionalAdminClient();
     const db = admin ?? supabase;
-    const payload = {
+    let insertPayload: Record<string, unknown> = {
       salon_id: salonId,
       name,
       duration_minutes: duration,
       price_minor: price,
       processing_time_minutes: processing,
+      description,
     };
-    let { error } = await db.from("services").insert(payload);
-    if (error && admin) {
-      const adminRetry = await admin.from("services").insert(payload);
-      error = adminRetry.error;
-    }
-    if (error && isMissingProcessingColumnError(error)) {
-      let fallback = await db.from("services").insert({
-        salon_id: salonId,
-        name,
-        duration_minutes: duration,
-        price_minor: price,
-      });
-      if (fallback.error && admin) {
-        fallback = await admin.from("services").insert({
-          salon_id: salonId,
-          name,
-          duration_minutes: duration,
-          price_minor: price,
-        });
+    const attemptInsert = async (payload: Record<string, unknown>) => {
+      let { error } = await db.from("services").insert(payload);
+      if (error && admin) {
+        const r = await admin.from("services").insert(payload);
+        error = r.error;
       }
-      if (fallback.error) return { error: formatDbError(fallback.error) };
-    } else if (error) {
-      return { error: formatDbError(error) };
+      return error;
+    };
+    let insertError = await attemptInsert(insertPayload);
+    if (insertError && isMissingDescriptionColumnError(insertError)) {
+      const { description: _d, ...next } = insertPayload;
+      insertPayload = next;
+      insertError = await attemptInsert(insertPayload);
     }
+    if (insertError && isMissingProcessingColumnError(insertError)) {
+      const { processing_time_minutes: _p, ...next } = insertPayload;
+      insertPayload = next;
+      insertError = await attemptInsert(insertPayload);
+    }
+    if (insertError && isMissingDescriptionColumnError(insertError)) {
+      const { description: _d2, ...next } = insertPayload;
+      insertPayload = next;
+      insertError = await attemptInsert(insertPayload);
+    }
+    if (insertError) return { error: formatDbError(insertError) };
     revalidatePath("/settings");
     revalidatePath("/services");
     revalidatePath("/dashboard");
@@ -239,7 +256,13 @@ export async function addService(
 export async function updateService(
   salonId: string,
   serviceId: string,
-  data: { name?: string; duration_minutes?: number; price_minor?: number; processing_time_minutes?: number }
+  data: {
+    name?: string;
+    duration_minutes?: number;
+    price_minor?: number;
+    processing_time_minutes?: number;
+    description?: string;
+  }
 ): Promise<ServiceMutationResult> {
   try {
     const auth = await assertCanManageServices(salonId);
@@ -249,41 +272,40 @@ export async function updateService(
     if (data.duration_minutes !== undefined) payload.duration_minutes = Math.max(1, Math.min(480, Math.round(data.duration_minutes)));
     if (data.price_minor !== undefined) payload.price_minor = Math.max(0, Math.round(data.price_minor));
     if (data.processing_time_minutes !== undefined) payload.processing_time_minutes = Math.max(0, Math.round(data.processing_time_minutes));
+    if (data.description !== undefined) payload.description = normalizeServiceDescription(data.description);
     if (Object.keys(payload).length === 0) return {};
     const supabase = await createClient();
     const admin = getOptionalAdminClient();
     const db = admin ?? supabase;
-    let { error } = await db
-      .from("services")
-      .update(payload)
-      .eq("id", serviceId)
-      .eq("salon_id", salonId);
-    if (error && admin) {
-      const adminRetry = await admin
-        .from("services")
-        .update(payload)
-        .eq("id", serviceId)
-        .eq("salon_id", salonId);
-      error = adminRetry.error;
+    const attemptUpdate = async (p: Record<string, unknown>) => {
+      let { error } = await db.from("services").update(p).eq("id", serviceId).eq("salon_id", salonId);
+      if (error && admin) {
+        const r = await admin.from("services").update(p).eq("id", serviceId).eq("salon_id", salonId);
+        error = r.error;
+      }
+      return error;
+    };
+    let updatePayload: Record<string, unknown> = { ...payload };
+    let error = await attemptUpdate(updatePayload);
+    if (error && isMissingDescriptionColumnError(error)) {
+      const { description: _d, ...next } = updatePayload;
+      updatePayload = next;
+      if (Object.keys(updatePayload).length === 0) return { error: formatDbError(error) };
+      error = await attemptUpdate(updatePayload);
     }
     if (error && isMissingProcessingColumnError(error)) {
-      const { processing_time_minutes: _ignored, ...fallbackPayload } = payload;
-      let fallback = await db
-        .from("services")
-        .update(fallbackPayload)
-        .eq("id", serviceId)
-        .eq("salon_id", salonId);
-      if (fallback.error && admin) {
-        fallback = await admin
-          .from("services")
-          .update(fallbackPayload)
-          .eq("id", serviceId)
-          .eq("salon_id", salonId);
-      }
-      if (fallback.error) return { error: formatDbError(fallback.error) };
-    } else if (error) {
-      return { error: formatDbError(error) };
+      const { processing_time_minutes: _p, ...next } = updatePayload;
+      updatePayload = next;
+      if (Object.keys(updatePayload).length === 0) return { error: formatDbError(error) };
+      error = await attemptUpdate(updatePayload);
     }
+    if (error && isMissingDescriptionColumnError(error)) {
+      const { description: _d2, ...next } = updatePayload;
+      updatePayload = next;
+      if (Object.keys(updatePayload).length === 0) return { error: formatDbError(error) };
+      error = await attemptUpdate(updatePayload);
+    }
+    if (error) return { error: formatDbError(error) };
     revalidatePath("/settings");
     revalidatePath("/services");
     revalidatePath("/dashboard");
