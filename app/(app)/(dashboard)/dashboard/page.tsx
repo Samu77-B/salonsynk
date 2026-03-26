@@ -112,6 +112,22 @@ export default async function DashboardPage() {
     };
   });
   const clients = clientsRes.data ?? [];
+
+  const clientIds = clients.map((c: { id: string }) => c.id);
+  const { data: clientProfilePhotos } = clientIds.length > 0
+    ? await supabase
+        .from("client_photos")
+        .select("client_id, url")
+        .in("client_id", clientIds)
+        .eq("slot", "profile")
+    : { data: [] };
+
+  const clientPhotoMap: Record<string, string> = {};
+  for (const p of clientProfilePhotos ?? []) {
+    clientPhotoMap[(p as { client_id: string; url: string }).client_id] =
+      (p as { client_id: string; url: string }).url;
+  }
+
   const appointments = (appointmentsRes.data ?? []) as unknown as {
     id: string;
     start_time: string;
@@ -144,6 +160,7 @@ export default async function DashboardPage() {
         services={services}
         clients={clients}
         appointments={appointments}
+        clientPhotoMap={clientPhotoMap}
       />
       <GapFillerSection />
     </main>

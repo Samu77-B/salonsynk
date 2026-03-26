@@ -4,6 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ClientForm } from "../client-form";
 import { ClientDetailView } from "../client-detail-view";
+import { ClientPhotos } from "../client-photos";
 
 export default async function ClientDetailPage({
   params,
@@ -17,12 +18,24 @@ export default async function ClientDetailPage({
   const supabase = await createClient();
   const { data: client } = await supabase
     .from("clients")
-    .select("id, name, email, phone, notes, color_formulas, patch_test_due_at")
+    .select("id, name, email, phone, notes, sex, color_formulas, patch_test_due_at")
     .eq("id", id)
     .eq("salon_id", context.salon.id)
     .single();
 
   if (!client) notFound();
+
+  const { data: photos } = await supabase
+    .from("client_photos")
+    .select("id, slot, url")
+    .eq("client_id", id)
+    .eq("salon_id", context.salon.id);
+
+  const clientPhotos = (photos ?? []).map((p: { id: string; slot: string; url: string }) => ({
+    id: p.id,
+    slot: p.slot as "profile" | "photo_2" | "photo_3" | "photo_4",
+    url: p.url,
+  }));
 
   const { data: appointments } = await supabase
     .from("appointments")
@@ -38,19 +51,37 @@ export default async function ClientDetailPage({
     ? Math.ceil((patchDue.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
     : null;
 
+  const profilePhoto = clientPhotos.find((p) => p.slot === "profile");
+  const avatarSrc = profilePhoto
+    ? profilePhoto.url
+    : client.sex === "male"
+      ? "/imgs/male.svg"
+      : "/imgs/female.svg";
+
   return (
     <main className="p-4 md:p-6 max-w-3xl min-w-0">
       <Link href="/clients" className="text-sm text-muted hover:text-foreground mb-4 inline-block">
         Back to clients
       </Link>
-      <h1 className="text-2xl font-bold mb-2">
-        {client.name || client.email || client.phone || "Client"}
-      </h1>
-      {(client.email || client.phone) && (
-        <p className="text-sm text-muted mb-6 truncate">
-          {[client.email, client.phone].filter(Boolean).join(" · ")}
-        </p>
-      )}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-border bg-background/50">
+          <img
+            src={avatarSrc}
+            alt={client.name || "Client"}
+            className={`h-full w-full object-cover ${profilePhoto ? "" : "opacity-40"}`}
+          />
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold leading-tight">
+            {client.name || client.email || client.phone || "Client"}
+          </h1>
+          {(client.email || client.phone) && (
+            <p className="text-sm text-muted truncate">
+              {[client.email, client.phone].filter(Boolean).join(" · ")}
+            </p>
+          )}
+        </div>
+      </div>
 
       {daysUntilPatch !== null && (
         <div
@@ -73,6 +104,14 @@ export default async function ClientDetailPage({
       )}
 
       <section className="mb-8">
+        <ClientPhotos
+          clientId={client.id}
+          photos={clientPhotos}
+          sex={client.sex ?? null}
+        />
+      </section>
+
+      <section className="mb-8">
         <h2 className="text-lg font-semibold mb-2">Details</h2>
         <ClientForm
           salonId={context.salon.id}
@@ -82,6 +121,7 @@ export default async function ClientDetailPage({
             email: client.email ?? "",
             phone: client.phone ?? "",
             notes: client.notes ?? "",
+            sex: client.sex ?? "",
           }}
         />
       </section>

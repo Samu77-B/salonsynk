@@ -16,7 +16,7 @@ export function ClientForm({
 }: {
   salonId: string;
   clientId?: string;
-  initial?: { name?: string; email?: string; phone?: string; notes?: string };
+  initial?: { name?: string; email?: string; phone?: string; notes?: string; sex?: string | null };
   inlineOnCreate?: boolean;
 }) {
   const router = useRouter();
@@ -24,6 +24,7 @@ export function ClientForm({
   const [email, setEmail] = useState(initial?.email ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [sex, setSex] = useState(initial?.sex ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +41,7 @@ export function ClientForm({
         email: email || undefined,
         phone: phone || undefined,
         notes: notes || undefined,
+        sex: sex || null,
       });
       if (result.error) setError(result.error);
       else router.push(`/clients/${clientId}`);
@@ -50,6 +52,7 @@ export function ClientForm({
         email: email || null,
         phone: phone || null,
         notes: notes || null,
+        sex: sex || null,
       });
       if (result.error) setError(result.error);
       else if (inlineOnCreate) {
@@ -57,6 +60,7 @@ export function ClientForm({
         setEmail("");
         setPhone("");
         setNotes("");
+        setSex("");
         router.refresh();
       } else {
         router.push("/clients");
@@ -80,7 +84,7 @@ export function ClientForm({
           className={inputClass}
         />
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
           <label htmlFor="client-email" className="mb-1 block text-sm font-medium">
             Email
@@ -106,6 +110,21 @@ export function ClientForm({
             autoComplete="tel"
             className={inputClass}
           />
+        </div>
+        <div>
+          <label htmlFor="client-sex" className="mb-1 block text-sm font-medium">
+            Sex
+          </label>
+          <select
+            id="client-sex"
+            value={sex}
+            onChange={(e) => setSex(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">Not set</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+          </select>
         </div>
       </div>
       <div>

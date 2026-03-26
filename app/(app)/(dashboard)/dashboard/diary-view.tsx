@@ -82,6 +82,7 @@ function AppointmentBlock({
   onDragEnd,
   slotIndex = 0,
   slotCount = 1,
+  clientPhotoUrl,
 }: {
   a: Appointment;
   cellStart: Date;
@@ -95,6 +96,7 @@ function AppointmentBlock({
   onDragEnd?: () => void;
   slotIndex?: number;
   slotCount?: number;
+  clientPhotoUrl?: string | null;
 }) {
   const start = new Date(a.start_time);
   const end = new Date(a.end_time);
@@ -159,7 +161,12 @@ function AppointmentBlock({
         }}
         className="flex-1 min-h-0 cursor-move"
       >
-        <span className={`font-medium truncate block ${isCompact ? "text-xs" : ""}`}>{label}</span>
+        <span className={`font-medium truncate ${isCompact ? "text-xs" : ""} flex items-center gap-1.5`}>
+          {clientPhotoUrl && (
+            <img src={clientPhotoUrl} alt="" className="h-5 w-5 rounded-full object-cover shrink-0" />
+          )}
+          {label}
+        </span>
         {!isCompact && stylist && <span className="text-xs text-muted truncate block">{stylist}</span>}
         {!isCompact && sub && <span className="text-xs text-muted truncate block">{sub}</span>}
         {isCompact && (stylist || sub) && (
@@ -244,6 +251,7 @@ export function DiaryView({
   services,
   clients,
   appointments,
+  clientPhotoMap = {},
 }: {
   salonId: string;
   salonName: string;
@@ -251,6 +259,7 @@ export function DiaryView({
   services: Service[];
   clients: Client[];
   appointments: Appointment[];
+  clientPhotoMap?: Record<string, string>;
 }) {
   const [view, setView] = useState<"day" | "week">("day");
   const [currentDate, setCurrentDate] = useState(() => formatDate(new Date()));
@@ -530,9 +539,14 @@ export function DiaryView({
                             opacity: movingId === a.id ? 0.7 : 1,
                           }}
                         >
-                          <div className="text-sm font-semibold text-foreground truncate">
-                            {formatTime(start)}–{formatTime(end)}
-                            {!filterStylistId && stylistName ? ` · ${stylistName}` : ""} · {label} · {serviceName}
+                          <div className="text-sm font-semibold text-foreground truncate flex items-center gap-2">
+                            {a.client_id && clientPhotoMap[a.client_id] && (
+                              <img src={clientPhotoMap[a.client_id]} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
+                            )}
+                            <span className="truncate">
+                              {formatTime(start)}–{formatTime(end)}
+                              {!filterStylistId && stylistName ? ` · ${stylistName}` : ""} · {label} · {serviceName}
+                            </span>
                           </div>
                           {phone && <div className="text-xs text-muted truncate">{phone}</div>}
                         </button>
@@ -636,6 +650,7 @@ export function DiaryView({
                                 onDragEnd={() => setMovingId(null)}
                                 slotIndex={idx}
                                 slotCount={inCell.length}
+                                clientPhotoUrl={a.client_id ? clientPhotoMap[a.client_id] : null}
                               />
                             ))}
                           </div>
@@ -655,6 +670,7 @@ export function DiaryView({
                               onDragEnd={() => setMovingId(null)}
                               slotIndex={idx}
                               slotCount={inCell.length}
+                              clientPhotoUrl={a.client_id ? clientPhotoMap[a.client_id] : null}
                             />
                           ))
                         )}

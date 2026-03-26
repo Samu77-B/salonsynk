@@ -8,8 +8,26 @@ export type ClientListRow = {
   name: string | null;
   email: string | null;
   phone: string | null;
+  sex: string | null;
   patch_test_due_at: string | null;
+  profile_photo_url: string | null;
 };
+
+function ClientAvatar({ client }: { client: ClientListRow }) {
+  const src = client.profile_photo_url
+    ?? (client.sex === "male" ? "/imgs/male.svg" : "/imgs/female.svg");
+  const hasPhoto = !!client.profile_photo_url;
+
+  return (
+    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-border bg-background/50">
+      <img
+        src={src}
+        alt={client.name || "Client"}
+        className={`h-full w-full object-cover ${hasPhoto ? "" : "opacity-40"}`}
+      />
+    </div>
+  );
+}
 
 function ClientCard({ client }: { client: ClientListRow }) {
   const display = client.name?.trim() || client.email?.trim() || client.phone?.trim() || "No name";
@@ -17,9 +35,12 @@ function ClientCard({ client }: { client: ClientListRow }) {
 
   return (
     <article className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-background p-4 shadow-sm">
-      <div>
-        <h3 className="text-base font-semibold leading-snug">{display}</h3>
-        {contact ? <p className="mt-1 truncate text-sm text-muted">{contact}</p> : null}
+      <div className="flex items-center gap-3">
+        <ClientAvatar client={client} />
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold leading-snug">{display}</h3>
+          {contact ? <p className="mt-0.5 truncate text-sm text-muted">{contact}</p> : null}
+        </div>
       </div>
       {client.patch_test_due_at ? (
         <p className="text-xs text-amber-400">
