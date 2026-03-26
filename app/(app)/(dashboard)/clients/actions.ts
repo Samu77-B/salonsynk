@@ -76,63 +76,67 @@ export async function uploadClientPhoto(
   slot: PhotoSlot,
   formData: FormData
 ): Promise<{ error: string | null; photo?: ClientPhoto }> {
-  const context = await getCurrentUserSalon();
-  if (!context) return { error: "Unauthorized" };
-  if (!VALID_SLOTS.includes(slot)) return { error: "Invalid slot" };
-
-  const supabase = await createClient();
-
-  const { data: client } = await supabase
-    .from("clients")
-    .select("id")
-    .eq("id", clientId)
-    .eq("salon_id", context.salon.id)
-    .single();
-  if (!client) return { error: "Client not found" };
-
-  const raw = formData.get("photo");
-  if (!raw || typeof raw !== "object" || !("size" in raw)) return { error: "No file provided" };
-  const size = Number((raw as Blob).size) || 0;
-  const type = String((raw as File).type || "").toLowerCase();
-  if (size === 0) return { error: "No file provided" };
-  if (size > MAX_PHOTO_BYTES) return { error: "Photo must be under 5 MB" };
-  if (!ALLOWED_PHOTO_TYPES.includes(type)) return { error: "Allowed: JPEG, PNG, WebP, HEIC" };
-
-  const ext = (raw as File).name?.split(".").pop()?.toLowerCase() || "jpg";
-  const storagePath = `${context.salon.id}/${clientId}-${slot}.${ext}`;
-
-  const arrayBuffer = await (raw as Blob).arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
-  let admin;
   try {
-    admin = createAdminClient();
-  } catch {
-    return { error: "Storage not configured" };
+    const context = await getCurrentUserSalon();
+    if (!context) return { error: "Unauthorized" };
+    if (!VALID_SLOTS.includes(slot)) return { error: "Invalid slot" };
+
+    const supabase = await createClient();
+
+    const { data: client } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("id", clientId)
+      .eq("salon_id", context.salon.id)
+      .single();
+    if (!client) return { error: "Client not found" };
+
+    const raw = formData.get("photo");
+    if (!raw || typeof raw !== "object" || !("size" in raw)) return { error: "No file provided" };
+    const file = raw as File;
+    if (file.size === 0) return { error: "No file provided" };
+    if (file.size > MAX_PHOTO_BYTES) return { error: "Photo must be under 5 MB" };
+    const type = (file.type || "").toLowerCase();
+    if (!ALLOWED_PHOTO_TYPES.includes(type)) return { error: "Allowed: JPEG, PNG, WebP, HEIC" };
+
+    const ext = file.name?.split(".").pop()?.toLowerCase() || "jpg";
+    const storagePath = `${context.salon.id}/${clientId}-${slot}.${ext}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+
+    let admin;
+    try {
+      admin = createAdminClient();
+    } catch {
+      return { error: "Storage not configured" };
+    }
+
+    const { error: uploadError } = await admin.storage
+      .from(PHOTO_BUCKET)
+      .upload(storagePath, bytes, { upsert: true, contentType: type });
+    if (uploadError) return { error: uploadError.message };
+
+    const { data: urlData } = admin.storage.from(PHOTO_BUCKET).getPublicUrl(storagePath);
+    const url = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    const { data: photo, error: dbError } = await admin
+      .from("client_photos")
+      .upsert(
+        { client_id: clientId, salon_id: context.salon.id, slot, url },
+        { onConflict: "client_id,slot" }
+      )
+      .select("id, slot, url")
+      .single();
+
+    if (dbError) return { error: dbError.message };
+
+    revalidatePath(`/clients/${clientId}`);
+    revalidatePath("/clients");
+    return { error: null, photo: photo as ClientPhoto };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Upload failed" };
   }
-
-  const { error: uploadError } = await admin.storage
-    .from(PHOTO_BUCKET)
-    .upload(storagePath, buffer, { upsert: true, contentType: type });
-  if (uploadError) return { error: uploadError.message };
-
-  const { data: urlData } = admin.storage.from(PHOTO_BUCKET).getPublicUrl(storagePath);
-  const url = `${urlData.publicUrl}?t=${Date.now()}`;
-
-  const { data: photo, error: dbError } = await admin
-    .from("client_photos")
-    .upsert(
-      { client_id: clientId, salon_id: context.salon.id, slot, url },
-      { onConflict: "client_id,slot" }
-    )
-    .select("id, slot, url")
-    .single();
-
-  if (dbError) return { error: dbError.message };
-
-  revalidatePath(`/clients/${clientId}`);
-  revalidatePath("/clients");
-  return { error: null, photo: photo as ClientPhoto };
 }
 
 export async function deleteClientPhoto(

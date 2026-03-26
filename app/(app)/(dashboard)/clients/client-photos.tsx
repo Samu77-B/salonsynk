@@ -66,8 +66,8 @@ function PhotoSlotCard({
         } else if (result.photo) {
           setLocalUrl(result.photo.url);
         }
-      } catch {
-        setError("Upload failed");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Upload failed");
         setLocalUrl(null);
       }
       URL.revokeObjectURL(preview);
