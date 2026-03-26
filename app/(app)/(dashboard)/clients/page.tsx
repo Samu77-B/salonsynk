@@ -1,7 +1,7 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import { ClientsView, type ClientListRow } from "./clients-view";
 
 export default async function ClientsPage() {
   const context = await getCurrentUserSalon();
@@ -14,40 +14,18 @@ export default async function ClientsPage() {
     .eq("salon_id", context.salon.id)
     .order("name");
 
+  const rows: ClientListRow[] = (clients ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    email: c.email,
+    phone: c.phone,
+    patch_test_due_at: c.patch_test_due_at,
+  }));
+
   return (
-    <main className="p-4 md:p-6 min-w-0">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-        <h1 className="text-2xl font-bold">Clients</h1>
-        <Link
-          href="/clients/new"
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background w-full sm:w-auto text-center"
-        >
-          Add client
-        </Link>
-      </div>
-      <ul className="space-y-2">
-        {(clients ?? []).map((c) => (
-          <li key={c.id}>
-            <Link
-              href={`/clients/${c.id}`}
-              className="block rounded-lg border border-border p-4 hover:bg-white/5 min-w-0"
-            >
-              <p className="font-medium truncate">{c.name || c.email || c.phone || "No name"}</p>
-              {(c.email || c.phone) && (
-                <p className="text-sm text-muted truncate">{[c.email, c.phone].filter(Boolean).join(" · ")}</p>
-              )}
-              {c.patch_test_due_at && (
-                <p className="text-xs text-amber-400 mt-1">
-                  Patch test due: {new Date(c.patch_test_due_at).toLocaleDateString("en-GB")}
-                </p>
-              )}
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {(!clients || clients.length === 0) && (
-        <p className="text-muted text-sm">No clients yet. Add your first client to get started.</p>
-      )}
+    <main className="mx-auto w-full min-w-0 max-w-7xl p-4 md:p-6">
+      <h1 className="mb-2 text-2xl font-bold">Clients</h1>
+      <ClientsView salonId={context.salon.id} clients={rows} />
     </main>
   );
 }

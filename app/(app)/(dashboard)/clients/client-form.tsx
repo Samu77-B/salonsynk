@@ -4,7 +4,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClientAction } from "./actions";
 
-export function ClientForm({ salonId, clientId, initial }: { salonId: string; clientId?: string; initial?: { name?: string; email?: string; phone?: string; notes?: string } }) {
+const inputClass =
+  "min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/60";
+
+export function ClientForm({
+  salonId,
+  clientId,
+  initial,
+  /** On the clients list: reset form and refresh instead of navigating away. */
+  inlineOnCreate,
+}: {
+  salonId: string;
+  clientId?: string;
+  initial?: { name?: string; email?: string; phone?: string; notes?: string };
+  inlineOnCreate?: boolean;
+}) {
   const router = useRouter();
   const [name, setName] = useState(initial?.name ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
@@ -13,19 +27,40 @@ export function ClientForm({ salonId, clientId, initial }: { salonId: string; cl
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const showCancel = Boolean(clientId) || !inlineOnCreate;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     if (clientId) {
       const { updateClientAction } = await import("./actions");
-      const result = await updateClientAction(clientId, { name: name || undefined, email: email || undefined, phone: phone || undefined, notes: notes || undefined });
+      const result = await updateClientAction(clientId, {
+        name: name || undefined,
+        email: email || undefined,
+        phone: phone || undefined,
+        notes: notes || undefined,
+      });
       if (result.error) setError(result.error);
       else router.push(`/clients/${clientId}`);
     } else {
-      const result = await createClientAction({ salonId, name: name || null, email: email || null, phone: phone || null, notes: notes || null });
+      const result = await createClientAction({
+        salonId,
+        name: name || null,
+        email: email || null,
+        phone: phone || null,
+        notes: notes || null,
+      });
       if (result.error) setError(result.error);
-      else router.push("/clients");
+      else if (inlineOnCreate) {
+        setName("");
+        setEmail("");
+        setPhone("");
+        setNotes("");
+        router.refresh();
+      } else {
+        router.push("/clients");
+      }
     }
     setLoading(false);
   }
@@ -33,25 +68,77 @@ export function ClientForm({ salonId, clientId, initial }: { salonId: string; cl
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-1">Name</label>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+        <label htmlFor="client-name" className="mb-1 block text-sm font-medium">
+          Name
+        </label>
+        <input
+          id="client-name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="name"
+          className={inputClass}
+        />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor="client-email" className="mb-1 block text-sm font-medium">
+            Email
+          </label>
+          <input
+            id="client-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="client-phone" className="mb-1 block text-sm font-medium">
+            Phone
+          </label>
+          <input
+            id="client-phone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            autoComplete="tel"
+            className={inputClass}
+          />
+        </div>
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">Email</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+        <label htmlFor="client-notes" className="mb-1 block text-sm font-medium">
+          Notes
+        </label>
+        <textarea
+          id="client-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+          placeholder="Colour history, preferences, or anything your team should know."
+          className={`${inputClass} min-h-[4.5rem] resize-y`}
+        />
       </div>
-      <div>
-        <label className="block text-sm font-medium mb-1">Phone</label>
-        <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-1">Notes</label>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-      </div>
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      <div className="flex gap-2">
-        <button type="button" onClick={() => router.back()} className="rounded-lg border border-border px-4 py-2 text-sm">Cancel</button>
-        <button type="submit" disabled={loading} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50">{loading ? "Saving…" : "Save"}</button>
+      {error && (
+        <p className="text-sm text-red-400" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+        {showCancel && (
+          <button type="button" onClick={() => router.back()} className="rounded-lg border border-border px-4 py-2 text-sm">
+            Cancel
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+        >
+          {loading ? "Saving…" : clientId ? "Save" : "Add client"}
+        </button>
       </div>
     </form>
   );
