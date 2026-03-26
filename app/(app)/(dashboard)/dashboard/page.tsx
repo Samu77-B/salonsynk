@@ -1,5 +1,7 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { redirect } from "next/navigation";
 import { isMissingProcessingColumnError } from "@/lib/db/service-schema";
 import { DiaryView } from "./diary-view";
@@ -11,7 +13,18 @@ export default async function DashboardPage() {
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");
 
-  const supabase = await createClient();
+  const userSb = await createClient();
+  const isSuperAdmin = await getIsSuperAdmin();
+  /** Super admins may have no salon_members row; RLS would hide salon data. Scope all queries to context.salon.id. */
+  const supabase = isSuperAdmin
+    ? (() => {
+        try {
+          return createAdminClient();
+        } catch {
+          return userSb;
+        }
+      })()
+    : userSb;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   // Load a wide window so Prev/Next week in the diary still shows appointments (not only "this" week).
@@ -50,9 +63,8 @@ export default async function DashboardPage() {
       .select("id, name, email, phone")
       .eq("salon_id", context.salon.id)
       .order("name"),
-    supabase
-      .from("appointments")
-      .select(`
+    (async () => {
+      const fullSelect = `
         id, start_time, end_time, status, notes,
         client_id, guest_name, guest_email, guest_phone,
         stylist_id, service_id, send_reminder_sms, send_review_request, send_aftercare,
@@ -60,11 +72,28 @@ export default async function DashboardPage() {
         clients(name, email, phone),
         services(name, duration_minutes, processing_time_minutes),
         salon_members(display_name)
-      `)
-      .eq("salon_id", context.salon.id)
-      .gte("start_time", rangeStart.toISOString())
-      .lt("start_time", rangeEnd.toISOString())
-      .order("start_time"),
+      `;
+      const minimalSelect = `
+        id, start_time, end_time, status, notes,
+        client_id, guest_name, guest_email, guest_phone,
+        stylist_id, service_id,
+        clients(name, email, phone),
+        services(name, duration_minutes),
+        salon_members(display_name)
+      `;
+      const query = (sel: string) =>
+        supabase
+          .from("appointments")
+          .select(sel)
+          .eq("salon_id", context.salon.id)
+          .gte("start_time", rangeStart.toISOString())
+          .lt("start_time", rangeEnd.toISOString())
+          .order("start_time");
+
+      const full = await query(fullSelect);
+      if (!full.error) return full;
+      return query(minimalSelect);
+    })(),
   ]);
 
   const members = membersRes.data ?? [];
@@ -83,7 +112,28 @@ export default async function DashboardPage() {
     };
   });
   const clients = clientsRes.data ?? [];
-  const appointments = appointmentsRes.data ?? [];
+  const appointments = (appointmentsRes.data ?? []) as unknown as {
+    id: string;
+    start_time: string;
+    end_time: string;
+    status: string;
+    notes: string | null;
+    client_id: string | null;
+    guest_name: string | null;
+    guest_email: string | null;
+    guest_phone: string | null;
+    stylist_id: string;
+    service_id: string | null;
+    deposit_payment_intent_id?: string | null;
+    before_photo_url?: string | null;
+    after_photo_url?: string | null;
+    send_reminder_sms?: boolean;
+    send_review_request?: boolean;
+    send_aftercare?: boolean;
+    clients: { name: string | null; email: string | null; phone: string | null } | { name: string | null; email: string | null; phone: string | null }[] | null;
+    services: { name: string; duration_minutes: number; processing_time_minutes?: number } | { name: string; duration_minutes: number; processing_time_minutes?: number }[] | null;
+    salon_members: { display_name: string | null } | { display_name: string | null }[] | null;
+  }[];
 
   return (
     <main className="p-4 md:p-6 min-w-0 space-y-6">

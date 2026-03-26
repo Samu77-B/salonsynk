@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { UpdateAppointmentInput } from "./actions";
+import { uploadAppointmentPhoto } from "./actions";
 
 type Member = { id: string; display_name: string | null; role: string };
 type Service = { id: string; name: string; duration_minutes: number };
@@ -29,6 +30,104 @@ type Appointment = {
 function timeFromISO(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function PhotoUploadField({
+  label,
+  photoUrl,
+  field,
+  appointmentId,
+  onUploaded,
+}: {
+  label: string;
+  photoUrl: string;
+  field: "before" | "after";
+  appointmentId: string;
+  onUploaded: (url: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFile(file: File) {
+    setError(null);
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("photo", file);
+      const result = await uploadAppointmentPhoto(appointmentId, field, fd);
+      if (result.error) {
+        setError(result.error);
+      } else if (result.url) {
+        onUploaded(result.url);
+      }
+    } catch {
+      setError("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1">{label}</label>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        aria-label={`Upload ${label}`}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+          e.target.value = "";
+        }}
+      />
+      {photoUrl ? (
+        <div className="relative group">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photoUrl}
+            alt={label}
+            className="w-full aspect-[4/3] object-cover rounded-lg border border-border"
+          />
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="rounded-lg bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-900"
+            >
+              Replace
+            </button>
+            <button
+              type="button"
+              onClick={() => onUploaded("")}
+              className="rounded-lg bg-red-500/90 px-3 py-1.5 text-xs font-medium text-white"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="w-full aspect-[4/3] rounded-lg border-2 border-dashed border-border hover:border-accent/50 transition-colors flex flex-col items-center justify-center gap-1.5 text-muted disabled:opacity-50"
+        >
+          {uploading ? (
+            <span className="text-xs">Uploading…</span>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span className="text-xs">Upload or take photo</span>
+            </>
+          )}
+        </button>
+      )}
+      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+    </div>
+  );
 }
 
 export function EditAppointmentModal({
@@ -253,24 +352,20 @@ export function EditAppointmentModal({
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Before photo (URL)</label>
-            <input
-              type="url"
-              value={beforePhotoUrl}
-              onChange={(e) => setBeforePhotoUrl(e.target.value)}
-              placeholder="https://..."
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          <div className="grid grid-cols-2 gap-3">
+            <PhotoUploadField
+              label="Before photo"
+              photoUrl={beforePhotoUrl}
+              field="before"
+              appointmentId={appointment.id}
+              onUploaded={(url) => setBeforePhotoUrl(url)}
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">After photo (URL)</label>
-            <input
-              type="url"
-              value={afterPhotoUrl}
-              onChange={(e) => setAfterPhotoUrl(e.target.value)}
-              placeholder="https://..."
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            <PhotoUploadField
+              label="After photo"
+              photoUrl={afterPhotoUrl}
+              field="after"
+              appointmentId={appointment.id}
+              onUploaded={(url) => setAfterPhotoUrl(url)}
             />
           </div>
           <div className="rounded-lg border border-border p-3 space-y-2">

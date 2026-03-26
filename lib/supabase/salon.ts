@@ -24,7 +24,14 @@ export async function getCurrentUserSalon(): Promise<SalonWithMember | null> {
   if (!user) return null;
 
   const isSuperAdmin = await getIsSuperAdmin();
-  const admin = createAdminClient();
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    // No service role key available; fall back to user client for all queries.
+    // Regular users will be fine; super-admin features will be unavailable.
+    admin = supabase;
+  }
 
   // Super admin: check cookie for selected salon
   if (isSuperAdmin) {

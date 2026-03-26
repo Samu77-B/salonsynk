@@ -332,11 +332,13 @@ export function DiaryView({
   }
 
   const todayStr = formatDate(new Date());
-  const activeStylistId = filterStylistId ?? members[0]?.id ?? null;
-  const activeStylistName =
-    (activeStylistId ? members.find((m) => m.id === activeStylistId)?.display_name : null) ||
-    (activeStylistId ? members.find((m) => m.id === activeStylistId)?.role : null) ||
-    "";
+  const dayHeaderPrefix = filterStylistId
+    ? (() => {
+        const m = members.find((x) => x.id === filterStylistId);
+        const name = m?.display_name || m?.role;
+        return name ? `${name} — ` : "";
+      })()
+    : "All stylists — ";
 
   return (
     <div className="space-y-6 min-w-0">
@@ -409,7 +411,7 @@ export function DiaryView({
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="font-semibold truncate">
-                  {activeStylistName ? `${activeStylistName} — ` : ""}
+                  {dayHeaderPrefix}
                   {daysToShow[0].toLocaleDateString("en-GB", { weekday: "long", month: "long", day: "numeric" })}
                 </div>
                 <div className="text-xs text-muted">
@@ -424,24 +426,19 @@ export function DiaryView({
             </div>
           </div>
 
-          {!activeStylistId ? (
+          {members.length === 0 ? (
             <div className="p-4 text-sm text-muted">Add a team member first.</div>
           ) : (
             (() => {
               const day = daysToShow[0];
-              const dayStr = formatDate(day);
               const startHour = 6;
               const endHour = 19;
               const pxPerMin = 1.1;
               const gutterW = 88;
 
-              const dayAppointments = filteredAppointments
-                .filter((a) => a.stylist_id === activeStylistId)
-                .filter((a) => {
-                  const s = parseDate(a.start_time);
-                  return s ? formatDate(s) === dayStr : false;
-                })
-                .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+              const dayAppointments = [...filteredAppointments].sort(
+                (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+              );
 
               const heightPx = (endHour - startHour + 1) * 60 * pxPerMin;
 
@@ -507,6 +504,10 @@ export function DiaryView({
                       const label = client?.name || a.guest_name || "Walk-in";
                       const serviceName = svc?.name || "Service";
                       const color = stylistColorMap[a.stylist_id] || "#7c3aed";
+                      const stylistName =
+                        members.find((m) => m.id === a.stylist_id)?.display_name ||
+                        members.find((m) => m.id === a.stylist_id)?.role ||
+                        "";
 
                       return (
                         <button
@@ -530,7 +531,8 @@ export function DiaryView({
                           }}
                         >
                           <div className="text-sm font-semibold text-foreground truncate">
-                            {formatTime(start)}–{formatTime(end)} · {label} · {serviceName}
+                            {formatTime(start)}–{formatTime(end)}
+                            {!filterStylistId && stylistName ? ` · ${stylistName}` : ""} · {label} · {serviceName}
                           </div>
                           {phone && <div className="text-xs text-muted truncate">{phone}</div>}
                         </button>
