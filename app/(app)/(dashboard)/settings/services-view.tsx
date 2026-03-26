@@ -380,7 +380,7 @@ export function ServicesView({
       {services.length > 0 && (
         <div>
           <h2 className="mb-3 text-base font-semibold">Your services</h2>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {services.map((s) => (
               <ServiceCard key={s.id} salonId={salonId} service={s} />
             ))}
