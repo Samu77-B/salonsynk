@@ -136,6 +136,7 @@ export function EditAppointmentModal({
   services,
   clients,
   onUpdate,
+  onDelete,
   onClose,
   onNoShowCharged,
 }: {
@@ -144,6 +145,7 @@ export function EditAppointmentModal({
   services: Service[];
   clients: Client[];
   onUpdate: (id: string, data: UpdateAppointmentInput) => Promise<{ error?: string | null }>;
+  onDelete: (id: string) => void;
   onClose: () => void;
   onNoShowCharged?: () => void;
 }) {
@@ -440,6 +442,13 @@ export function EditAppointmentModal({
             </button>
             <button type="submit" disabled={loading} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50">
               {loading ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(appointment.id)}
+              className="rounded-lg border border-red-500/50 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors ml-auto"
+            >
+              Delete
             </button>
           </div>
         </form>

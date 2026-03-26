@@ -710,6 +710,10 @@ export function DiaryView({
               }
               return result;
             }}
+            onDelete={(id) => {
+              setEditId(null);
+              handleDelete(id);
+            }}
             onClose={() => setEditId(null)}
             onNoShowCharged={() => router.refresh()}
           />
