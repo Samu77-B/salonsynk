@@ -113,19 +113,22 @@ export default async function DashboardPage() {
   });
   const clients = clientsRes.data ?? [];
 
-  const clientIds = clients.map((c: { id: string }) => c.id);
-  const { data: clientProfilePhotos } = clientIds.length > 0
-    ? await supabase
+  const clientPhotoMap: Record<string, string> = {};
+  try {
+    const clientIds = clients.map((c: { id: string }) => c.id);
+    if (clientIds.length > 0) {
+      const { data: clientProfilePhotos } = await supabase
         .from("client_photos")
         .select("client_id, url")
         .in("client_id", clientIds)
-        .eq("slot", "profile")
-    : { data: [] };
-
-  const clientPhotoMap: Record<string, string> = {};
-  for (const p of clientProfilePhotos ?? []) {
-    clientPhotoMap[(p as { client_id: string; url: string }).client_id] =
-      (p as { client_id: string; url: string }).url;
+        .eq("slot", "profile");
+      for (const p of clientProfilePhotos ?? []) {
+        clientPhotoMap[(p as { client_id: string; url: string }).client_id] =
+          (p as { client_id: string; url: string }).url;
+      }
+    }
+  } catch {
+    // client_photos table may not exist yet — gracefully degrade
   }
 
   const appointments = (appointmentsRes.data ?? []) as unknown as {

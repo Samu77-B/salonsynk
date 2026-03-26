@@ -58,12 +58,17 @@ function PhotoSlotCard({
     fd.append("photo", file);
 
     startUpload(async () => {
-      const result = await uploadClientPhoto(clientId, slot, fd);
-      if (result.error) {
-        setError(result.error);
+      try {
+        const result = await uploadClientPhoto(clientId, slot, fd);
+        if (result.error) {
+          setError(result.error);
+          setLocalUrl(null);
+        } else if (result.photo) {
+          setLocalUrl(result.photo.url);
+        }
+      } catch {
+        setError("Upload failed");
         setLocalUrl(null);
-      } else if (result.photo) {
-        setLocalUrl(result.photo.url);
       }
       URL.revokeObjectURL(preview);
     });
@@ -72,12 +77,16 @@ function PhotoSlotCard({
   function handleDelete() {
     setError(null);
     startDelete(async () => {
-      const result = await deleteClientPhoto(clientId, slot);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        setLocalUrl(null);
-        setDeleted(true);
+      try {
+        const result = await deleteClientPhoto(clientId, slot);
+        if (result.error) {
+          setError(result.error);
+        } else {
+          setLocalUrl(null);
+          setDeleted(true);
+        }
+      } catch {
+        setError("Delete failed");
       }
     });
   }

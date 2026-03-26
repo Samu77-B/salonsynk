@@ -159,7 +159,6 @@ export async function deleteClientPhoto(
 
   if (!existing) return { error: "Photo not found" };
 
-  const prefix = `${context.salon.id}/${clientId}-${slot}`;
   const { data: files } = await admin.storage.from(PHOTO_BUCKET).list(context.salon.id, {
     search: `${clientId}-${slot}`,
   });

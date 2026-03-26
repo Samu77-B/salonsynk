@@ -16,26 +16,33 @@ export default async function ClientDetailPage({
   if (!context) redirect("/onboarding");
 
   const supabase = await createClient();
-  const { data: client } = await supabase
+  const fullQ = await supabase
     .from("clients")
     .select("id, name, email, phone, notes, sex, color_formulas, patch_test_due_at")
     .eq("id", id)
     .eq("salon_id", context.salon.id)
     .single();
+  const client = fullQ.error
+    ? (await supabase.from("clients").select("id, name, email, phone, notes, color_formulas, patch_test_due_at").eq("id", id).eq("salon_id", context.salon.id).single()).data
+    : fullQ.data;
 
   if (!client) notFound();
 
-  const { data: photos } = await supabase
-    .from("client_photos")
-    .select("id, slot, url")
-    .eq("client_id", id)
-    .eq("salon_id", context.salon.id);
-
-  const clientPhotos = (photos ?? []).map((p: { id: string; slot: string; url: string }) => ({
-    id: p.id,
-    slot: p.slot as "profile" | "photo_2" | "photo_3" | "photo_4",
-    url: p.url,
-  }));
+  let clientPhotos: { id: string; slot: "profile" | "photo_2" | "photo_3" | "photo_4"; url: string }[] = [];
+  try {
+    const { data: photos } = await supabase
+      .from("client_photos")
+      .select("id, slot, url")
+      .eq("client_id", id)
+      .eq("salon_id", context.salon.id);
+    clientPhotos = (photos ?? []).map((p: { id: string; slot: string; url: string }) => ({
+      id: p.id,
+      slot: p.slot as "profile" | "photo_2" | "photo_3" | "photo_4",
+      url: p.url,
+    }));
+  } catch {
+    // client_photos table may not exist yet
+  }
 
   const { data: appointments } = await supabase
     .from("appointments")

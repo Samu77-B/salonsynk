@@ -8,24 +8,34 @@ export default async function ClientsPage() {
   if (!context) redirect("/onboarding");
 
   const supabase = await createClient();
-  const { data: clients } = await supabase
+  const fullQuery = await supabase
     .from("clients")
     .select("id, name, email, phone, sex, patch_test_due_at")
     .eq("salon_id", context.salon.id)
     .order("name");
+  const clients = fullQuery.error
+    ? (await supabase.from("clients").select("id, name, email, phone, patch_test_due_at").eq("salon_id", context.salon.id).order("name")).data
+    : fullQuery.data;
 
-  const clientIds = (clients ?? []).map((c) => c.id);
-  const { data: profilePhotos } = clientIds.length > 0
-    ? await supabase
+  const photoMap = new Map<string, string>();
+  try {
+    const clientIds = (clients ?? []).map((c) => c.id);
+    if (clientIds.length > 0) {
+      const { data: profilePhotos } = await supabase
         .from("client_photos")
         .select("client_id, url")
         .in("client_id", clientIds)
-        .eq("slot", "profile")
-    : { data: [] };
-
-  const photoMap = new Map(
-    (profilePhotos ?? []).map((p: { client_id: string; url: string }) => [p.client_id, p.url])
-  );
+        .eq("slot", "profile");
+      for (const p of profilePhotos ?? []) {
+        photoMap.set(
+          (p as { client_id: string; url: string }).client_id,
+          (p as { client_id: string; url: string }).url
+        );
+      }
+    }
+  } catch {
+    // client_photos table may not exist yet
+  }
 
   const rows: ClientListRow[] = (clients ?? []).map((c) => ({
     id: c.id,
