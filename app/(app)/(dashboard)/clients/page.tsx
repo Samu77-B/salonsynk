@@ -7,15 +7,17 @@ export default async function ClientsPage() {
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");
 
+  type ClientRow = { id: string; name: string | null; email: string | null; phone: string | null; sex?: string | null; patch_test_due_at: string | null };
+
   const supabase = await createClient();
   const fullQuery = await supabase
     .from("clients")
     .select("id, name, email, phone, sex, patch_test_due_at")
     .eq("salon_id", context.salon.id)
     .order("name");
-  const clients = fullQuery.error
-    ? (await supabase.from("clients").select("id, name, email, phone, patch_test_due_at").eq("salon_id", context.salon.id).order("name")).data
-    : fullQuery.data;
+  const clients: ClientRow[] = fullQuery.error
+    ? ((await supabase.from("clients").select("id, name, email, phone, patch_test_due_at").eq("salon_id", context.salon.id).order("name")).data ?? []) as ClientRow[]
+    : (fullQuery.data ?? []) as ClientRow[];
 
   const photoMap = new Map<string, string>();
   try {

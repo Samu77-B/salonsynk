@@ -15,6 +15,17 @@ export default async function ClientDetailPage({
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");
 
+  type ClientRow = {
+    id: string;
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    notes: string | null;
+    sex?: string | null;
+    color_formulas: unknown;
+    patch_test_due_at: string | null;
+  };
+
   const supabase = await createClient();
   const fullQ = await supabase
     .from("clients")
@@ -22,9 +33,9 @@ export default async function ClientDetailPage({
     .eq("id", id)
     .eq("salon_id", context.salon.id)
     .single();
-  const client = fullQ.error
-    ? (await supabase.from("clients").select("id, name, email, phone, notes, color_formulas, patch_test_due_at").eq("id", id).eq("salon_id", context.salon.id).single()).data
-    : fullQ.data;
+  const client: ClientRow | null = fullQ.error
+    ? (await supabase.from("clients").select("id, name, email, phone, notes, color_formulas, patch_test_due_at").eq("id", id).eq("salon_id", context.salon.id).single()).data as ClientRow | null
+    : fullQ.data as ClientRow | null;
 
   if (!client) notFound();
 
