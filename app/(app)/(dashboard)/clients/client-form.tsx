@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClientAction } from "./actions";
+import { createClientAction, uploadClientPhoto } from "./actions";
+import { DefaultAvatar } from "./client-photos";
 
 const inputClass =
   "min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/60";
@@ -20,6 +21,7 @@ export function ClientForm({
   inlineOnCreate?: boolean;
 }) {
   const router = useRouter();
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(initial?.name ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
@@ -27,8 +29,26 @@ export function ClientForm({
   const [sex, setSex] = useState(initial?.sex ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [profileFile, setProfileFile] = useState<File | null>(null);
+  const [profilePreview, setProfilePreview] = useState<string | null>(null);
 
   const showCancel = Boolean(clientId) || !inlineOnCreate;
+  const isCreate = !clientId;
+
+  function clearProfileSelection() {
+    if (profilePreview) URL.revokeObjectURL(profilePreview);
+    setProfilePreview(null);
+    setProfileFile(null);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }
+
+  function handleProfilePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (profilePreview) URL.revokeObjectURL(profilePreview);
+    setProfileFile(file);
+    setProfilePreview(URL.createObjectURL(file));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -54,8 +74,60 @@ export function ClientForm({
         notes: notes || null,
         sex: sex || null,
       });
-      if (result.error) setError(result.error);
-      else if (inlineOnCreate) {
+      if (result.error) {
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
+      const newId = result.clientId;
+      if (!newId) {
+        setError("Client was created but we could not read the new id. Add the photo from the client page.");
+        setLoading(false);
+        if (!inlineOnCreate) router.push("/clients");
+        else router.refresh();
+        return;
+      }
+
+      if (profileFile) {
+        const fd = new FormData();
+        fd.append("photo", profileFile);
+        try {
+          const up = await uploadClientPhoto(newId, "profile", fd);
+          if (up.error) {
+            setError(`Client saved. Profile photo failed: ${up.error}`);
+            setLoading(false);
+            if (!inlineOnCreate) router.push(`/clients/${newId}`);
+            else {
+              setName("");
+              setEmail("");
+              setPhone("");
+              setNotes("");
+              setSex("");
+              clearProfileSelection();
+              router.refresh();
+            }
+            return;
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Upload failed";
+          setError(`Client saved. Profile photo failed: ${msg}`);
+          setLoading(false);
+          if (!inlineOnCreate) router.push(`/clients/${newId}`);
+          else {
+            setName("");
+            setEmail("");
+            setPhone("");
+            setNotes("");
+            setSex("");
+            clearProfileSelection();
+            router.refresh();
+          }
+          return;
+        }
+      }
+
+      clearProfileSelection();
+      if (inlineOnCreate) {
         setName("");
         setEmail("");
         setPhone("");
@@ -63,7 +135,7 @@ export function ClientForm({
         setSex("");
         router.refresh();
       } else {
-        router.push("/clients");
+        router.push(`/clients/${newId}`);
       }
     }
     setLoading(false);
@@ -71,6 +143,53 @@ export function ClientForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {isCreate && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
+          <div className="flex flex-col items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={loading}
+              className="group relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-background/50 transition-colors hover:border-accent/60 hover:bg-accent/5 disabled:opacity-50"
+            >
+              {profilePreview ? (
+                <img src={profilePreview} alt="Profile preview" className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full">
+                  <DefaultAvatar sex={sex === "male" ? "male" : sex === "female" ? "female" : null} />
+                </div>
+              )}
+              <span className="absolute inset-0 flex items-center justify-center bg-background/60 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100">
+                Choose photo
+              </span>
+            </button>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic"
+              onChange={handleProfilePick}
+              aria-label="Profile photo"
+              className="hidden"
+            />
+            {profileFile && (
+              <button
+                type="button"
+                onClick={clearProfileSelection}
+                className="text-xs text-red-400 hover:text-red-300"
+              >
+                Remove photo
+              </button>
+            )}
+          </div>
+          <div className="min-w-0 flex-1 pt-0 sm:pt-1">
+            <p className="text-sm font-medium text-foreground">Profile photo</p>
+            <p className="mt-1 text-xs text-muted">
+              Optional. Uploaded when you save. JPEG, PNG, WebP or HEIC, up to 5 MB. Default icon follows sex below.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div>
         <label htmlFor="client-name" className="mb-1 block text-sm font-medium">
           Name

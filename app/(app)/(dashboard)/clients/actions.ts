@@ -12,23 +12,28 @@ export async function createClientAction(data: {
   phone?: string | null;
   notes?: string | null;
   sex?: string | null;
-}) {
+}): Promise<{ error: string | null; clientId?: string }> {
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== data.salonId) return { error: "Unauthorized" };
 
-  const { error } = await supabase.from("clients").insert({
-    salon_id: data.salonId,
-    name: data.name?.trim() || null,
-    email: data.email?.trim() || null,
-    phone: data.phone?.trim() || null,
-    notes: data.notes?.trim() || null,
-    sex: data.sex || null,
-  });
+  const { data: row, error } = await supabase
+    .from("clients")
+    .insert({
+      salon_id: data.salonId,
+      name: data.name?.trim() || null,
+      email: data.email?.trim() || null,
+      phone: data.phone?.trim() || null,
+      notes: data.notes?.trim() || null,
+      sex: data.sex || null,
+    })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
   revalidatePath("/clients");
-  return { error: null };
+  if (row?.id) revalidatePath(`/clients/${row.id}`);
+  return { error: null, clientId: row.id };
 }
 
 export async function updateClientAction(

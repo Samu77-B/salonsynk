@@ -11,7 +11,7 @@ const SLOTS: { key: PhotoSlot; label: string }[] = [
   { key: "photo_4", label: "Photo 4" },
 ];
 
-function DefaultAvatar({ sex }: { sex: string | null }) {
+export function DefaultAvatar({ sex }: { sex: string | null }) {
   const src = sex === "male" ? "/imgs/His.png" : "/imgs/Her.png";
   return (
     <img
