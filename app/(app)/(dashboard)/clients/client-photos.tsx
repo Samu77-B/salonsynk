@@ -67,7 +67,12 @@ function PhotoSlotCard({
           setLocalUrl(result.photo.url);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Upload failed");
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        const hint =
+          /unexpected response/i.test(msg) || /failed to fetch/i.test(msg)
+            ? " Try a smaller image (under 5 MB) or a different format (JPEG/PNG)."
+            : "";
+        setError(msg + hint);
         setLocalUrl(null);
       }
       URL.revokeObjectURL(preview);
