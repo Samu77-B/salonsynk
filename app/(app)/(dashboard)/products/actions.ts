@@ -7,6 +7,7 @@ import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
 import { parseCsvRows } from "@/lib/simple-csv";
+import { normalizeProductCurrency, parsePriceAmountToMinor, isAllowedProductCurrency } from "@/lib/product-currency";
 
 const DESCRIPTION_MAX = 2000;
 
@@ -18,14 +19,6 @@ const MAX_CSV_DATA_ROWS = 500;
 
 function normCsvHeader(h: string): string {
   return h.trim().toLowerCase().replace(/\s+/g, "_");
-}
-
-function parsePriceGbpCell(raw: string | undefined): { minor: number } | { error: string } {
-  const t = raw?.trim() ?? "";
-  if (!t) return { minor: 0 };
-  const n = parseFloat(t.replace(/[£,\s]/g, ""));
-  if (!Number.isFinite(n) || n < 0) return { error: "Invalid price" };
-  return { minor: Math.round(n * 100) };
 }
 
 function parseBoolCsvCell(raw: string | undefined, defaultActive: boolean): boolean {
@@ -71,6 +64,7 @@ export async function addProduct(
     description?: string | null;
     category?: string | null;
     price_minor: number;
+    currency?: string;
     image_url?: string | null;
     sort_order?: number;
   }
@@ -81,6 +75,7 @@ export async function addProduct(
   if (!name) return { error: "Product name is required" };
   const price = Math.max(0, Math.round(data.price_minor ?? 0));
   const sortOrder = Math.round(data.sort_order ?? 0);
+  const currency = normalizeProductCurrency(data.currency);
   const supabase = await createClient();
   const admin = getOptionalAdminClient();
   const db = admin ?? supabase;
@@ -90,6 +85,7 @@ export async function addProduct(
     description: normalizeDescription(data.description ?? undefined),
     category: data.category?.trim() || null,
     price_minor: price,
+    currency,
     image_url: data.image_url?.trim() || null,
     sort_order: sortOrder,
     is_active: true,
@@ -114,6 +110,7 @@ export async function updateProduct(
     description?: string | null;
     category?: string | null;
     price_minor?: number;
+    currency?: string;
     image_url?: string | null;
     is_active?: boolean;
     sort_order?: number;
@@ -126,6 +123,7 @@ export async function updateProduct(
   if (data.description !== undefined) payload.description = normalizeDescription(data.description ?? undefined);
   if (data.category !== undefined) payload.category = data.category?.trim() || null;
   if (data.price_minor !== undefined) payload.price_minor = Math.max(0, Math.round(data.price_minor));
+  if (data.currency !== undefined) payload.currency = normalizeProductCurrency(data.currency);
   if (data.image_url !== undefined) payload.image_url = data.image_url?.trim() || null;
   if (data.is_active !== undefined) payload.is_active = data.is_active;
   if (data.sort_order !== undefined) payload.sort_order = Math.round(data.sort_order);
@@ -208,7 +206,8 @@ export type CsvImportRowError = { line: number; message: string };
 
 export async function importProductsFromCsv(
   salonId: string,
-  csvText: string
+  csvText: string,
+  csvCurrency?: string
 ): Promise<{
   error: string | null;
   added: number;
@@ -216,6 +215,12 @@ export async function importProductsFromCsv(
 }> {
   const auth = await assertCanManageProducts(salonId);
   if ("error" in auth) return { error: auth.error, added: 0, rowErrors: [] };
+
+  const rawCur = csvCurrency?.trim();
+  if (rawCur && !isAllowedProductCurrency(rawCur)) {
+    return { error: "Invalid currency for import.", added: 0, rowErrors: [] };
+  }
+  const importCurrency = normalizeProductCurrency(rawCur || "gbp");
 
   const rows = parseCsvRows(csvText);
   if (rows.length < 2) {
@@ -255,6 +260,7 @@ export async function importProductsFromCsv(
     description: string | null;
     category: string | null;
     price_minor: number;
+    currency: string;
     image_url: string | null;
     sort_order: number;
     is_active: boolean;
@@ -272,8 +278,8 @@ export async function importProductsFromCsv(
       continue;
     }
 
-    const priceRaw = pick(row, "price_gbp", "price");
-    const priceParsed = parsePriceGbpCell(priceRaw);
+    const priceRaw = pick(row, "price", "price_gbp", "amount");
+    const priceParsed = parsePriceAmountToMinor(priceRaw);
     if ("error" in priceParsed) {
       rowErrors.push({ line: lineNum, message: priceParsed.error });
       continue;
@@ -303,6 +309,7 @@ export async function importProductsFromCsv(
       description,
       category,
       price_minor: priceParsed.minor,
+      currency: importCurrency,
       image_url,
       sort_order: sortOrder,
       is_active,

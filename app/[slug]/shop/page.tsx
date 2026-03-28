@@ -1,10 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatProductPriceMinor } from "@/lib/product-currency";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-
-function formatGbp(minor: number) {
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(minor / 100);
-}
 
 export default async function SalonShopPage({
   params,
@@ -29,7 +26,7 @@ export default async function SalonShopPage({
 
   const { data: productRows } = await supabase
     .from("products")
-    .select("id, name, description, category, price_minor, image_url, sort_order")
+    .select("id, name, description, category, price_minor, currency, image_url, sort_order")
     .eq("salon_id", salon.id)
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
@@ -90,9 +87,11 @@ export default async function SalonShopPage({
                 description: string | null;
                 category: string | null;
                 price_minor: number | null;
+                currency: string | null;
                 image_url: string | null;
               };
               const minor = row.price_minor ?? 0;
+              const cur = row.currency ?? "gbp";
               return (
                 <li
                   key={row.id}
@@ -116,7 +115,9 @@ export default async function SalonShopPage({
                       <p className="text-xs font-medium uppercase tracking-wide text-muted">{row.category}</p>
                     )}
                     <h2 className="text-lg font-semibold text-foreground">{row.name}</h2>
-                    <p className="text-base font-medium text-accent">{formatGbp(minor)}</p>
+                    <p className="text-base font-medium text-accent">
+                      {formatProductPriceMinor(minor, cur)}
+                    </p>
                     {row.description && (
                       <p className="text-sm text-muted whitespace-pre-wrap">{row.description}</p>
                     )}

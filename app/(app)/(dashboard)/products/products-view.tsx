@@ -9,6 +9,7 @@ import {
   uploadProductImage,
   importProductsFromCsv,
 } from "./actions";
+import { PRODUCT_CURRENCY_OPTIONS } from "@/lib/product-currency";
 
 const DESCRIPTION_MAX = 2000;
 
@@ -27,14 +28,39 @@ export type ProductRow = {
 const inputClass =
   "rounded-lg border border-border bg-background px-3 py-2 text-sm w-full min-w-0 placeholder:text-muted-foreground/60";
 
-function formatGbp(minor: number) {
+function minorToInputAmount(minor: number) {
   return (minor / 100).toFixed(2);
 }
 
-const CSV_TEMPLATE = `name,price_gbp,category,description,image_url,sort_order,is_active
+const CSV_TEMPLATE = `name,price,category,description,image_url,sort_order,is_active
 Example shampoo,12.99,Hair care,Great for dry hair,,0,true
 Another item,8.50,,Optional description,https://example.com/photo.jpg,1,true
 `;
+
+function CurrencySelect({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  onChange: (code: string) => void;
+}) {
+  return (
+    <select
+      id={id}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={inputClass}
+    >
+      {PRODUCT_CURRENCY_OPTIONS.map((o) => (
+        <option key={o.code} value={o.code}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 function ProductImageFields({
   salonId,
@@ -127,7 +153,8 @@ function ProductCard({
   const router = useRouter();
   const [name, setName] = useState(product.name);
   const [category, setCategory] = useState(product.category ?? "");
-  const [price, setPrice] = useState(product.price_minor > 0 ? formatGbp(product.price_minor) : "");
+  const [price, setPrice] = useState(product.price_minor > 0 ? minorToInputAmount(product.price_minor) : "");
+  const [currency, setCurrency] = useState(product.currency || "gbp");
   const [description, setDescription] = useState(product.description ?? "");
   const [imageUrl, setImageUrl] = useState(product.image_url ?? "");
   const [sortOrder, setSortOrder] = useState(String(product.sort_order));
@@ -140,7 +167,8 @@ function ProductCard({
   useEffect(() => {
     setName(product.name);
     setCategory(product.category ?? "");
-    setPrice(product.price_minor > 0 ? formatGbp(product.price_minor) : "");
+    setPrice(product.price_minor > 0 ? minorToInputAmount(product.price_minor) : "");
+    setCurrency(product.currency || "gbp");
     setDescription(product.description ?? "");
     setImageUrl(product.image_url ?? "");
     setSortOrder(String(product.sort_order));
@@ -169,6 +197,7 @@ function ProductCard({
       name: n,
       category: category.trim() || null,
       price_minor: priceMinor,
+      currency,
       description,
       image_url: imageUrl.trim() || null,
       is_active: isActive,
@@ -210,23 +239,23 @@ function ProductCard({
           className={inputClass}
         />
       </div>
+      <div>
+        <label htmlFor={`product-cat-${product.id}`} className="mb-1 block text-sm font-medium">
+          Category
+        </label>
+        <input
+          id={`product-cat-${product.id}`}
+          type="text"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          placeholder="e.g. Shampoo"
+          className={inputClass}
+        />
+      </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label htmlFor={`product-cat-${product.id}`} className="mb-1 block text-sm font-medium">
-            Category
-          </label>
-          <input
-            id={`product-cat-${product.id}`}
-            type="text"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="e.g. Shampoo"
-            className={inputClass}
-          />
-        </div>
-        <div>
           <label htmlFor={`product-price-${product.id}`} className="mb-1 block text-sm font-medium">
-            Price (GBP)
+            Price
           </label>
           <input
             id={`product-price-${product.id}`}
@@ -234,8 +263,18 @@ function ProductCard({
             inputMode="decimal"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            placeholder="0"
+            placeholder="e.g. 19.50"
             className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor={`product-currency-${product.id}`} className="mb-1 block text-sm font-medium">
+            Currency
+          </label>
+          <CurrencySelect
+            id={`product-currency-${product.id}`}
+            value={currency}
+            onChange={setCurrency}
           />
         </div>
       </div>
@@ -339,6 +378,7 @@ export function ProductsView({
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newPrice, setNewPrice] = useState("");
+  const [newCurrency, setNewCurrency] = useState("gbp");
   const [newDescription, setNewDescription] = useState("");
   const [newImageUrl, setNewImageUrl] = useState("");
   const [addLoading, setAddLoading] = useState(false);
@@ -348,6 +388,7 @@ export function ProductsView({
   const [csvLoading, setCsvLoading] = useState(false);
   const [csvSummary, setCsvSummary] = useState<string | null>(null);
   const [csvRowErrors, setCsvRowErrors] = useState<{ line: number; message: string }[]>([]);
+  const [csvImportCurrency, setCsvImportCurrency] = useState("gbp");
 
   if (!canManage) {
     return <p className="text-sm text-muted">Only owners can manage products.</p>;
@@ -371,11 +412,24 @@ export function ProductsView({
         <h2 className="mb-2 text-base font-semibold">Import from CSV</h2>
         <p className="mb-3 text-sm text-muted">
           Columns: <span className="font-mono text-xs">name</span> (required),{" "}
-          <span className="font-mono text-xs">price_gbp</span>, <span className="font-mono text-xs">category</span>,{" "}
-          <span className="font-mono text-xs">description</span>, <span className="font-mono text-xs">image_url</span>,{" "}
-          <span className="font-mono text-xs">sort_order</span>, <span className="font-mono text-xs">is_active</span>{" "}
-          (true/false). Up to 500 rows per file. Avoid line breaks inside cells.
+          <span className="font-mono text-xs">price</span> (number only, e.g. 19.50 — currency is chosen below),{" "}
+          <span className="font-mono text-xs">category</span>, <span className="font-mono text-xs">description</span>,{" "}
+          <span className="font-mono text-xs">image_url</span>, <span className="font-mono text-xs">sort_order</span>,{" "}
+          <span className="font-mono text-xs">is_active</span> (true/false). Legacy header{" "}
+          <span className="font-mono text-xs">price_gbp</span> still works. Up to 500 rows; avoid line breaks inside cells.
         </p>
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="min-w-[min(100%,14rem)]">
+            <label htmlFor="csv-import-currency" className="mb-1 block text-sm font-medium">
+              Currency for imported prices
+            </label>
+            <CurrencySelect
+              id="csv-import-currency"
+              value={csvImportCurrency}
+              onChange={setCsvImportCurrency}
+            />
+          </div>
+        </div>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -406,7 +460,7 @@ export function ProductsView({
               setCsvLoading(true);
               try {
                 const text = await f.text();
-                const result = await importProductsFromCsv(salonId, text);
+                const result = await importProductsFromCsv(salonId, text, csvImportCurrency);
                 if (result.error) {
                   setCsvSummary(result.error);
                   setCsvRowErrors(result.rowErrors);
@@ -468,6 +522,7 @@ export function ProductsView({
                 name: newName.trim(),
                 category: newCategory.trim() || null,
                 price_minor: priceMinor,
+                currency: newCurrency,
                 description: newDescription,
                 image_url: newImageUrl.trim() || null,
               });
@@ -501,21 +556,21 @@ export function ProductsView({
               className={inputClass}
             />
           </div>
+          <div>
+            <label htmlFor="new-product-category" className="mb-1 block text-sm font-medium">
+              Category
+            </label>
+            <input
+              id="new-product-category"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              className={inputClass}
+            />
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="new-product-category" className="mb-1 block text-sm font-medium">
-                Category
-              </label>
-              <input
-                id="new-product-category"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div>
               <label htmlFor="new-product-price" className="mb-1 block text-sm font-medium">
-                Price (GBP)
+                Price
               </label>
               <input
                 id="new-product-price"
@@ -523,8 +578,15 @@ export function ProductsView({
                 inputMode="decimal"
                 value={newPrice}
                 onChange={(e) => setNewPrice(e.target.value)}
+                placeholder="e.g. 19.50"
                 className={inputClass}
               />
+            </div>
+            <div>
+              <label htmlFor="new-product-currency" className="mb-1 block text-sm font-medium">
+                Currency
+              </label>
+              <CurrencySelect id="new-product-currency" value={newCurrency} onChange={setNewCurrency} />
             </div>
           </div>
           <div>
