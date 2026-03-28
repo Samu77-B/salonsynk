@@ -72,6 +72,8 @@ export type CreateAppointmentInput = {
   sendReminderSms?: boolean;
   sendReviewRequest?: boolean;
   sendAftercare?: boolean;
+  /** Skip hands-on overlap check (salon staff only — e.g. walk-in squeezed in). */
+  allowScheduleOverlap?: boolean;
 };
 
 export async function createAppointment(input: CreateAppointmentInput) {
@@ -125,10 +127,13 @@ export async function createAppointment(input: CreateAppointmentInput) {
   });
 
   const { startMinutes, endMinutes } = rangeToMinutes(start, end);
-  if (hasBlockingOverlapWithExisting(blockingExisting, startMinutes, endMinutes, newProcessing)) {
+  if (
+    !input.allowScheduleOverlap &&
+    hasBlockingOverlapWithExisting(blockingExisting, startMinutes, endMinutes, newProcessing)
+  ) {
     return {
       error:
-        "This would overlap with another appointment during hands-on time. If the service has processing time (e.g. colour developing), another booking can sit in that window — set processing minutes on the service in Settings.",
+        "This would overlap with another appointment during hands-on time. If the service has processing time (e.g. colour developing), another booking can sit in that window — set processing minutes on the service in Settings. Or tick “Add even if this overlaps” below for a walk-in you’re squeezing in.",
     };
   }
 

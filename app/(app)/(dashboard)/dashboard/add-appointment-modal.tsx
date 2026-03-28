@@ -36,6 +36,7 @@ export function AddAppointmentModal({
   const [sendReminderSms, setSendReminderSms] = useState(true);
   const [sendReviewRequest, setSendReviewRequest] = useState(true);
   const [sendAftercare, setSendAftercare] = useState(false);
+  const [allowScheduleOverlap, setAllowScheduleOverlap] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -80,6 +81,7 @@ export function AddAppointmentModal({
         sendReminderSms,
         sendReviewRequest,
         sendAftercare,
+        allowScheduleOverlap,
       });
       if (result?.error) setSubmitError(result.error);
     } catch (e) {
@@ -237,6 +239,23 @@ export function AddAppointmentModal({
                 className="rounded border-border"
               />
               <span className="text-sm">Send aftercare instructions after appointment</span>
+            </label>
+          </div>
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allowScheduleOverlap}
+                onChange={(e) => setAllowScheduleOverlap(e.target.checked)}
+                className="mt-1 rounded border-border"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-foreground">Add even if this overlaps another booking</span>
+                <span className="mt-1 block text-muted">
+                  Use for walk-ins or when the diary can’t model your situation (e.g. another client is only processing).
+                  The calendar will show two bookings at once for this stylist.
+                </span>
+              </span>
             </label>
           </div>
           {submitError && (
