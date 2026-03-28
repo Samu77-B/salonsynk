@@ -36,17 +36,11 @@ type Appointment = {
   salon_members: { display_name: string | null } | { display_name: string | null }[] | null;
 };
 
-const VIEWS = ["day", "week"] as const;
-const HOURS = Array.from({ length: 15 }, (_, i) => i + 6); // 6am–8pm
-// 15-minute slots: 6:00–20:00 (56 slots)
-const SLOTS_15MIN = Array.from({ length: 56 }, (_, i) => {
-  const totalMins = 6 * 60 + i * 15;
-  return { hour: Math.floor(totalMins / 60), minute: totalMins % 60 };
-});
+const MIN_COL_PX = 108;
+
 function formatDate(d: Date) {
   const time = d.getTime();
   if (!Number.isFinite(time)) return "";
-  // Use local date (not UTC) so diary days match what users pick.
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -69,146 +63,36 @@ function minutesSinceDayStart(d: Date, day: Date): number {
   return (d.getTime() - dayStart.getTime()) / 60000;
 }
 
-function AppointmentBlock({
-  a,
-  cellStart,
-  members,
-  stylistColorMap,
-  appointments,
-  onReschedule,
-  onEdit,
-  onDelete,
-  onDragStart,
-  onDragEnd,
-  slotIndex = 0,
-  slotCount = 1,
-  clientPhotoUrl,
-}: {
-  a: Appointment;
-  cellStart: Date;
-  members: Member[];
-  stylistColorMap: Record<string, string>;
-  appointments: Appointment[];
-  onReschedule: (id: string, newStart: Date, newEnd: Date) => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onDragStart?: () => void;
-  onDragEnd?: () => void;
-  slotIndex?: number;
-  slotCount?: number;
-  clientPhotoUrl?: string | null;
-}) {
-  const start = new Date(a.start_time);
-  const end = new Date(a.end_time);
-  const startOffset = (start.getTime() - cellStart.getTime()) / 60000;
-  const durationMinutes = (end.getTime() - start.getTime()) / 60000;
-  const top = startOffset * 0.8;
-  const height = durationMinutes * 0.8;
-  const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
-  const service = Array.isArray(a.services) ? a.services[0] : a.services;
-  const stylist = members.find((m) => m.id === a.stylist_id)?.display_name;
-  const label = (client?.name || a.guest_name || "—") as string;
-  const sub = (service?.name || "") as string;
-  const blockColor = stylistColorMap[a.stylist_id];
-  const isRow = slotCount > 1;
-  const isCompact = isRow;
-  return (
-    <div
-      className={`rounded-lg border overflow-hidden border-accent/50 bg-accent/20 flex flex-col shadow-sm ${isRow ? "flex-1 min-w-0" : "absolute left-1 right-1"}`}
-      style={
-        isRow
-          ? {
-              padding: "4px 6px",
-              ...(blockColor ? { borderColor: `${blockColor}99`, backgroundColor: `${blockColor}20` } : {}),
-            }
-          : {
-              top: `${top}px`,
-              minHeight: `${Math.max(48, height)}px`,
-              padding: "4px 8px",
-              ...(blockColor ? { borderColor: `${blockColor}99`, backgroundColor: `${blockColor}20` } : {}),
-            }
+/** Greedy lane packing: max concurrent = laneCount; each id gets lane index 0..laneCount-1. */
+function assignOverlapLanes(
+  items: { id: string; startMin: number; endMin: number }[]
+): Map<string, { lane: number; laneCount: number }> {
+  if (items.length === 0) return new Map();
+  const sorted = [...items].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+  const laneEnd: number[] = [];
+  const laneById = new Map<string, number>();
+  for (const it of sorted) {
+    let lane = -1;
+    for (let i = 0; i < laneEnd.length; i++) {
+      if (laneEnd[i] <= it.startMin) {
+        lane = i;
+        break;
       }
-    >
-      <div
-        draggable
-        onDragStart={(e) => {
-          onDragStart?.();
-          e.dataTransfer.setData("text/plain", a.id);
-          e.dataTransfer.effectAllowed = "move";
-          const el = e.currentTarget.parentElement;
-          if (el) {
-            const rect = el.getBoundingClientRect();
-            e.dataTransfer.setDragImage(el, e.clientX - rect.left, e.clientY - rect.top);
-          }
-        }}
-        onDragEnd={() => onDragEnd?.()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.dataTransfer.dropEffect = "move";
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const id = e.dataTransfer.getData("text/plain");
-          if (!id || id === a.id) return;
-          const apt = appointments.find((ap) => ap.id === id);
-          if (!apt) return;
-          const newStart = new Date(cellStart);
-          const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
-          const newEnd = new Date(newStart.getTime() + durationMs);
-          onReschedule(id, newStart, newEnd);
-        }}
-        className="flex-1 min-h-0 cursor-move"
-      >
-        <span className={`font-medium truncate ${isCompact ? "text-xs" : ""} flex items-center gap-1.5`}>
-          {clientPhotoUrl && (
-            <img src={clientPhotoUrl} alt="" className="h-5 w-5 rounded-full object-cover shrink-0" />
-          )}
-          {label}
-        </span>
-        {!isCompact && stylist && <span className="text-xs text-muted truncate block">{stylist}</span>}
-        {!isCompact && sub && <span className="text-xs text-muted truncate block">{sub}</span>}
-        {isCompact && (stylist || sub) && (
-          <span className="text-[10px] text-muted truncate block">{[stylist, sub].filter(Boolean).join(" · ")}</span>
-        )}
-      </div>
-      <div
-        className={`flex gap-1 shrink-0 relative z-10 ${isCompact ? "mt-0.5" : "mt-1"}`}
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          className="text-xs text-accent hover:underline touch-manipulation py-1 px-0.5 -my-1 -mx-0.5"
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="text-xs text-red-400 hover:underline touch-manipulation py-1 px-0.5 -my-1 -mx-0.5"
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  );
-}
-function toLocalISO(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const h = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${day}T${h}:${min}:00`;
+    }
+    if (lane === -1) {
+      lane = laneEnd.length;
+      laneEnd.push(it.endMin);
+    } else {
+      laneEnd[lane] = it.endMin;
+    }
+    laneById.set(it.id, lane);
+  }
+  const laneCount = Math.max(1, laneEnd.length);
+  const out = new Map<string, { lane: number; laneCount: number }>();
+  for (const it of items) {
+    out.set(it.id, { lane: laneById.get(it.id)!, laneCount });
+  }
+  return out;
 }
 
 function blockingInputsForStylistOnDay(
@@ -242,6 +126,14 @@ function blockingInputsForStylistOnDay(
       };
     })
     .filter((v): v is AppointmentBlockingInput => v !== null);
+}
+
+/** Same clock time on a different calendar day (local). */
+function sameLocalTimeOnDay(source: Date, targetDay: Date): Date {
+  const d = new Date(targetDay);
+  d.setHours(0, 0, 0, 0);
+  d.setHours(source.getHours(), source.getMinutes(), source.getSeconds(), source.getMilliseconds());
+  return d;
 }
 
 export function DiaryView({
@@ -306,13 +198,23 @@ export function DiaryView({
     });
   }, [appointments, filterStylistId, daysToShow]);
 
-  async function handleReschedule(appointmentId: string, newStart: Date, newEnd: Date) {
+  const visibleMembers = useMemo(
+    () => (filterStylistId ? members.filter((m) => m.id === filterStylistId) : members),
+    [members, filterStylistId]
+  );
+
+  async function handleRescheduleWithStylist(
+    appointmentId: string,
+    newStart: Date,
+    newEnd: Date,
+    targetStylistId: string
+  ) {
     setError(null);
     const appointment = appointments.find((a) => a.id === appointmentId);
     if (!appointment) return;
     const day = new Date(newStart);
     day.setHours(0, 0, 0, 0);
-    const blocking = blockingInputsForStylistOnDay(appointments, day, appointment.stylist_id);
+    const blocking = blockingInputsForStylistOnDay(appointments, day, targetStylistId);
     const newStartM = (newStart.getTime() - day.getTime()) / 60000;
     const newEndM = (newEnd.getTime() - day.getTime()) / 60000;
     const svc = Array.isArray(appointment.services) ? appointment.services[0] : appointment.services;
@@ -322,10 +224,14 @@ export function DiaryView({
       setError(validation.message ?? "Invalid move");
       return;
     }
-    const result = await updateAppointment(appointmentId, {
+    const updates: { start_time: string; end_time: string; stylist_id?: string } = {
       start_time: newStart.toISOString(),
       end_time: newEnd.toISOString(),
-    });
+    };
+    if (targetStylistId !== appointment.stylist_id) {
+      updates.stylist_id = targetStylistId;
+    }
+    const result = await updateAppointment(appointmentId, updates);
     if (result.error) setError(result.error);
     else {
       setMovingId(null);
@@ -355,6 +261,7 @@ export function DiaryView({
         <h1 className="text-xl sm:text-2xl font-bold truncate min-w-0">{salonName}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <button
+            type="button"
             onClick={() => {
               const d = new Date(currentDate + "T12:00:00");
               d.setDate(d.getDate() - (view === "day" ? 1 : 7));
@@ -370,6 +277,7 @@ export function DiaryView({
               : `${daysToShow[0].toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${daysToShow[6].toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
           </span>
           <button
+            type="button"
             onClick={() => {
               const d = new Date(currentDate + "T12:00:00");
               d.setDate(d.getDate() + (view === "day" ? 1 : 7));
@@ -378,6 +286,13 @@ export function DiaryView({
             className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
           >
             Next
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentDate(formatDate(new Date()))}
+            className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+          >
+            Today
           </button>
           <select
             value={view}
@@ -402,6 +317,7 @@ export function DiaryView({
             ))}
           </select>
           <button
+            type="button"
             onClick={() => setAddOpen(true)}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90 transition-opacity w-full sm:w-auto"
           >
@@ -410,9 +326,7 @@ export function DiaryView({
         </div>
       </div>
 
-      {error && (
-        <p className="text-sm text-red-400 px-1">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-400 px-1">{error}</p>}
 
       {view === "day" ? (
         <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
@@ -424,7 +338,7 @@ export function DiaryView({
                   {daysToShow[0].toLocaleDateString("en-GB", { weekday: "long", month: "long", day: "numeric" })}
                 </div>
                 <div className="text-xs text-muted">
-                  Drag cards to reschedule. Click to edit.
+                  One column per stylist. Drag onto a column and time to reschedule (or move to another stylist).
                 </div>
               </div>
               {formatDate(daysToShow[0]) === todayStr && (
@@ -437,6 +351,8 @@ export function DiaryView({
 
           {members.length === 0 ? (
             <div className="p-4 text-sm text-muted">Add a team member first.</div>
+          ) : visibleMembers.length === 0 ? (
+            <div className="p-4 text-sm text-muted">No stylist selected.</div>
           ) : (
             (() => {
               const day = daysToShow[0];
@@ -444,114 +360,172 @@ export function DiaryView({
               const endHour = 19;
               const pxPerMin = 1.1;
               const gutterW = 88;
-
-              const dayAppointments = [...filteredAppointments].sort(
-                (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-              );
-
+              const nCols = visibleMembers.length;
+              const minTotalW = gutterW + nCols * MIN_COL_PX;
               const heightPx = (endHour - startHour + 1) * 60 * pxPerMin;
 
               return (
-                <div className="relative overflow-x-auto">
-                  <div className="relative min-w-[520px]" style={{ height: `${heightPx}px` }}>
-                    {/* Time gutter + horizontal grid lines */}
+                <div className="overflow-x-auto">
+                  <div className="flex border-b border-border/60 bg-muted/20" style={{ minWidth: `${minTotalW}px` }}>
+                    <div style={{ width: `${gutterW}px` }} className="shrink-0" aria-hidden />
+                    {visibleMembers.map((m) => {
+                      const c = stylistColorMap[m.id] || "#7c3aed";
+                      return (
+                        <div
+                          key={m.id}
+                          className="flex-1 min-w-[100px] border-l border-border/40 px-2 py-2 text-center"
+                        >
+                          <span
+                            className="inline-block h-2 w-2 rounded-full align-middle mr-1.5"
+                            style={{ backgroundColor: c }}
+                            aria-hidden
+                          />
+                          <span className="text-xs font-semibold truncate align-middle">
+                            {m.display_name || m.role}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="relative" style={{ minWidth: `${minTotalW}px`, height: `${heightPx}px` }}>
                     {Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i).map((h) => {
                       const top = (h - startHour) * 60 * pxPerMin;
                       return (
-                        <div key={h} className="absolute left-0 right-0" style={{ top: `${top}px` }}>
+                        <div key={h} className="absolute left-0 right-0 pointer-events-none" style={{ top: `${top}px` }}>
                           <div className="absolute left-0" style={{ width: `${gutterW}px` }}>
                             <div className="pl-4 pr-2 text-xs text-muted leading-6">
                               {new Date(0, 0, 0, h, 0).toLocaleTimeString("en-GB", { hour: "numeric" })}
                             </div>
                           </div>
-                          <div className="absolute left-0 right-0 border-t border-border/40" style={{ marginLeft: `${gutterW}px` }} />
+                          <div
+                            className="absolute left-0 right-0 border-t border-border/40"
+                            style={{ marginLeft: `${gutterW}px` }}
+                          />
                         </div>
                       );
                     })}
 
-                    {/* Drop zone */}
                     <div
-                      className="absolute inset-0"
+                      className="absolute flex inset-0"
                       style={{ marginLeft: `${gutterW}px` }}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const id = e.dataTransfer.getData("text/plain");
-                        if (!id) return;
-                        const apt = appointments.find((a) => a.id === id);
-                        if (!apt) return;
+                    >
+                      {visibleMembers.map((member) => {
+                        const colAppts = filteredAppointments.filter((a) => a.stylist_id === member.id);
+                        const laneInputs = colAppts
+                          .map((a) => {
+                            const start = parseDate(a.start_time);
+                            const end = parseDate(a.end_time);
+                            if (!start || !end) return null;
+                            return {
+                              id: a.id,
+                              startMin: minutesSinceDayStart(start, day),
+                              endMin: minutesSinceDayStart(end, day),
+                            };
+                          })
+                          .filter((v): v is { id: string; startMin: number; endMin: number } => v !== null);
+                        const lanes = assignOverlapLanes(laneInputs);
 
-                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                        const y = e.clientY - rect.top;
-                        const minsFromStart = Math.max(0, Math.round(y / pxPerMin / 15) * 15);
-                        const newStart = new Date(day);
-                        newStart.setHours(startHour, 0, 0, 0);
-                        newStart.setMinutes(newStart.getMinutes() + minsFromStart);
-                        const durationMs =
-                          new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
-                        const newEnd = new Date(newStart.getTime() + durationMs);
-                        handleReschedule(id, newStart, newEnd);
-                      }}
-                    />
+                        return (
+                          <div
+                            key={member.id}
+                            className="relative flex-1 min-w-[100px] border-l border-border/30 first:border-l-0"
+                          >
+                            <div
+                              className="absolute inset-0 z-0"
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = "move";
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                const id = e.dataTransfer.getData("text/plain");
+                                if (!id) return;
+                                const apt = appointments.find((a) => a.id === id);
+                                if (!apt) return;
+                                const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                                const y = e.clientY - rect.top;
+                                const minsFromStart = Math.max(
+                                  0,
+                                  Math.min(
+                                    (endHour - startHour + 1) * 60,
+                                    Math.round(y / pxPerMin / 15) * 15
+                                  )
+                                );
+                                const newStart = new Date(day);
+                                newStart.setHours(startHour, 0, 0, 0);
+                                newStart.setMinutes(newStart.getMinutes() + minsFromStart);
+                                const durationMs =
+                                  new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
+                                const newEnd = new Date(newStart.getTime() + durationMs);
+                                void handleRescheduleWithStylist(id, newStart, newEnd, member.id);
+                              }}
+                            />
+                            {colAppts.map((a) => {
+                              const start = parseDate(a.start_time);
+                              const end = parseDate(a.end_time);
+                              if (!start || !end) return null;
+                              const topMins = minutesSinceDayStart(start, day) - startHour * 60;
+                              const durMins = (end.getTime() - start.getTime()) / 60000;
+                              const top = Math.max(0, topMins) * pxPerMin;
+                              const height = Math.max(44, durMins * pxPerMin);
+                              const svc = Array.isArray(a.services) ? a.services[0] : a.services;
+                              const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
+                              const phone = client?.phone ?? a.guest_phone ?? "";
+                              const label = client?.name || a.guest_name || "Walk-in";
+                              const serviceName = svc?.name || "Service";
+                              const color = stylistColorMap[a.stylist_id] || "#7c3aed";
+                              const lane = lanes.get(a.id) ?? { lane: 0, laneCount: 1 };
+                              const { lane: li, laneCount: lc } = lane;
+                              const pct = 100 / lc;
+                              const gap = 3;
 
-                    {/* Appointment cards */}
-                    {dayAppointments.map((a) => {
-                      const start = parseDate(a.start_time);
-                      const end = parseDate(a.end_time);
-                      if (!start || !end) return null;
-                      const topMins = minutesSinceDayStart(start, day) - startHour * 60;
-                      const durMins = (end.getTime() - start.getTime()) / 60000;
-                      const top = Math.max(0, topMins) * pxPerMin;
-                      const height = Math.max(44, durMins * pxPerMin);
-
-                      const svc = Array.isArray(a.services) ? a.services[0] : a.services;
-                      const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
-                      const phone = client?.phone ?? a.guest_phone ?? "";
-                      const label = client?.name || a.guest_name || "Walk-in";
-                      const serviceName = svc?.name || "Service";
-                      const color = stylistColorMap[a.stylist_id] || "#7c3aed";
-                      const stylistName =
-                        members.find((m) => m.id === a.stylist_id)?.display_name ||
-                        members.find((m) => m.id === a.stylist_id)?.role ||
-                        "";
-
-                      return (
-                        <button
-                          key={a.id}
-                          type="button"
-                          onClick={() => setEditId(a.id)}
-                          draggable
-                          onDragStart={(e) => {
-                            setMovingId(a.id);
-                            e.dataTransfer.setData("text/plain", a.id);
-                          }}
-                          onDragEnd={() => setMovingId(null)}
-                          className="absolute left-0 right-3 text-left rounded-xl border shadow-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent/40"
-                          style={{
-                            top: `${top}px`,
-                            height: `${height}px`,
-                            marginLeft: `${gutterW + 12}px`,
-                            borderColor: `${color}99`,
-                            backgroundColor: `${color}22`,
-                            opacity: movingId === a.id ? 0.7 : 1,
-                          }}
-                        >
-                          <div className="text-sm font-semibold text-foreground truncate flex items-center gap-2">
-                            {a.client_id && clientPhotoMap[a.client_id] && (
-                              <img src={clientPhotoMap[a.client_id]} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
-                            )}
-                            <span className="truncate">
-                              {formatTime(start)}–{formatTime(end)}
-                              {!filterStylistId && stylistName ? ` · ${stylistName}` : ""} · {label} · {serviceName}
-                            </span>
+                              return (
+                                <button
+                                  key={a.id}
+                                  type="button"
+                                  onClick={() => setEditId(a.id)}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    setMovingId(a.id);
+                                    e.dataTransfer.setData("text/plain", a.id);
+                                    e.dataTransfer.effectAllowed = "move";
+                                  }}
+                                  onDragEnd={() => setMovingId(null)}
+                                  className="absolute z-10 text-left rounded-lg border shadow-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation min-h-[44px]"
+                                  style={{
+                                    top: `${top}px`,
+                                    height: `${height}px`,
+                                    left: `calc(${li * pct}% + ${gap / 2}px)`,
+                                    width: `calc(${pct}% - ${gap}px)`,
+                                    borderColor: `${color}99`,
+                                    backgroundColor: `${color}22`,
+                                    opacity: movingId === a.id ? 0.7 : 1,
+                                  }}
+                                >
+                                  <div className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
+                                    {a.client_id && clientPhotoMap[a.client_id] && (
+                                      <img
+                                        src={clientPhotoMap[a.client_id]}
+                                        alt=""
+                                        className="h-6 w-6 rounded-full object-cover shrink-0"
+                                      />
+                                    )}
+                                    <span className="truncate min-w-0">
+                                      {formatTime(start)}–{formatTime(end)} · {label}
+                                    </span>
+                                  </div>
+                                  <div className="text-[10px] text-muted truncate">{serviceName}</div>
+                                  {phone && lc <= 2 && (
+                                    <div className="text-[10px] text-muted truncate">{phone}</div>
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
-                          {phone && <div className="text-xs text-muted truncate">{phone}</div>}
-                        </button>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               );
@@ -559,133 +533,153 @@ export function DiaryView({
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-background shadow-sm">
-          <table className="w-full min-w-[600px] border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/30">
-                <th className="w-14 p-2 text-left text-muted font-medium text-xs">Time</th>
-                {daysToShow.map((d) => (
-                  <th key={d.toISOString()} className="p-2 text-left text-muted font-medium text-xs">
-                    {d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" })}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {SLOTS_15MIN.map((slot, idx) => {
-                const timeLabel = `${slot.hour}:${String(slot.minute).padStart(2, "0")}`;
-                return (
-                <tr key={idx} className="border-b border-border/30">
-                  <td className="p-1 text-muted text-[10px]">{timeLabel}</td>
-                  {daysToShow.map((day) => {
-                    const dayCellStart = new Date(day);
-                    dayCellStart.setHours(slot.hour, slot.minute, 0, 0);
-                    const dayCellEnd = new Date(dayCellStart);
-                    dayCellEnd.setMinutes(dayCellEnd.getMinutes() + 15);
-                    const inCell = filteredAppointments
-                      .filter((a) => {
-                        const s = parseDate(a.start_time);
-                        if (!s) return false;
-                        return s >= dayCellStart && s < dayCellEnd && formatDate(s) === formatDate(day);
-                      })
-                      .sort((a, b) => {
-                        const sa = new Date(a.start_time).getTime();
-                        const sb = new Date(b.start_time).getTime();
-                        if (sa !== sb) return sa - sb;
-                        const stylistA = members.find((m) => m.id === a.stylist_id)?.display_name ?? "";
-                        const stylistB = members.find((m) => m.id === b.stylist_id)?.display_name ?? "";
-                        return stylistA.localeCompare(stylistB);
-                      });
-                    return (
-                      <td
-                        key={day.toISOString()}
-                        className="relative h-3 min-h-3 align-top p-0.5 overflow-visible"
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.dataTransfer.dropEffect = "move";
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          const id = e.dataTransfer.getData("text/plain");
-                          if (!id) return;
-                          const apt = appointments.find((a) => a.id === id);
-                          if (!apt) return;
-                          const newStart = new Date(dayCellStart);
-                          const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
-                          const newEnd = new Date(newStart.getTime() + durationMs);
-                          handleReschedule(id, newStart, newEnd);
-                        }}
-                      >
-                        {inCell.length > 1 ? (
+        <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-border bg-muted/30">
+            <p className="text-xs text-muted">
+              Week view: each day lists appointments in time order. Drag a card onto another day to move it (same time of day). Day view is best for dragging between stylists.
+            </p>
+          </div>
+          <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+            {daysToShow.map((day) => {
+              const dayStr = formatDate(day);
+              const dayList = filteredAppointments
+                .filter((a) => {
+                  const s = parseDate(a.start_time);
+                  return s !== null && formatDate(s) === dayStr;
+                })
+                .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+              return (
+                <div
+                  key={dayStr}
+                  className="rounded-lg border border-border/80 bg-muted/10 flex flex-col min-h-[120px]"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const id = e.dataTransfer.getData("text/plain");
+                    if (!id) return;
+                    const apt = appointments.find((a) => a.id === id);
+                    if (!apt) return;
+                    const s = parseDate(apt.start_time);
+                    const en = parseDate(apt.end_time);
+                    if (!s || !en) return;
+                    const newStart = sameLocalTimeOnDay(s, day);
+                    const newEnd = new Date(newStart.getTime() + (en.getTime() - s.getTime()));
+                    void handleRescheduleWithStylist(id, newStart, newEnd, apt.stylist_id);
+                  }}
+                >
+                  <div className="px-2 py-2 border-b border-border/50 bg-muted/20 shrink-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-semibold">
+                        {day.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+                      </span>
+                      {dayStr === todayStr && (
+                        <span className="text-[10px] rounded-full bg-accent/15 text-accent px-1.5 py-0.5 font-medium">
+                          Today
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-muted">Drop here to move day</span>
+                  </div>
+                  <div className="p-2 space-y-2 flex-1 min-h-0 overflow-y-auto max-h-[min(420px,55vh)]">
+                    {dayList.length === 0 ? (
+                      <p className="text-xs text-muted py-2">No appointments</p>
+                    ) : (
+                      dayList.map((a) => {
+                        const start = parseDate(a.start_time);
+                        const end = parseDate(a.end_time);
+                        if (!start || !end) return null;
+                        const svc = Array.isArray(a.services) ? a.services[0] : a.services;
+                        const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
+                        const label = client?.name || a.guest_name || "Walk-in";
+                        const serviceName = svc?.name || "Service";
+                        const color = stylistColorMap[a.stylist_id] || "#7c3aed";
+                        const stylistName =
+                          members.find((m) => m.id === a.stylist_id)?.display_name ||
+                          members.find((m) => m.id === a.stylist_id)?.role ||
+                          "";
+
+                        return (
                           <div
-                            className="flex flex-col sm:flex-row gap-1 h-full min-h-[12px]"
-                            onDragOver={(e) => {
-                              e.preventDefault();
-                              e.dataTransfer.dropEffect = "move";
+                            key={a.id}
+                            draggable
+                            onDragStart={(e) => {
+                              setMovingId(a.id);
+                              e.dataTransfer.setData("text/plain", a.id);
+                              e.dataTransfer.effectAllowed = "move";
                             }}
-                            onDrop={(e) => {
-                              e.preventDefault();
-                              const id = e.dataTransfer.getData("text/plain");
-                              if (!id) return;
-                              const apt = appointments.find((a) => a.id === id);
-                              if (!apt) return;
-                              const newStart = new Date(dayCellStart);
-                              const durationMs = new Date(apt.end_time).getTime() - new Date(apt.start_time).getTime();
-                              const newEnd = new Date(newStart.getTime() + durationMs);
-                              handleReschedule(id, newStart, newEnd);
+                            onDragEnd={() => setMovingId(null)}
+                            className="rounded-lg border px-2 py-2.5 min-h-[44px] cursor-grab active:cursor-grabbing"
+                            style={{
+                              borderColor: `${color}99`,
+                              backgroundColor: `${color}18`,
+                              opacity: movingId === a.id ? 0.75 : 1,
                             }}
                           >
-                            {inCell.map((a, idx) => (
-                              <AppointmentBlock
-                                key={a.id}
-                                a={a}
-                                cellStart={dayCellStart}
-                                members={members}
-                                stylistColorMap={stylistColorMap}
-                                appointments={appointments}
-                                onReschedule={handleReschedule}
-                                onEdit={() => setEditId(a.id)}
-                                onDelete={() => handleDelete(a.id)}
-                                onDragStart={() => setMovingId(a.id)}
-                                onDragEnd={() => setMovingId(null)}
-                                slotIndex={idx}
-                                slotCount={inCell.length}
-                                clientPhotoUrl={a.client_id ? clientPhotoMap[a.client_id] : null}
-                              />
-                            ))}
+                            <button
+                              type="button"
+                              onClick={() => setEditId(a.id)}
+                              className="w-full text-left"
+                            >
+                              <div className="flex items-start gap-2">
+                                {a.client_id && clientPhotoMap[a.client_id] ? (
+                                  <img
+                                    src={clientPhotoMap[a.client_id]}
+                                    alt=""
+                                    className="h-9 w-9 rounded-full object-cover shrink-0 mt-0.5"
+                                  />
+                                ) : (
+                                  <div
+                                    className="h-9 w-9 rounded-full shrink-0 mt-0.5 bg-muted/40 border border-border/50"
+                                    aria-hidden
+                                  />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-xs font-semibold text-foreground">
+                                    {formatTime(start)}–{formatTime(end)}
+                                  </div>
+                                  <div className="text-sm font-medium truncate">{label}</div>
+                                  <div className="text-xs text-muted truncate">{serviceName}</div>
+                                  {!filterStylistId && stylistName && (
+                                    <div className="text-[10px] text-muted truncate mt-0.5">{stylistName}</div>
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                            <div className="flex gap-2 mt-2 pt-2 border-t border-border/30">
+                              <button
+                                type="button"
+                                onClick={() => setEditId(a.id)}
+                                className="text-xs text-accent hover:underline touch-manipulation"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleDelete(a.id)}
+                                className="text-xs text-red-400 hover:underline touch-manipulation"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </div>
-                        ) : (
-                          inCell.map((a, idx) => (
-                            <AppointmentBlock
-                              key={a.id}
-                              a={a}
-                              cellStart={dayCellStart}
-                              members={members}
-                              stylistColorMap={stylistColorMap}
-                              appointments={appointments}
-                              onReschedule={handleReschedule}
-                              onEdit={() => setEditId(a.id)}
-                              onDelete={() => handleDelete(a.id)}
-                              onDragStart={() => setMovingId(a.id)}
-                              onDragEnd={() => setMovingId(null)}
-                              slotIndex={idx}
-                              slotCount={inCell.length}
-                              clientPhotoUrl={a.client_id ? clientPhotoMap[a.client_id] : null}
-                            />
-                          ))
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      <p className="text-xs text-muted px-1">Drag appointments onto a time slot to reschedule. Use Add / Delete for new or remove.</p>
+      <p className="text-xs text-muted px-1">
+        Day: drag a booking onto another stylist column or time. Week: drag onto a day column. Add / Edit / Delete as before.
+      </p>
 
       {addOpen && (
         <AddAppointmentModal
@@ -728,7 +722,7 @@ export function DiaryView({
             }}
             onDelete={(id) => {
               setEditId(null);
-              handleDelete(id);
+              void handleDelete(id);
             }}
             onClose={() => setEditId(null)}
             onNoShowCharged={() => router.refresh()}

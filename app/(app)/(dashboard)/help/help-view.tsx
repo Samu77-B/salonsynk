@@ -57,7 +57,7 @@ export function HelpView({ salonName, userEmail }: { salonName: string; userEmai
           SalonSynk is a flat-fee salon management platform. It helps you run your diary, manage your team and clients, take payments, and let clients book online.
         </p>
         <ul className="text-sm text-muted list-disc list-inside space-y-1">
-          <li>Weekly diary view with appointments</li>
+          <li>Day diary (per stylist) and week list view with appointments</li>
           <li>Team members with roles and diary colours</li>
           <li>Client database with notes and colour formulas</li>
           <li>In-salon checkout (Stripe payments)</li>
@@ -73,7 +73,7 @@ export function HelpView({ salonName, userEmail }: { salonName: string; userEmai
           <div>
             <h3 className="font-medium text-foreground">Diary</h3>
             <p className="text-muted">
-              Your weekly appointment calendar. View appointments by stylist, drag to reschedule, click to edit or cancel. Use <strong>Add appointment</strong> to book a client. The diary shows all active team members with their diary colours.
+              Your appointment calendar. <strong>Day</strong> shows one time column per stylist (with client photos when set); drag a booking to another column or time to reschedule or reassign. <strong>Week</strong> lists each day in order—drag onto another day to move (same time of day). Filter by stylist, use <strong>Add appointment</strong> to book, click to edit. Team diary colours apply to each stylist.
             </p>
           </div>
 
