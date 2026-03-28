@@ -272,6 +272,14 @@ export async function updateService(
     if (data.duration_minutes !== undefined) payload.duration_minutes = Math.max(1, Math.min(480, Math.round(data.duration_minutes)));
     if (data.price_minor !== undefined) payload.price_minor = Math.max(0, Math.round(data.price_minor));
     if (data.processing_time_minutes !== undefined) payload.processing_time_minutes = Math.max(0, Math.round(data.processing_time_minutes));
+    if (
+      payload.processing_time_minutes !== undefined &&
+      payload.duration_minutes !== undefined
+    ) {
+      const d = Number(payload.duration_minutes);
+      const p = Number(payload.processing_time_minutes);
+      payload.processing_time_minutes = Math.max(0, Math.min(d, p));
+    }
     if (data.description !== undefined) payload.description = normalizeServiceDescription(data.description);
     if (Object.keys(payload).length === 0) return {};
     const supabase = await createClient();

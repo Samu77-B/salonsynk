@@ -18,12 +18,20 @@ type ServiceRow = {
 const inputClass =
   "rounded-lg border border-border bg-background px-3 py-2 text-sm w-full min-w-0 placeholder:text-muted-foreground/60";
 
+function defaultProcessingMinutes(durationMin: number): number {
+  const half = Math.floor(durationMin / 2);
+  const v = half >= 15 ? half : 30;
+  return Math.min(durationMin, Math.max(15, v));
+}
+
 function ServiceCard({ salonId, service }: { salonId: string; service: ServiceRow }) {
   const router = useRouter();
   const [name, setName] = useState(service.name);
   const [duration, setDuration] = useState(service.duration_minutes);
   const [price, setPrice] = useState(service.price_minor > 0 ? (service.price_minor / 100).toFixed(2) : "");
-  const [processing, setProcessing] = useState(service.processing_time_minutes ?? 0);
+  const initialProc = service.processing_time_minutes ?? 0;
+  const [allowOverlap, setAllowOverlap] = useState(initialProc > 0);
+  const [processing, setProcessing] = useState(initialProc > 0 ? initialProc : defaultProcessingMinutes(service.duration_minutes));
   const [description, setDescription] = useState(service.description ?? "");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -34,7 +42,9 @@ function ServiceCard({ salonId, service }: { salonId: string; service: ServiceRo
     setName(service.name);
     setDuration(service.duration_minutes);
     setPrice(service.price_minor > 0 ? (service.price_minor / 100).toFixed(2) : "");
-    setProcessing(service.processing_time_minutes ?? 0);
+    const p = service.processing_time_minutes ?? 0;
+    setAllowOverlap(p > 0);
+    setProcessing(p > 0 ? p : defaultProcessingMinutes(service.duration_minutes));
     setDescription(service.description ?? "");
   }, [
     service.id,
@@ -63,11 +73,22 @@ function ServiceCard({ salonId, service }: { salonId: string; service: ServiceRo
       setFeedbackText("Enter a valid price.");
       return;
     }
+    let procSubmit = 0;
+    if (allowOverlap) {
+      const p = Math.round(processing);
+      if (!Number.isFinite(p) || p < 1) {
+        setSaving(false);
+        setFeedback("error");
+        setFeedbackText("Enter processing time (at least 1 minute), or turn off overlap.");
+        return;
+      }
+      procSubmit = Math.min(duration, p);
+    }
     const result = await updateService(salonId, service.id, {
       name: n,
       duration_minutes: duration,
       price_minor: priceMinor,
-      processing_time_minutes: processing,
+      processing_time_minutes: procSubmit,
       description,
     });
     setSaving(false);
@@ -111,7 +132,7 @@ function ServiceCard({ salonId, service }: { salonId: string; service: ServiceRo
           className={inputClass}
         />
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor={`svc-dur-${service.id}`} className="mb-1 block text-sm font-medium">
             Duration (min)
@@ -122,7 +143,11 @@ function ServiceCard({ salonId, service }: { salonId: string; service: ServiceRo
             min={5}
             max={480}
             value={duration}
-            onChange={(e) => setDuration(Number(e.target.value) || 60)}
+            onChange={(e) => {
+              const d = Number(e.target.value) || 60;
+              setDuration(d);
+              if (allowOverlap) setProcessing((prev) => Math.min(d, Math.max(1, prev)));
+            }}
             autoComplete="off"
             className={inputClass}
           />
@@ -142,21 +167,49 @@ function ServiceCard({ salonId, service }: { salonId: string; service: ServiceRo
             className={inputClass}
           />
         </div>
-        <div>
-          <label htmlFor={`svc-proc-${service.id}`} className="mb-1 block text-sm font-medium">
-            Processing (min)
-          </label>
+      </div>
+      <div className="rounded-lg border border-border bg-background/40 p-3">
+        <label className="flex cursor-pointer items-start gap-2 text-sm">
           <input
-            id={`svc-proc-${service.id}`}
-            type="number"
-            min={0}
-            max={480}
-            value={processing}
-            onChange={(e) => setProcessing(Number(e.target.value) || 0)}
-            autoComplete="off"
-            className={inputClass}
+            type="checkbox"
+            checked={allowOverlap}
+            onChange={(e) => {
+              const on = e.target.checked;
+              setAllowOverlap(on);
+              if (on) {
+                setProcessing((prev) => (prev > 0 ? Math.min(duration, prev) : defaultProcessingMinutes(duration)));
+              } else {
+                setProcessing(0);
+              }
+            }}
+            className="mt-1 rounded border-border"
           />
-        </div>
+          <span>
+            <span className="font-medium text-foreground">Stylist can see another client during processing</span>
+            <span className="mt-1 block text-muted">
+              Use for treatments like colour: while the client&apos;s hair processes, the diary allows another booking in that
+              window. Set how long that processing period lasts (cannot exceed total duration).
+            </span>
+          </span>
+        </label>
+        {allowOverlap ? (
+          <div className="mt-3 sm:max-w-xs">
+            <label htmlFor={`svc-proc-${service.id}`} className="mb-1 block text-sm font-medium">
+              Processing time (minutes)
+            </label>
+            <input
+              id={`svc-proc-${service.id}`}
+              type="number"
+              min={1}
+              max={duration}
+              value={processing}
+              onChange={(e) => setProcessing(Number(e.target.value) || 0)}
+              autoComplete="off"
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-muted">Max {duration} (full appointment length).</p>
+          </div>
+        ) : null}
       </div>
       <div>
         <label htmlFor={`svc-desc-${service.id}`} className="mb-1 block text-sm font-medium">
@@ -216,7 +269,8 @@ export function ServicesView({
   const [newServiceName, setNewServiceName] = useState("");
   const [newServiceDuration, setNewServiceDuration] = useState(60);
   const [newServicePrice, setNewServicePrice] = useState("");
-  const [newServiceProcessing, setNewServiceProcessing] = useState(0);
+  const [newAllowOverlap, setNewAllowOverlap] = useState(false);
+  const [newServiceProcessing, setNewServiceProcessing] = useState(() => defaultProcessingMinutes(60));
   const [newServiceDescription, setNewServiceDescription] = useState("");
   const [addMsg, setAddMsg] = useState<"saved" | "error" | null>(null);
   const [addError, setAddError] = useState("");
@@ -229,8 +283,9 @@ export function ServicesView({
   return (
     <section className="space-y-6">
       <p className="text-sm text-muted">
-        Each service is a card: set timing and price, then use <span className="font-medium text-foreground">More info</span> for
-        details, aftercare, or internal notes.
+        Each service is a card: set timing and price. Optional: allow <span className="font-medium text-foreground">overlap</span>{" "}
+        when the client is processing (e.g. colour developing) so another client can be booked in that gap. Use{" "}
+        <span className="font-medium text-foreground">More info</span> for details, aftercare, or internal notes.
       </p>
 
       <div className="rounded-xl border border-dashed border-border bg-background/60 p-4 shadow-sm sm:p-5">
@@ -250,11 +305,21 @@ export function ServicesView({
                 setAddError("Enter a valid price.");
                 return;
               }
+              let proc = 0;
+              if (newAllowOverlap) {
+                const p = Math.round(newServiceProcessing);
+                if (!Number.isFinite(p) || p < 1) {
+                  setAddMsg("error");
+                  setAddError("Enter processing time (at least 1 minute), or turn off overlap.");
+                  return;
+                }
+                proc = Math.min(newServiceDuration, p);
+              }
               const result = await addService(salonId, {
                 name: newServiceName.trim(),
                 duration_minutes: newServiceDuration,
                 price_minor: priceMinor,
-                processing_time_minutes: newServiceProcessing,
+                processing_time_minutes: proc,
                 description: newServiceDescription,
               });
               setAddMsg(result.error ? "error" : "saved");
@@ -263,7 +328,8 @@ export function ServicesView({
                 setNewServiceName("");
                 setNewServiceDuration(60);
                 setNewServicePrice("");
-                setNewServiceProcessing(0);
+                setNewAllowOverlap(false);
+                setNewServiceProcessing(defaultProcessingMinutes(60));
                 setNewServiceDescription("");
                 router.refresh();
               }
@@ -291,7 +357,7 @@ export function ServicesView({
               className={inputClass}
             />
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="new-service-duration" className="mb-1 block text-sm font-medium">
                 Duration (min)
@@ -303,7 +369,13 @@ export function ServicesView({
                 min={5}
                 max={480}
                 value={newServiceDuration}
-                onChange={(e) => setNewServiceDuration(Number(e.target.value) || 60)}
+                onChange={(e) => {
+                  const d = Number(e.target.value) || 60;
+                  setNewServiceDuration(d);
+                  if (newAllowOverlap) {
+                    setNewServiceProcessing((prev) => (prev > 0 ? Math.min(d, prev) : defaultProcessingMinutes(d)));
+                  }
+                }}
                 autoComplete="off"
                 className={inputClass}
               />
@@ -324,22 +396,51 @@ export function ServicesView({
                 className={inputClass}
               />
             </div>
-            <div>
-              <label htmlFor="new-service-processing" className="mb-1 block text-sm font-medium">
-                Processing (min)
-              </label>
+          </div>
+          <div className="rounded-lg border border-border bg-background/40 p-3">
+            <label className="flex cursor-pointer items-start gap-2 text-sm">
               <input
-                id="new-service-processing"
-                name="new_service_processing_min"
-                type="number"
-                min={0}
-                max={480}
-                value={newServiceProcessing}
-                onChange={(e) => setNewServiceProcessing(Number(e.target.value) || 0)}
-                autoComplete="off"
-                className={inputClass}
+                type="checkbox"
+                checked={newAllowOverlap}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setNewAllowOverlap(on);
+                  if (on) {
+                    setNewServiceProcessing((prev) =>
+                      prev > 0 ? Math.min(newServiceDuration, prev) : defaultProcessingMinutes(newServiceDuration)
+                    );
+                  } else {
+                    setNewServiceProcessing(0);
+                  }
+                }}
+                className="mt-1 rounded border-border"
               />
-            </div>
+              <span>
+                <span className="font-medium text-foreground">Stylist can see another client during processing</span>
+                <span className="mt-1 block text-muted">
+                  e.g. colour developing — set how long the client is left processing (up to the full duration).
+                </span>
+              </span>
+            </label>
+            {newAllowOverlap ? (
+              <div className="mt-3 sm:max-w-xs">
+                <label htmlFor="new-service-processing" className="mb-1 block text-sm font-medium">
+                  Processing time (minutes)
+                </label>
+                <input
+                  id="new-service-processing"
+                  name="new_service_processing_min"
+                  type="number"
+                  min={1}
+                  max={newServiceDuration}
+                  value={newServiceProcessing}
+                  onChange={(e) => setNewServiceProcessing(Number(e.target.value) || 0)}
+                  autoComplete="off"
+                  className={inputClass}
+                />
+                <p className="mt-1 text-xs text-muted">Max {newServiceDuration}.</p>
+              </div>
+            ) : null}
           </div>
           <div>
             <label htmlFor="new-service-description" className="mb-1 block text-sm font-medium">
