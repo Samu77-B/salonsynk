@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { addProduct, updateProduct, deleteProduct } from "./actions";
+import {
+  addProduct,
+  updateProduct,
+  deleteProduct,
+  uploadProductImage,
+  importProductsFromCsv,
+} from "./actions";
 
 const DESCRIPTION_MAX = 2000;
 
@@ -23,6 +29,90 @@ const inputClass =
 
 function formatGbp(minor: number) {
   return (minor / 100).toFixed(2);
+}
+
+const CSV_TEMPLATE = `name,price_gbp,category,description,image_url,sort_order,is_active
+Example shampoo,12.99,Hair care,Great for dry hair,,0,true
+Another item,8.50,,Optional description,https://example.com/photo.jpg,1,true
+`;
+
+function ProductImageFields({
+  salonId,
+  idPrefix,
+  imageUrl,
+  onImageUrlChange,
+}: {
+  salonId: string;
+  idPrefix: string;
+  imageUrl: string;
+  onImageUrlChange: (v: string) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState("");
+
+  async function onFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    setUploadErr("");
+    setUploading(true);
+    const fd = new FormData();
+    fd.set("image", f);
+    const r = await uploadProductImage(salonId, fd);
+    setUploading(false);
+    if (r.error) setUploadErr(r.error);
+    else if (r.url) onImageUrlChange(r.url);
+  }
+
+  return (
+    <div className="space-y-2">
+      <label htmlFor={`${idPrefix}-image-url`} className="mb-1 block text-sm font-medium">
+        Image URL (optional)
+      </label>
+      <input
+        id={`${idPrefix}-image-url`}
+        type="url"
+        value={imageUrl}
+        onChange={(e) => onImageUrlChange(e.target.value)}
+        placeholder="https://… or upload below"
+        className={inputClass}
+      />
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="sr-only"
+        aria-label="Upload product image file"
+        onChange={(e) => void onFileChange(e)}
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="rounded-lg border border-border px-3 py-1.5 text-sm disabled:opacity-50"
+        >
+          {uploading ? "Uploading…" : "Upload image"}
+        </button>
+        {uploadErr ? (
+          <span className="text-xs text-red-400" role="alert">
+            {uploadErr}
+          </span>
+        ) : null}
+      </div>
+      {imageUrl ? (
+        <div className="mt-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt=""
+            className="h-20 w-20 rounded-lg border border-border object-cover"
+          />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function ProductCard({
@@ -109,8 +199,11 @@ function ProductCard({
   return (
     <article className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-background p-4 shadow-sm">
       <div>
-        <label className="mb-1 block text-sm font-medium">Name</label>
+        <label htmlFor={`product-name-${product.id}`} className="mb-1 block text-sm font-medium">
+          Name
+        </label>
         <input
+          id={`product-name-${product.id}`}
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -119,8 +212,11 @@ function ProductCard({
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium">Category</label>
+          <label htmlFor={`product-cat-${product.id}`} className="mb-1 block text-sm font-medium">
+            Category
+          </label>
           <input
+            id={`product-cat-${product.id}`}
             type="text"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
@@ -129,8 +225,11 @@ function ProductCard({
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Price (GBP)</label>
+          <label htmlFor={`product-price-${product.id}`} className="mb-1 block text-sm font-medium">
+            Price (GBP)
+          </label>
           <input
+            id={`product-price-${product.id}`}
             type="text"
             inputMode="decimal"
             value={price}
@@ -141,8 +240,11 @@ function ProductCard({
         </div>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Description</label>
+        <label htmlFor={`product-desc-${product.id}`} className="mb-1 block text-sm font-medium">
+          Description
+        </label>
         <textarea
+          id={`product-desc-${product.id}`}
           value={description}
           onChange={(e) => setDescription(e.target.value.slice(0, DESCRIPTION_MAX))}
           rows={3}
@@ -152,20 +254,19 @@ function ProductCard({
           {description.length} / {DESCRIPTION_MAX}
         </p>
       </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium">Image URL</label>
-        <input
-          type="url"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://…"
-          className={inputClass}
-        />
-      </div>
+      <ProductImageFields
+        salonId={salonId}
+        idPrefix={`edit-${product.id}`}
+        imageUrl={imageUrl}
+        onImageUrlChange={setImageUrl}
+      />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium">Sort order</label>
+          <label htmlFor={`product-sort-${product.id}`} className="mb-1 block text-sm font-medium">
+            Sort order
+          </label>
           <input
+            id={`product-sort-${product.id}`}
             type="number"
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
@@ -243,6 +344,10 @@ export function ProductsView({
   const [addLoading, setAddLoading] = useState(false);
   const [addMsg, setAddMsg] = useState<"saved" | "error" | null>(null);
   const [addError, setAddError] = useState("");
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const [csvLoading, setCsvLoading] = useState(false);
+  const [csvSummary, setCsvSummary] = useState<string | null>(null);
+  const [csvRowErrors, setCsvRowErrors] = useState<{ line: number; message: string }[]>([]);
 
   if (!canManage) {
     return <p className="text-sm text-muted">Only owners can manage products.</p>;
@@ -261,6 +366,86 @@ export function ProductsView({
         </a>
         .
       </p>
+
+      <div className="rounded-xl border border-border bg-background/60 p-4 shadow-sm sm:p-5">
+        <h2 className="mb-2 text-base font-semibold">Import from CSV</h2>
+        <p className="mb-3 text-sm text-muted">
+          Columns: <span className="font-mono text-xs">name</span> (required),{" "}
+          <span className="font-mono text-xs">price_gbp</span>, <span className="font-mono text-xs">category</span>,{" "}
+          <span className="font-mono text-xs">description</span>, <span className="font-mono text-xs">image_url</span>,{" "}
+          <span className="font-mono text-xs">sort_order</span>, <span className="font-mono text-xs">is_active</span>{" "}
+          (true/false). Up to 500 rows per file. Avoid line breaks inside cells.
+        </p>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="rounded-lg border border-border px-3 py-1.5 text-sm"
+            onClick={() => {
+              const blob = new Blob([CSV_TEMPLATE], { type: "text/csv;charset=utf-8" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = "products-import-template.csv";
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Download CSV template
+          </button>
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="sr-only"
+            aria-label="Import products from CSV file"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (!f) return;
+              setCsvSummary(null);
+              setCsvRowErrors([]);
+              setCsvLoading(true);
+              try {
+                const text = await f.text();
+                const result = await importProductsFromCsv(salonId, text);
+                if (result.error) {
+                  setCsvSummary(result.error);
+                  setCsvRowErrors(result.rowErrors);
+                } else {
+                  const parts = [`Imported ${result.added} product(s).`];
+                  if (result.rowErrors.length)
+                    parts.push(`${result.rowErrors.length} row(s) skipped (see below).`);
+                  setCsvSummary(parts.join(" "));
+                  setCsvRowErrors(result.rowErrors);
+                  if (result.added > 0) router.refresh();
+                }
+              } catch (err) {
+                setCsvSummary(err instanceof Error ? err.message : "Could not read CSV.");
+              } finally {
+                setCsvLoading(false);
+              }
+            }}
+          />
+          <button
+            type="button"
+            disabled={csvLoading}
+            className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-background disabled:opacity-50"
+            onClick={() => csvInputRef.current?.click()}
+          >
+            {csvLoading ? "Importing…" : "Choose CSV file"}
+          </button>
+        </div>
+        {csvSummary ? <p className="text-sm text-muted">{csvSummary}</p> : null}
+        {csvRowErrors.length > 0 ? (
+          <ul className="mt-2 max-h-32 list-inside list-disc overflow-y-auto text-xs text-red-400">
+            {csvRowErrors.slice(0, 20).map((r) => (
+              <li key={`${r.line}-${r.message}`}>
+                Line {r.line}: {r.message}
+              </li>
+            ))}
+            {csvRowErrors.length > 20 ? <li>…and {csvRowErrors.length - 20} more</li> : null}
+          </ul>
+        ) : null}
+      </div>
 
       <div className="rounded-xl border border-dashed border-border bg-background/60 p-4 shadow-sm sm:p-5">
         <h2 className="mb-3 text-base font-semibold">Add a product</h2>
@@ -354,18 +539,12 @@ export function ProductsView({
               className={`${inputClass} min-h-[4.5rem] resize-y`}
             />
           </div>
-          <div>
-            <label htmlFor="new-product-image" className="mb-1 block text-sm font-medium">
-              Image URL (optional)
-            </label>
-            <input
-              id="new-product-image"
-              type="url"
-              value={newImageUrl}
-              onChange={(e) => setNewImageUrl(e.target.value)}
-              className={inputClass}
-            />
-          </div>
+          <ProductImageFields
+            salonId={salonId}
+            idPrefix="new-product"
+            imageUrl={newImageUrl}
+            onImageUrlChange={setNewImageUrl}
+          />
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="submit"
