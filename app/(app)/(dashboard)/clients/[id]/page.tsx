@@ -73,8 +73,8 @@ export default async function ClientDetailPage({
   const avatarSrc = profilePhoto
     ? profilePhoto.url
     : client.sex === "male"
-      ? "/imgs/male.svg"
-      : "/imgs/female.svg";
+      ? "/imgs/His.png"
+      : "/imgs/Her.png";
 
   return (
     <main className="p-4 md:p-6 max-w-3xl min-w-0">

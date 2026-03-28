@@ -15,7 +15,7 @@ export type ClientListRow = {
 
 function ClientAvatar({ client }: { client: ClientListRow }) {
   const src = client.profile_photo_url
-    ?? (client.sex === "male" ? "/imgs/male.svg" : "/imgs/female.svg");
+    ?? (client.sex === "male" ? "/imgs/His.png" : "/imgs/Her.png");
   const hasPhoto = !!client.profile_photo_url;
 
   return (

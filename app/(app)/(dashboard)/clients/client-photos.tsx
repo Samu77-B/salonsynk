@@ -12,7 +12,7 @@ const SLOTS: { key: PhotoSlot; label: string }[] = [
 ];
 
 function DefaultAvatar({ sex }: { sex: string | null }) {
-  const src = sex === "male" ? "/imgs/male.svg" : "/imgs/female.svg";
+  const src = sex === "male" ? "/imgs/His.png" : "/imgs/Her.png";
   return (
     <img
       src={src}
