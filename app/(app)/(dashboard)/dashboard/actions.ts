@@ -192,6 +192,8 @@ export type UpdateAppointmentInput = {
   send_aftercare?: boolean;
   before_photo_url?: string | null;
   after_photo_url?: string | null;
+  /** Skip hands-on overlap check when changing time/stylist (salon staff only). */
+  allowScheduleOverlap?: boolean;
 };
 
 export async function updateAppointment(id: string, updates: UpdateAppointmentInput) {
@@ -270,10 +272,13 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
       });
 
     const { startMinutes, endMinutes } = rangeToMinutes(start, end);
-    if (hasBlockingOverlapWithExisting(blockingExisting, startMinutes, endMinutes, newProcessing)) {
+    if (
+      !updates.allowScheduleOverlap &&
+      hasBlockingOverlapWithExisting(blockingExisting, startMinutes, endMinutes, newProcessing)
+    ) {
       return {
         error:
-          "This would overlap with another appointment during hands-on time. Adjust time or use a service with processing time so another client can sit during developing.",
+          "This would overlap with another appointment during hands-on time. Adjust time or use a service with processing time so another client can sit during developing. To keep this time anyway, tick “Save even if this overlaps another booking” directly below, then Save again.",
       };
     }
   }

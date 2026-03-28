@@ -168,7 +168,15 @@ export function EditAppointmentModal({
   const [loading, setLoading] = useState(false);
   const [noShowLoading, setNoShowLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [allowScheduleOverlap, setAllowScheduleOverlap] = useState(false);
+  const errorAndOverlapRef = useRef<HTMLDivElement>(null);
   const canChargeNoShow = appointment.status === "scheduled";
+
+  useEffect(() => {
+    if (submitError) {
+      errorAndOverlapRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [submitError]);
 
   useEffect(() => {
     const c = clients.find((x) => x.id === appointment.client_id);
@@ -186,6 +194,8 @@ export function EditAppointmentModal({
     setSendAftercare(appointment.send_aftercare ?? false);
     setBeforePhotoUrl(appointment.before_photo_url ?? "");
     setAfterPhotoUrl(appointment.after_photo_url ?? "");
+    setAllowScheduleOverlap(false);
+    setSubmitError(null);
   }, [appointment, clients]);
 
   const messagingOn = sendReminderSms || sendReviewRequest || sendAftercare;
@@ -220,6 +230,7 @@ export function EditAppointmentModal({
         send_aftercare: sendAftercare,
         before_photo_url: beforePhotoUrl?.trim() || null,
         after_photo_url: afterPhotoUrl?.trim() || null,
+        allowScheduleOverlap,
       });
       if (result?.error) setSubmitError(result.error);
     } catch (e) {
@@ -431,11 +442,30 @@ export function EditAppointmentModal({
             </button>
           </div>
         )}
-          {submitError && (
-            <p className="text-sm text-red-400" role="alert">
-              {submitError}
-            </p>
-          )}
+          <div ref={errorAndOverlapRef} className="space-y-3 scroll-mt-4">
+            {submitError && (
+              <p className="text-sm text-red-400" role="alert">
+                {submitError}
+              </p>
+            )}
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  id="edit-allow-schedule-overlap"
+                  type="checkbox"
+                  checked={allowScheduleOverlap}
+                  onChange={(e) => setAllowScheduleOverlap(e.target.checked)}
+                  className="mt-1 rounded border-border"
+                />
+                <span className="text-sm">
+                  <span className="font-medium text-foreground">Save even if this overlaps another booking</span>
+                  <span className="mt-1 block text-muted">
+                    Use when you intentionally want this slot to sit on top of another (e.g. walk-in you already added).
+                  </span>
+                </span>
+              </label>
+            </div>
+          </div>
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm">
               Cancel
