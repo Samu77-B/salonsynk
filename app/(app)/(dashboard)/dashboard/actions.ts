@@ -133,7 +133,7 @@ export async function createAppointment(input: CreateAppointmentInput) {
   ) {
     return {
       error:
-        "This would overlap with another appointment during hands-on time. If the service has processing time (e.g. colour developing), another booking can sit in that window — set processing minutes on the service in Settings. Or tick “Add even if this overlaps” below for a walk-in you’re squeezing in.",
+        "This would overlap with another appointment during hands-on time. If the service has processing time (e.g. colour developing), another booking can sit in that window — set processing minutes on the service in Settings. To add a walk-in anyway, tick “Add even if this overlaps another booking” directly below, then press Add again.",
     };
   }
 

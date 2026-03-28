@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { CreateAppointmentInput } from "./actions";
 
 type Member = { id: string; display_name: string | null; role: string };
@@ -39,6 +39,13 @@ export function AddAppointmentModal({
   const [allowScheduleOverlap, setAllowScheduleOverlap] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const errorAndOverlapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (submitError) {
+      errorAndOverlapRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [submitError]);
 
   useEffect(() => {
     if (clientId) {
@@ -241,9 +248,16 @@ export function AddAppointmentModal({
               <span className="text-sm">Send aftercare instructions after appointment</span>
             </label>
           </div>
+          <div ref={errorAndOverlapRef} className="space-y-3 scroll-mt-4">
+          {submitError && (
+            <p className="text-sm text-red-400" role="alert">
+              {submitError}
+            </p>
+          )}
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
             <label className="flex items-start gap-2 cursor-pointer">
               <input
+                id="allow-schedule-overlap"
                 type="checkbox"
                 checked={allowScheduleOverlap}
                 onChange={(e) => setAllowScheduleOverlap(e.target.checked)}
@@ -258,11 +272,7 @@ export function AddAppointmentModal({
               </span>
             </label>
           </div>
-          {submitError && (
-            <p className="text-sm text-red-400" role="alert">
-              {submitError}
-            </p>
-          )}
+          </div>
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm">
               Cancel
