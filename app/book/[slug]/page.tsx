@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GuestBookingForm } from "./guest-booking-form";
 
@@ -43,6 +44,14 @@ export default async function BookPage({
       }
     >
       <div className="w-full max-w-md space-y-6">
+        <div className="flex justify-center">
+          <Link
+            href={`/${slug}/shop`}
+            className="text-sm font-medium text-accent underline hover:opacity-90"
+          >
+            Shop products
+          </Link>
+        </div>
         {logoUrl ? (
           <div className="flex justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
