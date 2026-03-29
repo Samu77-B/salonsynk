@@ -36,6 +36,23 @@ type Appointment = {
   salon_members: { display_name: string | null } | { display_name: string | null }[] | null;
 };
 
+const DIARY_VISIBLE_STATUSES = ["scheduled", "completed", "canceled", "no_show"] as const;
+
+function isDiaryVisibleStatus(status: string): boolean {
+  return (DIARY_VISIBLE_STATUSES as readonly string[]).includes(status);
+}
+
+function appointmentAllowsDrag(status: string): boolean {
+  return status !== "canceled" && status !== "no_show";
+}
+
+function appointmentStatusChip(status: string): string | null {
+  if (status === "canceled") return "Cancelled";
+  if (status === "no_show") return "No-show";
+  if (status === "completed") return "Done";
+  return null;
+}
+
 const MIN_COL_PX = 108;
 
 function formatDate(d: Date) {
@@ -184,7 +201,7 @@ export function DiaryView({
   );
 
   const filteredAppointments = useMemo(() => {
-    let list = appointments.filter((a) => a.status === "scheduled" || a.status === "completed");
+    let list = appointments.filter((a) => isDiaryVisibleStatus(a.status));
     if (filterStylistId) list = list.filter((a) => a.stylist_id === filterStylistId);
     const dayStart = new Date(daysToShow[0]);
     dayStart.setHours(0, 0, 0, 0);
@@ -479,20 +496,27 @@ export function DiaryView({
                               const { lane: li, laneCount: lc } = lane;
                               const pct = 100 / lc;
                               const gap = 3;
+                              const drag = appointmentAllowsDrag(a.status);
+                              const chip = appointmentStatusChip(a.status);
+                              const muted = a.status === "canceled" || a.status === "no_show";
 
                               return (
                                 <button
                                   key={a.id}
                                   type="button"
                                   onClick={() => setEditId(a.id)}
-                                  draggable
+                                  draggable={drag}
                                   onDragStart={(e) => {
+                                    if (!drag) {
+                                      e.preventDefault();
+                                      return;
+                                    }
                                     setMovingId(a.id);
                                     e.dataTransfer.setData("text/plain", a.id);
                                     e.dataTransfer.effectAllowed = "move";
                                   }}
                                   onDragEnd={() => setMovingId(null)}
-                                  className="absolute z-10 text-left rounded-lg border shadow-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation min-h-[44px]"
+                                  className={`absolute z-10 text-left rounded-lg border shadow-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation min-h-[44px] ${a.status === "canceled" ? "line-through decoration-foreground/50" : ""}`}
                                   style={{
                                     top: `${top}px`,
                                     height: `${height}px`,
@@ -500,9 +524,14 @@ export function DiaryView({
                                     width: `calc(${pct}% - ${gap}px)`,
                                     borderColor: `${color}99`,
                                     backgroundColor: `${color}22`,
-                                    opacity: movingId === a.id ? 0.7 : 1,
+                                    opacity: movingId === a.id ? 0.7 : muted ? 0.65 : 1,
                                   }}
                                 >
+                                  {chip ? (
+                                    <span className="mb-0.5 inline-block rounded bg-background/80 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted">
+                                      {chip}
+                                    </span>
+                                  ) : null}
                                   <div className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
                                     {a.client_id && clientPhotoMap[a.client_id] && (
                                       <img
@@ -601,24 +630,36 @@ export function DiaryView({
                           members.find((m) => m.id === a.stylist_id)?.display_name ||
                           members.find((m) => m.id === a.stylist_id)?.role ||
                           "";
+                        const drag = appointmentAllowsDrag(a.status);
+                        const chip = appointmentStatusChip(a.status);
+                        const muted = a.status === "canceled" || a.status === "no_show";
 
                         return (
                           <div
                             key={a.id}
-                            draggable
+                            draggable={drag}
                             onDragStart={(e) => {
+                              if (!drag) {
+                                e.preventDefault();
+                                return;
+                              }
                               setMovingId(a.id);
                               e.dataTransfer.setData("text/plain", a.id);
                               e.dataTransfer.effectAllowed = "move";
                             }}
                             onDragEnd={() => setMovingId(null)}
-                            className="rounded-lg border px-2 py-2.5 min-h-[44px] cursor-grab active:cursor-grabbing"
+                            className={`rounded-lg border px-2 py-2.5 min-h-[44px] ${drag ? "cursor-grab active:cursor-grabbing" : ""}`}
                             style={{
                               borderColor: `${color}99`,
                               backgroundColor: `${color}18`,
-                              opacity: movingId === a.id ? 0.75 : 1,
+                              opacity: movingId === a.id ? 0.75 : muted ? 0.65 : 1,
                             }}
                           >
+                            {chip ? (
+                              <span className="mb-1 inline-block rounded bg-background/80 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted">
+                                {chip}
+                              </span>
+                            ) : null}
                             <button
                               type="button"
                               onClick={() => setEditId(a.id)}
@@ -641,7 +682,11 @@ export function DiaryView({
                                   <div className="text-xs font-semibold text-foreground">
                                     {formatTime(start)}–{formatTime(end)}
                                   </div>
-                                  <div className="text-sm font-medium truncate">{label}</div>
+                                  <div
+                                    className={`text-sm font-medium truncate ${a.status === "canceled" ? "line-through decoration-foreground/50" : ""}`}
+                                  >
+                                    {label}
+                                  </div>
                                   <div className="text-xs text-muted truncate">{serviceName}</div>
                                   {!filterStylistId && stylistName && (
                                     <div className="text-[10px] text-muted truncate mt-0.5">{stylistName}</div>

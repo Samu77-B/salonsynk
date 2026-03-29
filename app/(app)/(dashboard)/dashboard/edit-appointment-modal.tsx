@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { UpdateAppointmentInput } from "./actions";
+import type { AppointmentDbStatus, UpdateAppointmentInput } from "./actions";
 import { uploadAppointmentPhoto } from "./actions";
 
 type Member = { id: string; display_name: string | null; role: string };
@@ -11,7 +11,7 @@ type Appointment = {
   id: string;
   start_time: string;
   end_time: string;
-  status?: string;
+  status: string;
   deposit_payment_intent_id?: string | null;
   before_photo_url?: string | null;
   after_photo_url?: string | null;
@@ -30,6 +30,21 @@ type Appointment = {
 function timeFromISO(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function statusDisplayLabel(status: string): string {
+  switch (status) {
+    case "scheduled":
+      return "Scheduled";
+    case "completed":
+      return "Completed";
+    case "no_show":
+      return "No-show";
+    case "canceled":
+      return "Cancelled";
+    default:
+      return status;
+  }
 }
 
 function PhotoUploadField({
@@ -169,8 +184,10 @@ export function EditAppointmentModal({
   const [noShowLoading, setNoShowLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [allowScheduleOverlap, setAllowScheduleOverlap] = useState(false);
+  const [statusBusy, setStatusBusy] = useState(false);
   const errorAndOverlapRef = useRef<HTMLDivElement>(null);
-  const canChargeNoShow = appointment.status === "scheduled";
+  const currentStatus = appointment.status ?? "scheduled";
+  const canChargeNoShow = currentStatus === "scheduled";
 
   useEffect(() => {
     if (submitError) {
@@ -203,6 +220,20 @@ export function EditAppointmentModal({
 
   const service = services.find((s) => s.id === serviceId);
   const durationMinutes = service?.duration_minutes ?? 60;
+
+  async function applyStatus(next: AppointmentDbStatus, confirmMessage?: string) {
+    if (confirmMessage && !confirm(confirmMessage)) return;
+    setSubmitError(null);
+    setStatusBusy(true);
+    try {
+      const result = await onUpdate(appointment.id, { status: next });
+      if (result?.error) setSubmitError(result.error);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Could not update status.");
+    } finally {
+      setStatusBusy(false);
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -244,6 +275,71 @@ export function EditAppointmentModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto" onClick={onClose}>
       <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-lg border border-border bg-background p-6 shadow-xl my-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold mb-4">Edit appointment</h2>
+        <div className="mb-4 rounded-lg border border-border bg-muted/20 p-3 space-y-3">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">Current status</p>
+            <p className="text-sm font-semibold text-foreground" aria-live="polite">
+              {statusDisplayLabel(currentStatus)}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {currentStatus === "scheduled" && (
+              <button
+                type="button"
+                disabled={statusBusy || loading}
+                onClick={() => void applyStatus("completed")}
+                className="rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-50"
+              >
+                Mark completed
+              </button>
+            )}
+            {(currentStatus === "scheduled" || currentStatus === "completed") && (
+              <button
+                type="button"
+                disabled={statusBusy || loading}
+                onClick={() =>
+                  void applyStatus(
+                    "canceled",
+                    "Mark this appointment as cancelled? It will stay on the diary as cancelled."
+                  )
+                }
+                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted/50 disabled:opacity-50"
+              >
+                Mark cancelled
+              </button>
+            )}
+            {currentStatus === "scheduled" && (
+              <button
+                type="button"
+                disabled={statusBusy || loading || noShowLoading}
+                onClick={() =>
+                  void applyStatus(
+                    "no_show",
+                    "Mark as no-show without charging a deposit? Use “Charge no-show fee” if you need to capture a deposit."
+                  )
+                }
+                className="rounded-lg border border-amber-500/50 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-500/15 disabled:opacity-50"
+              >
+                Mark no-show (no charge)
+              </button>
+            )}
+            {(currentStatus === "completed" || currentStatus === "canceled" || currentStatus === "no_show") && (
+              <button
+                type="button"
+                disabled={statusBusy || loading}
+                onClick={() =>
+                  void applyStatus(
+                    "scheduled",
+                    "Put this appointment back to scheduled? Use if the status was set by mistake."
+                  )
+                }
+                className="rounded-lg border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/10 disabled:opacity-50"
+              >
+                Back to scheduled
+              </button>
+            )}
+          </div>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">Stylist</label>
@@ -413,13 +509,13 @@ export function EditAppointmentModal({
           </div>
           {canChargeNoShow && (
           <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 space-y-2">
-            <p className="text-sm font-medium">No-show</p>
+            <p className="text-sm font-medium">No-show with deposit</p>
             <p className="text-xs text-muted-foreground">
-              If the client did not arrive, mark as no-show and charge the deposit (if one was taken).
+              If the client did not arrive and you took a deposit, capture it via Stripe and mark no-show.
             </p>
             <button
               type="button"
-              disabled={noShowLoading}
+              disabled={noShowLoading || statusBusy}
               onClick={async () => {
                 if (!confirm("Mark this appointment as no-show and charge the no-show fee (if a deposit was taken)?")) return;
                 setNoShowLoading(true);
@@ -438,7 +534,7 @@ export function EditAppointmentModal({
               }}
               className="rounded-lg border border-amber-500 px-4 py-2 text-sm font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 disabled:opacity-50"
             >
-              {noShowLoading ? "Charging…" : "Charge No-Show Fee"}
+              {noShowLoading ? "Charging…" : "Charge no-show fee"}
             </button>
           </div>
         )}

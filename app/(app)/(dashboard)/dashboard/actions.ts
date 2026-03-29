@@ -177,6 +177,16 @@ export async function createAppointment(input: CreateAppointmentInput) {
   return { error: null };
 }
 
+/** Values allowed by DB check on `appointments.status` (US spelling for canceled). */
+export const APPOINTMENT_DB_STATUSES = ["scheduled", "completed", "no_show", "canceled"] as const;
+export type AppointmentDbStatus = (typeof APPOINTMENT_DB_STATUSES)[number];
+
+function normalizeAppointmentStatusInput(raw: string): AppointmentDbStatus | null {
+  const s = raw.trim().toLowerCase();
+  if (s === "cancelled") return "canceled";
+  return (APPOINTMENT_DB_STATUSES as readonly string[]).includes(s) ? (s as AppointmentDbStatus) : null;
+}
+
 export type UpdateAppointmentInput = {
   start_time?: string;
   end_time?: string;
@@ -194,6 +204,7 @@ export type UpdateAppointmentInput = {
   after_photo_url?: string | null;
   /** Skip hands-on overlap check when changing time/stylist (salon staff only). */
   allowScheduleOverlap?: boolean;
+  status?: AppointmentDbStatus | string;
 };
 
 export async function updateAppointment(id: string, updates: UpdateAppointmentInput) {
@@ -298,6 +309,13 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
   if (updates.send_aftercare !== undefined) payload.send_aftercare = updates.send_aftercare;
   if (updates.before_photo_url !== undefined) payload.before_photo_url = updates.before_photo_url;
   if (updates.after_photo_url !== undefined) payload.after_photo_url = updates.after_photo_url;
+  if (updates.status !== undefined) {
+    const st = normalizeAppointmentStatusInput(String(updates.status));
+    if (!st) return { error: "Invalid appointment status." };
+    payload.status = st;
+  }
+
+  if (Object.keys(payload).length === 0) return { error: null };
 
   const { error } = await db
     .from("appointments")
@@ -326,6 +344,7 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/reports");
   return { error: null };
 }
 

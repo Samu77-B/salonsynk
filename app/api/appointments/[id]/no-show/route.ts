@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/server";
@@ -37,5 +38,7 @@ export async function POST(
     .eq("salon_id", context.salon.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
   return NextResponse.json({ ok: true });
 }
