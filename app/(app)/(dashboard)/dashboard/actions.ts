@@ -12,6 +12,20 @@ import {
   type AppointmentBlockingInput,
 } from "@/lib/diary-rules";
 import { revalidatePath } from "next/cache";
+import { sendClientBookingConfirmation } from "@/lib/booking-notifications";
+
+function revalidateDashboardAndReports() {
+  try {
+    revalidatePath("/dashboard");
+  } catch (e) {
+    console.error("[salonsynk] revalidatePath(/dashboard)", e);
+  }
+  try {
+    revalidatePath("/reports");
+  } catch (e) {
+    console.error("[salonsynk] revalidatePath(/reports)", e);
+  }
+}
 
 /** Super admins often view a salon via cookie without a salon_members row; RLS would block inserts. */
 async function getMutateClient(): Promise<SupabaseClient> {
@@ -157,6 +171,25 @@ export async function createAppointment(input: CreateAppointmentInput) {
   const { error } = await db.from("appointments").insert(row);
 
   if (error) return { error: error.message };
+
+  let serviceName: string | null = null;
+  if (input.serviceId) {
+    const { data: svc } = await db
+      .from("services")
+      .select("name")
+      .eq("id", input.serviceId)
+      .eq("salon_id", input.salonId)
+      .maybeSingle();
+    serviceName = (svc as { name?: string } | null)?.name ?? null;
+  }
+
+  void sendClientBookingConfirmation({
+    email: input.guestEmail,
+    phone: input.guestPhone,
+    salonName: context.salon.name,
+    start,
+    serviceName,
+  });
 
   if (input.clientId && (input.guestEmail?.trim() || input.guestPhone?.trim())) {
     const clientUpdates: Record<string, unknown> = {};
@@ -315,15 +348,23 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
     payload.status = st;
   }
 
+  if (updates.start_time !== undefined || updates.end_time !== undefined) {
+    payload.reminder_sent_at = null;
+  }
+
   if (Object.keys(payload).length === 0) return { error: null };
 
-  const { error } = await db
+  const { data: updatedRows, error } = await db
     .from("appointments")
     .update(payload)
     .eq("id", id)
-    .in("salon_id", [context.salon.id]);
+    .eq("salon_id", context.salon.id)
+    .select("id");
 
   if (error) return { error: error.message };
+  if (!updatedRows?.length) {
+    return { error: "Could not update this appointment. It may have been removed or you may not have access." };
+  }
 
   const hasContact = !!(updates.guest_email?.trim() || updates.guest_phone?.trim());
   if (hasContact) {
@@ -337,14 +378,17 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
       if (updates.guest_phone?.trim()) clientUpdates.phone = updates.guest_phone.trim();
       if (Object.keys(clientUpdates).length > 0) {
         await db.from("clients").update(clientUpdates).eq("id", clientId).eq("salon_id", context.salon.id);
-        revalidatePath("/clients");
-        revalidatePath(`/clients/${clientId}`);
+        try {
+          revalidatePath("/clients");
+          revalidatePath(`/clients/${clientId}`);
+        } catch (e) {
+          console.error("[salonsynk] revalidatePath /clients", e);
+        }
       }
     }
   }
 
-  revalidatePath("/dashboard");
-  revalidatePath("/reports");
+  revalidateDashboardAndReports();
   return { error: null };
 }
 
@@ -358,10 +402,14 @@ export async function deleteAppointment(id: string) {
     .from("appointments")
     .delete()
     .eq("id", id)
-    .in("salon_id", [context.salon.id]);
+    .eq("salon_id", context.salon.id);
 
   if (error) return { error: error.message };
-  revalidatePath("/dashboard");
+  try {
+    revalidatePath("/dashboard");
+  } catch (e) {
+    console.error("[salonsynk] revalidatePath(/dashboard) after delete", e);
+  }
   return { error: null };
 }
 

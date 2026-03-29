@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendBookingConfirmation } from "@/lib/email";
+import { sendClientBookingConfirmation } from "@/lib/booking-notifications";
 import { hasOverlap, rangeToMinutes } from "@/lib/diary-rules";
 
 export async function createGuestBooking(
@@ -76,10 +76,23 @@ export async function createGuestBooking(
 
   if (error) return { error: error.message };
 
-  await sendBookingConfirmation(data.guestEmail, {
-    date: start.toLocaleDateString("en-GB"),
-    time: start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+  let serviceName: string | null = null;
+  if (data.serviceId) {
+    const { data: svc } = await supabase
+      .from("services")
+      .select("name")
+      .eq("id", data.serviceId)
+      .eq("salon_id", salonId)
+      .maybeSingle();
+    serviceName = svc?.name ?? null;
+  }
+
+  await sendClientBookingConfirmation({
+    email: data.guestEmail,
+    phone: data.guestPhone,
     salonName: salon.name,
+    start,
+    serviceName,
   });
 
   return { error: null };

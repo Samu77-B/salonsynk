@@ -29,7 +29,14 @@ type Appointment = {
 
 function timeFromISO(iso: string): string {
   const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "09:00";
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function isoDateSliceForInput(iso: string): string {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return new Date().toISOString().slice(0, 10);
+  return d.toISOString().slice(0, 10);
 }
 
 function statusDisplayLabel(status: string): string {
@@ -165,14 +172,13 @@ export function EditAppointmentModal({
   onNoShowCharged?: () => void;
 }) {
   const client = clients.find((c) => c.id === appointment.client_id);
-  const start = new Date(appointment.start_time);
   const [stylistId, setStylistId] = useState(appointment.stylist_id);
   const [clientId, setClientId] = useState(appointment.client_id ?? "");
   const [serviceId, setServiceId] = useState(appointment.service_id ?? "");
   const [guestName, setGuestName] = useState(appointment.guest_name ?? "");
   const [email, setEmail] = useState(appointment.guest_email ?? client?.email ?? "");
   const [phone, setPhone] = useState(appointment.guest_phone ?? client?.phone ?? "");
-  const [date, setDate] = useState(start.toISOString().slice(0, 10));
+  const [date, setDate] = useState(isoDateSliceForInput(appointment.start_time));
   const [time, setTime] = useState(timeFromISO(appointment.start_time));
   const [notes, setNotes] = useState(appointment.notes ?? "");
   const [sendReminderSms, setSendReminderSms] = useState(appointment.send_reminder_sms ?? true);
@@ -203,7 +209,7 @@ export function EditAppointmentModal({
     setGuestName(appointment.guest_name ?? "");
     setEmail(appointment.guest_email ?? c?.email ?? "");
     setPhone(appointment.guest_phone ?? c?.phone ?? "");
-    setDate(new Date(appointment.start_time).toISOString().slice(0, 10));
+    setDate(isoDateSliceForInput(appointment.start_time));
     setTime(timeFromISO(appointment.start_time));
     setNotes(appointment.notes ?? "");
     setSendReminderSms(appointment.send_reminder_sms ?? true);

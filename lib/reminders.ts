@@ -28,12 +28,14 @@ export async function getUpcomingAppointmentsForReminder(hoursAhead: number) {
     .select("id, start_time, send_reminder_sms, guest_email, guest_name, guest_phone, clients(email, phone), salons(name)")
     .eq("status", "scheduled")
     .eq("send_reminder_sms", true)
+    .is("reminder_sent_at", null)
     .gte("start_time", from.toISOString())
     .lte("start_time", to.toISOString());
   return (data ?? []) as unknown as AppointmentRow[];
 }
 
 export async function sendReminders(hoursAhead = 24) {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
   const appointments = await getUpcomingAppointmentsForReminder(hoursAhead);
   const results: { id: string; ok: boolean; error?: string }[] = [];
   for (const a of appointments) {
@@ -77,6 +79,10 @@ export async function sendReminders(hoursAhead = 24) {
     if (!sent) {
       results.push({ id: a.id, ok: false, error: lastError ?? "No email or phone / channels not configured" });
     } else {
+      await supabase
+        .from("appointments")
+        .update({ reminder_sent_at: new Date().toISOString() })
+        .eq("id", a.id);
       results.push({ id: a.id, ok: true });
     }
   }

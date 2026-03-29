@@ -163,9 +163,9 @@ export function AddAppointmentModal({
               />
             </div>
           </div>
-          {messagingOn && !hasContact && (
+          {!hasContact && (
             <p className="text-sm text-amber-600">
-              No email or phone – reminders won&apos;t be sent.
+              No email or phone – we can&apos;t send a booking confirmation or reminders.
             </p>
           )}
           <div>
