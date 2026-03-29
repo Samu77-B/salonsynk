@@ -55,6 +55,17 @@ function appointmentStatusChip(status: string): string | null {
 
 const MIN_COL_PX = 108;
 
+/** Defer refresh until after React finishes closing modals (avoids RSC race errors after server actions). */
+function scheduleRouterRefresh(router: { refresh: () => void }) {
+  queueMicrotask(() => {
+    try {
+      router.refresh();
+    } catch (e) {
+      console.error("[DiaryView] router.refresh failed", e);
+    }
+  });
+}
+
 function formatDate(d: Date) {
   const time = d.getTime();
   if (!Number.isFinite(time)) return "";
@@ -252,7 +263,7 @@ export function DiaryView({
     if (result.error) setError(result.error);
     else {
       setMovingId(null);
-      router.refresh();
+      scheduleRouterRefresh(router);
     }
   }
 
@@ -738,7 +749,7 @@ export function DiaryView({
             if (result.error) setError(result.error);
             else {
               setAddOpen(false);
-              router.refresh();
+              scheduleRouterRefresh(router);
             }
             return result;
           }}
@@ -761,7 +772,7 @@ export function DiaryView({
               if (result.error) setError(result.error);
               else {
                 setEditId(null);
-                router.refresh();
+                scheduleRouterRefresh(router);
               }
               return result;
             }}
@@ -770,7 +781,7 @@ export function DiaryView({
               void handleDelete(id);
             }}
             onClose={() => setEditId(null)}
-            onNoShowCharged={() => router.refresh()}
+            onNoShowCharged={() => scheduleRouterRefresh(router)}
           />
         );
       })()}

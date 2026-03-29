@@ -9,10 +9,34 @@ import { GapFillerSection } from "./gap-filler-section";
 
 export const dynamic = "force-dynamic";
 
+/** Plain JSON for RSC → client props (drops non-serializable values from Supabase). */
+function jsonClone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 export default async function DashboardPage() {
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");
 
+  try {
+    return await renderDashboardPage(context);
+  } catch (e) {
+    console.error("[DashboardPage] render failed", e);
+    const msg = e instanceof Error ? e.message : "Something went wrong loading the diary.";
+    return (
+      <main className="p-4 md:p-6 min-w-0 space-y-4">
+        <h1 className="text-xl font-bold">Diary</h1>
+        <p className="text-sm text-red-400 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3">{msg}</p>
+        <p className="text-sm text-muted">
+          Try reloading the page. If this keeps happening, check Vercel logs for the same timestamp or run locally with{" "}
+          <code className="text-xs">npm run dev</code> to see the full error.
+        </p>
+      </main>
+    );
+  }
+}
+
+async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeof getCurrentUserSalon>>>) {
   const userSb = await createClient();
   const isSuperAdmin = await getIsSuperAdmin();
   /** Super admins may have no salon_members row; RLS would hide salon data. Scope all queries to context.salon.id. */
@@ -159,11 +183,11 @@ export default async function DashboardPage() {
       <DiaryView
         salonId={context.salon.id}
         salonName={context.salon.name}
-        members={members}
-        services={services}
-        clients={clients}
-        appointments={appointments}
-        clientPhotoMap={clientPhotoMap}
+        members={jsonClone(members)}
+        services={jsonClone(services)}
+        clients={jsonClone(clients)}
+        appointments={jsonClone(appointments)}
+        clientPhotoMap={jsonClone(clientPhotoMap)}
       />
       <GapFillerSection />
     </main>
