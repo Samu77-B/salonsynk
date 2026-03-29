@@ -1,8 +1,36 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import type { AppointmentDbStatus, UpdateAppointmentInput } from "./actions";
 import { uploadAppointmentPhoto } from "./actions";
+
+function isNextOpaqueServerErrorMessage(msg: string): boolean {
+  return (
+    msg.includes("Server Components render") ||
+    msg.includes("digest property") ||
+    msg.includes("omitted in production")
+  );
+}
+
+function scheduleModalRefresh(router: ReturnType<typeof useRouter>) {
+  queueMicrotask(() => {
+    try {
+      router.refresh();
+    } catch (e) {
+      console.error("[EditAppointmentModal] refresh failed", e);
+    }
+  });
+}
+
+function mapSubmitCatchError(e: unknown, router: ReturnType<typeof useRouter>): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (isNextOpaqueServerErrorMessage(msg)) {
+    scheduleModalRefresh(router);
+    return "The server returned a generic error while saving — your changes may still have been applied. Close this dialog and check the diary, or refresh the page.";
+  }
+  return msg.trim() ? msg : "Could not save.";
+}
 
 type Member = { id: string; display_name: string | null; role: string };
 type Service = { id: string; name: string; duration_minutes: number };
@@ -171,6 +199,7 @@ export function EditAppointmentModal({
   onClose: () => void;
   onNoShowCharged?: () => void;
 }) {
+  const router = useRouter();
   const client = clients.find((c) => c.id === appointment.client_id);
   const [stylistId, setStylistId] = useState(appointment.stylist_id);
   const [clientId, setClientId] = useState(appointment.client_id ?? "");
@@ -235,7 +264,7 @@ export function EditAppointmentModal({
       const result = await onUpdate(appointment.id, { status: next });
       if (result?.error) setSubmitError(result.error);
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : "Could not update status.");
+      setSubmitError(mapSubmitCatchError(e, router));
     } finally {
       setStatusBusy(false);
     }
@@ -271,7 +300,7 @@ export function EditAppointmentModal({
       });
       if (result?.error) setSubmitError(result.error);
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : "Could not save appointment.");
+      setSubmitError(mapSubmitCatchError(e, router));
     } finally {
       setLoading(false);
     }

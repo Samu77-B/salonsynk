@@ -12,7 +12,19 @@ import {
   type AppointmentBlockingInput,
 } from "@/lib/diary-rules";
 import { revalidatePath } from "next/cache";
+import { after, connection } from "next/server";
 import { sendClientBookingConfirmation } from "@/lib/booking-notifications";
+
+/** Run cache updates after the server action response is sent (avoids Next.js RSC / digest conflicts). */
+function runAfterResponse(fn: () => void) {
+  after(() => {
+    try {
+      fn();
+    } catch (e) {
+      console.error("[salonsynk] runAfterResponse task failed", e);
+    }
+  });
+}
 
 function revalidateDashboardAndReports() {
   try {
@@ -105,6 +117,7 @@ export async function createAppointment(input: CreateAppointmentInput) {
 }
 
 async function createAppointmentInner(input: CreateAppointmentInput) {
+  await connection();
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== input.salonId) return { error: "Unauthorized" };
 
@@ -215,20 +228,16 @@ async function createAppointmentInner(input: CreateAppointmentInput) {
         .update(clientUpdates)
         .eq("id", input.clientId)
         .eq("salon_id", input.salonId);
-      try {
+      runAfterResponse(() => {
         revalidatePath("/clients");
         revalidatePath(`/clients/${input.clientId}`);
-      } catch (re) {
-        console.error("[salonsynk] revalidatePath /clients (create)", re);
-      }
+      });
     }
   }
 
-  try {
+  runAfterResponse(() => {
     revalidatePath("/dashboard");
-  } catch (re) {
-    console.error("[salonsynk] revalidatePath /dashboard (create)", re);
-  }
+  });
   return { error: null };
 }
 
@@ -271,6 +280,7 @@ export async function updateAppointment(id: string, updates: UpdateAppointmentIn
 }
 
 async function updateAppointmentInner(id: string, updates: UpdateAppointmentInput) {
+  await connection();
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
 
@@ -385,11 +395,25 @@ async function updateAppointmentInner(id: string, updates: UpdateAppointmentInpu
   if (Object.keys(payload).length === 0) return { error: null };
 
   // Avoid `.select()` after update: some PostgREST/RLS setups omit RETURNING and can confuse the client or yield empty rows.
-  const { error } = await db
+  let { error } = await db
     .from("appointments")
     .update(payload)
     .eq("id", id)
     .eq("salon_id", context.salon.id);
+
+  if (error && "reminder_sent_at" in payload) {
+    const msg = error.message ?? "";
+    if (/reminder_sent_at|does not exist|42703|schema cache/i.test(msg)) {
+      const retryPayload = { ...payload };
+      delete retryPayload.reminder_sent_at;
+      const second = await db
+        .from("appointments")
+        .update(retryPayload)
+        .eq("id", id)
+        .eq("salon_id", context.salon.id);
+      error = second.error;
+    }
+  }
 
   if (error) return { error: error.message };
 
@@ -405,22 +429,21 @@ async function updateAppointmentInner(id: string, updates: UpdateAppointmentInpu
       if (updates.guest_phone?.trim()) clientUpdates.phone = updates.guest_phone.trim();
       if (Object.keys(clientUpdates).length > 0) {
         await db.from("clients").update(clientUpdates).eq("id", clientId).eq("salon_id", context.salon.id);
-        try {
+        runAfterResponse(() => {
           revalidatePath("/clients");
           revalidatePath(`/clients/${clientId}`);
-        } catch (e) {
-          console.error("[salonsynk] revalidatePath /clients", e);
-        }
+        });
       }
     }
   }
 
-  revalidateDashboardAndReports();
+  runAfterResponse(revalidateDashboardAndReports);
   return { error: null };
 }
 
 export async function deleteAppointment(id: string) {
   try {
+    await connection();
     const context = await getCurrentUserSalon();
     if (!context) return { error: "Unauthorized" };
 
@@ -433,11 +456,9 @@ export async function deleteAppointment(id: string) {
       .eq("salon_id", context.salon.id);
 
     if (error) return { error: error.message };
-    try {
+    runAfterResponse(() => {
       revalidatePath("/dashboard");
-    } catch (e) {
-      console.error("[salonsynk] revalidatePath(/dashboard) after delete", e);
-    }
+    });
     return { error: null };
   } catch (e) {
     return catchActionError(e, "deleteAppointment");
@@ -453,6 +474,7 @@ export async function uploadAppointmentPhoto(
   field: "before" | "after",
   formData: FormData
 ): Promise<{ error: string | null; url?: string }> {
+  await connection();
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
 
@@ -503,11 +525,14 @@ export async function uploadAppointmentPhoto(
     .eq("id", appointmentId)
     .eq("salon_id", context.salon.id);
 
-  revalidatePath("/dashboard");
+  runAfterResponse(() => {
+    revalidatePath("/dashboard");
+  });
   return { error: null, url };
 }
 
 export async function getEmptySlotCandidates(): Promise<{ error?: string; data?: SlotWithCandidates[] }> {
+  await connection();
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
   const supabase = await createClient();
