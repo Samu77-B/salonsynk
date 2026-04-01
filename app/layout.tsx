@@ -5,7 +5,7 @@ import { RegisterSw } from "./register-sw";
 export const metadata: Metadata = {
   title: "SalonSynk — No commissions. Just Synk.",
   description:
-    "Flat-fee salon management for UK salons and barbers. Diary, team, clients, payments. No commissions.",
+    "Flat-fee salon management for salons and barbers. Diary, team, clients, payments. No commissions.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/favicon.png",

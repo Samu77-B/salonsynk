@@ -103,7 +103,7 @@ export default function HomePage() {
               <span className="text-[#F5F5F5]">Just Synk.</span>
             </h1>
             <p className="mt-4 text-lg text-white/95 max-w-xl drop-shadow-md">
-              Flat-fee salon management for UK salons and barbers. One diary,
+              Flat-fee salon management for salons and barbers. One diary,
               your team, your clients — without the cut.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
