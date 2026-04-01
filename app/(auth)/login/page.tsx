@@ -37,9 +37,9 @@ export default async function LoginPage() {
         </div>
         <LoginForm />
         <p className="text-center text-sm text-muted">
-          No account?{" "}
+          Need an account?{" "}
           <Link href="/signup" className="text-accent hover:underline">
-            Sign up
+            Request access
           </Link>
         </p>
       </div>

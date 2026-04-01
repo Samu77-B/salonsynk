@@ -108,6 +108,39 @@ export async function sendSupportMessage(
   return { error: normalizeResendError(error) };
 }
 
+export async function sendAccountRequest(params: {
+  fullName: string;
+  email: string;
+  salonName: string;
+  phone?: string;
+  message?: string;
+}): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured" };
+  const to = "hello@salonsynk.com";
+  const phoneLine = params.phone?.trim()
+    ? `<p><strong>Phone:</strong> ${params.phone.trim()}</p>`
+    : "";
+  const msgBlock = params.message?.trim()
+    ? `<hr /><p><strong>Message:</strong></p><p>${params.message.trim().replace(/\n/g, "<br />")}</p>`
+    : "";
+  const html = `
+    <p><strong>New account request</strong> (SalonSynk)</p>
+    <p><strong>Name:</strong> ${params.fullName.trim()}</p>
+    <p><strong>Email:</strong> ${params.email.trim()}</p>
+    <p><strong>Salon / business:</strong> ${params.salonName.trim()}</p>
+    ${phoneLine}
+    ${msgBlock}
+  `;
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [to],
+    replyTo: params.email.trim(),
+    subject: `[SalonSynk] Account request: ${params.salonName.trim().slice(0, 80)}`,
+    html,
+  });
+  return { error: normalizeResendError(error) };
+}
+
 export async function sendAftercareEmail(
   to: string,
   message: string,

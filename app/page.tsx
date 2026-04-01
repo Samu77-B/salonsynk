@@ -111,7 +111,7 @@ export default function HomePage() {
                 href="/signup"
                 className="inline-flex items-center justify-center rounded-xl bg-black px-6 py-3.5 text-sm font-semibold text-white shadow-lg hover:bg-zinc-800 transition-colors"
               >
-                Get started
+                Request access
               </Link>
               <a
                 href="#book-demo"
@@ -201,7 +201,7 @@ export default function HomePage() {
                   href="/signup"
                   className="mt-8 inline-flex w-full items-center justify-center rounded-xl bg-black px-6 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
                 >
-                  Get started
+                  Request access
                 </Link>
               </div>
             </div>

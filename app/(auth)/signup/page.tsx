@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { SignupForm } from "./signup-form";
+import { RequestAccountForm } from "./request-account-form";
 import siteLogo from "../../../salonsynk_logo.png";
 
 export default async function SignupPage() {
@@ -28,10 +28,12 @@ export default async function SignupPage() {
               priority
             />
           </Link>
-          <h1 className="text-2xl font-bold">Create account</h1>
-          <p className="text-muted text-sm mt-1">Get started with SalonSynk</p>
+          <h1 className="text-2xl font-bold">Request an account</h1>
+          <p className="text-muted text-sm mt-1">
+            Tell us about your salon — we’ll set you up and email you when you can sign in.
+          </p>
         </div>
-        <SignupForm />
+        <RequestAccountForm />
         <p className="text-center text-sm text-muted">
           Already have an account?{" "}
           <Link href="/login" className="text-accent hover:underline">
