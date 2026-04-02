@@ -7,8 +7,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { ReportPdfDownload } from "./report-pdf-download";
 import type { ReportPdfPayload } from "./report-pdf-types";
-
-type ReportRange = "daily" | "weekly" | "monthly";
+import {
+  buildReportWindowContext,
+  customRangeHref,
+  defaultCustomRangeDefaults,
+  type PresetReportRange,
+} from "./report-window";
+import { ReportsCustomRangeForm } from "./reports-custom-range-form";
 
 type AppointmentRow = {
   id: string;
@@ -22,63 +27,6 @@ type SalesTransactionRow = {
   paid_at: string;
   salon_members: { display_name: string | null } | null;
 };
-
-const RANGE_CONFIG: Record<ReportRange, { label: string; salesLabel: string }> = {
-  daily: { label: "Daily", salesLabel: "Daily sales" },
-  weekly: { label: "Weekly", salesLabel: "Weekly sales" },
-  monthly: { label: "Monthly", salesLabel: "Monthly sales" },
-};
-
-function parseRange(value: string | string[] | undefined): ReportRange {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return raw === "daily" || raw === "weekly" || raw === "monthly" ? raw : "daily";
-}
-
-function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function startOfWeekMonday(date: Date): Date {
-  const d = startOfDay(date);
-  const day = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - day);
-  return d;
-}
-
-function startOfMonth(date: Date): Date {
-  const d = startOfDay(date);
-  d.setDate(1);
-  return d;
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function addMonths(date: Date, months: number): Date {
-  const d = new Date(date);
-  d.setMonth(d.getMonth() + months);
-  return d;
-}
-
-function getWindowForRange(range: ReportRange, now: Date) {
-  if (range === "daily") {
-    const start = startOfDay(now);
-    return { currentStart: start, currentEnd: addDays(start, 1), previousStart: addDays(start, -1) };
-  }
-
-  if (range === "weekly") {
-    const start = startOfWeekMonday(now);
-    return { currentStart: start, currentEnd: addDays(start, 7), previousStart: addDays(start, -7) };
-  }
-
-  const start = startOfMonth(now);
-  return { currentStart: start, currentEnd: addMonths(start, 1), previousStart: addMonths(start, -1) };
-}
 
 function isHaircutService(name: string | null | undefined): boolean {
   if (!name) return false;
@@ -168,13 +116,6 @@ function buildSalesAggregates(rows: SalesTransactionRow[]) {
   return { totalSalesMinor, topStylists };
 }
 
-function dateRangeLabel(range: ReportRange, start: Date, end: Date): string {
-  const startLabel = start.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  const endExclusive = addDays(end, -1);
-  const endLabel = endExclusive.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  return range === "daily" ? startLabel : `${startLabel} - ${endLabel}`;
-}
-
 function formatDeltaLine(label: string, current: number, previous: number): string {
   const delta = percentChange(current, previous);
   if (delta === null) {
@@ -195,7 +136,7 @@ function DeltaText({ label, current, previous }: { label: string; current: numbe
 }
 
 type ReportsPageProps = {
-  searchParams: Promise<{ range?: string | string[] }>;
+  searchParams: Promise<{ range?: string | string[]; from?: string | string[]; to?: string | string[] }>;
 };
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
@@ -218,9 +159,20 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   }
 
   const params = await searchParams;
-  const range = parseRange(params.range);
   const now = new Date();
-  const { currentStart, currentEnd, previousStart } = getWindowForRange(range, now);
+  const ctx = buildReportWindowContext(params, now);
+  const defaults = defaultCustomRangeDefaults(now);
+  const customEntryHref = customRangeHref(defaults.from, defaults.to);
+  const customCurrentHref =
+    ctx.customFromYmd && ctx.customToYmd
+      ? customRangeHref(ctx.customFromYmd, ctx.customToYmd)
+      : customRangeHref(ctx.formFrom, ctx.formTo);
+  const customPillHref =
+    ctx.range === "custom" && ctx.customFromYmd && ctx.customToYmd
+      ? customCurrentHref
+      : ctx.customRequested
+        ? customRangeHref(ctx.formFrom, ctx.formTo)
+        : customEntryHref;
 
   const supabase = await createClient();
   const [appointmentsRes, salesRes] = await Promise.all([
@@ -233,8 +185,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         services(name, price_minor)
       `)
       .eq("salon_id", context.salon.id)
-      .gte("start_time", previousStart.toISOString())
-      .lt("start_time", currentEnd.toISOString()),
+      .gte("start_time", ctx.previousStart.toISOString())
+      .lt("start_time", ctx.currentEnd.toISOString()),
     supabase
       .from("sales_transactions")
       .select(`
@@ -243,8 +195,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         salon_members(display_name)
       `)
       .eq("salon_id", context.salon.id)
-      .gte("paid_at", previousStart.toISOString())
-      .lt("paid_at", currentEnd.toISOString()),
+      .gte("paid_at", ctx.previousStart.toISOString())
+      .lt("paid_at", ctx.currentEnd.toISOString()),
   ]);
 
   const rows = (appointmentsRes.data as AppointmentRow[] | null) ?? [];
@@ -252,19 +204,19 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   const currentRows = rows.filter((row) => {
     const ts = new Date(row.start_time).getTime();
-    return ts >= currentStart.getTime() && ts < currentEnd.getTime();
+    return ts >= ctx.currentStart.getTime() && ts < ctx.currentEnd.getTime();
   });
   const previousRows = rows.filter((row) => {
     const ts = new Date(row.start_time).getTime();
-    return ts >= previousStart.getTime() && ts < currentStart.getTime();
+    return ts >= ctx.previousStart.getTime() && ts < ctx.currentStart.getTime();
   });
   const currentSalesRows = salesRows.filter((row) => {
     const ts = new Date(row.paid_at).getTime();
-    return ts >= currentStart.getTime() && ts < currentEnd.getTime();
+    return ts >= ctx.currentStart.getTime() && ts < ctx.currentEnd.getTime();
   });
   const previousSalesRows = salesRows.filter((row) => {
     const ts = new Date(row.paid_at).getTime();
-    return ts >= previousStart.getTime() && ts < currentStart.getTime();
+    return ts >= ctx.previousStart.getTime() && ts < ctx.currentStart.getTime();
   });
 
   const currentAgg = buildAggregates(currentRows);
@@ -281,19 +233,21 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   const pdfPayload: ReportPdfPayload = {
     salonName: context.salon.name,
-    range,
-    rangeLabel: RANGE_CONFIG[range].label,
-    dateRangeLabel: dateRangeLabel(range, currentStart, currentEnd),
-    salesLabel: RANGE_CONFIG[range].salesLabel,
+    range: ctx.pdfRange,
+    customFromYmd: ctx.customFromYmd,
+    customToYmd: ctx.customToYmd,
+    rangeLabel: ctx.rangeLabel,
+    dateRangeLabel: ctx.dateRangeLabel,
+    salesLabel: ctx.salesLabel,
     totalSales: formatMoney(currentSalesAgg.totalSalesMinor),
-    salesDelta: formatDeltaLine(range, currentSalesAgg.totalSalesMinor, previousSalesAgg.totalSalesMinor),
+    salesDelta: formatDeltaLine(ctx.deltaLabel, currentSalesAgg.totalSalesMinor, previousSalesAgg.totalSalesMinor),
     completedAppointments: currentAgg.completedAppointments,
-    completedDelta: formatDeltaLine(range, currentAgg.completedAppointments, previousAgg.completedAppointments),
+    completedDelta: formatDeltaLine(ctx.deltaLabel, currentAgg.completedAppointments, previousAgg.completedAppointments),
     haircuts: currentAgg.haircutAppointments,
-    haircutsDelta: formatDeltaLine(range, currentAgg.haircutAppointments, previousAgg.haircutAppointments),
+    haircutsDelta: formatDeltaLine(ctx.deltaLabel, currentAgg.haircutAppointments, previousAgg.haircutAppointments),
     completionRate: formatPercent(completedRate),
     completionDelta: formatDeltaLine(
-      range,
+      ctx.deltaLabel,
       currentAgg.totalBookings === 0 ? 0 : completedRate,
       previousCompletedRate,
     ),
@@ -314,30 +268,44 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   const reportDataError = !!(appointmentsRes.error || salesRes.error);
 
+  const pillActive = "rounded-md px-3 py-1.5 text-sm bg-accent text-background";
+  const pillIdle = "rounded-md px-3 py-1.5 text-sm text-muted hover:text-foreground";
+
   return (
     <main className="p-4 md:p-6 min-w-0 space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Reports</h1>
           <p className="text-sm text-muted">
-            {RANGE_CONFIG[range].label} performance for {context.salon.name} ({dateRangeLabel(range, currentStart, currentEnd)})
+            {ctx.rangeLabel} performance for {context.salon.name} ({ctx.dateRangeLabel})
           </p>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:items-end">
           <ReportPdfDownload payload={pdfPayload} disabled={reportDataError} />
-          <div className="inline-flex rounded-lg border border-border p-1">
-            {(["daily", "weekly", "monthly"] as ReportRange[]).map((item) => (
+          <div className="inline-flex flex-wrap justify-end gap-1 rounded-lg border border-border p-1">
+            {(["daily", "weekly", "monthly"] as PresetReportRange[]).map((item) => (
               <Link
                 key={item}
                 href={`/reports?range=${item}`}
-                className={`rounded-md px-3 py-1.5 text-sm ${range === item ? "bg-accent text-background" : "text-muted hover:text-foreground"}`}
+                className={!ctx.customRequested && ctx.range === item ? pillActive : pillIdle}
               >
-                {RANGE_CONFIG[item].label}
+                {item === "daily" ? "Daily" : item === "weekly" ? "Weekly" : "Monthly"}
               </Link>
             ))}
+            <Link href={customPillHref} className={ctx.customRequested ? pillActive : pillIdle}>
+              Custom
+            </Link>
           </div>
         </div>
       </div>
+
+      <ReportsCustomRangeForm defaultFrom={ctx.formFrom} defaultTo={ctx.formTo} />
+
+      {ctx.validationError && (
+        <p className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
+          {ctx.validationError}
+        </p>
+      )}
 
       {(appointmentsRes.error || salesRes.error) && (
         <p className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-2 text-sm text-red-300">
@@ -355,25 +323,25 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg border border-border p-4">
-          <p className="text-xs uppercase tracking-wide text-muted">{RANGE_CONFIG[range].salesLabel}</p>
+          <p className="text-xs uppercase tracking-wide text-muted">{ctx.salesLabel}</p>
           <p className="mt-2 text-2xl font-semibold">{formatMoney(currentSalesAgg.totalSalesMinor)}</p>
-          <DeltaText label={range} current={currentSalesAgg.totalSalesMinor} previous={previousSalesAgg.totalSalesMinor} />
+          <DeltaText label={ctx.deltaLabel} current={currentSalesAgg.totalSalesMinor} previous={previousSalesAgg.totalSalesMinor} />
         </div>
         <div className="rounded-lg border border-border p-4">
           <p className="text-xs uppercase tracking-wide text-muted">Completed appointments</p>
           <p className="mt-2 text-2xl font-semibold">{currentAgg.completedAppointments}</p>
-          <DeltaText label={range} current={currentAgg.completedAppointments} previous={previousAgg.completedAppointments} />
+          <DeltaText label={ctx.deltaLabel} current={currentAgg.completedAppointments} previous={previousAgg.completedAppointments} />
         </div>
         <div className="rounded-lg border border-border p-4">
           <p className="text-xs uppercase tracking-wide text-muted">Haircuts completed</p>
           <p className="mt-2 text-2xl font-semibold">{currentAgg.haircutAppointments}</p>
-          <DeltaText label={range} current={currentAgg.haircutAppointments} previous={previousAgg.haircutAppointments} />
+          <DeltaText label={ctx.deltaLabel} current={currentAgg.haircutAppointments} previous={previousAgg.haircutAppointments} />
         </div>
         <div className="rounded-lg border border-border p-4">
           <p className="text-xs uppercase tracking-wide text-muted">Completion rate</p>
           <p className="mt-2 text-2xl font-semibold">{formatPercent(completedRate)}</p>
           <DeltaText
-            label={range}
+            label={ctx.deltaLabel}
             current={currentAgg.totalBookings === 0 ? 0 : completedRate}
             previous={previousAgg.totalBookings === 0 ? 0 : (previousAgg.completedAppointments / previousAgg.totalBookings) * 100}
           />

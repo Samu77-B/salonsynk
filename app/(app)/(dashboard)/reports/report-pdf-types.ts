@@ -1,8 +1,11 @@
-export type ReportRangePdf = "daily" | "weekly" | "monthly";
+export type ReportRangePdf = "daily" | "weekly" | "monthly" | "custom";
 
 export type ReportPdfPayload = {
   salonName: string;
   range: ReportRangePdf;
+  /** YYYY-MM-DD when range is custom (for filenames). */
+  customFromYmd?: string;
+  customToYmd?: string;
   rangeLabel: string;
   dateRangeLabel: string;
   salesLabel: string;

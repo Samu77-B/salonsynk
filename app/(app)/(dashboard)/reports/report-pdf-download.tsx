@@ -129,7 +129,11 @@ export function ReportPdfDownload({
       const doc = buildPdf(payload);
       const part = safeFilenamePart(payload.salonName);
       const stamp = new Date().toISOString().slice(0, 10);
-      doc.save(`salonsynk-report-${part}-${payload.range}-${stamp}.pdf`);
+      const rangePart =
+        payload.range === "custom" && payload.customFromYmd && payload.customToYmd
+          ? `custom-${payload.customFromYmd}-${payload.customToYmd}`
+          : `${payload.range}-${stamp}`;
+      doc.save(`salonsynk-report-${part}-${rangePart}.pdf`);
     } finally {
       setBusy(false);
     }
