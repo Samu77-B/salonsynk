@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { ReportPdfDownload } from "./report-pdf-download";
+import type { ReportPdfPayload } from "./report-pdf-types";
 
 type ReportRange = "daily" | "weekly" | "monthly";
 
@@ -173,14 +175,23 @@ function dateRangeLabel(range: ReportRange, start: Date, end: Date): string {
   return range === "daily" ? startLabel : `${startLabel} - ${endLabel}`;
 }
 
-function DeltaText({ label, current, previous }: { label: string; current: number; previous: number }) {
+function formatDeltaLine(label: string, current: number, previous: number): string {
   const delta = percentChange(current, previous);
   if (delta === null) {
-    if (current === 0) return <p className="text-xs text-muted">No change vs previous {label}</p>;
-    return <p className="text-xs text-emerald-400">New data vs previous {label}</p>;
+    if (current === 0) return `No change vs previous ${label}`;
+    return `New data vs previous ${label}`;
   }
-  const deltaLabel = `${delta >= 0 ? "+" : ""}${formatPercent(delta)}`;
-  return <p className={`text-xs ${delta >= 0 ? "text-emerald-400" : "text-amber-400"}`}>{deltaLabel} vs previous {label}</p>;
+  return `${delta >= 0 ? "+" : ""}${formatPercent(delta)} vs previous ${label}`;
+}
+
+function DeltaText({ label, current, previous }: { label: string; current: number; previous: number }) {
+  const line = formatDeltaLine(label, current, previous);
+  const delta = percentChange(current, previous);
+  if (delta === null) {
+    if (current === 0) return <p className="text-xs text-muted">{line}</p>;
+    return <p className="text-xs text-emerald-400">{line}</p>;
+  }
+  return <p className={`text-xs ${delta >= 0 ? "text-emerald-400" : "text-amber-400"}`}>{line}</p>;
 }
 
 type ReportsPageProps = {
@@ -265,25 +276,66 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     ? 0
     : (currentAgg.completedAppointments / currentAgg.totalBookings) * 100;
 
+  const previousCompletedRate =
+    previousAgg.totalBookings === 0 ? 0 : (previousAgg.completedAppointments / previousAgg.totalBookings) * 100;
+
+  const pdfPayload: ReportPdfPayload = {
+    salonName: context.salon.name,
+    range,
+    rangeLabel: RANGE_CONFIG[range].label,
+    dateRangeLabel: dateRangeLabel(range, currentStart, currentEnd),
+    salesLabel: RANGE_CONFIG[range].salesLabel,
+    totalSales: formatMoney(currentSalesAgg.totalSalesMinor),
+    salesDelta: formatDeltaLine(range, currentSalesAgg.totalSalesMinor, previousSalesAgg.totalSalesMinor),
+    completedAppointments: currentAgg.completedAppointments,
+    completedDelta: formatDeltaLine(range, currentAgg.completedAppointments, previousAgg.completedAppointments),
+    haircuts: currentAgg.haircutAppointments,
+    haircutsDelta: formatDeltaLine(range, currentAgg.haircutAppointments, previousAgg.haircutAppointments),
+    completionRate: formatPercent(completedRate),
+    completionDelta: formatDeltaLine(
+      range,
+      currentAgg.totalBookings === 0 ? 0 : completedRate,
+      previousCompletedRate,
+    ),
+    topServices: currentAgg.topServices.map((s) => ({
+      name: s.name,
+      count: s.count,
+      sales: formatMoney(s.salesMinor),
+    })),
+    topStylists: currentSalesAgg.topStylists.map((s) => ({
+      name: s.name,
+      count: s.count,
+      sales: formatMoney(s.salesMinor),
+    })),
+    totalBookings: currentAgg.totalBookings,
+    noShows: currentAgg.noShows,
+    canceled: currentAgg.canceled,
+  };
+
+  const reportDataError = !!(appointmentsRes.error || salesRes.error);
+
   return (
     <main className="p-4 md:p-6 min-w-0 space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Reports</h1>
           <p className="text-sm text-muted">
             {RANGE_CONFIG[range].label} performance for {context.salon.name} ({dateRangeLabel(range, currentStart, currentEnd)})
           </p>
         </div>
-        <div className="inline-flex rounded-lg border border-border p-1">
-          {(["daily", "weekly", "monthly"] as ReportRange[]).map((item) => (
-            <Link
-              key={item}
-              href={`/reports?range=${item}`}
-              className={`rounded-md px-3 py-1.5 text-sm ${range === item ? "bg-accent text-background" : "text-muted hover:text-foreground"}`}
-            >
-              {RANGE_CONFIG[item].label}
-            </Link>
-          ))}
+        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+          <ReportPdfDownload payload={pdfPayload} disabled={reportDataError} />
+          <div className="inline-flex rounded-lg border border-border p-1">
+            {(["daily", "weekly", "monthly"] as ReportRange[]).map((item) => (
+              <Link
+                key={item}
+                href={`/reports?range=${item}`}
+                className={`rounded-md px-3 py-1.5 text-sm ${range === item ? "bg-accent text-background" : "text-muted hover:text-foreground"}`}
+              >
+                {RANGE_CONFIG[item].label}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 
