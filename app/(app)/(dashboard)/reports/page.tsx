@@ -149,7 +149,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   if (!canViewReports) {
     return (
-      <main className="p-4 md:p-6 min-w-0">
+      <main className="mx-auto w-full min-w-0 p-4 md:p-6">
         <h1 className="text-2xl font-bold mb-3">Reports</h1>
         <p className="text-sm text-muted">
           Reports are available to owners and manager roles only. Ask your salon owner to update your role if needed.
@@ -272,7 +272,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const pillIdle = "rounded-md px-3 py-1.5 text-sm text-muted hover:text-foreground";
 
   return (
-    <main className="p-4 md:p-6 min-w-0 space-y-6">
+    <main className="mx-auto w-full min-w-0 space-y-6 p-4 md:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Reports</h1>

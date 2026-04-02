@@ -32,15 +32,18 @@ export function AppHeader({
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="border-b border-border px-4 py-4 flex items-center justify-between gap-4 min-h-[4.5rem]">
-      <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+    <header className="flex min-h-[4.5rem] min-w-0 items-center justify-between gap-2 border-b border-border px-3 py-3 sm:gap-4 sm:px-4 sm:py-4">
+      <Link
+        href="/dashboard"
+        className="flex min-w-0 max-w-[min(100%,10.5rem)] shrink items-center gap-2 overflow-hidden sm:max-w-none"
+      >
         <Image
           src={dashboardLogo}
           alt="SalonSynk logo"
           width={280}
           height={80}
-          className="h-11 w-auto"
-          sizes="88px"
+          className="h-9 w-auto sm:h-11"
+          sizes="(max-width: 640px) 120px, 160px"
           quality={95}
         />
         <span className="sr-only">SalonSynk</span>
@@ -93,7 +96,7 @@ export function AppHeader({
       </nav>
 
       {/* Mobile: hamburger + overlay */}
-      <div className="md:hidden flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2 md:hidden">
         <button
           type="button"
           onClick={() => setMenuOpen((o) => !o)}

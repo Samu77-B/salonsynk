@@ -36,14 +36,14 @@ export default async function BookPage({
 
   return (
     <main
-      className="min-h-screen px-4 py-6 sm:p-6 flex flex-col items-center"
+      className="flex min-h-screen w-full min-w-0 flex-col items-center px-4 py-6 sm:p-6"
       style={
         primaryColor
           ? ({ ["--accent"]: primaryColor } as React.CSSProperties)
           : undefined
       }
     >
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full min-w-0 max-w-md space-y-6">
         <div className="flex justify-center">
           <Link
             href={`/${slug}/shop`}

@@ -76,29 +76,29 @@ type AppointmentStatusBadge = { label: string; className: string };
 
 /** Colour-coded tag on each card so completed / cancelled / no-show are obvious at a glance; scheduled = still to finish. */
 function appointmentStatusBadge(status: string): AppointmentStatusBadge {
+  // Dark, mostly opaque pill + light text so labels stay readable on stylist-tinted card backgrounds.
+  const shell =
+    "shadow-sm ring-1 ring-black/20 dark:ring-white/15 border bg-black/80 backdrop-blur-[2px]";
   switch (status) {
     case "completed":
       return {
         label: "Completed",
-        className:
-          "border border-emerald-500/55 bg-emerald-500/20 text-emerald-900 dark:text-emerald-100",
+        className: `${shell} border-emerald-400/70 text-emerald-200`,
       };
     case "canceled":
       return {
         label: "Cancelled",
-        className: "border border-border/90 bg-background/95 text-muted-foreground",
+        className: `${shell} border-zinc-500/70 text-zinc-200`,
       };
     case "no_show":
       return {
         label: "No-show",
-        className:
-          "border border-amber-500/50 bg-amber-500/15 text-amber-950 dark:text-amber-100",
+        className: `${shell} border-amber-400/70 text-amber-200`,
       };
     default:
       return {
         label: "Scheduled",
-        className:
-          "border border-sky-500/45 bg-sky-500/12 text-sky-950 dark:text-sky-100",
+        className: `${shell} border-sky-400/70 text-sky-200`,
       };
   }
 }
@@ -339,9 +339,9 @@ export function DiaryView({
 
   return (
     <div className="space-y-6 min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-xl sm:text-2xl font-bold truncate min-w-0">{salonName}</h1>
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex w-full min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="min-w-0 truncate text-xl font-bold sm:text-2xl">{salonName}</h1>
+        <div className="flex w-full min-w-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center">
           <button
             type="button"
             onClick={() => {
@@ -349,11 +349,11 @@ export function DiaryView({
               d.setDate(d.getDate() - (view === "day" ? 1 : 7));
               setCurrentDate(formatDate(d));
             }}
-            className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+            className="min-h-[44px] rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
           >
             Prev
           </button>
-          <span className="text-sm text-muted min-w-0 sm:min-w-[180px] text-center shrink-0 font-medium">
+          <span className="min-w-0 shrink-0 text-center text-xs font-medium text-muted sm:min-w-[160px] sm:text-sm md:min-w-[180px]">
             {view === "day"
               ? daysToShow[0].toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
               : `${daysToShow[0].toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${daysToShow[6].toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
@@ -365,14 +365,14 @@ export function DiaryView({
               d.setDate(d.getDate() + (view === "day" ? 1 : 7));
               setCurrentDate(formatDate(d));
             }}
-            className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+            className="min-h-[44px] rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
           >
             Next
           </button>
           <button
             type="button"
             onClick={() => setCurrentDate(formatDate(new Date()))}
-            className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+            className="min-h-[44px] rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
           >
             Today
           </button>
@@ -380,7 +380,7 @@ export function DiaryView({
             value={view}
             onChange={(e) => setView(e.target.value as "day" | "week")}
             aria-label="View"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            className="min-h-[44px] min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-2 text-sm sm:min-w-[5.5rem] sm:flex-none sm:px-3"
           >
             <option value="day">Day</option>
             <option value="week">Week</option>
@@ -389,7 +389,7 @@ export function DiaryView({
             value={filterStylistId ?? ""}
             onChange={(e) => setFilterStylistId(e.target.value || null)}
             aria-label="Filter by stylist"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            className="min-h-[44px] min-w-0 flex-[1_1_100%] rounded-lg border border-border bg-background px-2 py-2 text-sm sm:max-w-[220px] sm:flex-1 sm:flex-none sm:px-3"
           >
             <option value="">All stylists</option>
             {members.map((m) => (
@@ -412,14 +412,14 @@ export function DiaryView({
 
       {view === "day" ? (
         <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-border bg-muted/30">
-            <div className="flex items-center justify-between gap-3">
+          <div className="border-b border-border bg-muted/30 px-3 py-3 sm:px-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
               <div className="min-w-0">
-                <div className="font-semibold truncate">
+                <div className="truncate font-semibold">
                   {dayHeaderPrefix}
                   {daysToShow[0].toLocaleDateString("en-GB", { weekday: "long", month: "long", day: "numeric" })}
                 </div>
-                <div className="text-xs text-muted">
+                <div className="text-xs leading-snug text-muted">
                   One column per stylist. Drag onto a column and time to reschedule (or move to another stylist).
                 </div>
               </div>
@@ -594,7 +594,7 @@ export function DiaryView({
                                   }}
                                 >
                                   <span
-                                    className={`mb-0.5 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${statusBadge.className}`}
+                                    className={`mb-1 inline-block shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusBadge.className}`}
                                   >
                                     {statusBadge.label}
                                   </span>
@@ -612,9 +612,13 @@ export function DiaryView({
                                       {formatTime(start)}–{formatTime(end)} · {label}
                                     </span>
                                   </div>
-                                  <div className="text-[10px] text-muted truncate">{serviceName}</div>
+                                  <div className="text-[10px] font-medium text-foreground/90 truncate dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.85)]">
+                                    {serviceName}
+                                  </div>
                                   {phone && lc <= 2 && (
-                                    <div className="text-[10px] text-muted truncate">{phone}</div>
+                                    <div className="text-[10px] font-medium text-foreground/90 truncate dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.85)]">
+                                      {phone}
+                                    </div>
                                   )}
                                 </button>
                               );
@@ -725,7 +729,7 @@ export function DiaryView({
                             }}
                           >
                             <span
-                              className={`mb-1 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${statusBadge.className}`}
+                              className={`mb-1.5 inline-block shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusBadge.className}`}
                             >
                               {statusBadge.label}
                             </span>
@@ -758,9 +762,11 @@ export function DiaryView({
                                   >
                                     {label}
                                   </div>
-                                  <div className="text-xs text-muted truncate">{serviceName}</div>
+                                  <div className="text-xs font-medium text-foreground/90 truncate">{serviceName}</div>
                                   {!filterStylistId && stylistName && (
-                                    <div className="text-[10px] text-muted truncate mt-0.5">{stylistName}</div>
+                                    <div className="text-[10px] font-medium text-foreground/85 truncate mt-0.5">
+                                      {stylistName}
+                                    </div>
                                   )}
                                 </div>
                               </div>

@@ -11,13 +11,13 @@ export default async function AdminLayout({
   if (!isSuperAdmin) redirect("/dashboard");
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-border px-4 py-3 flex items-center justify-between gap-4 bg-background">
-        <div className="flex items-center gap-4">
-          <Link href="/admin" className="font-semibold text-accent">
+    <div className="flex min-h-screen min-w-0 flex-col">
+      <header className="flex flex-col gap-3 border-b border-border bg-background px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+          <Link href="/admin" className="shrink-0 font-semibold text-accent">
             Master Admin
           </Link>
-          <nav className="flex items-center gap-3 text-sm text-muted">
+          <nav className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted sm:text-sm">
             <Link href="/admin" className="hover:text-foreground">
               Dashboard
             </Link>
@@ -29,7 +29,7 @@ export default async function AdminLayout({
             </Link>
           </nav>
         </div>
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex shrink-0 flex-wrap items-center gap-3 text-xs sm:text-sm">
           <Link href="/dashboard" className="text-muted hover:text-foreground">
             Back to app
           </Link>
@@ -40,7 +40,7 @@ export default async function AdminLayout({
           </form>
         </div>
       </header>
-      <main className="flex-1 p-4 md:p-6">{children}</main>
+      <main className="min-w-0 flex-1 overflow-x-hidden p-4 md:p-6">{children}</main>
     </div>
   );
 }

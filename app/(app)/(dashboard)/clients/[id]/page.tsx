@@ -78,7 +78,7 @@ export default async function ClientDetailPage({
       : "/imgs/Her.png";
 
   return (
-    <main className="p-4 md:p-6 max-w-3xl min-w-0">
+    <main className="mx-auto w-full min-w-0 max-w-3xl p-4 md:p-6">
       <Link href="/clients" className="text-sm text-muted hover:text-foreground mb-4 inline-block">
         Back to clients
       </Link>

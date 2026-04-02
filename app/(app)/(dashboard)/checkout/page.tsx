@@ -26,7 +26,7 @@ export default async function CheckoutPage() {
       : stylists[0]?.id ?? "";
 
   return (
-    <main className="p-4 md:p-6 max-w-lg min-w-0">
+    <main className="mx-auto w-full min-w-0 max-w-lg p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-6">Checkout</h1>
       <CheckoutView
         salonId={context.salon.id}

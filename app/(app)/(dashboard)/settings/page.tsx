@@ -7,7 +7,7 @@ export default async function SettingsPage() {
   const data = await getSettingsData();
 
   return (
-    <main className="p-4 md:p-6 max-w-2xl min-w-0">
+    <main className="mx-auto w-full min-w-0 max-w-2xl p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-2">Settings</h1>
       <SettingsNav current="general" />
       <SettingsView

@@ -11,7 +11,7 @@ export default async function HelpPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   return (
-    <main className="p-4 md:p-6 max-w-3xl min-w-0">
+    <main className="mx-auto w-full min-w-0 max-w-3xl p-4 md:p-6">
       <HelpView salonName={context.salon.name} userEmail={user?.email ?? undefined} />
     </main>
   );

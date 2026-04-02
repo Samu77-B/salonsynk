@@ -308,7 +308,7 @@ export function EditAppointmentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto" onClick={onClose}>
-      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-lg border border-border bg-background p-6 shadow-xl my-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="my-auto w-full min-w-0 max-w-md max-h-[90vh] overflow-y-auto rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold mb-4">Edit appointment</h2>
         <div className="mb-4 rounded-lg border border-border bg-muted/20 p-3 space-y-3">
           <div>
