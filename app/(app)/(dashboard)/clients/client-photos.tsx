@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import Image from "next/image";
 import { uploadClientPhoto, deleteClientPhoto } from "./actions";
 import type { PhotoSlot, ClientPhoto } from "./actions";
 
@@ -14,10 +15,12 @@ const SLOTS: { key: PhotoSlot; label: string }[] = [
 export function DefaultAvatar({ sex }: { sex: string | null }) {
   const src = sex === "male" ? "/imgs/His.png" : "/imgs/Her.png";
   return (
-    <img
+    <Image
       src={src}
       alt="Default avatar"
-      className="h-full w-full object-cover opacity-40"
+      fill
+      className="object-cover opacity-40"
+      sizes="144px"
     />
   );
 }
@@ -111,10 +114,13 @@ function PhotoSlotCard({
         `}
       >
         {displayUrl ? (
-          <img
+          <Image
             src={displayUrl}
             alt={label}
-            className="h-full w-full object-cover"
+            fill
+            className="object-cover"
+            sizes={isProfile ? "144px" : "112px"}
+            unoptimized={displayUrl.startsWith("blob:")}
           />
         ) : isProfile ? (
           <DefaultAvatar sex={sex} />

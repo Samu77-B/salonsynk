@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { ClientForm } from "./client-form";
 
@@ -20,10 +21,12 @@ function ClientAvatar({ client }: { client: ClientListRow }) {
 
   return (
     <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-border bg-background/50">
-      <img
+      <Image
         src={src}
         alt={client.name || "Client"}
-        className={`h-full w-full object-cover ${hasPhoto ? "" : "opacity-40"}`}
+        fill
+        className={`object-cover ${hasPhoto ? "" : "opacity-40"}`}
+        sizes="40px"
       />
     </div>
   );

@@ -1,6 +1,7 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { ClientForm } from "../client-form";
 import { ClientDetailView } from "../client-detail-view";
@@ -83,10 +84,12 @@ export default async function ClientDetailPage({
       </Link>
       <div className="flex items-center gap-4 mb-6">
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-border bg-background/50">
-          <img
+          <Image
             src={avatarSrc}
             alt={client.name || "Client"}
-            className={`h-full w-full object-cover ${profilePhoto ? "" : "opacity-40"}`}
+            fill
+            className={`object-cover ${profilePhoto ? "" : "opacity-40"}`}
+            sizes="64px"
           />
         </div>
         <div className="min-w-0">

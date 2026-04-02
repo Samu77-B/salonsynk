@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createAppointment, updateAppointment, deleteAppointment } from "./actions";
 import { AddAppointmentModal } from "./add-appointment-modal";
@@ -545,9 +546,11 @@ export function DiaryView({
                                   ) : null}
                                   <div className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
                                     {a.client_id && clientPhotoMap[a.client_id] && (
-                                      <img
+                                      <Image
                                         src={clientPhotoMap[a.client_id]}
                                         alt=""
+                                        width={24}
+                                        height={24}
                                         className="h-6 w-6 rounded-full object-cover shrink-0"
                                       />
                                     )}
@@ -678,9 +681,11 @@ export function DiaryView({
                             >
                               <div className="flex items-start gap-2">
                                 {a.client_id && clientPhotoMap[a.client_id] ? (
-                                  <img
+                                  <Image
                                     src={clientPhotoMap[a.client_id]}
                                     alt=""
+                                    width={36}
+                                    height={36}
                                     className="h-9 w-9 rounded-full object-cover shrink-0 mt-0.5"
                                   />
                                 ) : (

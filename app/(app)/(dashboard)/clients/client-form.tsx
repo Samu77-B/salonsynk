@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClientAction, uploadClientPhoto } from "./actions";
 import { DefaultAvatar } from "./client-photos";
@@ -153,11 +154,15 @@ export function ClientForm({
               className="group relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-background/50 transition-colors hover:border-accent/60 hover:bg-accent/5 disabled:opacity-50"
             >
               {profilePreview ? (
-                <img src={profilePreview} alt="Profile preview" className="h-full w-full object-cover" />
+                <Image
+                  src={profilePreview}
+                  alt="Profile preview"
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
               ) : (
-                <div className="h-full w-full">
-                  <DefaultAvatar sex={sex === "male" ? "male" : sex === "female" ? "female" : null} />
-                </div>
+                <DefaultAvatar sex={sex === "male" ? "male" : sex === "female" ? "female" : null} />
               )}
               <span className="absolute inset-0 flex items-center justify-center bg-background/60 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100">
                 Choose photo
