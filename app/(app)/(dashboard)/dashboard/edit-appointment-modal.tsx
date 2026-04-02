@@ -317,6 +317,12 @@ export function EditAppointmentModal({
               {statusDisplayLabel(currentStatus)}
             </p>
           </div>
+          {currentStatus === "scheduled" && (
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              After the client has been seen and the treatment is done, tap <span className="font-medium text-foreground">Mark completed</span>. The diary card will show a green{" "}
+              <span className="font-medium text-emerald-600 dark:text-emerald-400">Completed</span> tag.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             {currentStatus === "scheduled" && (
               <button

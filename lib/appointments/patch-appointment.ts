@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getMutateClient } from "@/lib/supabase/mutate-client";
 import {
@@ -38,8 +39,8 @@ export type UpdateAppointmentInput = {
 };
 
 /**
- * Core appointment PATCH used by the REST route (preferred for diary saves) and optionally by server actions.
- * Uses sync revalidatePath — safe in Route Handlers and avoids server-action response bugs.
+ * Core appointment PATCH used by the REST route and server actions.
+ * Revalidation is deferred with `after()` so diary server actions (e.g. status changes) do not hit Next.js digest/RSC races.
  */
 export async function executeAppointmentPatch(
   id: string,
@@ -199,16 +200,19 @@ export async function executeAppointmentPatch(
     }
   }
 
-  try {
-    revalidatePath("/dashboard");
-    revalidatePath("/reports");
-    if (revalidateClientId) {
-      revalidatePath("/clients");
-      revalidatePath(`/clients/${revalidateClientId}`);
+  const clientIdForRevalidate = revalidateClientId;
+  after(() => {
+    try {
+      revalidatePath("/dashboard");
+      revalidatePath("/reports");
+      if (clientIdForRevalidate) {
+        revalidatePath("/clients");
+        revalidatePath(`/clients/${clientIdForRevalidate}`);
+      }
+    } catch (e) {
+      console.error("[executeAppointmentPatch] revalidatePath", e);
     }
-  } catch (e) {
-    console.error("[executeAppointmentPatch] revalidatePath", e);
-  }
+  });
 
   return { error: null };
 }

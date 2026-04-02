@@ -47,11 +47,39 @@ function appointmentAllowsDrag(status: string): boolean {
   return status !== "canceled" && status !== "no_show";
 }
 
-function appointmentStatusChip(status: string): string | null {
-  if (status === "canceled") return "Cancelled";
-  if (status === "no_show") return "No-show";
-  if (status === "completed") return "Done";
-  return null;
+type AppointmentStatusBadge = { label: string; className: string };
+
+/** Colour-coded tag on each card so completed / cancelled / no-show are obvious at a glance; scheduled = still to finish. */
+function appointmentStatusBadge(status: string): AppointmentStatusBadge {
+  switch (status) {
+    case "completed":
+      return {
+        label: "Completed",
+        className:
+          "border border-emerald-500/55 bg-emerald-500/20 text-emerald-900 dark:text-emerald-100",
+      };
+    case "canceled":
+      return {
+        label: "Cancelled",
+        className: "border border-border/90 bg-background/95 text-muted-foreground",
+      };
+    case "no_show":
+      return {
+        label: "No-show",
+        className:
+          "border border-amber-500/50 bg-amber-500/15 text-amber-950 dark:text-amber-100",
+      };
+    default:
+      return {
+        label: "Scheduled",
+        className:
+          "border border-sky-500/45 bg-sky-500/12 text-sky-950 dark:text-sky-100",
+      };
+  }
+}
+
+function appointmentTitleStruckThrough(status: string): boolean {
+  return status === "canceled" || status === "no_show";
 }
 
 const MIN_COL_PX = 108;
@@ -509,8 +537,9 @@ export function DiaryView({
                               const pct = 100 / lc;
                               const gap = 3;
                               const drag = appointmentAllowsDrag(a.status);
-                              const chip = appointmentStatusChip(a.status);
+                              const statusBadge = appointmentStatusBadge(a.status);
                               const muted = a.status === "canceled" || a.status === "no_show";
+                              const titleStrike = appointmentTitleStruckThrough(a.status);
 
                               return (
                                 <button
@@ -528,7 +557,7 @@ export function DiaryView({
                                     e.dataTransfer.effectAllowed = "move";
                                   }}
                                   onDragEnd={() => setMovingId(null)}
-                                  className={`absolute z-10 text-left rounded-lg border shadow-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation min-h-[44px] ${a.status === "canceled" ? "line-through decoration-foreground/50" : ""}`}
+                                  className={`absolute z-10 text-left rounded-lg border shadow-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation min-h-[44px] ${titleStrike ? "line-through decoration-foreground/50" : ""}`}
                                   style={{
                                     top: `${top}px`,
                                     height: `${height}px`,
@@ -539,11 +568,11 @@ export function DiaryView({
                                     opacity: movingId === a.id ? 0.7 : muted ? 0.65 : 1,
                                   }}
                                 >
-                                  {chip ? (
-                                    <span className="mb-0.5 inline-block rounded bg-background/80 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted">
-                                      {chip}
-                                    </span>
-                                  ) : null}
+                                  <span
+                                    className={`mb-0.5 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${statusBadge.className}`}
+                                  >
+                                    {statusBadge.label}
+                                  </span>
                                   <div className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
                                     {a.client_id && clientPhotoMap[a.client_id] && (
                                       <Image
@@ -645,8 +674,9 @@ export function DiaryView({
                           members.find((m) => m.id === a.stylist_id)?.role ||
                           "";
                         const drag = appointmentAllowsDrag(a.status);
-                        const chip = appointmentStatusChip(a.status);
+                        const statusBadge = appointmentStatusBadge(a.status);
                         const muted = a.status === "canceled" || a.status === "no_show";
+                        const titleStrike = appointmentTitleStruckThrough(a.status);
 
                         return (
                           <div
@@ -669,11 +699,11 @@ export function DiaryView({
                               opacity: movingId === a.id ? 0.75 : muted ? 0.65 : 1,
                             }}
                           >
-                            {chip ? (
-                              <span className="mb-1 inline-block rounded bg-background/80 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted">
-                                {chip}
-                              </span>
-                            ) : null}
+                            <span
+                              className={`mb-1 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${statusBadge.className}`}
+                            >
+                              {statusBadge.label}
+                            </span>
                             <button
                               type="button"
                               onClick={() => setEditId(a.id)}
@@ -699,7 +729,7 @@ export function DiaryView({
                                     {formatTime(start)}–{formatTime(end)}
                                   </div>
                                   <div
-                                    className={`text-sm font-medium truncate ${a.status === "canceled" ? "line-through decoration-foreground/50" : ""}`}
+                                    className={`text-sm font-medium truncate ${titleStrike ? "line-through decoration-foreground/50" : ""}`}
                                   >
                                     {label}
                                   </div>
