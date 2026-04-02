@@ -3,10 +3,35 @@
 import { useState, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { createAppointment, updateAppointment, deleteAppointment } from "./actions";
+import { createAppointment, deleteAppointment } from "./actions";
 import { AddAppointmentModal } from "./add-appointment-modal";
 import { EditAppointmentModal } from "./edit-appointment-modal";
 import { validateMoveWithProcessing, type AppointmentBlockingInput } from "@/lib/diary-rules";
+import type { UpdateAppointmentInput } from "@/lib/appointments/patch-appointment";
+
+/** Route Handler + JSON — avoids Next.js server-action digest errors on diary saves (status, drag, form). */
+async function patchAppointmentViaApi(
+  id: string,
+  updates: UpdateAppointmentInput
+): Promise<{ error: string | null }> {
+  const res = await fetch(`/api/appointments/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+    credentials: "same-origin",
+  });
+  let parsed: { error?: string | null } = {};
+  try {
+    parsed = (await res.json()) as { error?: string | null };
+  } catch {
+    return { error: "Could not read response from server." };
+  }
+  if (!res.ok) {
+    const msg = parsed.error?.trim();
+    return { error: msg || `Update failed (${res.status}).` };
+  }
+  return { error: parsed.error ?? null };
+}
 
 type Member = { id: string; display_name: string | null; role: string; calendar_color?: string | null };
 type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number };
@@ -288,7 +313,7 @@ export function DiaryView({
     if (targetStylistId !== appointment.stylist_id) {
       updates.stylist_id = targetStylistId;
     }
-    const result = await updateAppointment(appointmentId, updates);
+    const result = await patchAppointmentViaApi(appointmentId, updates);
     if (result.error) setError(result.error);
     else {
       setMovingId(null);
@@ -803,7 +828,7 @@ export function DiaryView({
             services={services}
             clients={clients}
             onUpdate={async (id, data) => {
-              const result = await updateAppointment(id, data);
+              const result = await patchAppointmentViaApi(id, data);
               if (result.error) setError(result.error);
               else {
                 setEditId(null);
