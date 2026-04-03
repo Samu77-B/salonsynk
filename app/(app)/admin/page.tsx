@@ -60,7 +60,7 @@ export default async function AdminDashboardPage() {
                   </span>
                 </div>
                 <p className="text-sm text-muted font-mono truncate" title={s.slug}>
-                  /book/{s.slug}
+                  /book/{s.slug} · /shop/{s.slug}
                 </p>
                 <p className="text-xs text-muted">
                   Joined{" "}
@@ -70,14 +70,23 @@ export default async function AdminDashboardPage() {
                       })
                     : "—"}
                 </p>
-                <div className="flex items-center gap-2 mt-auto pt-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-auto pt-1">
                   <a
                     href={`/book/${s.slug}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-accent hover:underline"
                   >
-                    View booking
+                    Booking
+                  </a>
+                  <span className="text-muted">·</span>
+                  <a
+                    href={`/shop/${s.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-accent hover:underline"
+                  >
+                    Shop
                   </a>
                   <span className="text-muted">·</span>
                   <Link

@@ -20,6 +20,7 @@ export function AdminNewSalonForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedShop, setCopiedShop] = useState(false);
   const [origin, setOrigin] = useState("");
   const logoFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -28,12 +29,22 @@ export function AdminNewSalonForm() {
   }, []);
 
   const bookingPageUrl = origin ? `${origin}/book/${slug || "my-salon"}` : "";
+  const shopPageUrl = origin ? `${origin}/shop/${slug || "my-salon"}` : "";
 
   function handleCopyBookingUrl() {
     if (bookingPageUrl && typeof navigator?.clipboard?.writeText === "function") {
       navigator.clipboard.writeText(bookingPageUrl).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  }
+
+  function handleCopyShopUrl() {
+    if (shopPageUrl && typeof navigator?.clipboard?.writeText === "function") {
+      navigator.clipboard.writeText(shopPageUrl).then(() => {
+        setCopiedShop(true);
+        setTimeout(() => setCopiedShop(false), 2000);
       });
     }
   }
@@ -86,7 +97,7 @@ export function AdminNewSalonForm() {
       </div>
       <div>
         <label htmlFor="slug" className="block text-sm font-medium mb-1">
-          URL slug (booking link)
+          URL slug (booking &amp; shop)
         </label>
         <input
           id="slug"
@@ -96,23 +107,45 @@ export function AdminNewSalonForm() {
           placeholder={slugFromName(name) || "my-salon"}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
         />
-        <div className="mt-2 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-          <input
-            type="text"
-            readOnly
-            value={bookingPageUrl}
-            placeholder={origin ? "" : "Loading…"}
-            className="flex-1 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground"
-            aria-label="Booking page URL"
-          />
-          <button
-            type="button"
-            onClick={handleCopyBookingUrl}
-            disabled={!bookingPageUrl}
-            className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm font-medium disabled:opacity-50"
-          >
-            {copied ? "Copied!" : "Copy link"}
-          </button>
+        <div className="mt-2 space-y-2">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+            <span className="text-xs text-muted shrink-0 w-16">Booking</span>
+            <input
+              type="text"
+              readOnly
+              value={bookingPageUrl}
+              placeholder={origin ? "" : "Loading…"}
+              className="flex-1 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground"
+              aria-label="Booking page URL"
+            />
+            <button
+              type="button"
+              onClick={handleCopyBookingUrl}
+              disabled={!bookingPageUrl}
+              className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm font-medium disabled:opacity-50"
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+            <span className="text-xs text-muted shrink-0 w-16">Shop</span>
+            <input
+              type="text"
+              readOnly
+              value={shopPageUrl}
+              placeholder={origin ? "" : "Loading…"}
+              className="flex-1 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground"
+              aria-label="Shop page URL"
+            />
+            <button
+              type="button"
+              onClick={handleCopyShopUrl}
+              disabled={!shopPageUrl}
+              className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm font-medium disabled:opacity-50"
+            >
+              {copiedShop ? "Copied!" : "Copy"}
+            </button>
+          </div>
         </div>
       </div>
       <div>
@@ -160,7 +193,7 @@ export function AdminNewSalonForm() {
           />
         </div>
         <p className="text-xs text-muted mt-1">
-          PNG, JPEG, GIF, WebP, or SVG up to 2MB. Used on the public booking page.
+          PNG, JPEG, GIF, WebP, or SVG up to 2MB. Used on the public booking and shop pages.
         </p>
       </div>
       {error && <p className="text-sm text-red-400">{error}</p>}

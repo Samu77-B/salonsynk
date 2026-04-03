@@ -30,7 +30,7 @@ export default async function AdminSalonsPage() {
             <tr>
               <th className="text-left px-4 py-2 font-medium">Name</th>
               <th className="text-left px-4 py-2 font-medium">Slug</th>
-              <th className="text-left px-4 py-2 font-medium">Booking URL</th>
+              <th className="text-left px-4 py-2 font-medium">Public URLs</th>
               <th className="text-left px-4 py-2 font-medium">Status</th>
               <th className="text-left px-4 py-2 font-medium">Actions</th>
             </tr>
@@ -41,14 +41,24 @@ export default async function AdminSalonsPage() {
                 <td className="px-4 py-2">{s.name}</td>
                 <td className="px-4 py-2 font-mono text-muted">{s.slug}</td>
                 <td className="px-4 py-2">
-                  <a
-                    href={`/book/${s.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent hover:underline"
-                  >
-                    /book/{s.slug}
-                  </a>
+                  <div className="flex flex-col gap-0.5">
+                    <a
+                      href={`/book/${s.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent hover:underline font-mono text-xs"
+                    >
+                      /book/{s.slug}
+                    </a>
+                    <a
+                      href={`/shop/${s.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent hover:underline font-mono text-xs"
+                    >
+                      /shop/{s.slug}
+                    </a>
+                  </div>
                 </td>
                 <td className="px-4 py-2 capitalize">{s.subscription_status}</td>
                 <td className="px-4 py-2">

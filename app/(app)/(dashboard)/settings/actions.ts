@@ -64,6 +64,12 @@ export async function updateSalonBranding(salonId: string, branding: BrandingInp
 
   if (error) return { error: error.message };
   revalidatePath("/settings");
+  const slug = context.salon.slug;
+  if (slug) {
+    revalidatePath(`/book/${slug}`);
+    revalidatePath(`/shop/${slug}`);
+    revalidatePath(`/${slug}/shop`);
+  }
   return {};
 }
 
@@ -183,6 +189,12 @@ export async function uploadSalonLogo(
   if (updateError) return { error: updateError.message };
 
   revalidatePath("/settings");
+  const slug = context.salon.slug;
+  if (slug) {
+    revalidatePath(`/book/${slug}`);
+    revalidatePath(`/shop/${slug}`);
+    revalidatePath(`/${slug}/shop`);
+  }
   return { error: null, url };
 }
 

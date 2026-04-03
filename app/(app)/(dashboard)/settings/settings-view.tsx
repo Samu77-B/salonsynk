@@ -107,14 +107,24 @@ export function SettingsView({
         <h2 className="text-lg font-semibold mb-2">Business</h2>
         <p className="text-muted text-sm">{salonName}</p>
         <p className="text-muted text-xs mt-1">
-          Booking page: /book/{salonSlug}
+          Booking page:{" "}
+          <a href={`/book/${salonSlug}`} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+            /book/{salonSlug}
+          </a>
+        </p>
+        <p className="text-muted text-xs mt-1">
+          Shop page (retail products):{" "}
+          <a href={`/shop/${salonSlug}`} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+            /shop/{salonSlug}
+          </a>
         </p>
       </section>
 
       <section>
         <h2 className="text-lg font-semibold mb-2">Branding</h2>
         <p className="text-muted text-sm mb-4">
-          Customise your public booking page so it matches your salon. Clients see this when they book online.
+          Customise your public booking and shop pages so they match your salon. Clients see this when they book online or
+          browse products.
         </p>
         <form onSubmit={handleBrandingSubmit} className="space-y-3">
           <div>

@@ -345,7 +345,7 @@ function ProductCard({
           type="button"
           onClick={() =>
             void navigator.clipboard.writeText(
-              `${window.location.origin}/${salonSlug}/shop#product-${product.id}`
+              `${window.location.origin}/shop/${salonSlug}#product-${product.id}`
             )
           }
           className="rounded-lg border border-border px-4 py-2 text-sm"
@@ -397,9 +397,10 @@ export function ProductsView({
   return (
     <section className="space-y-6">
       <p className="text-sm text-muted">
-        Retail items (shampoos, conditioners, etc.) are separate from appointment services. Your public shop is at{" "}
-        <a href={`/${salonSlug}/shop`} className="font-mono text-accent underline" target="_blank" rel="noreferrer">
-          /{salonSlug}/shop
+        Retail items (shampoos, conditioners, etc.) are separate from appointment services. Your public shop uses the same
+        slug as booking:{" "}
+        <a href={`/shop/${salonSlug}`} className="font-mono text-accent underline" target="_blank" rel="noreferrer">
+          /shop/{salonSlug}
         </a>
         . Clients can book from your{" "}
         <a href={`/book/${salonSlug}`} className="text-accent underline" target="_blank" rel="noreferrer">
@@ -618,7 +619,7 @@ export function ProductsView({
             <button
               type="button"
               onClick={() =>
-                void navigator.clipboard.writeText(`${window.location.origin}/${salonSlug}/shop`)
+                void navigator.clipboard.writeText(`${window.location.origin}/shop/${salonSlug}`)
               }
               className="rounded-lg border border-border px-4 py-2 text-sm"
             >

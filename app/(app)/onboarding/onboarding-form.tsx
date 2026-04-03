@@ -133,7 +133,7 @@ export function OnboardingForm() {
       </div>
       <div>
         <label htmlFor="slug" className="block text-sm font-medium mb-1">
-          URL slug (for booking link)
+          URL slug (booking and shop)
         </label>
         <input
           id="slug"
@@ -143,7 +143,9 @@ export function OnboardingForm() {
           placeholder={slugFromName(name) || "my-salon"}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
         />
-        <p className="text-xs text-muted mt-1">salonsynk.com/book/{slug || "my-salon"}</p>
+        <p className="text-xs text-muted mt-1">
+          …/book/{slug || "my-salon"} and …/shop/{slug || "my-salon"}
+        </p>
       </div>
       {error && <p className="text-sm text-red-400">{error}</p>}
       <button

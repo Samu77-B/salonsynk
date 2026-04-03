@@ -46,7 +46,7 @@ export default async function BookPage({
       <div className="w-full min-w-0 max-w-md space-y-6">
         <div className="flex justify-center">
           <Link
-            href={`/${slug}/shop`}
+            href={`/shop/${slug}`}
             className="text-sm font-medium text-accent underline hover:opacity-90"
           >
             Shop products

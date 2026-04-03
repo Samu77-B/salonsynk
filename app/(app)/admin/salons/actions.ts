@@ -159,8 +159,12 @@ export async function adminUpdateSalon(
   revalidatePath("/admin/salons");
   revalidatePath(`/admin/salons/${salonId}`);
   revalidatePath(`/book/${previousSlug}`);
+  revalidatePath(`/shop/${previousSlug}`);
+  revalidatePath(`/${previousSlug}/shop`);
   if (payload.slug && payload.slug !== previousSlug) {
     revalidatePath(`/book/${payload.slug}`);
+    revalidatePath(`/shop/${payload.slug}`);
+    revalidatePath(`/${payload.slug}/shop`);
   }
   return {};
 }

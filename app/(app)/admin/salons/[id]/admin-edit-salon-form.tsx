@@ -130,12 +130,14 @@ export function AdminEditSalonForm({
             onChange={(e) => setSlug(e.target.value)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
           />
-          <p className="text-xs text-muted mt-1">/book/{slug || "…"}</p>
+          <p className="text-xs text-muted mt-1">
+            /book/{slug || "…"} · /shop/{slug || "…"}
+          </p>
         </div>
 
         <h2 className="text-lg font-semibold pt-4">Branding</h2>
         <p className="text-sm text-muted">
-          Used on the public booking page so clients see the salon&apos;s brand.
+          Used on the public booking and shop pages so clients see the salon&apos;s brand.
         </p>
         <div>
           <label className="block text-sm font-medium mb-1">Logo</label>

@@ -53,16 +53,29 @@ export default async function AdminEditSalonPage({
         >
           Manage salon (Team, Services, Clients…)
         </a>
-        <span className="text-muted text-sm">
-          Booking:{" "}
-          <a
-            href={`/book/${salon.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-accent hover:underline"
-          >
-            /book/{salon.slug}
-          </a>
+        <span className="text-muted text-sm flex flex-wrap gap-x-3 gap-y-1">
+          <span>
+            Booking:{" "}
+            <a
+              href={`/book/${salon.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline"
+            >
+              /book/{salon.slug}
+            </a>
+          </span>
+          <span>
+            Shop:{" "}
+            <a
+              href={`/shop/${salon.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline"
+            >
+              /shop/{salon.slug}
+            </a>
+          </span>
         </span>
       </div>
       <AdminEditSalonForm

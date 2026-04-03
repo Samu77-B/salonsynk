@@ -98,7 +98,10 @@ export async function addProduct(
   if (error) return { error: formatDbError(error) };
   revalidatePath("/products");
   const ctx = await getCurrentUserSalon();
-  if (ctx?.salon.slug) revalidatePath(`/${ctx.salon.slug}/shop`);
+  if (ctx?.salon.slug) {
+    revalidatePath(`/shop/${ctx.salon.slug}`);
+    revalidatePath(`/${ctx.salon.slug}/shop`);
+  }
   return { error: null };
 }
 
@@ -140,7 +143,10 @@ export async function updateProduct(
   if (error) return { error: formatDbError(error) };
   revalidatePath("/products");
   const ctx = await getCurrentUserSalon();
-  if (ctx?.salon.slug) revalidatePath(`/${ctx.salon.slug}/shop`);
+  if (ctx?.salon.slug) {
+    revalidatePath(`/shop/${ctx.salon.slug}`);
+    revalidatePath(`/${ctx.salon.slug}/shop`);
+  }
   return { error: null };
 }
 
@@ -158,7 +164,10 @@ export async function deleteProduct(salonId: string, productId: string): Promise
   if (error) return { error: formatDbError(error) };
   revalidatePath("/products");
   const ctx = await getCurrentUserSalon();
-  if (ctx?.salon.slug) revalidatePath(`/${ctx.salon.slug}/shop`);
+  if (ctx?.salon.slug) {
+    revalidatePath(`/shop/${ctx.salon.slug}`);
+    revalidatePath(`/${ctx.salon.slug}/shop`);
+  }
   return { error: null };
 }
 
@@ -334,7 +343,10 @@ export async function importProductsFromCsv(
 
   revalidatePath("/products");
   const ctx = await getCurrentUserSalon();
-  if (ctx?.salon.slug) revalidatePath(`/${ctx.salon.slug}/shop`);
+  if (ctx?.salon.slug) {
+    revalidatePath(`/shop/${ctx.salon.slug}`);
+    revalidatePath(`/${ctx.salon.slug}/shop`);
+  }
 
   return { error: null, added: payloads.length, rowErrors };
 }
