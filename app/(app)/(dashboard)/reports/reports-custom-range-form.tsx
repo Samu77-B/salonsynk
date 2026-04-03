@@ -4,13 +4,17 @@ const inputClass =
 export function ReportsCustomRangeForm({
   defaultFrom,
   defaultTo,
+  includeProducts,
 }: {
   defaultFrom: string;
   defaultTo: string;
+  /** Preserve product-sales toggle when applying a custom range. */
+  includeProducts?: boolean;
 }) {
   return (
     <form action="/reports" method="get" className="rounded-lg border border-border bg-white/5 p-4">
       <input type="hidden" name="range" value="custom" />
+      {includeProducts ? <input type="hidden" name="products" value="1" /> : null}
       <h2 className="text-sm font-semibold text-foreground">Choose date range</h2>
       <p className="mt-1 text-xs text-muted">
         Select any period up to one year (inclusive). Figures are compared to the previous period of the same length.

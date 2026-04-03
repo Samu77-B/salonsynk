@@ -71,7 +71,7 @@ export async function sendOwnerInviteLink(
   if (!resend) return { error: "Resend not configured" };
   const html = `
     <p>You've been invited to manage <strong>${salonName}</strong> on SalonSynk.</p>
-    <p><a href="${inviteLink}" style="display:inline-block;background:#7c3aed;color:white;padding:12px 24px;text-decoration:none;border-radius:0;font-weight:600;">Accept the invite</a></p>
+    <p><a href="${inviteLink}" style="display:inline-block;background:#16a34a;color:white;padding:12px 24px;text-decoration:none;border-radius:0;font-weight:600;">Accept the invite</a></p>
     <p>This link lets you set your password and log in. If you didn't expect this, you can ignore this email.</p>
   `;
   const { error } = await resend.emails.send({
@@ -174,6 +174,23 @@ export async function sendReviewRequest(
     to: [to],
     subject: `How was your visit to ${details.salonName}?`,
     html,
+  });
+  return { error: normalizeResendError(error) };
+}
+
+export async function sendMarketingEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  unsubscribeUrl: string;
+}): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured" };
+  const footer = `<hr style="border:none;border-top:1px solid #e5e5e5;margin:24px 0" /><p style="font-size:12px;color:#666">You received this because you opted in at your salon. <a href="${params.unsubscribeUrl}">Unsubscribe from marketing</a></p>`;
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [params.to],
+    subject: params.subject,
+    html: params.html + footer,
   });
   return { error: normalizeResendError(error) };
 }

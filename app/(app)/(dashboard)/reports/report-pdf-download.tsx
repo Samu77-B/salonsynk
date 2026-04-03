@@ -101,6 +101,22 @@ function buildPdf(payload: ReportPdfPayload): jsPDF {
   }
   y += 2;
 
+  if (payload.includeProductSales) {
+    heading("Retail / product sales (ledger)", 12);
+    if (payload.totalProductSales) {
+      body(`Product-tagged sales: ${payload.totalProductSales}`);
+      if (payload.productSalesDelta) muted(payload.productSalesDelta);
+    }
+    if (!payload.topProductsRetail?.length) {
+      body("No product-tagged transactions in this period.");
+    } else {
+      for (const s of payload.topProductsRetail) {
+        body(`${s.name} — ${s.count} line(s), ${s.sales}`);
+      }
+    }
+    y += 2;
+  }
+
   heading("Attendance", 12);
   body(`Total bookings: ${payload.totalBookings}`);
   body(`No-shows: ${payload.noShows}`);

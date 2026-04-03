@@ -22,4 +22,9 @@ export type ReportPdfPayload = {
   totalBookings: number;
   noShows: number;
   canceled: number;
+  /** When true, PDF includes retail / product sales section. */
+  includeProductSales?: boolean;
+  totalProductSales?: string;
+  productSalesDelta?: string;
+  topProductsRetail?: { name: string; count: number; sales: string }[];
 };

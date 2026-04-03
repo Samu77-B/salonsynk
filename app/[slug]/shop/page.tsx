@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { formatProductPriceMinor } from "@/lib/product-currency";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ProductBuyButton } from "./product-buy-button";
 
 export default async function SalonShopPage({
   params,
@@ -121,6 +122,12 @@ export default async function SalonShopPage({
                     {row.description && (
                       <p className="text-sm text-muted whitespace-pre-wrap">{row.description}</p>
                     )}
+                    <ProductBuyButton
+                      slug={slug}
+                      productId={row.id}
+                      productName={row.name}
+                      priceLabel={formatProductPriceMinor(minor, cur)}
+                    />
                   </div>
                 </li>
               );
@@ -129,7 +136,7 @@ export default async function SalonShopPage({
         )}
 
         <footer className="border-t border-border pt-6 text-center text-xs text-muted">
-          <p>Prices shown may vary in salon. Contact {displayName} to purchase or reserve.</p>
+          <p>Pay online where available; prices may vary in salon. Contact {displayName} with questions.</p>
         </footer>
       </div>
     </main>

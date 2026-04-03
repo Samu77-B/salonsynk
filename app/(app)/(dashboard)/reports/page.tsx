@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { canViewReports } from "@/lib/dashboard-roles";
 import { ReportPdfDownload } from "./report-pdf-download";
 import type { ReportPdfPayload } from "./report-pdf-types";
 import {
@@ -25,8 +26,15 @@ type AppointmentRow = {
 type SalesTransactionRow = {
   amount_minor: number;
   paid_at: string;
+  product_ids?: string[] | null;
   salon_members: { display_name: string | null } | null;
 };
+
+function appendProductsToReportsHref(href: string, includeProducts: boolean): string {
+  if (!includeProducts) return href;
+  const joiner = href.includes("?") ? "&" : "?";
+  return `${href}${joiner}products=1`;
+}
 
 function isHaircutService(name: string | null | undefined): boolean {
   if (!name) return false;
@@ -116,6 +124,33 @@ function buildSalesAggregates(rows: SalesTransactionRow[]) {
   return { totalSalesMinor, topStylists };
 }
 
+function buildProductAggregates(rows: SalesTransactionRow[], nameById: Map<string, string>) {
+  let totalProductSalesMinor = 0;
+  const productStats = new Map<string, { count: number; salesMinor: number }>();
+
+  for (const row of rows) {
+    const pids = (row.product_ids ?? []).filter(Boolean);
+    if (pids.length === 0) continue;
+    const amountMinor = Number(row.amount_minor ?? 0);
+    totalProductSalesMinor += amountMinor;
+    const share = amountMinor / pids.length;
+    for (const pid of pids) {
+      const label = nameById.get(pid) ?? "Product";
+      const entry = productStats.get(label) ?? { count: 0, salesMinor: 0 };
+      entry.count += 1;
+      entry.salesMinor += share;
+      productStats.set(label, entry);
+    }
+  }
+
+  const topProducts = [...productStats.entries()]
+    .map(([name, value]) => ({ name, ...value }))
+    .sort((a, b) => (b.salesMinor !== a.salesMinor ? b.salesMinor - a.salesMinor : b.count - a.count))
+    .slice(0, 6);
+
+  return { totalProductSalesMinor, topProducts };
+}
+
 function formatDeltaLine(label: string, current: number, previous: number): string {
   const delta = percentChange(current, previous);
   if (delta === null) {
@@ -136,7 +171,12 @@ function DeltaText({ label, current, previous }: { label: string; current: numbe
 }
 
 type ReportsPageProps = {
-  searchParams: Promise<{ range?: string | string[]; from?: string | string[]; to?: string | string[] }>;
+  searchParams: Promise<{
+    range?: string | string[];
+    from?: string | string[];
+    to?: string | string[];
+    products?: string | string[];
+  }>;
 };
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
@@ -144,10 +184,9 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   if (!context) redirect("/onboarding");
 
   const isSuperAdmin = await getIsSuperAdmin();
-  const role = (context.member.role ?? "").toLowerCase();
-  const canViewReports = isSuperAdmin || role === "owner" || role.includes("manager");
+  const role = context.member.role ?? "";
 
-  if (!canViewReports) {
+  if (!canViewReports(isSuperAdmin, role)) {
     return (
       <main className="mx-auto w-full min-w-0 p-4 md:p-6">
         <h1 className="text-2xl font-bold mb-3">Reports</h1>
@@ -159,19 +198,24 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   }
 
   const params = await searchParams;
+  const productsParam = Array.isArray(params.products) ? params.products[0] : params.products;
+  const includeProducts = productsParam === "1" || productsParam === "true";
+
   const now = new Date();
   const ctx = buildReportWindowContext(params, now);
   const defaults = defaultCustomRangeDefaults(now);
-  const customEntryHref = customRangeHref(defaults.from, defaults.to);
-  const customCurrentHref =
+  const customEntryHref = appendProductsToReportsHref(customRangeHref(defaults.from, defaults.to), includeProducts);
+  const customCurrentHref = appendProductsToReportsHref(
     ctx.customFromYmd && ctx.customToYmd
       ? customRangeHref(ctx.customFromYmd, ctx.customToYmd)
-      : customRangeHref(ctx.formFrom, ctx.formTo);
+      : customRangeHref(ctx.formFrom, ctx.formTo),
+    includeProducts,
+  );
   const customPillHref =
     ctx.range === "custom" && ctx.customFromYmd && ctx.customToYmd
       ? customCurrentHref
       : ctx.customRequested
-        ? customRangeHref(ctx.formFrom, ctx.formTo)
+        ? appendProductsToReportsHref(customRangeHref(ctx.formFrom, ctx.formTo), includeProducts)
         : customEntryHref;
 
   const supabase = await createClient();
@@ -192,6 +236,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       .select(`
         amount_minor,
         paid_at,
+        product_ids,
         salon_members(display_name)
       `)
       .eq("salon_id", context.salon.id)
@@ -224,9 +269,29 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const currentSalesAgg = buildSalesAggregates(currentSalesRows);
   const previousSalesAgg = buildSalesAggregates(previousSalesRows);
 
-  const completedRate = currentAgg.totalBookings === 0
-    ? 0
-    : (currentAgg.completedAppointments / currentAgg.totalBookings) * 100;
+  const productIdSet = new Set<string>();
+  for (const row of salesRows) {
+    for (const id of row.product_ids ?? []) {
+      if (id) productIdSet.add(id);
+    }
+  }
+  const nameById = new Map<string, string>();
+  if (productIdSet.size > 0) {
+    const { data: productRows } = await supabase
+      .from("products")
+      .select("id, name")
+      .eq("salon_id", context.salon.id)
+      .in("id", [...productIdSet]);
+    for (const p of productRows ?? []) {
+      nameById.set(p.id, p.name ?? "Product");
+    }
+  }
+
+  const currentProductAgg = buildProductAggregates(currentSalesRows, nameById);
+  const previousProductAgg = buildProductAggregates(previousSalesRows, nameById);
+
+  const completedRate =
+    currentAgg.totalBookings === 0 ? 0 : (currentAgg.completedAppointments / currentAgg.totalBookings) * 100;
 
   const previousCompletedRate =
     previousAgg.totalBookings === 0 ? 0 : (previousAgg.completedAppointments / previousAgg.totalBookings) * 100;
@@ -264,12 +329,37 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     totalBookings: currentAgg.totalBookings,
     noShows: currentAgg.noShows,
     canceled: currentAgg.canceled,
+    includeProductSales: includeProducts,
+    ...(includeProducts
+      ? {
+          totalProductSales: formatMoney(currentProductAgg.totalProductSalesMinor),
+          productSalesDelta: formatDeltaLine(
+            ctx.deltaLabel,
+            currentProductAgg.totalProductSalesMinor,
+            previousProductAgg.totalProductSalesMinor,
+          ),
+          topProductsRetail: currentProductAgg.topProducts.map((s) => ({
+            name: s.name,
+            count: s.count,
+            sales: formatMoney(s.salesMinor),
+          })),
+        }
+      : {}),
   };
 
   const reportDataError = !!(appointmentsRes.error || salesRes.error);
 
   const pillActive = "rounded-md px-3 py-1.5 text-sm bg-accent text-background";
   const pillIdle = "rounded-md px-3 py-1.5 text-sm text-muted hover:text-foreground";
+
+  const productsOffHref =
+    ctx.range === "custom" && ctx.customFromYmd && ctx.customToYmd
+      ? `/reports?range=custom&from=${encodeURIComponent(ctx.customFromYmd)}&to=${encodeURIComponent(ctx.customToYmd)}`
+      : ctx.customRequested
+        ? `/reports?range=custom&from=${encodeURIComponent(ctx.formFrom)}&to=${encodeURIComponent(ctx.formTo)}`
+        : `/reports?range=${ctx.range}`;
+
+  const productsOnHref = appendProductsToReportsHref(productsOffHref, true);
 
   return (
     <main className="mx-auto w-full min-w-0 space-y-6 p-4 md:p-6">
@@ -286,7 +376,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             {(["daily", "weekly", "monthly"] as PresetReportRange[]).map((item) => (
               <Link
                 key={item}
-                href={`/reports?range=${item}`}
+                href={appendProductsToReportsHref(`/reports?range=${item}`, includeProducts)}
                 className={!ctx.customRequested && ctx.range === item ? pillActive : pillIdle}
               >
                 {item === "daily" ? "Daily" : item === "weekly" ? "Weekly" : "Monthly"}
@@ -299,7 +389,11 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         </div>
       </div>
 
-      <ReportsCustomRangeForm defaultFrom={ctx.formFrom} defaultTo={ctx.formTo} />
+      <ReportsCustomRangeForm
+        defaultFrom={ctx.formFrom}
+        defaultTo={ctx.formTo}
+        includeProducts={includeProducts}
+      />
 
       {ctx.validationError && (
         <p className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
@@ -314,10 +408,27 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       )}
 
       <section className="rounded-lg border border-border bg-white/5 p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Retail sales in reports</h2>
+        <p className="mt-2 text-sm text-muted">
+          Toggle product-tagged ledger sales to show retail KPIs, top products (by allocated share of each payment), and
+          PDF lines.
+        </p>
+        <div className="mt-3 inline-flex flex-wrap gap-1 rounded-lg border border-border p-1">
+          <Link href={productsOffHref} className={!includeProducts ? pillActive : pillIdle}>
+            All ledger sales only
+          </Link>
+          <Link href={productsOnHref} className={includeProducts ? pillActive : pillIdle}>
+            Include product sales
+          </Link>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-white/5 p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Data source</h2>
         <ul className="mt-2 space-y-1 text-sm text-muted">
           <li>Sales and stylist revenue are from successful Stripe payments in the sales ledger.</li>
           <li>Bookings, completion rate, no-shows, cancellations, and haircuts are from appointment records.</li>
+          <li>Product sales use ledger rows that include product IDs (shop or checkout with products).</li>
         </ul>
       </section>
 
@@ -347,6 +458,42 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           />
         </div>
       </section>
+
+      {includeProducts && (
+        <section className="grid gap-3 md:grid-cols-2">
+          <div className="rounded-lg border border-border p-4">
+            <p className="text-xs uppercase tracking-wide text-muted">Product-tagged sales</p>
+            <p className="mt-2 text-2xl font-semibold">{formatMoney(currentProductAgg.totalProductSalesMinor)}</p>
+            <DeltaText
+              label={ctx.deltaLabel}
+              current={currentProductAgg.totalProductSalesMinor}
+              previous={previousProductAgg.totalProductSalesMinor}
+            />
+            <p className="mt-2 text-xs text-muted">
+              Sum of ledger payments that include at least one product. Multi-product carts split revenue evenly across
+              products in “Top products”.
+            </p>
+          </div>
+          <div className="rounded-lg border border-border p-4">
+            <h2 className="text-lg font-semibold mb-2">Top products</h2>
+            {currentProductAgg.topProducts.length === 0 ? (
+              <p className="text-sm text-muted">No product sales in this period yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {currentProductAgg.topProducts.map((product) => (
+                  <li key={product.name} className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate">{product.name}</p>
+                      <p className="text-xs text-muted">{product.count} product line(s)</p>
+                    </div>
+                    <p className="font-medium">{formatMoney(product.salesMinor)}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-border p-4">
@@ -403,6 +550,39 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             <p className="text-xs text-muted">Cancellations</p>
             <p className="text-lg font-semibold">{currentAgg.canceled}</p>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border p-4">
+        <h2 className="text-lg font-semibold mb-2">Data export</h2>
+        <p className="text-sm text-muted mb-3">
+          Download CSV files for this salon (opens in Excel). Same access as reports.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="/api/export/clients"
+            className="rounded-md border border-border bg-white/10 px-3 py-2 text-sm font-medium hover:bg-white/15"
+          >
+            Clients CSV
+          </a>
+          <a
+            href="/api/export/sales"
+            className="rounded-md border border-border bg-white/10 px-3 py-2 text-sm font-medium hover:bg-white/15"
+          >
+            Sales CSV
+          </a>
+          <a
+            href="/api/export/team"
+            className="rounded-md border border-border bg-white/10 px-3 py-2 text-sm font-medium hover:bg-white/15"
+          >
+            Team CSV
+          </a>
+          <a
+            href="/api/export/summary-pdf"
+            className="rounded-md border border-border bg-white/10 px-3 py-2 text-sm font-medium hover:bg-white/15"
+          >
+            Summary PDF
+          </a>
         </div>
       </section>
     </main>

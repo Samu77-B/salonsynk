@@ -16,7 +16,7 @@
   --foreground: #f9fafb;
   --muted: #9ca3af;
   /* Stronger than neutral grey so `text-white` / dark text both read clearly on buttons */
-  --accent: #7c3aed; /* violet-600 */
+  --accent: #16a34a; /* green-600 */
   --border: #27272a; /* neutral-800 */
 }
 

@@ -4,18 +4,21 @@ import { useState } from "react";
 
 type Client = { id: string; name: string | null; email: string | null };
 type Service = { id: string; name: string; duration_minutes: number; price_minor: number };
+type Product = { id: string; name: string; price_minor: number };
 type Stylist = { id: string; displayName: string; employmentType: string };
 
 export function CheckoutView({
   salonId,
   clients,
   services,
+  products,
   stylists,
   defaultStylistId,
 }: {
   salonId: string;
   clients: Client[];
   services: Service[];
+  products: Product[];
   stylists: Stylist[];
   defaultStylistId: string;
 }) {
@@ -23,6 +26,7 @@ export function CheckoutView({
   const [stylistId, setStylistId] = useState((defaultStylistId || stylists[0]?.id) ?? "");
   const [walkInName, setWalkInName] = useState("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [customAmountMinor, setCustomAmountMinor] = useState<number | null>(null);
   const [silentAppointment, setSilentAppointment] = useState(false);
   const [cancellationPolicyAccepted, setCancellationPolicyAccepted] = useState(false);
@@ -30,10 +34,16 @@ export function CheckoutView({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const totalMinor = customAmountMinor ?? selectedServiceIds.reduce((sum, id) => {
+  const lineServicesMinor = selectedServiceIds.reduce((sum, id) => {
     const s = services.find((x) => x.id === id);
     return sum + (s?.price_minor ?? 0);
   }, 0);
+  const lineProductsMinor = selectedProductIds.reduce((sum, id) => {
+    const p = products.find((x) => x.id === id);
+    return sum + (p?.price_minor ?? 0);
+  }, 0);
+  const lineTotalMinor = lineServicesMinor + lineProductsMinor;
+  const totalMinor = customAmountMinor ?? lineTotalMinor;
 
   async function handlePay() {
     if (!cancellationPolicyAccepted) {
@@ -52,11 +62,12 @@ export function CheckoutView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           salonId,
-          amountMinor: totalMinor,
           clientId: clientId || undefined,
           stylistId: stylistId || undefined,
           silentAppointment: silentAppointment || undefined,
           serviceIds: selectedServiceIds,
+          productIds: selectedProductIds,
+          customAmountMinor: customAmountMinor != null ? customAmountMinor : null,
         }),
       });
       const data = await res.json();
@@ -136,6 +147,27 @@ export function CheckoutView({
             <span className="text-muted">£{((s.price_minor ?? 0) / 100).toFixed(2)}</span>
           </label>
         ))}
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Products</label>
+        {products.length === 0 ? (
+          <p className="text-sm text-muted">No active products. Add some under Products.</p>
+        ) : (
+          products.map((p) => (
+            <label key={p.id} className="flex items-center gap-2 py-1">
+              <input
+                type="checkbox"
+                checked={selectedProductIds.includes(p.id)}
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedProductIds((x) => [...x, p.id]);
+                  else setSelectedProductIds((x) => x.filter((id) => id !== p.id));
+                }}
+              />
+              <span>{p.name}</span>
+              <span className="text-muted">£{((p.price_minor ?? 0) / 100).toFixed(2)}</span>
+            </label>
+          ))
+        )}
       </div>
       <div>
         <label className="block text-sm font-medium mb-1">Custom amount (pence) or leave blank</label>

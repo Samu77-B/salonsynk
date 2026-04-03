@@ -18,7 +18,14 @@ export function ClientForm({
 }: {
   salonId: string;
   clientId?: string;
-  initial?: { name?: string; email?: string; phone?: string; notes?: string; sex?: string | null };
+  initial?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    notes?: string;
+    sex?: string | null;
+    marketing_opt_in?: boolean;
+  };
   inlineOnCreate?: boolean;
 }) {
   const router = useRouter();
@@ -28,6 +35,7 @@ export function ClientForm({
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [sex, setSex] = useState(initial?.sex ?? "");
+  const [marketingOptIn, setMarketingOptIn] = useState(initial?.marketing_opt_in !== false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [profileFile, setProfileFile] = useState<File | null>(null);
@@ -63,6 +71,7 @@ export function ClientForm({
         phone: phone || undefined,
         notes: notes || undefined,
         sex: sex || null,
+        marketing_opt_in: marketingOptIn,
       });
       if (result.error) setError(result.error);
       else router.push(`/clients/${clientId}`);
@@ -74,6 +83,7 @@ export function ClientForm({
         phone: phone || null,
         notes: notes || null,
         sex: sex || null,
+        marketing_opt_in: marketingOptIn,
       });
       if (result.error) {
         setError(result.error);
@@ -104,6 +114,7 @@ export function ClientForm({
               setPhone("");
               setNotes("");
               setSex("");
+              setMarketingOptIn(true);
               clearProfileSelection();
               router.refresh();
             }
@@ -120,6 +131,7 @@ export function ClientForm({
             setPhone("");
             setNotes("");
             setSex("");
+            setMarketingOptIn(true);
             clearProfileSelection();
             router.refresh();
           }
@@ -134,6 +146,7 @@ export function ClientForm({
         setPhone("");
         setNotes("");
         setSex("");
+        setMarketingOptIn(true);
         router.refresh();
       } else {
         router.push(`/clients/${newId}`);
@@ -264,6 +277,20 @@ export function ClientForm({
           className={`${inputClass} min-h-[4.5rem] resize-y`}
         />
       </div>
+      <label className="flex items-start gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={marketingOptIn}
+          onChange={(e) => setMarketingOptIn(e.target.checked)}
+          className="mt-1 rounded border-border"
+        />
+        <span className="text-sm">
+          <span className="font-medium">Marketing emails</span>
+          <span className="block text-muted text-xs mt-0.5">
+            Client agrees to receive promotional campaigns from this salon. They can unsubscribe from any campaign email.
+          </span>
+        </span>
+      </label>
       {error && (
         <p className="text-sm text-red-400" role="alert">
           {error}

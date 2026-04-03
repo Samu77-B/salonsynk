@@ -451,7 +451,7 @@ export function DiaryView({
                   <div className="flex border-b border-border/60 bg-muted/20" style={{ minWidth: `${minTotalW}px` }}>
                     <div style={{ width: `${gutterW}px` }} className="shrink-0" aria-hidden />
                     {visibleMembers.map((m) => {
-                      const c = stylistColorMap[m.id] || "#7c3aed";
+                      const c = stylistColorMap[m.id] || "#16a34a";
                       return (
                         <div
                           key={m.id}
@@ -556,7 +556,7 @@ export function DiaryView({
                               const phone = client?.phone ?? a.guest_phone ?? "";
                               const label = client?.name || a.guest_name || "Walk-in";
                               const serviceName = svc?.name || "Service";
-                              const color = stylistColorMap[a.stylist_id] || "#7c3aed";
+                              const color = stylistColorMap[a.stylist_id] || "#16a34a";
                               const lane = lanes.get(a.id) ?? { lane: 0, laneCount: 1 };
                               const { lane: li, laneCount: lc } = lane;
                               const pct = 100 / lc;
@@ -697,7 +697,7 @@ export function DiaryView({
                         const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
                         const label = client?.name || a.guest_name || "Walk-in";
                         const serviceName = svc?.name || "Service";
-                        const color = stylistColorMap[a.stylist_id] || "#7c3aed";
+                        const color = stylistColorMap[a.stylist_id] || "#16a34a";
                         const stylistName =
                           members.find((m) => m.id === a.stylist_id)?.display_name ||
                           members.find((m) => m.id === a.stylist_id)?.role ||

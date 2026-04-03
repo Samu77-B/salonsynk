@@ -14,15 +14,24 @@ export type ColorFormula = {
 };
 type Appointment = { id: string; start_time: string; end_time: string; status: string; services: { name: string } | { name: string }[] | null };
 
+export type ClientSaleRow = {
+  paidAt: string;
+  amountMinor: number;
+  serviceLabels: string[];
+  productLabels: string[];
+};
+
 export function ClientDetailView({
   clientId,
   formulas,
   appointments,
+  sales,
   onPatchTestDueAt,
 }: {
   clientId: string;
   formulas: ColorFormula[];
   appointments: Appointment[];
+  sales: ClientSaleRow[];
   onPatchTestDueAt: string | null;
 }) {
   const [patchDate, setPatchDate] = useState(onPatchTestDueAt?.slice(0, 10) ?? "");
@@ -159,6 +168,40 @@ export function ClientDetailView({
             Save
           </button>
         </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold mb-2">Purchase history</h2>
+        <p className="text-xs text-muted mb-2">Successful Stripe payments linked to this client (services and retail).</p>
+        {sales.length === 0 ? (
+          <p className="text-sm text-muted">No recorded sales yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {sales.map((s, idx) => (
+              <li key={`${s.paidAt}-${idx}`} className="rounded-lg border border-border px-4 py-2 text-sm space-y-1">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <span>{new Date(s.paidAt).toLocaleString("en-GB")}</span>
+                  <span className="font-medium">
+                    £{(s.amountMinor / 100).toFixed(2)}
+                  </span>
+                </div>
+                {s.serviceLabels.length > 0 && (
+                  <p className="text-muted text-xs">
+                    <span className="text-foreground/80">Services:</span> {s.serviceLabels.join(", ")}
+                  </p>
+                )}
+                {s.productLabels.length > 0 && (
+                  <p className="text-muted text-xs">
+                    <span className="text-foreground/80">Products:</span> {s.productLabels.join(", ")}
+                  </p>
+                )}
+                {s.serviceLabels.length === 0 && s.productLabels.length === 0 && (
+                  <p className="text-muted text-xs">Custom or unitemised payment</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section>

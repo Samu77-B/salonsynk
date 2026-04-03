@@ -12,6 +12,7 @@ export async function createClientAction(data: {
   phone?: string | null;
   notes?: string | null;
   sex?: string | null;
+  marketing_opt_in?: boolean;
 }): Promise<{ error: string | null; clientId?: string }> {
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
@@ -26,6 +27,7 @@ export async function createClientAction(data: {
       phone: data.phone?.trim() || null,
       notes: data.notes?.trim() || null,
       sex: data.sex || null,
+      marketing_opt_in: data.marketing_opt_in !== false,
     })
     .select("id")
     .single();
@@ -44,6 +46,7 @@ export async function updateClientAction(
     phone?: string;
     notes?: string;
     sex?: string | null;
+    marketing_opt_in?: boolean;
     color_formulas?: unknown;
     patch_test_due_at?: string | null;
   }

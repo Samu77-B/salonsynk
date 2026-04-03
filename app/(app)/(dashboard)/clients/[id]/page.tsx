@@ -23,6 +23,7 @@ export default async function ClientDetailPage({
     phone: string | null;
     notes: string | null;
     sex?: string | null;
+    marketing_opt_in?: boolean | null;
     color_formulas: unknown;
     patch_test_due_at: string | null;
   };
@@ -30,12 +31,17 @@ export default async function ClientDetailPage({
   const supabase = await createClient();
   const fullQ = await supabase
     .from("clients")
-    .select("id, name, email, phone, notes, sex, color_formulas, patch_test_due_at")
+    .select("id, name, email, phone, notes, sex, marketing_opt_in, color_formulas, patch_test_due_at")
     .eq("id", id)
     .eq("salon_id", context.salon.id)
     .single();
   const client: ClientRow | null = fullQ.error
-    ? (await supabase.from("clients").select("id, name, email, phone, notes, color_formulas, patch_test_due_at").eq("id", id).eq("salon_id", context.salon.id).single()).data as ClientRow | null
+    ? (await supabase
+        .from("clients")
+        .select("id, name, email, phone, notes, color_formulas, patch_test_due_at, marketing_opt_in")
+        .eq("id", id)
+        .eq("salon_id", context.salon.id)
+        .single()).data as ClientRow | null
     : fullQ.data as ClientRow | null;
 
   if (!client) notFound();
@@ -62,6 +68,44 @@ export default async function ClientDetailPage({
     .eq("client_id", id)
     .order("start_time", { ascending: false })
     .limit(50);
+
+  const { data: saleRows } = await supabase
+    .from("sales_transactions")
+    .select("amount_minor, paid_at, service_ids, product_ids")
+    .eq("salon_id", context.salon.id)
+    .eq("client_id", id)
+    .order("paid_at", { ascending: false })
+    .limit(100);
+
+  const allServiceIds = new Set<string>();
+  const allProductIds = new Set<string>();
+  for (const r of saleRows ?? []) {
+    for (const s of r.service_ids ?? []) {
+      if (s) allServiceIds.add(s);
+    }
+    for (const p of r.product_ids ?? []) {
+      if (p) allProductIds.add(p);
+    }
+  }
+
+  const [svcRes, prodRes] = await Promise.all([
+    allServiceIds.size > 0
+      ? supabase.from("services").select("id, name").eq("salon_id", context.salon.id).in("id", [...allServiceIds])
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    allProductIds.size > 0
+      ? supabase.from("products").select("id, name").eq("salon_id", context.salon.id).in("id", [...allProductIds])
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+  ]);
+
+  const serviceNameById = Object.fromEntries((svcRes.data ?? []).map((s) => [s.id, s.name ?? ""]));
+  const productNameById = Object.fromEntries((prodRes.data ?? []).map((p) => [p.id, p.name ?? ""]));
+
+  const salesHistory = (saleRows ?? []).map((r) => ({
+    paidAt: r.paid_at,
+    amountMinor: Number(r.amount_minor ?? 0),
+    serviceLabels: (r.service_ids ?? []).map((i: string) => serviceNameById[i] || "").filter(Boolean),
+    productLabels: (r.product_ids ?? []).map((i: string) => productNameById[i] || "").filter(Boolean),
+  }));
 
   const formulas = (client.color_formulas as { text?: string; image_url?: string }[] | null) ?? [];
   const patchDue = client.patch_test_due_at ? new Date(client.patch_test_due_at) : null;
@@ -143,6 +187,7 @@ export default async function ClientDetailPage({
             phone: client.phone ?? "",
             notes: client.notes ?? "",
             sex: client.sex ?? "",
+            marketing_opt_in: client.marketing_opt_in !== false,
           }}
         />
       </section>
@@ -151,6 +196,7 @@ export default async function ClientDetailPage({
         clientId={client.id}
         formulas={formulas}
         appointments={appointments ?? []}
+        sales={salesHistory}
         onPatchTestDueAt={client.patch_test_due_at}
       />
     </main>
