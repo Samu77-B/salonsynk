@@ -84,7 +84,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main>
+      <main className="marketing-main-enter">
         {/* Hero – full width, 100vh */}
         <section className="relative w-full h-[100vh] min-h-[400px] overflow-hidden">
           <Image

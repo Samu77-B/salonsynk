@@ -33,7 +33,7 @@ export default function ContactPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 sm:px-6 py-12 sm:py-16">
+      <main className="animate-entry-up mx-auto max-w-2xl px-4 sm:px-6 py-12 sm:py-16">
         <h1 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
           Contact us
         </h1>

@@ -25,7 +25,7 @@ export default async function ReviewPage({
   }
 
   return (
-    <main className="min-h-screen p-6 flex flex-col items-center justify-center">
+    <main className="animate-entry-up min-h-screen p-6 flex flex-col items-center justify-center">
       <div className="w-full max-w-md space-y-6 text-center">
         <Link href="/" className="inline-block mb-2">
           <Image

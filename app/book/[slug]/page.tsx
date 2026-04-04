@@ -36,7 +36,7 @@ export default async function BookPage({
 
   return (
     <main
-      className="flex min-h-screen w-full min-w-0 flex-col items-center px-4 py-6 sm:p-6"
+      className="animate-entry-up flex min-h-screen w-full min-w-0 flex-col items-center px-4 py-6 sm:p-6"
       style={
         primaryColor
           ? ({ ["--accent"]: primaryColor } as React.CSSProperties)

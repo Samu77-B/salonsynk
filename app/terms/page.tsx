@@ -33,7 +33,7 @@ export default function TermsPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 sm:px-6 py-12 sm:py-16">
+      <main className="animate-entry-up mx-auto max-w-3xl px-4 sm:px-6 py-12 sm:py-16">
         <h1 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
           Terms and Conditions
         </h1>

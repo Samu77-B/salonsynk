@@ -39,7 +39,7 @@ export async function SalonPublicShop({ slug }: { slug: string }) {
 
   return (
     <main
-      className="min-h-screen px-4 py-6 sm:p-8"
+      className="animate-entry-up min-h-screen px-4 py-6 sm:p-8"
       style={
         primaryColor ? ({ ["--accent"]: primaryColor } as React.CSSProperties) : undefined
       }

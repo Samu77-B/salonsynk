@@ -48,7 +48,7 @@ export default async function BookEmbedPage({
 
   return (
     <main
-      className="min-h-0 p-4 flex flex-col items-center bg-background text-foreground"
+      className="animate-entry-up min-h-0 p-4 flex flex-col items-center bg-background text-foreground"
       style={
         primaryColor
           ? ({ ["--accent"]: primaryColor } as React.CSSProperties)
