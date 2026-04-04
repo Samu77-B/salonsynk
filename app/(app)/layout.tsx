@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { AppHeader } from "./app-header";
+import { LoggedInAppShell } from "./logged-in-app-shell";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 
@@ -29,18 +29,13 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="app-shell-dark min-h-screen flex flex-col overflow-x-hidden bg-background text-foreground">
-      <AppHeader
-        userEmail={user.email}
-        isSuperAdmin={isSuperAdmin}
-        currentSalon={salonContext?.salon}
-        adminSalons={adminSalons}
-      />
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 text-foreground">
-        <div className="mx-auto w-full min-w-0 max-w-[1600px] px-3 py-5 sm:px-6 sm:py-6 lg:px-8">
-          {children}
-        </div>
-      </main>
-    </div>
+    <LoggedInAppShell
+      userEmail={user.email}
+      isSuperAdmin={isSuperAdmin}
+      currentSalon={salonContext?.salon}
+      adminSalons={adminSalons}
+    >
+      {children}
+    </LoggedInAppShell>
   );
 }

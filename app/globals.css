@@ -10,6 +10,15 @@
   --border: #c0c0c0;
 }
 
+/* Logged-in app shell: light theme (dashboard toggle) */
+.app-shell-light {
+  --background: #fafaf9;
+  --foreground: #18181b;
+  --muted: #71717a;
+  --accent: #15803d; /* green-700 on light bg */
+  --border: #e4e4e7;
+}
+
 /* Logged-in app shell: modern dark theme, scoped to dashboard area only */
 .app-shell-dark {
   --background: #050505; /* near-black neutral */

@@ -5,6 +5,48 @@ import Link from "next/link";
 import Image from "next/image";
 import { switchAdminSalon } from "./admin/actions";
 import dashboardLogo from "../../salonsynk-light.png";
+import type { DashboardTheme } from "./dashboard-theme";
+
+function ThemeToggleButton({
+  theme,
+  onToggle,
+  className = "",
+}: {
+  theme: DashboardTheme;
+  onToggle: () => void;
+  className?: string;
+}) {
+  const isDark = theme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`rounded-lg p-2 text-muted hover:text-foreground ${isDark ? "hover:bg-white/5" : "hover:bg-black/[0.06]"} ${className}`}
+      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      title={isDark ? "Light mode" : "Dark mode"}
+    >
+      {isDark ? (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+          />
+        </svg>
+      ) : (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+          />
+        </svg>
+      )}
+    </button>
+  );
+}
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Diary" },
@@ -24,13 +66,19 @@ export function AppHeader({
   isSuperAdmin = false,
   currentSalon,
   adminSalons = [],
+  theme = "dark",
+  onToggleTheme,
 }: {
   userEmail: string | undefined;
   isSuperAdmin?: boolean;
   currentSalon?: { id: string; name: string; slug: string };
   adminSalons?: { id: string; name: string }[];
+  theme?: DashboardTheme;
+  onToggleTheme?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const navHover =
+    theme === "dark" ? "hover:bg-white/5" : "hover:bg-black/[0.06]";
 
   return (
     <header className="flex min-h-[4.5rem] min-w-0 items-center justify-between gap-2 border-b border-border px-3 py-3 sm:gap-4 sm:px-4 sm:py-4">
@@ -89,6 +137,7 @@ export function AppHeader({
             {userEmail}
           </span>
         )}
+        {onToggleTheme && <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />}
         <form action="/api/auth/signout" method="post">
           <button type="submit" className="text-muted hover:text-foreground text-sm whitespace-nowrap">
             Sign out
@@ -98,10 +147,11 @@ export function AppHeader({
 
       {/* Mobile: hamburger + overlay */}
       <div className="flex shrink-0 items-center gap-2 md:hidden">
+        {onToggleTheme && <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />}
         <button
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
-          className="rounded-lg p-2 text-muted hover:text-foreground hover:bg-white/5"
+          className={`rounded-lg p-2 text-muted hover:text-foreground ${navHover}`}
           aria-expanded={menuOpen ? "true" : "false"}
           aria-label="Toggle menu"
         >
@@ -163,7 +213,7 @@ export function AppHeader({
                 key={href}
                 href={href}
                 onClick={() => setMenuOpen(false)}
-                className="rounded-lg px-4 py-3 text-muted hover:text-foreground hover:bg-white/5"
+                className={`rounded-lg px-4 py-3 text-muted hover:text-foreground ${navHover}`}
               >
                 {label}
               </Link>
@@ -172,7 +222,7 @@ export function AppHeader({
               <Link
                 href="/admin"
                 onClick={() => setMenuOpen(false)}
-                className="rounded-lg px-4 py-3 text-accent hover:bg-white/5 font-medium"
+                className={`rounded-lg px-4 py-3 text-accent ${navHover} font-medium`}
               >
                 Admin
               </Link>
@@ -185,7 +235,7 @@ export function AppHeader({
             <form action="/api/auth/signout" method="post" className="mt-auto pt-4">
               <button
                 type="submit"
-                className="w-full rounded-lg px-4 py-3 text-left text-sm text-muted hover:text-foreground hover:bg-white/5"
+                className={`w-full rounded-lg px-4 py-3 text-left text-sm text-muted hover:text-foreground ${navHover}`}
               >
                 Sign out
               </button>
