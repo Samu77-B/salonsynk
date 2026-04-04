@@ -49,7 +49,7 @@ export default async function CampaignsPage() {
         ) : (
           <ul className="space-y-2 text-sm">
             {past.map((row) => (
-              <li key={row.id} className="rounded-md border border-border/80 bg-white/5 px-3 py-2">
+              <li key={row.id} className="rounded-md border-2 border-border bg-white/5 px-3 py-2">
                 <p className="font-medium truncate">{row.subject || "(no subject)"}</p>
                 <p className="text-xs text-muted mt-1">
                   {row.status}

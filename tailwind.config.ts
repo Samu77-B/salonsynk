@@ -26,6 +26,7 @@ const config: Config = {
         muted: "var(--muted)",
         accent: "var(--accent)",
         border: "var(--border)",
+        borderGrid: "var(--border-grid)",
       },
       fontFamily: {
         sans: ["system-ui", "sans-serif"],
