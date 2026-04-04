@@ -340,7 +340,7 @@ export function DiaryView({
   return (
     <div className="space-y-6 min-w-0">
       <div className="flex w-full min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="min-w-0 truncate text-xl font-bold sm:text-2xl">{salonName}</h1>
+        <h1 className="min-w-0 truncate text-2xl font-bold">{salonName}</h1>
         <div className="flex w-full min-w-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center">
           <button
             type="button"
@@ -349,7 +349,7 @@ export function DiaryView({
               d.setDate(d.getDate() - (view === "day" ? 1 : 7));
               setCurrentDate(formatDate(d));
             }}
-            className="min-h-[44px] rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
+            className="min-h-[44px] rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-white/10"
           >
             Prev
           </button>
@@ -365,14 +365,14 @@ export function DiaryView({
               d.setDate(d.getDate() + (view === "day" ? 1 : 7));
               setCurrentDate(formatDate(d));
             }}
-            className="min-h-[44px] rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
+            className="min-h-[44px] rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-white/10"
           >
             Next
           </button>
           <button
             type="button"
             onClick={() => setCurrentDate(formatDate(new Date()))}
-            className="min-h-[44px] rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
+            className="min-h-[44px] rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-white/10"
           >
             Today
           </button>
@@ -380,7 +380,7 @@ export function DiaryView({
             value={view}
             onChange={(e) => setView(e.target.value as "day" | "week")}
             aria-label="View"
-            className="min-h-[44px] min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-2 text-sm sm:min-w-[5.5rem] sm:flex-none sm:px-3"
+            className="min-h-[44px] min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-2 text-sm sm:min-w-[5.5rem] sm:flex-none sm:px-3"
           >
             <option value="day">Day</option>
             <option value="week">Week</option>
@@ -389,7 +389,7 @@ export function DiaryView({
             value={filterStylistId ?? ""}
             onChange={(e) => setFilterStylistId(e.target.value || null)}
             aria-label="Filter by stylist"
-            className="min-h-[44px] min-w-0 flex-[1_1_100%] rounded-lg border border-border bg-background px-2 py-2 text-sm sm:max-w-[220px] sm:flex-1 sm:flex-none sm:px-3"
+            className="min-h-[44px] min-w-0 flex-[1_1_100%] rounded-md border border-border bg-background px-2 py-2 text-sm sm:max-w-[220px] sm:flex-1 sm:flex-none sm:px-3"
           >
             <option value="">All stylists</option>
             {members.map((m) => (
@@ -401,7 +401,7 @@ export function DiaryView({
           <button
             type="button"
             onClick={() => setAddOpen(true)}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90 transition-opacity w-full sm:w-auto"
+            className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-background hover:opacity-90 transition-opacity w-full sm:w-auto"
           >
             Add appointment
           </button>
@@ -411,11 +411,11 @@ export function DiaryView({
       {error && <p className="text-sm text-red-400 px-1">{error}</p>}
 
       {view === "day" ? (
-        <div className="rounded-xl border-2 border-border bg-background shadow-sm overflow-hidden">
-          <div className="border-b-2 border-border bg-muted/30 px-3 py-3 sm:px-4">
+        <div className="rounded-lg border border-border bg-white/5 shadow-sm overflow-hidden">
+          <div className="border-b border-border px-3 py-3 sm:px-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
               <div className="min-w-0">
-                <div className="truncate font-semibold">
+                <div className="truncate font-semibold text-foreground">
                   {dayHeaderPrefix}
                   {daysToShow[0].toLocaleDateString("en-GB", { weekday: "long", month: "long", day: "numeric" })}
                 </div>
@@ -448,14 +448,14 @@ export function DiaryView({
 
               return (
                 <div className="overflow-x-auto">
-                  <div className="flex border-b-2 border-borderGrid bg-muted/20" style={{ minWidth: `${minTotalW}px` }}>
+                  <div className="flex border-b border-border bg-white/5" style={{ minWidth: `${minTotalW}px` }}>
                     <div style={{ width: `${gutterW}px` }} className="shrink-0" aria-hidden />
                     {visibleMembers.map((m) => {
-                      const c = stylistColorMap[m.id] || "#16a34a";
+                      const c = stylistColorMap[m.id] || "#22c55e";
                       return (
                         <div
                           key={m.id}
-                          className="flex-1 min-w-[100px] border-l-2 border-borderGrid px-2 py-2 text-center"
+                          className="flex-1 min-w-[100px] border-l border-border px-2 py-2 text-center"
                         >
                           <span
                             className="inline-block h-2 w-2 rounded-full align-middle mr-1.5"
@@ -481,7 +481,7 @@ export function DiaryView({
                             </div>
                           </div>
                           <div
-                            className="absolute left-0 right-0 border-t-2 border-borderGrid"
+                            className="absolute left-0 right-0 border-t border-borderGrid"
                             style={{ marginLeft: `${gutterW}px` }}
                           />
                         </div>
@@ -511,7 +511,7 @@ export function DiaryView({
                         return (
                           <div
                             key={member.id}
-                            className="relative flex-1 min-w-[100px] border-l-2 border-borderGrid first:border-l-0"
+                            className="relative flex-1 min-w-[100px] border-l border-border first:border-l-0"
                           >
                             <div
                               className="absolute inset-0 z-0"
@@ -556,7 +556,7 @@ export function DiaryView({
                               const phone = client?.phone ?? a.guest_phone ?? "";
                               const label = client?.name || a.guest_name || "Walk-in";
                               const serviceName = svc?.name || "Service";
-                              const color = stylistColorMap[a.stylist_id] || "#16a34a";
+                              const color = stylistColorMap[a.stylist_id] || "#22c55e";
                               const lane = lanes.get(a.id) ?? { lane: 0, laneCount: 1 };
                               const { lane: li, laneCount: lc } = lane;
                               const pct = 100 / lc;
@@ -634,8 +634,8 @@ export function DiaryView({
           )}
         </div>
       ) : (
-        <div className="rounded-xl border-2 border-border bg-background shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b-2 border-border bg-muted/30">
+        <div className="rounded-lg border border-border bg-white/5 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
             <p className="text-xs text-muted">
               Week view: each day lists appointments in time order. Drag a card onto another day to move it (same time of day). Day view is best for dragging between stylists.
             </p>
@@ -653,7 +653,7 @@ export function DiaryView({
               return (
                 <div
                   key={dayStr}
-                  className="rounded-lg border-2 border-border bg-muted/10 flex flex-col min-h-[120px]"
+                  className="rounded-lg border border-border bg-white/5 flex flex-col min-h-[120px]"
                   onDragOver={(e) => {
                     e.preventDefault();
                     e.dataTransfer.dropEffect = "move";
@@ -672,7 +672,7 @@ export function DiaryView({
                     void handleRescheduleWithStylist(id, newStart, newEnd, apt.stylist_id);
                   }}
                 >
-                  <div className="px-2 py-2 border-b-2 border-border bg-muted/20 shrink-0">
+                  <div className="px-2 py-2 border-b border-border bg-white/5 shrink-0">
                     <div className="flex items-center justify-between gap-1">
                       <span className="text-xs font-semibold">
                         {day.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
@@ -697,7 +697,7 @@ export function DiaryView({
                         const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
                         const label = client?.name || a.guest_name || "Walk-in";
                         const serviceName = svc?.name || "Service";
-                        const color = stylistColorMap[a.stylist_id] || "#16a34a";
+                        const color = stylistColorMap[a.stylist_id] || "#22c55e";
                         const stylistName =
                           members.find((m) => m.id === a.stylist_id)?.display_name ||
                           members.find((m) => m.id === a.stylist_id)?.role ||
@@ -749,7 +749,7 @@ export function DiaryView({
                                   />
                                 ) : (
                                   <div
-                                    className="h-9 w-9 rounded-full shrink-0 mt-0.5 bg-muted/40 border-2 border-border"
+                                    className="h-9 w-9 rounded-full shrink-0 mt-0.5 bg-muted/40 border border-border"
                                     aria-hidden
                                   />
                                 )}
@@ -771,7 +771,7 @@ export function DiaryView({
                                 </div>
                               </div>
                             </button>
-                            <div className="flex gap-2 mt-2 pt-2 border-t-2 border-border">
+                            <div className="flex gap-2 mt-2 pt-2 border-t border-border">
                               <button
                                 type="button"
                                 onClick={() => setEditId(a.id)}

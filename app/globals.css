@@ -23,15 +23,14 @@
   --border-grid: #71717a; /* zinc-500 */
 }
 
-/* Logged-in app shell: modern dark theme, scoped to dashboard area only */
+/* Logged-in app shell: dark theme — aligned with Reports page palette */
 .app-shell-dark {
-  --background: #050505; /* near-black neutral */
-  --foreground: #f9fafb;
-  --muted: #9ca3af;
-  /* Stronger than neutral grey so `text-white` / dark text both read clearly on buttons */
-  --accent: #16a34a; /* green-600 */
-  --border: #27272a; /* neutral-800 */
-  --border-grid: #3f3f46; /* neutral-700 — diary grid lines */
+  --background: #121212;
+  --foreground: #ffffff;
+  --muted: #b0b0b0;
+  --accent: #22c55e; /* green-500 — matches Reports CTAs / toggles */
+  --border: #3a3a3a; /* subtle dividers on cards */
+  --border-grid: #4a4a4a; /* diary grid lines */
 }
 
 /*

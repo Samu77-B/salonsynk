@@ -20,16 +20,16 @@ export function GapFillerSection() {
 
   if (loading) {
     return (
-      <section className="rounded-lg border border-border bg-background p-4">
+      <section className="rounded-lg border border-border bg-white/5 p-4">
         <h2 className="text-lg font-semibold mb-2">Gap filler</h2>
-        <p className="text-sm text-muted-foreground">Checking for empty slots…</p>
+        <p className="text-sm text-muted">Checking for empty slots…</p>
       </section>
     );
   }
 
   if (error) {
     return (
-      <section className="rounded-lg border border-border bg-background p-4">
+      <section className="rounded-lg border border-border bg-white/5 p-4">
         <h2 className="text-lg font-semibold mb-2">Gap filler</h2>
         <p className="text-sm text-red-400">{error}</p>
       </section>
@@ -39,9 +39,9 @@ export function GapFillerSection() {
   const withCandidates = slots.filter((s) => s.candidates.length > 0);
   if (withCandidates.length === 0) {
     return (
-      <section className="rounded-lg border border-border bg-background p-4">
+      <section className="rounded-lg border border-border bg-white/5 p-4">
         <h2 className="text-lg font-semibold mb-2">Gap filler</h2>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted">
           No cancelled slots with lapsed clients right now. When you have a cancellation, we’ll suggest clients who had that service and haven’t visited in 4+ weeks.
         </p>
       </section>
@@ -49,9 +49,9 @@ export function GapFillerSection() {
   }
 
   return (
-    <section className="rounded-lg border border-border bg-background p-4 space-y-4">
+    <section className="rounded-lg border border-border bg-white/5 p-4 space-y-4">
       <h2 className="text-lg font-semibold">Gap filler</h2>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-muted">
         Cancelled slots and top clients who had this service but haven’t visited in 4+ weeks. Draft SMS for you to approve before sending.
       </p>
       {withCandidates.map(({ slot, candidates, draftSms }) => {
@@ -63,12 +63,12 @@ export function GapFillerSection() {
             <p className="text-sm font-medium">
               {slot.serviceName} — {dateStr} at {timeStr}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted">
               Top {candidates.length} client{candidates.length !== 1 ? "s" : ""}:{" "}
               {candidates.map((c) => c.clientName || c.clientEmail || "Unknown").join(", ")}
             </p>
-            <div className="bg-muted/50 rounded p-2">
-              <p className="text-xs font-medium text-muted-foreground mb-1">Draft SMS (approve before sending):</p>
+            <div className="bg-white/5 rounded p-2">
+              <p className="text-xs font-medium text-muted mb-1">Draft SMS (approve before sending):</p>
               <p className="text-sm">{draftSms}</p>
             </div>
           </div>

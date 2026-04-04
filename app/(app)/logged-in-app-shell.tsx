@@ -47,7 +47,7 @@ export function LoggedInAppShell({
 
   const mainSurfaceClass =
     theme === "dark"
-      ? "bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950"
+      ? "bg-background"
       : "bg-gradient-to-br from-stone-100 via-neutral-50 to-stone-100";
 
   return (
