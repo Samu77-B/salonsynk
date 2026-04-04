@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createAppointment, deleteAppointment } from "./actions";
@@ -242,7 +242,21 @@ export function DiaryView({
   const [editId, setEditId] = useState<string | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const router = useRouter();
+
+  useEffect(() => {
+    const tick = () => setNowMs(Date.now());
+    const id = setInterval(tick, 30_000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, []);
 
   const dateObj = useMemo(() => new Date(currentDate + "T12:00:00"), [currentDate]);
   const stylistColorMap = useMemo(() => {
@@ -445,6 +459,13 @@ export function DiaryView({
               const nCols = visibleMembers.length;
               const minTotalW = gutterW + nCols * MIN_COL_PX;
               const heightPx = (endHour - startHour + 1) * 60 * pxPerMin;
+              const gridSpanMins = (endHour - startHour + 1) * 60;
+              const now = new Date(nowMs);
+              const minsFromGridStart = minutesSinceDayStart(now, day) - startHour * 60;
+              const nowLineTopPx =
+                formatDate(day) === todayStr && minsFromGridStart >= 0 && minsFromGridStart <= gridSpanMins
+                  ? minsFromGridStart * pxPerMin
+                  : null;
 
               return (
                 <div className="overflow-x-auto">
@@ -487,6 +508,30 @@ export function DiaryView({
                         </div>
                       );
                     })}
+
+                    {nowLineTopPx !== null && (
+                      <div
+                        className="pointer-events-none absolute left-0 right-0 z-20 flex items-center"
+                        style={{ top: `${nowLineTopPx}px`, transform: "translateY(-50%)" }}
+                        aria-hidden
+                      >
+                        <div
+                          style={{ width: `${gutterW}px` }}
+                          className="shrink-0 flex items-center justify-end pr-1.5"
+                        >
+                          <span
+                            className="rounded bg-background/95 px-1 py-0.5 text-[10px] font-semibold tabular-nums text-red-500 shadow-sm ring-1 ring-red-500/30"
+                            title={`Current time ${formatTime(now)}`}
+                          >
+                            {formatTime(now)}
+                          </span>
+                        </div>
+                        <div
+                          className="min-h-0 min-w-0 flex-1 border-t-2 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.45)]"
+                          title={`Current time ${formatTime(now)}`}
+                        />
+                      </div>
+                    )}
 
                     <div
                       className="absolute flex inset-0"
