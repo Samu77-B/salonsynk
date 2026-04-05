@@ -520,11 +520,11 @@ export function DiaryView({
                           className="shrink-0 flex items-center justify-end pr-1.5"
                         >
                           <span
-                            className="rounded bg-background/95 px-1.5 py-0.5 text-red-500 shadow-sm ring-1 ring-red-500/30"
+                            className="rounded bg-background/95 px-1.5 py-0.5 text-accent shadow-sm ring-1 ring-accent/30"
                             title={`Current local time: ${formatTime(now)}`}
                           >
                             <span className="flex flex-col items-end gap-0.5 leading-tight">
-                              <span className="text-[8px] font-medium text-red-500/90 text-right">
+                              <span className="text-[8px] font-medium text-accent/90 text-right">
                                 Current local time
                               </span>
                               <span className="text-[10px] font-semibold tabular-nums">
@@ -534,7 +534,7 @@ export function DiaryView({
                           </span>
                         </div>
                         <div
-                          className="min-h-0 min-w-0 flex-1 border-t-2 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.45)]"
+                          className="min-h-0 min-w-0 flex-1 border-t-2 border-accent shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_45%,transparent)]"
                           title={`Current local time: ${formatTime(now)}`}
                         />
                       </div>
