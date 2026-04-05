@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+import { deleteAppointment } from "@/app/(app)/(dashboard)/dashboard/actions";
 import { executeAppointmentPatch, type UpdateAppointmentInput } from "@/lib/appointments/patch-appointment";
+
+export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  if (!id) {
+    return NextResponse.json({ error: "Missing appointment id" }, { status: 400 });
+  }
+
+  try {
+    const result = await deleteAppointment(id);
+    const status = result.error ? 400 : 200;
+    return NextResponse.json(result, { status });
+  } catch (e) {
+    console.error("[api/appointments/[id] DELETE]", e);
+    const msg = e instanceof Error ? e.message : "Server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;

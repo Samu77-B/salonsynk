@@ -3,13 +3,53 @@
 import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { createAppointment, deleteAppointment } from "./actions";
+import type { CreateAppointmentInput } from "./actions";
 import { AddAppointmentModal } from "./add-appointment-modal";
 import { EditAppointmentModal } from "./edit-appointment-modal";
 import { validateMoveWithProcessing, type AppointmentBlockingInput } from "@/lib/diary-rules";
 import type { UpdateAppointmentInput } from "@/lib/appointments/patch-appointment";
 
-/** Route Handler + JSON — avoids Next.js server-action digest errors on diary saves (status, drag, form). */
+/** Route Handler + JSON — avoids Next.js server-action digest errors on diary saves (add, delete, status, drag, form). */
+async function createAppointmentViaApi(
+  data: CreateAppointmentInput
+): Promise<{ error?: string | null }> {
+  const res = await fetch("/api/appointments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+    credentials: "same-origin",
+  });
+  let parsed: { error?: string | null } = {};
+  try {
+    parsed = (await res.json()) as { error?: string | null };
+  } catch {
+    return { error: "Could not read response from server." };
+  }
+  if (!res.ok) {
+    const msg = parsed.error?.trim();
+    return { error: msg || `Create failed (${res.status}).` };
+  }
+  return { error: parsed.error ?? null };
+}
+
+async function deleteAppointmentViaApi(id: string): Promise<{ error?: string | null }> {
+  const res = await fetch(`/api/appointments/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    credentials: "same-origin",
+  });
+  let parsed: { error?: string | null } = {};
+  try {
+    parsed = (await res.json()) as { error?: string | null };
+  } catch {
+    return { error: "Could not read response from server." };
+  }
+  if (!res.ok) {
+    const msg = parsed.error?.trim();
+    return { error: msg || `Delete failed (${res.status}).` };
+  }
+  return { error: parsed.error ?? null };
+}
+
 async function patchAppointmentViaApi(
   id: string,
   updates: UpdateAppointmentInput
@@ -338,8 +378,9 @@ export function DiaryView({
   async function handleDelete(id: string) {
     if (!confirm("Delete this appointment?")) return;
     setError(null);
-    const result = await deleteAppointment(id);
+    const result = await deleteAppointmentViaApi(id);
     if (result.error) setError(result.error);
+    else scheduleRouterRefresh(router);
   }
 
   const todayStr = formatDate(new Date());
@@ -863,7 +904,7 @@ export function DiaryView({
           clients={clients}
           currentDate={currentDate}
           onCreate={async (data) => {
-            const result = await createAppointment(data);
+            const result = await createAppointmentViaApi(data);
             if (result.error) setError(result.error);
             else {
               setAddOpen(false);
