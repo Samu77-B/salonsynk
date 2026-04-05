@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { Reveal } from "@/components/reveal";
 import { LoginForm } from "./login-form";
 import siteLogo from "../../../salonsynk_logo.png";
 
@@ -17,8 +18,8 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="animate-entry-up min-h-screen flex flex-col items-center justify-center px-4 sm:px-6">
-      <div className="w-full max-w-sm space-y-8">
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6">
+      <Reveal className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <Link href="/" className="inline-block mb-6">
             <Image
@@ -42,7 +43,7 @@ export default async function LoginPage() {
             Request access
           </Link>
         </p>
-      </div>
+      </Reveal>
     </main>
   );
 }

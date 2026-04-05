@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { redirect } from "next/navigation";
 import { isMissingProcessingColumnError } from "@/lib/db/service-schema";
+import { Reveal } from "@/components/reveal";
 import { DiaryView } from "./diary-view";
 import { GapFillerSection } from "./gap-filler-section";
 
@@ -180,16 +181,20 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
 
   return (
     <main className="p-4 md:p-6 min-w-0 space-y-6">
-      <DiaryView
-        salonId={context.salon.id}
-        salonName={context.salon.name}
-        members={jsonClone(members)}
-        services={jsonClone(services)}
-        clients={jsonClone(clients)}
-        appointments={jsonClone(appointments)}
-        clientPhotoMap={jsonClone(clientPhotoMap)}
-      />
-      <GapFillerSection />
+      <Reveal>
+        <DiaryView
+          salonId={context.salon.id}
+          salonName={context.salon.name}
+          members={jsonClone(members)}
+          services={jsonClone(services)}
+          clients={jsonClone(clients)}
+          appointments={jsonClone(appointments)}
+          clientPhotoMap={jsonClone(clientPhotoMap)}
+        />
+      </Reveal>
+      <Reveal>
+        <GapFillerSection />
+      </Reveal>
     </main>
   );
 }

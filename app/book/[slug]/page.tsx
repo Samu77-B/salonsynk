@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Reveal } from "@/components/reveal";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GuestBookingForm } from "./guest-booking-form";
@@ -36,14 +37,14 @@ export default async function BookPage({
 
   return (
     <main
-      className="animate-entry-up flex min-h-screen w-full min-w-0 flex-col items-center px-4 py-6 sm:p-6"
+      className="flex min-h-screen w-full min-w-0 flex-col items-center px-4 py-6 sm:p-6"
       style={
         primaryColor
           ? ({ ["--accent"]: primaryColor } as React.CSSProperties)
           : undefined
       }
     >
-      <div className="w-full min-w-0 max-w-md space-y-6">
+      <Reveal className="w-full min-w-0 max-w-md space-y-6">
         <div className="flex justify-center">
           <Link
             href={`/shop/${slug}`}
@@ -71,7 +72,7 @@ export default async function BookPage({
           services={servicesRes.data ?? []}
           stylists={membersRes.data ?? []}
         />
-      </div>
+      </Reveal>
     </main>
   );
 }

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { Reveal } from "@/components/reveal";
 import { RequestAccountForm } from "./request-account-form";
 import siteLogo from "../../../salonsynk_logo.png";
 
@@ -13,8 +14,8 @@ export default async function SignupPage() {
   if (user) redirect("/dashboard");
 
   return (
-    <main className="animate-entry-up min-h-screen flex flex-col items-center justify-center px-4 sm:px-6">
-      <div className="w-full max-w-sm space-y-8">
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6">
+      <Reveal className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <Link href="/" className="inline-block mb-6">
             <Image
@@ -40,7 +41,7 @@ export default async function SignupPage() {
             Sign in
           </Link>
         </p>
-      </div>
+      </Reveal>
     </main>
   );
 }

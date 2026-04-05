@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Reveal } from "@/components/reveal";
 import { formatProductPriceMinor } from "@/lib/product-currency";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -39,12 +40,12 @@ export async function SalonPublicShop({ slug }: { slug: string }) {
 
   return (
     <main
-      className="animate-entry-up min-h-screen px-4 py-6 sm:p-8"
+      className="min-h-screen px-4 py-6 sm:p-8"
       style={
         primaryColor ? ({ ["--accent"]: primaryColor } as React.CSSProperties) : undefined
       }
     >
-      <div className="mx-auto max-w-3xl space-y-8">
+      <Reveal className="mx-auto max-w-3xl space-y-8">
         <header className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
           <div className="space-y-2">
             {logoUrl ? (
@@ -134,7 +135,7 @@ export async function SalonPublicShop({ slug }: { slug: string }) {
         <footer className="border-t border-border pt-6 text-center text-xs text-muted">
           <p>Pay online where available; prices may vary in salon. Contact {displayName} with questions.</p>
         </footer>
-      </div>
+      </Reveal>
     </main>
   );
 }

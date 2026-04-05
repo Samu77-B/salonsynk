@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-
-export const dynamic = "force-dynamic";
+import { Reveal } from "@/components/reveal";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
@@ -15,6 +14,8 @@ import {
   type PresetReportRange,
 } from "./report-window";
 import { ReportsCustomRangeForm } from "./reports-custom-range-form";
+
+export const dynamic = "force-dynamic";
 
 type AppointmentRow = {
   id: string;
@@ -363,6 +364,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   return (
     <main className="mx-auto w-full min-w-0 space-y-6 p-4 md:p-6">
+      <Reveal>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Reports</h1>
@@ -388,12 +390,15 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           </div>
         </div>
       </div>
+      </Reveal>
 
+      <Reveal>
       <ReportsCustomRangeForm
         defaultFrom={ctx.formFrom}
         defaultTo={ctx.formTo}
         includeProducts={includeProducts}
       />
+      </Reveal>
 
       {ctx.validationError && (
         <p className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
@@ -407,6 +412,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         </p>
       )}
 
+      <Reveal>
       <section className="rounded-lg border border-border bg-white/5 p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Retail sales in reports</h2>
         <p className="mt-2 text-sm text-muted">
@@ -422,7 +428,9 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           </Link>
         </div>
       </section>
+      </Reveal>
 
+      <Reveal>
       <section className="rounded-lg border border-border bg-white/5 p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Data source</h2>
         <ul className="mt-2 space-y-1 text-sm text-muted">
@@ -431,7 +439,9 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           <li>Product sales use ledger rows that include product IDs (shop or checkout with products).</li>
         </ul>
       </section>
+      </Reveal>
 
+      <Reveal>
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg border border-border p-4">
           <p className="text-xs uppercase tracking-wide text-muted">{ctx.salesLabel}</p>
@@ -458,8 +468,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           />
         </div>
       </section>
+      </Reveal>
 
       {includeProducts && (
+        <Reveal>
         <section className="grid gap-3 md:grid-cols-2">
           <div className="rounded-lg border border-border p-4">
             <p className="text-xs uppercase tracking-wide text-muted">Product-tagged sales</p>
@@ -493,8 +505,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             )}
           </div>
         </section>
+        </Reveal>
       )}
 
+      <Reveal>
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-border p-4">
           <h2 className="text-lg font-semibold mb-2">Top services</h2>
@@ -534,7 +548,9 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           )}
         </div>
       </section>
+      </Reveal>
 
+      <Reveal>
       <section className="rounded-lg border border-border p-4">
         <h2 className="text-lg font-semibold mb-2">Attendance overview</h2>
         <div className="grid gap-2 sm:grid-cols-3">
@@ -552,7 +568,9 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           </div>
         </div>
       </section>
+      </Reveal>
 
+      <Reveal>
       <section className="rounded-lg border border-border p-4">
         <h2 className="text-lg font-semibold mb-2">Data export</h2>
         <p className="text-sm text-muted mb-3">
@@ -585,6 +603,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           </a>
         </div>
       </section>
+      </Reveal>
     </main>
   );
 }

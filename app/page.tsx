@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Reveal } from "@/components/reveal";
 import { SITE } from "@/config/site";
 import { formatFlatFee, FLAT_FEE } from "@/config/subscription";
 // Bundled so the hero image and logo are always available in the build
@@ -84,7 +85,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="marketing-main-enter">
+      <main>
         {/* Hero – full width, 100vh */}
         <section className="relative w-full h-[100vh] min-h-[400px] overflow-hidden">
           <Image
@@ -124,7 +125,8 @@ export default function HomePage() {
         </section>
 
         {/* Features */}
-        <section className="border-t border-zinc-200 bg-zinc-50/50 py-16 sm:py-20">
+        <Reveal>
+          <section className="border-t border-zinc-200 bg-zinc-50/50 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <h2 className="text-2xl font-bold text-zinc-900 text-center sm:text-3xl">
               Everything you need to run your salon
@@ -156,9 +158,11 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+        </Reveal>
 
         {/* Pricing */}
-        <section className="bg-[#E0E0E0] py-16 sm:py-20">
+        <Reveal>
+          <section className="bg-[#E0E0E0] py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <h2 className="text-2xl font-bold text-zinc-900 text-center sm:text-3xl">
               Simple, transparent pricing
@@ -207,9 +211,11 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+        </Reveal>
 
         {/* FAQ */}
-        <section className="border-t border-zinc-200 bg-zinc-50/50 py-16 sm:py-20">
+        <Reveal>
+          <section className="border-t border-zinc-200 bg-zinc-50/50 py-16 sm:py-20">
           <div className="mx-auto max-w-3xl px-4 sm:px-6">
             <h2 className="text-2xl font-bold text-zinc-900 text-center sm:text-3xl">
               Frequently asked questions
@@ -229,12 +235,11 @@ export default function HomePage() {
             </dl>
           </div>
         </section>
+        </Reveal>
 
         {/* Book a demo CTA */}
-        <section
-          id="book-demo"
-          className="py-16 sm:py-20"
-        >
+        <Reveal>
+          <section id="book-demo" className="py-16 sm:py-20">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 text-center">
             <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
               See SalonSynk in action
@@ -251,37 +256,40 @@ export default function HomePage() {
             </a>
           </div>
         </section>
+        </Reveal>
 
         {/* Footer */}
-        <footer className="border-t border-zinc-200 bg-[#E0E0E0] py-8">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-sm font-medium text-zinc-600">
-              {SITE.name}
-            </span>
-            <p className="text-sm text-zinc-500">
-              A product of{" "}
-              <a
-                href="https://paradigmstudio.net/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-zinc-600 hover:text-zinc-900 underline underline-offset-2"
-              >
-                {SITE.studio}
-              </a>
-            </p>
-            <div className="flex items-center gap-6 text-sm">
-              <Link href="/contact" className="text-zinc-600 hover:text-zinc-900">
-                Contact
-              </Link>
-              <Link href="/terms" className="text-zinc-600 hover:text-zinc-900">
-                Terms
-              </Link>
-              <Link href="/policy" className="text-zinc-600 hover:text-zinc-900">
-                Privacy
-              </Link>
+        <Reveal>
+          <footer className="border-t border-zinc-200 bg-[#E0E0E0] py-8">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <span className="text-sm font-medium text-zinc-600">
+                {SITE.name}
+              </span>
+              <p className="text-sm text-zinc-500">
+                A product of{" "}
+                <a
+                  href="https://paradigmstudio.net/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-zinc-600 hover:text-zinc-900 underline underline-offset-2"
+                >
+                  {SITE.studio}
+                </a>
+              </p>
+              <div className="flex items-center gap-6 text-sm">
+                <Link href="/contact" className="text-zinc-600 hover:text-zinc-900">
+                  Contact
+                </Link>
+                <Link href="/terms" className="text-zinc-600 hover:text-zinc-900">
+                  Terms
+                </Link>
+                <Link href="/policy" className="text-zinc-600 hover:text-zinc-900">
+                  Privacy
+                </Link>
+              </div>
             </div>
-          </div>
-        </footer>
+          </footer>
+        </Reveal>
       </main>
     </div>
   );

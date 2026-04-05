@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Reveal } from "@/components/reveal";
 import { SITE } from "@/config/site";
 import siteLogo from "../../salonsynk_logo.png";
 
@@ -33,7 +34,8 @@ export default function PolicyPage() {
         </div>
       </header>
 
-      <main className="animate-entry-up mx-auto max-w-3xl px-4 sm:px-6 py-12 sm:py-16">
+      <main className="mx-auto max-w-3xl px-4 sm:px-6 py-12 sm:py-16">
+        <Reveal>
         <h1 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
           Privacy Policy
         </h1>
@@ -104,6 +106,7 @@ export default function PolicyPage() {
           </p>
           </section>
         </div>
+        </Reveal>
       </main>
 
       <footer className="border-t border-zinc-200 bg-[#E0E0E0] py-8 mt-12">

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Reveal } from "@/components/reveal";
 import { notFound } from "next/navigation";
 import { GuestBookingForm } from "../guest-booking-form";
 
@@ -48,14 +49,14 @@ export default async function BookEmbedPage({
 
   return (
     <main
-      className="animate-entry-up min-h-0 p-4 flex flex-col items-center bg-background text-foreground"
+      className="min-h-0 p-4 flex flex-col items-center bg-background text-foreground"
       style={
         primaryColor
           ? ({ ["--accent"]: primaryColor } as React.CSSProperties)
           : undefined
       }
     >
-      <div className="w-full max-w-md space-y-4">
+      <Reveal className="w-full max-w-md space-y-4">
         {logoUrl ? (
           <div className="flex justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -75,7 +76,7 @@ export default async function BookEmbedPage({
           services={servicesRes.data ?? []}
           stylists={membersRes.data ?? []}
         />
-      </div>
+      </Reveal>
     </main>
   );
 }

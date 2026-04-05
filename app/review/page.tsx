@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Reveal } from "@/components/reveal";
 import Link from "next/link";
 import Image from "next/image";
 import siteLogo from "../../salonsynk_logo.png";
@@ -25,8 +26,8 @@ export default async function ReviewPage({
   }
 
   return (
-    <main className="animate-entry-up min-h-screen p-6 flex flex-col items-center justify-center">
-      <div className="w-full max-w-md space-y-6 text-center">
+    <main className="min-h-screen p-6 flex flex-col items-center justify-center">
+      <Reveal className="w-full max-w-md space-y-6 text-center">
         <Link href="/" className="inline-block mb-2">
           <Image
             src={siteLogo}
@@ -52,7 +53,7 @@ export default async function ReviewPage({
         >
           Back to SalonSynk
         </Link>
-      </div>
+      </Reveal>
     </main>
   );
 }
