@@ -5,6 +5,7 @@ import { canSendSms, canSendWhatsApp, sendSms, sendWhatsApp } from "./sms";
  * Notify the client that their booking is confirmed.
  * Prefers email when present; otherwise SMS/WhatsApp if Twilio is configured.
  * Failures are non-fatal (logged only) so booking creation still succeeds.
+ * Returns `emailError` when email was attempted but Resend failed (e.g. missing API key or sandbox restrictions).
  */
 export async function sendClientBookingConfirmation(params: {
   email: string | null | undefined;
@@ -12,10 +13,10 @@ export async function sendClientBookingConfirmation(params: {
   salonName: string;
   start: Date;
   serviceName?: string | null;
-}): Promise<void> {
+}): Promise<{ emailError?: string }> {
   const email = params.email?.trim() || null;
   const phone = params.phone?.trim() || null;
-  if (!email && !phone) return;
+  if (!email && !phone) return {};
 
   const date = params.start.toLocaleDateString("en-GB");
   const time = params.start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -28,14 +29,17 @@ export async function sendClientBookingConfirmation(params: {
       salonName: params.salonName,
       serviceName: params.serviceName || undefined,
     });
-    if (error) console.warn("[booking-notifications] confirmation email:", error);
-    return;
+    if (error) {
+      console.warn("[booking-notifications] confirmation email:", error);
+      return { emailError: error };
+    }
+    return {};
   }
 
   if (phone) {
     if (canSendWhatsApp()) {
       const { error } = await sendWhatsApp(phone, smsBody);
-      if (!error) return;
+      if (!error) return {};
       console.warn("[booking-notifications] confirmation WhatsApp:", error);
     }
     if (canSendSms()) {
@@ -43,4 +47,5 @@ export async function sendClientBookingConfirmation(params: {
       if (error) console.warn("[booking-notifications] confirmation SMS:", error);
     }
   }
+  return {};
 }

@@ -87,7 +87,7 @@ export async function createGuestBooking(
     serviceName = svc?.name ?? null;
   }
 
-  await sendClientBookingConfirmation({
+  const { emailError } = await sendClientBookingConfirmation({
     email: data.guestEmail,
     phone: data.guestPhone,
     salonName: salon.name,
@@ -95,5 +95,5 @@ export async function createGuestBooking(
     serviceName,
   });
 
-  return { error: null };
+  return { error: null, confirmationEmailError: emailError };
 }

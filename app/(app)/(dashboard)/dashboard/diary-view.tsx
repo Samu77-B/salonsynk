@@ -455,7 +455,7 @@ export function DiaryView({
               const startHour = 6;
               const endHour = 19;
               const pxPerMin = 1.1;
-              const gutterW = 88;
+              const gutterW = 112;
               const nCols = visibleMembers.length;
               const minTotalW = gutterW + nCols * MIN_COL_PX;
               const heightPx = (endHour - startHour + 1) * 60 * pxPerMin;
@@ -520,15 +520,22 @@ export function DiaryView({
                           className="shrink-0 flex items-center justify-end pr-1.5"
                         >
                           <span
-                            className="rounded bg-background/95 px-1 py-0.5 text-[10px] font-semibold tabular-nums text-red-500 shadow-sm ring-1 ring-red-500/30"
-                            title={`Current time ${formatTime(now)}`}
+                            className="rounded bg-background/95 px-1.5 py-0.5 text-red-500 shadow-sm ring-1 ring-red-500/30"
+                            title={`Current local time: ${formatTime(now)}`}
                           >
-                            {formatTime(now)}
+                            <span className="flex flex-col items-end gap-0.5 leading-tight">
+                              <span className="text-[8px] font-medium text-red-500/90 text-right">
+                                Current local time
+                              </span>
+                              <span className="text-[10px] font-semibold tabular-nums">
+                                {formatTime(now)}
+                              </span>
+                            </span>
                           </span>
                         </div>
                         <div
                           className="min-h-0 min-w-0 flex-1 border-t-2 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.45)]"
-                          title={`Current time ${formatTime(now)}`}
+                          title={`Current local time: ${formatTime(now)}`}
                         />
                       </div>
                     )}

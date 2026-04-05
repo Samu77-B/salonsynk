@@ -28,6 +28,8 @@ export function GuestBookingForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  /** Set when booking saved but Resend failed (e.g. missing API key or sandbox recipient restriction). */
+  const [confirmationEmailError, setConfirmationEmailError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,11 +49,26 @@ export function GuestBookingForm({
       silentService,
     });
     setLoading(false);
-    if (result.error) setError(result.error);
-    else setSuccess(true);
+    if (result.error) {
+      setConfirmationEmailError(null);
+      setError(result.error);
+    } else {
+      setConfirmationEmailError(result.confirmationEmailError ?? null);
+      setSuccess(true);
+    }
   }
 
   if (success) {
+    if (confirmationEmailError) {
+      return (
+        <div className="space-y-2 text-center text-sm">
+          <p className="text-green-400">Booking confirmed.</p>
+          <p className="text-amber-200/90">
+            We couldn&apos;t send the confirmation email ({confirmationEmailError}). Please save your date and time.
+          </p>
+        </div>
+      );
+    }
     return (
       <p className="text-green-400 text-center">
         Booking confirmed. We sent a confirmation to your email.
