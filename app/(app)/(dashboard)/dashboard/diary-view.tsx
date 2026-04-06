@@ -12,16 +12,16 @@ import type { UpdateAppointmentInput } from "@/lib/appointments/patch-appointmen
 /** Route Handler + JSON — avoids Next.js server-action digest errors on diary saves (add, delete, status, drag, form). */
 async function createAppointmentViaApi(
   data: CreateAppointmentInput
-): Promise<{ error?: string | null }> {
+): Promise<{ error?: string | null; appointmentId?: string }> {
   const res = await fetch("/api/appointments", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
     credentials: "same-origin",
   });
-  let parsed: { error?: string | null } = {};
+  let parsed: { error?: string | null; appointmentId?: string } = {};
   try {
-    parsed = (await res.json()) as { error?: string | null };
+    parsed = (await res.json()) as { error?: string | null; appointmentId?: string };
   } catch {
     return { error: "Could not read response from server." };
   }
@@ -29,7 +29,7 @@ async function createAppointmentViaApi(
     const msg = parsed.error?.trim();
     return { error: msg || `Create failed (${res.status}).` };
   }
-  return { error: parsed.error ?? null };
+  return { error: parsed.error ?? null, appointmentId: parsed.appointmentId };
 }
 
 async function deleteAppointmentViaApi(id: string): Promise<{ error?: string | null }> {
@@ -101,6 +101,44 @@ type Appointment = {
     | null;
   salon_members: { display_name: string | null } | { display_name: string | null }[] | null;
 };
+
+/** Build a diary row client-side after POST /api/appointments (avoids router.refresh() RSC digest issues). */
+function buildCreatedAppointment(
+  id: string,
+  input: CreateAppointmentInput,
+  members: Member[],
+  services: Service[],
+  clients: Client[]
+): Appointment {
+  const client = input.clientId ? clients.find((c) => c.id === input.clientId) : undefined;
+  const service = input.serviceId ? services.find((s) => s.id === input.serviceId) : undefined;
+  const stylist = members.find((m) => m.id === input.stylistId);
+  return {
+    id,
+    start_time: input.startTime,
+    end_time: input.endTime,
+    status: "scheduled",
+    notes: input.notes ?? null,
+    client_id: input.clientId,
+    guest_name: input.guestName ?? null,
+    guest_email: input.guestEmail ?? null,
+    guest_phone: input.guestPhone ?? null,
+    stylist_id: input.stylistId,
+    service_id: input.serviceId,
+    send_reminder_sms: input.sendReminderSms,
+    send_review_request: input.sendReviewRequest,
+    send_aftercare: input.sendAftercare,
+    clients: client ? { name: client.name, email: client.email, phone: client.phone } : null,
+    services: service
+      ? {
+          name: service.name,
+          duration_minutes: service.duration_minutes,
+          processing_time_minutes: service.processing_time_minutes ?? 0,
+        }
+      : null,
+    salon_members: stylist ? { display_name: stylist.display_name } : null,
+  };
+}
 
 const DIARY_VISIBLE_STATUSES = ["scheduled", "completed", "canceled", "no_show"] as const;
 
@@ -264,7 +302,7 @@ export function DiaryView({
   members,
   services,
   clients,
-  appointments,
+  appointments: appointmentsFromServer,
   clientPhotoMap = {},
 }: {
   salonId: string;
@@ -283,7 +321,19 @@ export function DiaryView({
   const [movingId, setMovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [optimisticAppointments, setOptimisticAppointments] = useState<Appointment[]>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    const ids = new Set(appointmentsFromServer.map((a) => a.id));
+    setOptimisticAppointments((prev) => prev.filter((a) => !ids.has(a.id)));
+  }, [appointmentsFromServer]);
+
+  const appointments = useMemo(() => {
+    const ids = new Set(appointmentsFromServer.map((a) => a.id));
+    const extra = optimisticAppointments.filter((a) => !ids.has(a.id));
+    return [...appointmentsFromServer, ...extra];
+  }, [appointmentsFromServer, optimisticAppointments]);
 
   useEffect(() => {
     const tick = () => setNowMs(Date.now());
@@ -907,8 +957,15 @@ export function DiaryView({
             const result = await createAppointmentViaApi(data);
             if (result.error) setError(result.error);
             else {
+              if (result.appointmentId) {
+                setOptimisticAppointments((prev) => [
+                  ...prev,
+                  buildCreatedAppointment(result.appointmentId!, data, members, services, clients),
+                ]);
+              } else {
+                scheduleRouterRefresh(router);
+              }
               setAddOpen(false);
-              scheduleRouterRefresh(router);
             }
             return result;
           }}

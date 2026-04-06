@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getEmptySlotCandidates } from "./actions";
 import type { SlotWithCandidates } from "@/lib/gap-filler";
 
 export function GapFillerSection() {
@@ -10,11 +9,23 @@ export function GapFillerSection() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getEmptySlotCandidates()
-      .then((res) => {
-        if (res.error) setError(res.error);
-        else setSlots(res.data ?? []);
+    fetch("/api/dashboard/gap-filler", { credentials: "same-origin" })
+      .then(async (res) => {
+        let json: { error?: string; data?: SlotWithCandidates[] } = {};
+        try {
+          json = (await res.json()) as { error?: string; data?: SlotWithCandidates[] };
+        } catch {
+          setError("Could not read response from server.");
+          return;
+        }
+        if (!res.ok) {
+          setError(json.error?.trim() || `Request failed (${res.status}).`);
+          return;
+        }
+        if (json.error) setError(json.error);
+        else setSlots(json.data ?? []);
       })
+      .catch(() => setError("Could not load gap filler."))
       .finally(() => setLoading(false));
   }, []);
 

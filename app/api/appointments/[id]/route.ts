@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteAppointment } from "@/app/(app)/(dashboard)/dashboard/actions";
+import { executeDeleteAppointment } from "@/lib/appointments/delete-appointment";
 import { executeAppointmentPatch, type UpdateAppointmentInput } from "@/lib/appointments/patch-appointment";
 
 export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -9,7 +9,7 @@ export async function DELETE(_request: NextRequest, context: { params: Promise<{
   }
 
   try {
-    const result = await deleteAppointment(id);
+    const result = await executeDeleteAppointment(id);
     const status = result.error ? 400 : 200;
     return NextResponse.json(result, { status });
   } catch (e) {

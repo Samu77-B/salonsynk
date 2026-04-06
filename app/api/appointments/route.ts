@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  createAppointment,
+  executeCreateAppointment,
   type CreateAppointmentInput,
-} from "@/app/(app)/(dashboard)/dashboard/actions";
+} from "@/lib/appointments/create-appointment";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await createAppointment(body as CreateAppointmentInput);
+    const result = await executeCreateAppointment(body as CreateAppointmentInput);
     const status = result.error ? 400 : 200;
     return NextResponse.json(result, { status });
   } catch (e) {
