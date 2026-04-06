@@ -3,9 +3,8 @@ import { Resend } from "resend";
 const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
 
-/** From address. Use a verified domain (e.g. noreply@salonsynk.com) to send to any recipient. onboarding@resend.dev only allows your own email. */
 const fromAddress =
-  process.env.RESEND_FROM_ADDRESS || "SalonSynk <onboarding@resend.dev>";
+  process.env.RESEND_FROM_ADDRESS || "SalonSynk <noreply@salonsynk.com>";
 
 function normalizeResendError(error: unknown): string | undefined {
   if (!error) return undefined;
