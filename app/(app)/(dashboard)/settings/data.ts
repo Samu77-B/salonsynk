@@ -1,6 +1,7 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { FLAT_FEE } from "@/config/subscription";
 import { redirect } from "next/navigation";
 
 export async function getSettingsData() {
@@ -35,7 +36,9 @@ export async function getSettingsData() {
   const [{ data: salon }, { data: member }, { data: services }] = await Promise.all([
     supabase
       .from("salons")
-      .select("id, name, slug, stripe_connect_account_id, subscription_status, settings, tax_vault_minor")
+      .select(
+        "id, name, slug, stripe_connect_account_id, stripe_billing_customer_id, subscription_status, settings, tax_vault_minor"
+      )
       .eq("id", context.salon.id)
       .single(),
     supabase
@@ -62,6 +65,9 @@ export async function getSettingsData() {
   const employmentType = (member?.employment_type as string) ?? "EMPLOYEE";
   const showSalonTaxVault = isOwner;
   const showRenterTaxVault = !isOwner && employmentType === "RENTER";
+
+  const subscriptionCheckoutAvailable = Boolean(FLAT_FEE.STRIPE_PRICE_ID?.trim());
+  const hasBillingCustomer = Boolean(salon?.stripe_billing_customer_id?.trim());
 
   return {
     context,
@@ -104,5 +110,7 @@ export async function getSettingsData() {
     showRenterTaxVault,
     salonTaxVaultMinor: showSalonTaxVault ? Number(salon?.tax_vault_minor ?? 0) : 0,
     renterTaxVaultMinor: showRenterTaxVault ? Number(member?.tax_vault_minor ?? 0) : 0,
+    subscriptionCheckoutAvailable,
+    hasBillingCustomer,
   };
 }

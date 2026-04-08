@@ -24,6 +24,8 @@ export function SettingsView({
   weMissYouWeeksMin = 6,
   weMissYouWeeksMax = 10,
   weMissYouDiscountCode = "",
+  subscriptionCheckoutAvailable = false,
+  hasBillingCustomer = false,
 }: {
   salonId: string;
   salonName: string;
@@ -45,8 +47,12 @@ export function SettingsView({
   weMissYouWeeksMin?: number;
   weMissYouWeeksMax?: number;
   weMissYouDiscountCode?: string;
+  subscriptionCheckoutAvailable?: boolean;
+  hasBillingCustomer?: boolean;
 }) {
   const connectUrl = `/api/stripe/connect?salonId=${encodeURIComponent(salonId)}`;
+  const subscribeUrl = `/api/stripe/create-subscription-checkout?salonId=${encodeURIComponent(salonId)}`;
+  const billingPortalUrl = `/api/stripe/billing-portal?salonId=${encodeURIComponent(salonId)}`;
   const [logoUrl, setLogoUrl] = useState(branding.logo_url);
   const [adminFee, setAdminFee] = useState(String(adminFeePercent ?? 10));
   const [adminFeeMsg, setAdminFeeMsg] = useState<"saved" | "error" | null>(null);
@@ -327,11 +333,42 @@ export function SettingsView({
       <section>
         <h2 className="text-lg font-semibold mb-2">Subscription</h2>
         <p className="text-muted text-sm mb-2">
-          SalonSynk flat fee: {formatFlatFee}
+          SalonSynk flat fee: {formatFlatFee}. Billed to SalonSynk (platform) — separate from Stripe Connect payouts
+          for your salon.
         </p>
-        <p className="text-sm">
+        <p className="text-sm mb-3">
           Status: <span className="capitalize">{subscriptionStatus}</span>
         </p>
+        {isOwner && subscriptionCheckoutAvailable && (subscriptionStatus === "inactive" || subscriptionStatus === "canceled") && (
+          <a
+            href={subscribeUrl}
+            className="inline-flex rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background"
+          >
+            Pay subscription (card)
+          </a>
+        )}
+        {isOwner &&
+          hasBillingCustomer &&
+          (subscriptionStatus === "active" || subscriptionStatus === "past_due") && (
+            <a
+              href={billingPortalUrl}
+              className="inline-flex rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground"
+            >
+              Manage billing
+            </a>
+          )}
+        {isOwner && !subscriptionCheckoutAvailable && (
+          <p className="text-muted text-sm">Subscription checkout is not configured yet.</p>
+        )}
+        {isOwner &&
+          subscriptionStatus === "active" &&
+          !hasBillingCustomer &&
+          subscriptionCheckoutAvailable && (
+            <p className="text-muted text-sm mt-2">
+              Billing is active but the customer profile is not linked in-app yet. If you need to change card or
+              cancel, use the Stripe customer portal from your invoice email or contact support.
+            </p>
+          )}
       </section>
 
       {isOwner && (

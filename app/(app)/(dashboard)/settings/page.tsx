@@ -31,6 +31,8 @@ export default async function SettingsPage() {
         weMissYouWeeksMin={data.weMissYouWeeksMin}
         weMissYouWeeksMax={data.weMissYouWeeksMax}
         weMissYouDiscountCode={data.weMissYouDiscountCode}
+        subscriptionCheckoutAvailable={data.subscriptionCheckoutAvailable}
+        hasBillingCustomer={data.hasBillingCustomer}
       />
     </main>
   );

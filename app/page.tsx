@@ -1,6 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
+import { HomeOutcomesSection } from "@/components/marketing/home-outcomes-section";
+import { MarketingSiteFooter } from "@/components/marketing/marketing-site-footer";
+import { MarketingSiteHeader } from "@/components/marketing/marketing-site-header";
 import { SITE } from "@/config/site";
 import { formatFlatFee, FLAT_FEE } from "@/config/subscription";
 // Bundled so the hero image and logo are always available in the build
@@ -10,7 +13,6 @@ import featureDiary from "../imgs/one_dairy.png";
 import featureTeam from "../imgs/team.png";
 import featureOnline from "../imgs/online.png";
 import featureCom from "../imgs/com.png";
-import siteLogo from "../salonsynk_logo.png";
 
 const FEATURES = [
   {
@@ -61,29 +63,7 @@ const FAQ_ITEMS = [
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white text-zinc-900">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-zinc-200/80 bg-white">
-        <div className="flex h-20 w-full items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center shrink-0">
-            <Image
-              src={siteLogo}
-              alt={SITE.name}
-              width={560}
-              height={160}
-              className="h-14 w-auto sm:h-16"
-              sizes="(min-width: 640px) 128px, 112px"
-              quality={95}
-              priority
-            />
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-lg border border-zinc-300 bg-white px-5 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-400 transition-colors shrink-0"
-          >
-            Sign in
-          </Link>
-        </div>
-      </header>
+      <MarketingSiteHeader variant="fixed" activeNav="home" />
 
       <main>
         {/* Hero – full width, 100vh */}
@@ -160,6 +140,8 @@ export default function HomePage() {
         </section>
         </Reveal>
 
+        <HomeOutcomesSection />
+
         {/* Pricing */}
         <Reveal>
           <section className="bg-[#E0E0E0] py-16 sm:py-20">
@@ -199,6 +181,9 @@ export default function HomePage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="text-[#808080]">✓</span> No commissions
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#808080]">✓</span> Reports &amp; PDF exports
                   </li>
                 </ul>
                 <Link
@@ -258,38 +243,7 @@ export default function HomePage() {
         </section>
         </Reveal>
 
-        {/* Footer */}
-        <Reveal>
-          <footer className="border-t border-zinc-200 bg-[#E0E0E0] py-8">
-            <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <span className="text-sm font-medium text-zinc-600">
-                {SITE.name}
-              </span>
-              <p className="text-sm text-zinc-500">
-                A product of{" "}
-                <a
-                  href="https://paradigmstudio.net/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-zinc-600 hover:text-zinc-900 underline underline-offset-2"
-                >
-                  {SITE.studio}
-                </a>
-              </p>
-              <div className="flex items-center gap-6 text-sm">
-                <Link href="/contact" className="text-zinc-600 hover:text-zinc-900">
-                  Contact
-                </Link>
-                <Link href="/terms" className="text-zinc-600 hover:text-zinc-900">
-                  Terms
-                </Link>
-                <Link href="/policy" className="text-zinc-600 hover:text-zinc-900">
-                  Privacy
-                </Link>
-              </div>
-            </div>
-          </footer>
-        </Reveal>
+        <MarketingSiteFooter />
       </main>
     </div>
   );

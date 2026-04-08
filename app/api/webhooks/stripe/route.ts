@@ -38,6 +38,9 @@ export async function POST(request: Request) {
   };
   type CheckoutSessionObject = {
     id: string;
+    mode?: string | null;
+    customer?: string | null;
+    subscription?: string | null;
     amount_total?: number | null;
     payment_intent?: string | null;
     currency?: string | null;
@@ -162,22 +165,32 @@ export async function POST(request: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data?.object as CheckoutSessionObject | undefined;
-    const amountTotal = session?.amount_total ?? 0;
-    const metadata = session?.metadata ?? {};
-    const employmentType = metadata.employment_type;
-    const salonId = metadata.salon_id;
-    const stylistId = metadata.stylist_id;
-    if (amountTotal > 0 && employmentType && salonId) {
-      await applyTaxVault(amountTotal, employmentType, salonId, stylistId);
+    const salonId = session?.metadata?.salon_id;
+    const customerId = typeof session?.customer === "string" ? session.customer : null;
+    if (session?.mode === "subscription" && salonId && customerId) {
+      await supabase
+        .from("salons")
+        .update({ stripe_billing_customer_id: customerId })
+        .eq("id", salonId);
     }
-    const paymentIntentId = session?.payment_intent ?? "";
-    if (paymentIntentId && amountTotal > 0) {
-      await upsertSalesTransaction({
-        paymentIntentId,
-        amountMinor: amountTotal,
-        currency: session?.currency ?? "gbp",
-        metadata,
-      });
+    // In-salon / one-off Checkout only — never treat platform subscription as retail sales.
+    if (session?.mode !== "subscription") {
+      const amountTotal = session?.amount_total ?? 0;
+      const metadata = session?.metadata ?? {};
+      const employmentType = metadata.employment_type;
+      const stylistId = metadata.stylist_id;
+      if (amountTotal > 0 && employmentType && salonId) {
+        await applyTaxVault(amountTotal, employmentType, salonId, stylistId);
+      }
+      const paymentIntentId = session?.payment_intent ?? "";
+      if (paymentIntentId && amountTotal > 0) {
+        await upsertSalesTransaction({
+          paymentIntentId,
+          amountMinor: amountTotal,
+          currency: session?.currency ?? "gbp",
+          metadata,
+        });
+      }
     }
   }
 
