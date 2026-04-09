@@ -40,7 +40,7 @@ export default async function CampaignsPage() {
         </p>
       </div>
 
-      <CampaignComposer />
+      <CampaignComposer salonId={context.salon.id} />
 
       <section className="rounded-lg border border-border p-4">
         <h2 className="text-lg font-semibold mb-3">Recent campaigns</h2>

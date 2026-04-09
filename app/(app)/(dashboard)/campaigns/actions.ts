@@ -1,6 +1,8 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { canViewReports } from "@/lib/dashboard-roles";
@@ -9,7 +11,60 @@ import { signUnsubscribeToken } from "@/lib/marketing-unsubscribe";
 import { getPublicSiteUrl } from "@/lib/public-site-url";
 import { revalidatePath } from "next/cache";
 
+const CAMPAIGN_ASSETS_BUCKET = "campaign-assets";
+const MAX_CAMPAIGN_IMAGE_BYTES = 3 * 1024 * 1024;
+const ALLOWED_CAMPAIGN_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
 const BATCH_SIZE = 25;
+
+async function assertCanManageCampaigns(salonId: string): Promise<{ ok: true } | { error: string }> {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
+  const isSuperAdmin = await getIsSuperAdmin();
+  if (!canViewReports(isSuperAdmin, context.member.role ?? "")) return { error: "Forbidden" };
+  return { ok: true };
+}
+
+/** Upload image for campaign HTML; returns public URL for &lt;img src&gt; */
+export async function uploadCampaignImageAction(
+  salonId: string,
+  formData: FormData
+): Promise<{ error?: string; url?: string }> {
+  const auth = await assertCanManageCampaigns(salonId);
+  if ("error" in auth) return { error: auth.error };
+
+  const raw = formData.get("image");
+  if (!raw || typeof raw !== "object" || !("size" in raw)) return { error: "No file provided" };
+  const file = raw as File;
+  if (file.size === 0) return { error: "No file provided" };
+  if (file.size > MAX_CAMPAIGN_IMAGE_BYTES) return { error: "Image must be under 3 MB" };
+  const type = (file.type || "").toLowerCase();
+  if (!ALLOWED_CAMPAIGN_IMAGE_TYPES.includes(type)) {
+    return { error: "Allowed types: JPEG, PNG, WebP, GIF" };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { error: "Storage not configured" };
+  }
+
+  const ext = file.name?.split(".").pop()?.toLowerCase() || "jpg";
+  const safeExt = ["jpg", "jpeg", "png", "webp", "gif"].includes(ext) ? ext : "jpg";
+  const path = `${salonId}/campaigns/${randomUUID()}.${safeExt}`;
+
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const { error: uploadError } = await admin.storage
+    .from(CAMPAIGN_ASSETS_BUCKET)
+    .upload(path, buffer, { upsert: false, contentType: type });
+
+  if (uploadError) return { error: uploadError.message };
+
+  const { data: urlData } = admin.storage.from(CAMPAIGN_ASSETS_BUCKET).getPublicUrl(path);
+  return { url: urlData.publicUrl };
+}
 
 export async function countMarketingRecipientsAction(): Promise<{ count: number; error?: string }> {
   const supabase = await createClient();
