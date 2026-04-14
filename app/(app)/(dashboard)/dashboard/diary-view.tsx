@@ -224,6 +224,21 @@ function minutesSinceDayStart(d: Date, day: Date): number {
   return (d.getTime() - dayStart.getTime()) / 60000;
 }
 
+/** Snap pointer Y (px from top of column) to 15-minute steps within the diary grid. */
+function snapMinsFromY(y: number, pxPerMin: number, startHour: number, endHour: number): number {
+  const maxMins = (endHour - startHour + 1) * 60;
+  const raw = y / pxPerMin;
+  return Math.max(0, Math.min(maxMins, Math.round(raw / 15) * 15));
+}
+
+/** HH:mm local for a slot on `day` at `minsFromGridStart` minutes after `startHour`:00. */
+function hhmmFromGridMins(day: Date, startHour: number, minsFromGridStart: number): string {
+  const d = new Date(day);
+  d.setHours(startHour, 0, 0, 0);
+  d.setMinutes(d.getMinutes() + minsFromGridStart);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 /** Greedy lane packing: max concurrent = laneCount; each id gets lane index 0..laneCount-1. */
 function assignOverlapLanes(
   items: { id: string; startMin: number; endMin: number }[]
@@ -427,7 +442,25 @@ export function DiaryView({
   const [runningLateId, setRunningLateId] = useState<string | null>(null);
   const [dragChargePrompt, setDragChargePrompt] = useState<{ appointmentId: string } | null>(null);
   const [dragChargeAmount, setDragChargeAmount] = useState("");
+  /** Hover guide on day grid: snapped time line + tooltip position */
+  const [slotHover, setSlotHover] = useState<{
+    memberId: string;
+    topPx: number;
+    timeLabel: string;
+    stylistLabel: string;
+    tooltipX: number;
+    tooltipY: number;
+  } | null>(null);
+  const [addPrefill, setAddPrefill] = useState<{ stylistId: string; timeHHmm: string } | null>(null);
+  const [addModalKey, setAddModalKey] = useState(0);
   const router = useRouter();
+
+  function openAddModal(prefill: { stylistId: string; timeHHmm: string } | null) {
+    setAddPrefill(prefill);
+    setAddModalKey((k) => k + 1);
+    setSlotHover(null);
+    setAddOpen(true);
+  }
 
   useEffect(() => {
     const ids = new Set(appointmentsFromServer.map((a) => a.id));
@@ -439,6 +472,10 @@ export function DiaryView({
     const extra = optimisticAppointments.filter((a) => !ids.has(a.id));
     return [...appointmentsFromServer, ...extra];
   }, [appointmentsFromServer, optimisticAppointments]);
+
+  useEffect(() => {
+    if (view !== "day") setSlotHover(null);
+  }, [view]);
 
   useEffect(() => {
     const tick = () => setNowMs(Date.now());
@@ -686,7 +723,7 @@ export function DiaryView({
           </select>
           <button
             type="button"
-            onClick={() => setAddOpen(true)}
+            onClick={() => openAddModal(null)}
             className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-background hover:opacity-90 transition-opacity w-full sm:w-auto"
           >
             Add appointment
@@ -706,7 +743,7 @@ export function DiaryView({
                   {daysToShow[0].toLocaleDateString("en-GB", { weekday: "long", month: "long", day: "numeric" })}
                 </div>
                 <div className="text-xs leading-snug text-muted">
-                  One column per stylist. Drag onto a column and time to reschedule (or move to another stylist).
+                  One column per stylist. Hover a column to see the time at that slot; click empty space to add an appointment there. Drag onto a column and time to reschedule.
                 </div>
               </div>
               {formatDate(daysToShow[0]) === todayStr && (
@@ -848,10 +885,36 @@ export function DiaryView({
                             className="relative flex-1 min-w-[100px] border-l border-border first:border-l-0"
                           >
                             <div
-                              className="absolute inset-0 z-0"
+                              className="absolute inset-0 z-0 cursor-crosshair"
                               onDragOver={(e) => {
                                 e.preventDefault();
                                 e.dataTransfer.dropEffect = "move";
+                              }}
+                              onMouseMove={(e) => {
+                                const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                                const y = e.clientY - rect.top;
+                                const minsFromStart = snapMinsFromY(y, pxPerMin, startHour, endHour);
+                                const slot = new Date(day);
+                                slot.setHours(startHour, 0, 0, 0);
+                                slot.setMinutes(slot.getMinutes() + minsFromStart);
+                                const stylistLabel = member.display_name || member.role || "Stylist";
+                                setSlotHover({
+                                  memberId: member.id,
+                                  topPx: minsFromStart * pxPerMin,
+                                  timeLabel: formatTime(slot),
+                                  stylistLabel,
+                                  tooltipX: e.clientX,
+                                  tooltipY: e.clientY,
+                                });
+                              }}
+                              onMouseLeave={() => setSlotHover(null)}
+                              onClick={(e) => {
+                                if ((e.target as HTMLElement).closest("button")) return;
+                                const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                                const y = e.clientY - rect.top;
+                                const minsFromStart = snapMinsFromY(y, pxPerMin, startHour, endHour);
+                                const hhmm = hhmmFromGridMins(day, startHour, minsFromStart);
+                                openAddModal({ stylistId: member.id, timeHHmm: hhmm });
                               }}
                               onDrop={(e) => {
                                 e.preventDefault();
@@ -861,13 +924,7 @@ export function DiaryView({
                                 if (!apt) return;
                                 const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                                 const y = e.clientY - rect.top;
-                                const minsFromStart = Math.max(
-                                  0,
-                                  Math.min(
-                                    (endHour - startHour + 1) * 60,
-                                    Math.round(y / pxPerMin / 15) * 15
-                                  )
-                                );
+                                const minsFromStart = snapMinsFromY(y, pxPerMin, startHour, endHour);
                                 const newStart = new Date(day);
                                 newStart.setHours(startHour, 0, 0, 0);
                                 newStart.setMinutes(newStart.getMinutes() + minsFromStart);
@@ -877,6 +934,13 @@ export function DiaryView({
                                 void handleRescheduleWithStylist(id, newStart, newEnd, member.id);
                               }}
                             />
+                            {slotHover?.memberId === member.id && (
+                              <div
+                                className="pointer-events-none absolute left-0 right-0 z-[5] border-t-2 border-accent/60"
+                                style={{ top: `${slotHover.topPx}px` }}
+                                aria-hidden
+                              />
+                            )}
                             {colAppts.map((a) => {
                               const start = parseDate(a.start_time);
                               const end = parseDate(a.end_time);
@@ -1149,17 +1213,32 @@ export function DiaryView({
         </div>
       )}
 
+      {view === "day" && slotHover && (
+        <div
+          className="pointer-events-none fixed z-[100] max-w-[min(240px,calc(100vw-1.5rem)))] rounded-md border border-border bg-background/95 px-2 py-1.5 text-xs shadow-lg backdrop-blur-sm"
+          style={{ left: slotHover.tooltipX + 14, top: slotHover.tooltipY + 14 }}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="font-semibold tabular-nums text-foreground">{slotHover.timeLabel}</div>
+          <div className="text-muted truncate">{slotHover.stylistLabel}</div>
+        </div>
+      )}
+
       <p className="text-xs text-muted px-1">
-        Day: drag a booking onto another stylist column or time. Week: drag onto a day column. Add / Edit / Delete as before.
+        Day: hover the grid for the snapped time, click empty space to add there; drag to reschedule. Week: drag onto a day column. Edit / Delete on each booking.
       </p>
 
       {addOpen && (
         <AddAppointmentModal
+          key={addModalKey}
           salonId={salonId}
           members={members}
           services={services}
           clients={clients}
           currentDate={currentDate}
+          initialStylistId={addPrefill?.stylistId ?? undefined}
+          initialTimeHHmm={addPrefill?.timeHHmm ?? undefined}
           stylistOverrides={stylistOverrides}
           clientPromptData={clientPromptData}
           onCreate={async (data) => {

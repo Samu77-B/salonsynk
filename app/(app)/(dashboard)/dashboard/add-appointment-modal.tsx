@@ -7,12 +7,19 @@ type Member = { id: string; display_name: string | null; role: string };
 type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number };
 type Client = { id: string; name: string | null; email: string | null; phone: string | null; last_skin_test_at?: string | null };
 
+function resolveInitialStylistId(members: Member[], initialStylistId?: string | null) {
+  if (initialStylistId && members.some((m) => m.id === initialStylistId)) return initialStylistId;
+  return members[0]?.id ?? "";
+}
+
 export function AddAppointmentModal({
   salonId,
   members,
   services,
   clients,
   currentDate,
+  initialStylistId,
+  initialTimeHHmm,
   stylistOverrides = {},
   clientPromptData = {},
   onCreate,
@@ -23,19 +30,23 @@ export function AddAppointmentModal({
   services: Service[];
   clients: Client[];
   currentDate: string;
+  /** When opening from a diary slot click, pre-select this stylist */
+  initialStylistId?: string | null;
+  /** HH:mm (24h) for the clicked slot */
+  initialTimeHHmm?: string | null;
   stylistOverrides?: Record<string, Record<string, number>>;
   clientPromptData?: Record<string, { lastVisit?: string; lastFormula?: string; alertNotes?: string[] }>;
   onCreate: (data: CreateAppointmentInput) => Promise<{ error?: string | null }>;
   onClose: () => void;
 }) {
-  const [stylistId, setStylistId] = useState(members[0]?.id ?? "");
+  const [stylistId, setStylistId] = useState(() => resolveInitialStylistId(members, initialStylistId));
   const [clientId, setClientId] = useState<string>("");
   const [serviceId, setServiceId] = useState<string>("");
   const [guestName, setGuestName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [date, setDate] = useState(currentDate);
-  const [time, setTime] = useState("09:00");
+  const [time, setTime] = useState(() => initialTimeHHmm ?? "09:00");
   const [notes, setNotes] = useState("");
   const [sendReminderSms, setSendReminderSms] = useState(true);
   const [sendReviewRequest, setSendReviewRequest] = useState(true);
