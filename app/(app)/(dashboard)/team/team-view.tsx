@@ -2,16 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { inviteOrAddTeamMember, updateTeamMember, deleteTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles } from "./actions";
+import { inviteOrAddTeamMember, updateTeamMember, deleteTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles, upsertStylistServiceOverride, deleteStylistServiceOverride, setMemberPasscode, clearMemberPasscode } from "./actions";
 
-type Member = { id: string; user_id?: string | null; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string; avatar_url?: string | null; calendar_color?: string | null };
+type Member = { id: string; user_id?: string | null; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string; avatar_url?: string | null; has_passcode?: boolean };
 type Invite = { id: string; email: string; role: string; display_name: string | null; created_at: string };
-
-const CALENDAR_COLORS = [
-  "#3b82f6", "#22c55e", "#eab308", "#ef4444", "#a855f7",
-  "#06b6d4", "#f97316", "#ec4899", "#14b8a6", "#84cc16",
-  "#6366f1", "#0ea5e9",
-];
+type SalonService = { id: string; name: string; duration_minutes: number };
 
 const PREDEFINED_ROLES = [
   { value: "owner", label: "Owner" },
@@ -32,6 +27,8 @@ export function TeamView({
   appointmentCountByStylist,
   isOwner,
   customRoles = [],
+  salonServices = [],
+  overridesByMember = {},
 }: {
   salonId: string;
   members: Member[];
@@ -40,6 +37,8 @@ export function TeamView({
   appointmentCountByStylist: Record<string, number>;
   isOwner: boolean;
   customRoles?: string[];
+  salonServices?: SalonService[];
+  overridesByMember?: Record<string, Record<string, number>>;
 }) {
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -54,15 +53,23 @@ export function TeamView({
   const [rolesLoading, setRolesLoading] = useState(false);
   const [bespokeRoleInput, setBespokeRoleInput] = useState("");
   const [editBespokeRoleInput, setEditBespokeRoleInput] = useState("");
-  const [calendarColor, setCalendarColor] = useState<string>("");
-  const [editCalendarColor, setEditCalendarColor] = useState<string>("");
   const [localCustomRoles, setLocalCustomRoles] = useState<string[]>(customRoles);
+  const [timingsId, setTimingsId] = useState<string | null>(null);
+  const [passcodeId, setPasscodeId] = useState<string | null>(null);
+  const [pinDigits, setPinDigits] = useState(["", "", "", ""]);
+  const [pinSaving, setPinSaving] = useState(false);
+  const [localOverrides, setLocalOverrides] = useState<Record<string, Record<string, number>>>(overridesByMember);
+  const [timingsSaving, setTimingsSaving] = useState(false);
   const editAvatarInputRef = useRef<HTMLInputElement>(null);
   const addAvatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setLocalCustomRoles(customRoles);
   }, [customRoles]);
+
+  useEffect(() => {
+    setLocalOverrides(overridesByMember);
+  }, [overridesByMember]);
 
   const roleOptions = [
     ...PREDEFINED_ROLES,
@@ -78,7 +85,6 @@ export function TeamView({
       display_name: displayName,
       role,
       email: email || undefined,
-      calendar_color: calendarColor || undefined,
     });
     if (result.error) {
       setLoading(false);
@@ -98,7 +104,6 @@ export function TeamView({
     setEmail("");
     setRole("stylist");
     setBespokeRoleInput("");
-    setCalendarColor("");
     addAvatarInputRef.current && (addAvatarInputRef.current.value = "");
   }
 
@@ -120,7 +125,7 @@ export function TeamView({
     }
     const result = await updateTeamMember(editId, {
       display_name: editDisplayName,
-      ...(isOwner ? { employment_type: editEmploymentType, role: editRole, calendar_color: editCalendarColor || null } : {}),
+      ...(isOwner ? { employment_type: editEmploymentType, role: editRole } : {}),
     });
     setLoading(false);
     if (result.error) setError(result.error);
@@ -220,13 +225,6 @@ export function TeamView({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-medium truncate">{m.display_name || m.role}</p>
-                    {m.calendar_color && (
-                      <span
-                        className="h-3 w-3 shrink-0 rounded-full border border-border"
-                        style={{ backgroundColor: m.calendar_color }}
-                        title="Diary colour"
-                      />
-                    )}
                   </div>
                   <p className="text-sm text-muted capitalize">{m.role}</p>
                   {m.user_id && memberEmails[m.user_id] && (
@@ -243,6 +241,38 @@ export function TeamView({
                   <p className="mt-2 text-xs text-muted">
                     Appointments (last 30 days): {appointmentCountByStylist[m.id] ?? 0}
                   </p>
+                  {m.is_active && salonServices.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setTimingsId(m.id)}
+                      className="mt-1 text-xs text-accent hover:underline"
+                    >
+                      Service timings
+                      {localOverrides[m.id] && Object.keys(localOverrides[m.id]).length > 0 && (
+                        <span className="ml-1 text-muted">({Object.keys(localOverrides[m.id]).length} custom)</span>
+                      )}
+                    </button>
+                  )}
+                  {isOwner && m.is_active && (
+                    <span className="text-xs text-muted mt-0.5">
+                      PIN: {m.has_passcode ? (
+                        <>
+                          <span className="text-green-400">set</span>
+                          {" · "}
+                          <button type="button" onClick={() => { setPasscodeId(m.id); setPinDigits(["", "", "", ""]); }} className="text-accent hover:underline">change</button>
+                          {" · "}
+                          <button type="button" onClick={async () => {
+                            if (!confirm("Remove this member's PIN?")) return;
+                            setError(null);
+                            const result = await clearMemberPasscode(salonId, m.id);
+                            if (result.error) setError(result.error);
+                          }} className="text-red-400 hover:underline">remove</button>
+                        </>
+                      ) : (
+                        <button type="button" onClick={() => { setPasscodeId(m.id); setPinDigits(["", "", "", ""]); }} className="text-accent hover:underline">set PIN</button>
+                      )}
+                    </span>
+                  )}
                 </div>
               </div>
               {isOwner && (
@@ -255,7 +285,6 @@ export function TeamView({
                           setEditId(m.id);
                           setEditDisplayName(m.display_name ?? "");
                           setEditRole(m.role || "stylist");
-                          setEditCalendarColor(m.calendar_color ?? "");
                           setEditEmploymentType((m.employment_type as "EMPLOYEE" | "RENTER") || "EMPLOYEE");
                         }}
                         className="text-sm text-accent hover:underline"
@@ -379,31 +408,6 @@ export function TeamView({
                   </div>
                 )}
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Diary colour</label>
-                <p className="text-xs text-muted mb-2">Used on the calendar so you can see who is booked at a glance.</p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCalendarColor("")}
-                    className={`h-8 w-8 rounded-full border-2 shrink-0 ${!calendarColor ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
-                    style={{ backgroundColor: "var(--muted)" }}
-                    title="No colour"
-                    aria-label="No colour"
-                  />
-                  {CALENDAR_COLORS.map((hex) => (
-                    <button
-                      key={hex}
-                      type="button"
-                      onClick={() => setCalendarColor(hex)}
-                      className={`h-8 w-8 rounded-full border-2 shrink-0 ${calendarColor === hex ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
-                      style={{ backgroundColor: hex }}
-                      title={hex}
-                      aria-label={`Colour ${hex}`}
-                    />
-                  ))}
-                </div>
-              </div>
               {isOwner && (
                 <div>
                   <label className="block text-sm font-medium mb-1">Profile image (optional)</label>
@@ -429,6 +433,162 @@ export function TeamView({
           </div>
         </div>
       )}
+
+      {timingsId && (() => {
+        const member = members.find((m) => m.id === timingsId);
+        const memberOverrides = localOverrides[timingsId] ?? {};
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setTimingsId(null)}>
+            <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-lg border border-border bg-background p-6" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-lg font-semibold mb-1">Service timings</h2>
+              <p className="text-sm text-muted mb-4">
+                Custom durations for {member?.display_name || "this stylist"}. Leave blank to use the default.
+              </p>
+              {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
+              <div className="space-y-3">
+                {salonServices.map((svc) => {
+                  const override = memberOverrides[svc.id];
+                  const hasOverride = override !== undefined;
+                  return (
+                    <div key={svc.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{svc.name}</p>
+                        <p className="text-xs text-muted">Default: {svc.duration_minutes} min</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <input
+                          type="number"
+                          min={1}
+                          max={480}
+                          placeholder={String(svc.duration_minutes)}
+                          value={hasOverride ? override : ""}
+                          onChange={(e) => {
+                            const val = e.target.value.trim();
+                            setLocalOverrides((prev) => {
+                              const next = { ...prev };
+                              if (!next[timingsId]) next[timingsId] = {};
+                              if (val === "") {
+                                const copy = { ...next[timingsId] };
+                                delete copy[svc.id];
+                                next[timingsId] = copy;
+                              } else {
+                                next[timingsId] = { ...next[timingsId], [svc.id]: Number(val) || svc.duration_minutes };
+                              }
+                              return next;
+                            });
+                          }}
+                          className="w-20 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-center"
+                          aria-label={`Custom duration for ${svc.name}`}
+                        />
+                        <span className="text-xs text-muted">min</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2 pt-4">
+                <button type="button" onClick={() => setTimingsId(null)} className="rounded-lg border border-border px-4 py-2 text-sm">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={timingsSaving}
+                  onClick={async () => {
+                    setTimingsSaving(true);
+                    setError(null);
+                    const currentOverrides = localOverrides[timingsId] ?? {};
+                    const originalOverrides = overridesByMember[timingsId] ?? {};
+                    const allServiceIds = new Set([...Object.keys(currentOverrides), ...Object.keys(originalOverrides)]);
+                    for (const serviceId of allServiceIds) {
+                      const newVal = currentOverrides[serviceId];
+                      const oldVal = originalOverrides[serviceId];
+                      if (newVal !== undefined && newVal !== oldVal) {
+                        const result = await upsertStylistServiceOverride(salonId, timingsId, serviceId, newVal);
+                        if (result.error) { setError(result.error); setTimingsSaving(false); return; }
+                      } else if (newVal === undefined && oldVal !== undefined) {
+                        const result = await deleteStylistServiceOverride(salonId, timingsId, serviceId);
+                        if (result.error) { setError(result.error); setTimingsSaving(false); return; }
+                      }
+                    }
+                    setTimingsSaving(false);
+                    setTimingsId(null);
+                  }}
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+                >
+                  {timingsSaving ? "Saving…" : "Save timings"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {passcodeId && (() => {
+        const pinMember = members.find((m) => m.id === passcodeId);
+        const pinComplete = pinDigits.every((d) => d !== "");
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setPasscodeId(null)}>
+            <div className="w-full max-w-xs rounded-lg border border-border bg-background p-6 text-center" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-lg font-semibold mb-1">{pinMember?.has_passcode ? "Change" : "Set"} PIN</h2>
+              <p className="text-sm text-muted mb-4">
+                Enter a 4-digit PIN for {pinMember?.display_name || "this member"}
+              </p>
+              <div className="flex justify-center gap-3 mb-4">
+                {pinDigits.map((d, i) => (
+                  <input
+                    key={i}
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={d}
+                    autoFocus={i === 0}
+                    aria-label={`PIN digit ${i + 1}`}
+                    className="w-12 h-14 text-center text-2xl rounded-lg border border-border bg-background focus:ring-2 focus:ring-accent outline-none"
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 1);
+                      const next = [...pinDigits];
+                      next[i] = val;
+                      setPinDigits(next);
+                      if (val && i < 3) {
+                        const nextInput = e.target.parentElement?.children[i + 1] as HTMLInputElement | undefined;
+                        nextInput?.focus();
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Backspace" && !pinDigits[i] && i > 0) {
+                        const prev = e.currentTarget.parentElement?.children[i - 1] as HTMLInputElement | undefined;
+                        prev?.focus();
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="flex gap-2 justify-center">
+                <button type="button" onClick={() => setPasscodeId(null)} className="rounded-lg border border-border px-4 py-2 text-sm">Cancel</button>
+                <button
+                  type="button"
+                  disabled={!pinComplete || pinSaving}
+                  className="rounded-lg bg-accent text-white px-4 py-2 text-sm disabled:opacity-50"
+                  onClick={async () => {
+                    setPinSaving(true);
+                    setError(null);
+                    const pin = pinDigits.join("");
+                    const result = await setMemberPasscode(salonId, passcodeId, pin);
+                    setPinSaving(false);
+                    if (result.error) {
+                      setError(result.error);
+                    } else {
+                      setPasscodeId(null);
+                    }
+                  }}
+                >
+                  {pinSaving ? "Saving…" : "Save PIN"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {editId && (() => {
         const member = members.find((m) => m.id === editId);
@@ -485,31 +645,6 @@ export function TeamView({
                 </div>
                 {isOwner && (
                   <>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Diary colour</label>
-                    <p className="text-xs text-muted mb-2">Used on the calendar so you can see who is booked at a glance.</p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditCalendarColor("")}
-                        className={`h-8 w-8 rounded-full border-2 shrink-0 ${!editCalendarColor ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
-                        style={{ backgroundColor: "var(--muted)" }}
-                        title="No colour"
-                        aria-label="No colour"
-                      />
-                      {CALENDAR_COLORS.map((hex) => (
-                        <button
-                          key={hex}
-                          type="button"
-                          onClick={() => setEditCalendarColor(hex)}
-                          className={`h-8 w-8 rounded-full border-2 shrink-0 ${editCalendarColor === hex ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
-                          style={{ backgroundColor: hex }}
-                          title={hex}
-                          aria-label={`Colour ${hex}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Role</label>
                     <select

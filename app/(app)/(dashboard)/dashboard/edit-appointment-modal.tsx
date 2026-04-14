@@ -34,7 +34,7 @@ function mapSubmitCatchError(e: unknown, router: ReturnType<typeof useRouter>): 
 
 type Member = { id: string; display_name: string | null; role: string };
 type Service = { id: string; name: string; duration_minutes: number };
-type Client = { id: string; name: string | null; email: string | null; phone: string | null };
+type Client = { id: string; name: string | null; email: string | null; phone: string | null; last_skin_test_at?: string | null };
 type Appointment = {
   id: string;
   start_time: string;
@@ -185,6 +185,7 @@ export function EditAppointmentModal({
   members,
   services,
   clients,
+  stylistOverrides = {},
   onUpdate,
   onDelete,
   onClose,
@@ -194,6 +195,7 @@ export function EditAppointmentModal({
   members: Member[];
   services: Service[];
   clients: Client[];
+  stylistOverrides?: Record<string, Record<string, number>>;
   onUpdate: (id: string, data: UpdateAppointmentInput) => Promise<{ error?: string | null }>;
   onDelete: (id: string) => void;
   onClose: () => void;
@@ -220,6 +222,10 @@ export function EditAppointmentModal({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [allowScheduleOverlap, setAllowScheduleOverlap] = useState(false);
   const [statusBusy, setStatusBusy] = useState(false);
+  const [chargePrompt, setChargePrompt] = useState<{
+    pendingData: UpdateAppointmentInput;
+  } | null>(null);
+  const [chargeAmount, setChargeAmount] = useState("");
   const errorAndOverlapRef = useRef<HTMLDivElement>(null);
   const currentStatus = appointment.status ?? "scheduled";
   const canChargeNoShow = currentStatus === "scheduled";
@@ -254,7 +260,8 @@ export function EditAppointmentModal({
   const hasContact = !!(email?.trim() || phone?.trim());
 
   const service = services.find((s) => s.id === serviceId);
-  const durationMinutes = service?.duration_minutes ?? 60;
+  const overrideDuration = stylistId && serviceId ? stylistOverrides[stylistId]?.[serviceId] : undefined;
+  const durationMinutes = overrideDuration ?? service?.duration_minutes ?? 60;
 
   async function applyStatus(next: AppointmentDbStatus, confirmMessage?: string) {
     if (confirmMessage && !confirm(confirmMessage)) return;
@@ -270,40 +277,63 @@ export function EditAppointmentModal({
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stylistId) return;
+  function buildUpdatePayload(): UpdateAppointmentInput {
     const [hours, mins] = time.split(":").map(Number);
     const startDate = new Date(date + "T12:00:00");
     startDate.setHours(hours, mins, 0, 0);
     const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000);
+    return {
+      stylist_id: stylistId,
+      client_id: clientId || null,
+      service_id: serviceId || null,
+      guest_name: guestName || null,
+      guest_email: email?.trim() || null,
+      guest_phone: phone?.trim() || null,
+      start_time: startDate.toISOString(),
+      end_time: endDate.toISOString(),
+      notes: notes || null,
+      send_reminder_sms: sendReminderSms,
+      send_review_request: sendReviewRequest,
+      send_aftercare: sendAftercare,
+      before_photo_url: beforePhotoUrl?.trim() || null,
+      after_photo_url: afterPhotoUrl?.trim() || null,
+      allowScheduleOverlap,
+    };
+  }
 
+  function hasChargeableChange(data: UpdateAppointmentInput): boolean {
+    const origTime = timeFromISO(appointment.start_time);
+    const origDate = isoDateSliceForInput(appointment.start_time);
+    const timeChanged = data.start_time !== undefined && (
+      origDate !== date || origTime !== time
+    );
+    const serviceChanged = data.service_id !== undefined && data.service_id !== appointment.service_id;
+    return timeChanged || serviceChanged;
+  }
+
+  async function executeUpdate(data: UpdateAppointmentInput) {
     setSubmitError(null);
     setLoading(true);
     try {
-      const result = await onUpdate(appointment.id, {
-        stylist_id: stylistId,
-        client_id: clientId || null,
-        service_id: serviceId || null,
-        guest_name: guestName || null,
-        guest_email: email?.trim() || null,
-        guest_phone: phone?.trim() || null,
-        start_time: startDate.toISOString(),
-        end_time: endDate.toISOString(),
-        notes: notes || null,
-        send_reminder_sms: sendReminderSms,
-        send_review_request: sendReviewRequest,
-        send_aftercare: sendAftercare,
-        before_photo_url: beforePhotoUrl?.trim() || null,
-        after_photo_url: afterPhotoUrl?.trim() || null,
-        allowScheduleOverlap,
-      });
+      const result = await onUpdate(appointment.id, data);
       if (result?.error) setSubmitError(result.error);
     } catch (e) {
       setSubmitError(mapSubmitCatchError(e, router));
     } finally {
       setLoading(false);
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stylistId) return;
+    const data = buildUpdatePayload();
+    if (hasChargeableChange(data) && currentStatus === "scheduled") {
+      setChargePrompt({ pendingData: data });
+      setChargeAmount("");
+      return;
+    }
+    await executeUpdate(data);
   };
 
   return (
@@ -466,9 +496,15 @@ export function EditAppointmentModal({
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             >
               <option value="">Select service</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>{s.name} ({s.duration_minutes} min)</option>
-              ))}
+              {services.map((s) => {
+                const ov = stylistId ? stylistOverrides[stylistId]?.[s.id] : undefined;
+                const dur = ov ?? s.duration_minutes;
+                return (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({dur} min{ov !== undefined ? " — custom" : ""})
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
@@ -619,6 +655,61 @@ export function EditAppointmentModal({
             </button>
           </div>
         </form>
+
+        {chargePrompt && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={() => setChargePrompt(null)}>
+            <div className="w-full max-w-sm rounded-xl border border-border bg-background p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold mb-2">Chargeable change?</h3>
+              <p className="text-sm text-muted mb-4">
+                You&apos;ve changed the time or service for this appointment. Is this change chargeable to the client?
+              </p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Charge amount</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">&pound;</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={chargeAmount}
+                    onChange={(e) => setChargeAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full rounded-lg border border-border bg-background pl-7 pr-3 py-2 text-sm"
+                    aria-label="Charge amount in pounds"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="flex-1 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/30"
+                  onClick={() => {
+                    const data = chargePrompt.pendingData;
+                    setChargePrompt(null);
+                    void executeUpdate(data);
+                  }}
+                >
+                  No charge
+                </button>
+                <button
+                  type="button"
+                  className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-background disabled:opacity-50"
+                  disabled={!chargeAmount || Number(chargeAmount) <= 0}
+                  onClick={() => {
+                    const data = {
+                      ...chargePrompt.pendingData,
+                      change_charge_minor: Math.round(Number(chargeAmount) * 100),
+                    };
+                    setChargePrompt(null);
+                    void executeUpdate(data);
+                  }}
+                >
+                  Apply charge
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

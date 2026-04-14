@@ -13,6 +13,7 @@ export async function getSettingsData() {
 
   const servicesPromise = (async () => {
     const attempts = [
+      "id, name, duration_minutes, price_minor, processing_time_minutes, description, color",
       "id, name, duration_minutes, price_minor, processing_time_minutes, description",
       "id, name, duration_minutes, price_minor, processing_time_minutes",
       "id, name, duration_minutes, price_minor, description",
@@ -56,6 +57,9 @@ export async function getSettingsData() {
   const depositRequired = Boolean(settings.deposit_required);
   const depositType = (settings.deposit_type as "percent" | "flat") || "percent";
   const depositValue = Number(settings.deposit_value) ?? 20;
+  const reminderHours = Array.isArray(settings.reminder_hours)
+    ? (settings.reminder_hours as number[]).filter((h) => [12, 24, 48].includes(h))
+    : [24];
   const googleReviewUrl = String(settings.google_review_url ?? "");
   const weMissYouWeeksMin = Number(settings.we_miss_you_weeks_min) || 6;
   const weMissYouWeeksMax = Number(settings.we_miss_you_weeks_max) || 10;
@@ -81,6 +85,7 @@ export async function getSettingsData() {
         price_minor: number | null;
         processing_time_minutes?: number | null;
         description?: string | null;
+        color?: string | null;
       };
       return {
         id: row.id,
@@ -89,6 +94,7 @@ export async function getSettingsData() {
         price_minor: row.price_minor ?? 0,
         processing_time_minutes: row.processing_time_minutes ?? 0,
         description: row.description ?? "",
+        color: row.color ?? "",
       };
     }),
     branding: {
@@ -100,6 +106,7 @@ export async function getSettingsData() {
     depositRequired,
     depositType,
     depositValue,
+    reminderHours,
     googleReviewUrl,
     weMissYouWeeksMin,
     weMissYouWeeksMax,

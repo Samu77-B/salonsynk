@@ -9,3 +9,9 @@ export function isMissingDescriptionColumnError(error: { message?: string } | nu
   const msg = (error?.message ?? "").toLowerCase();
   return msg.includes("description") && (msg.includes("does not exist") || msg.includes("schema cache"));
 }
+
+/** True when services.color column is not present yet. */
+export function isMissingColorColumnError(error: { message?: string } | null | undefined) {
+  const msg = (error?.message ?? "").toLowerCase();
+  return msg.includes("color") && (msg.includes("does not exist") || msg.includes("schema cache"));
+}

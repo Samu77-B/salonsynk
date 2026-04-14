@@ -5,7 +5,7 @@ import type { CreateAppointmentInput } from "./actions";
 
 type Member = { id: string; display_name: string | null; role: string };
 type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number };
-type Client = { id: string; name: string | null; email: string | null; phone: string | null };
+type Client = { id: string; name: string | null; email: string | null; phone: string | null; last_skin_test_at?: string | null };
 
 export function AddAppointmentModal({
   salonId,
@@ -13,6 +13,8 @@ export function AddAppointmentModal({
   services,
   clients,
   currentDate,
+  stylistOverrides = {},
+  clientPromptData = {},
   onCreate,
   onClose,
 }: {
@@ -21,6 +23,8 @@ export function AddAppointmentModal({
   services: Service[];
   clients: Client[];
   currentDate: string;
+  stylistOverrides?: Record<string, Record<string, number>>;
+  clientPromptData?: Record<string, { lastVisit?: string; lastFormula?: string; alertNotes?: string[] }>;
   onCreate: (data: CreateAppointmentInput) => Promise<{ error?: string | null }>;
   onClose: () => void;
 }) {
@@ -61,7 +65,16 @@ export function AddAppointmentModal({
   const service = services.find((s) => s.id === serviceId);
   const messagingOn = sendReminderSms || sendReviewRequest || sendAftercare;
   const hasContact = !!(email?.trim() || phone?.trim());
-  const durationMinutes = service?.duration_minutes ?? 60;
+  const overrideDuration = stylistId && serviceId ? stylistOverrides[stylistId]?.[serviceId] : undefined;
+  const durationMinutes = overrideDuration ?? service?.duration_minutes ?? 60;
+
+  const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null;
+  const skinTestExpired = (() => {
+    if (!selectedClient?.last_skin_test_at) return false;
+    const testDate = new Date(selectedClient.last_skin_test_at);
+    const monthsSince = (Date.now() - testDate.getTime()) / (30.44 * 24 * 60 * 60 * 1000);
+    return monthsSince >= 12;
+  })();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,6 +141,40 @@ export function AddAppointmentModal({
                 <option key={c.id} value={c.id}>{c.name || c.email || c.phone || c.id}</option>
               ))}
             </select>
+            {selectedClient && (() => {
+              const prompts = clientPromptData[selectedClient.id];
+              const hasPrompts = skinTestExpired || prompts?.lastVisit || prompts?.lastFormula || prompts?.alertNotes?.length;
+              if (!hasPrompts) return null;
+
+              const weeksSinceVisit = prompts?.lastVisit
+                ? Math.floor((Date.now() - new Date(prompts.lastVisit).getTime()) / (7 * 24 * 60 * 60 * 1000))
+                : null;
+
+              return (
+                <div className="mt-2 space-y-1.5">
+                  {skinTestExpired && (
+                    <p className="text-sm text-red-400 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2">
+                      Skin test expired — last test was over 12 months ago. A new test may be required before colour services.
+                    </p>
+                  )}
+                  {prompts?.alertNotes?.map((note, i) => (
+                    <p key={i} className="text-sm text-amber-400 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2">
+                      {note}
+                    </p>
+                  ))}
+                  {weeksSinceVisit !== null && weeksSinceVisit >= 6 && (
+                    <p className="text-xs text-muted rounded-lg border border-border px-3 py-2">
+                      Last visited {weeksSinceVisit} week{weeksSinceVisit === 1 ? "" : "s"} ago
+                    </p>
+                  )}
+                  {prompts?.lastFormula && (
+                    <p className="text-xs text-muted rounded-lg border border-border px-3 py-2">
+                      Last colour formula: {prompts.lastFormula}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           {!clientId && (
             <div>
@@ -176,9 +223,15 @@ export function AddAppointmentModal({
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             >
               <option value="">Select service</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>{s.name} ({s.duration_minutes} min)</option>
-              ))}
+              {services.map((s) => {
+                const ov = stylistId ? stylistOverrides[stylistId]?.[s.id] : undefined;
+                const dur = ov ?? s.duration_minutes;
+                return (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({dur} min{ov !== undefined ? " — custom" : ""})
+                  </option>
+                );
+              })}
             </select>
             {service && (service.processing_time_minutes ?? 0) > 0 && (
               <p className="text-xs text-muted mt-1">

@@ -6,6 +6,12 @@ import { addService, updateService, deleteService } from "./actions";
 
 const DESCRIPTION_MAX = 2000;
 
+const SERVICE_COLORS = [
+  "#3b82f6", "#22c55e", "#eab308", "#ef4444", "#a855f7",
+  "#06b6d4", "#f97316", "#ec4899", "#14b8a6", "#84cc16",
+  "#6366f1", "#0ea5e9",
+];
+
 type ServiceRow = {
   id: string;
   name: string;
@@ -13,6 +19,7 @@ type ServiceRow = {
   price_minor: number;
   processing_time_minutes?: number;
   description?: string;
+  color?: string;
 };
 
 const inputClass =
@@ -33,6 +40,7 @@ function ServiceCard({ salonId, service }: { salonId: string; service: ServiceRo
   const [allowOverlap, setAllowOverlap] = useState(initialProc > 0);
   const [processing, setProcessing] = useState(initialProc > 0 ? initialProc : defaultProcessingMinutes(service.duration_minutes));
   const [description, setDescription] = useState(service.description ?? "");
+  const [serviceColor, setServiceColor] = useState(service.color ?? "");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [feedback, setFeedback] = useState<"saved" | "error" | null>(null);
@@ -46,6 +54,7 @@ function ServiceCard({ salonId, service }: { salonId: string; service: ServiceRo
     setAllowOverlap(p > 0);
     setProcessing(p > 0 ? p : defaultProcessingMinutes(service.duration_minutes));
     setDescription(service.description ?? "");
+    setServiceColor(service.color ?? "");
   }, [
     service.id,
     service.name,
@@ -53,6 +62,7 @@ function ServiceCard({ salonId, service }: { salonId: string; service: ServiceRo
     service.price_minor,
     service.processing_time_minutes,
     service.description,
+    service.color,
   ]);
 
   async function save() {
@@ -90,6 +100,7 @@ function ServiceCard({ salonId, service }: { salonId: string; service: ServiceRo
       price_minor: priceMinor,
       processing_time_minutes: procSubmit,
       description,
+      color: serviceColor,
     });
     setSaving(false);
     if (result.error) {
@@ -228,6 +239,31 @@ function ServiceCard({ salonId, service }: { salonId: string; service: ServiceRo
           {description.length} / {DESCRIPTION_MAX}
         </p>
       </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium">Diary colour</label>
+        <p className="mb-2 text-xs text-muted">Appointment blocks on the diary will use this colour.</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setServiceColor("")}
+            className={`h-8 w-8 rounded-full border-2 shrink-0 ${!serviceColor ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
+            style={{ backgroundColor: "var(--muted)" }}
+            title="No colour (default)"
+            aria-label="No colour"
+          />
+          {SERVICE_COLORS.map((hex) => (
+            <button
+              key={hex}
+              type="button"
+              onClick={() => setServiceColor(hex)}
+              className={`h-8 w-8 rounded-full border-2 shrink-0 ${serviceColor === hex ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
+              style={{ backgroundColor: hex }}
+              title={hex}
+              aria-label={`Colour ${hex}`}
+            />
+          ))}
+        </div>
+      </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
         <button
           type="button"
@@ -272,6 +308,7 @@ export function ServicesView({
   const [newAllowOverlap, setNewAllowOverlap] = useState(false);
   const [newServiceProcessing, setNewServiceProcessing] = useState(() => defaultProcessingMinutes(60));
   const [newServiceDescription, setNewServiceDescription] = useState("");
+  const [newServiceColor, setNewServiceColor] = useState("");
   const [addMsg, setAddMsg] = useState<"saved" | "error" | null>(null);
   const [addError, setAddError] = useState("");
   const [addLoading, setAddLoading] = useState(false);
@@ -321,6 +358,7 @@ export function ServicesView({
                 price_minor: priceMinor,
                 processing_time_minutes: proc,
                 description: newServiceDescription,
+                color: newServiceColor,
               });
               setAddMsg(result.error ? "error" : "saved");
               if (result.error) setAddError(result.error);
@@ -331,6 +369,7 @@ export function ServicesView({
                 setNewAllowOverlap(false);
                 setNewServiceProcessing(defaultProcessingMinutes(60));
                 setNewServiceDescription("");
+                setNewServiceColor("");
                 router.refresh();
               }
             } catch (err) {
@@ -459,6 +498,31 @@ export function ServicesView({
             <p className="mt-1 text-xs text-muted">
               {newServiceDescription.length} / {DESCRIPTION_MAX}
             </p>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Diary colour</label>
+            <p className="mb-2 text-xs text-muted">Appointment blocks on the diary will use this colour.</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setNewServiceColor("")}
+                className={`h-8 w-8 rounded-full border-2 shrink-0 ${!newServiceColor ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
+                style={{ backgroundColor: "var(--muted)" }}
+                title="No colour (default)"
+                aria-label="No colour"
+              />
+              {SERVICE_COLORS.map((hex) => (
+                <button
+                  key={hex}
+                  type="button"
+                  onClick={() => setNewServiceColor(hex)}
+                  className={`h-8 w-8 rounded-full border-2 shrink-0 ${newServiceColor === hex ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
+                  style={{ backgroundColor: hex }}
+                  title={hex}
+                  aria-label={`Colour ${hex}`}
+                />
+              ))}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button

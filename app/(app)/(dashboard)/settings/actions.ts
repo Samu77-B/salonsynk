@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
-import { isMissingDescriptionColumnError, isMissingProcessingColumnError } from "@/lib/db/service-schema";
+import { isMissingDescriptionColumnError, isMissingProcessingColumnError, isMissingColorColumnError } from "@/lib/db/service-schema";
 
 const SERVICE_DESCRIPTION_MAX_LEN = 2000;
 
@@ -113,6 +113,28 @@ export async function updateDepositSettings(salonId: string, settings: DepositSe
   return {};
 }
 
+const VALID_REMINDER_HOURS = [12, 24, 48];
+
+export async function updateReminderSettings(
+  salonId: string,
+  reminderHours: number[]
+) {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
+  const validated = reminderHours.filter((h) => VALID_REMINDER_HOURS.includes(h));
+  const supabase = await createClient();
+  const { data: existing } = await supabase.from("salons").select("settings").eq("id", salonId).single();
+  if (!existing) return { error: "Salon not found" };
+  const current = (existing.settings as Record<string, unknown>) ?? {};
+  const { error } = await supabase
+    .from("salons")
+    .update({ settings: { ...current, reminder_hours: validated } })
+    .eq("id", salonId);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return {};
+}
+
 export async function updateSalonMarketingSettings(
   salonId: string,
   settings: { google_review_url?: string; we_miss_you_weeks_min?: number; we_miss_you_weeks_max?: number; we_miss_you_discount_code?: string }
@@ -209,6 +231,7 @@ export async function addService(
     price_minor?: number;
     processing_time_minutes?: number;
     description?: string;
+    color?: string;
   }
 ): Promise<ServiceMutationResult> {
   try {
@@ -223,6 +246,7 @@ export async function addService(
     const supabase = await createClient();
     const admin = getOptionalAdminClient();
     const db = admin ?? supabase;
+    const color = data.color?.trim() || null;
     let insertPayload: Record<string, unknown> = {
       salon_id: salonId,
       name,
@@ -230,6 +254,7 @@ export async function addService(
       price_minor: price,
       processing_time_minutes: processing,
       description,
+      color,
     };
     const attemptInsert = async (payload: Record<string, unknown>) => {
       let { error } = await db.from("services").insert(payload);
@@ -255,6 +280,11 @@ export async function addService(
       insertPayload = next;
       insertError = await attemptInsert(insertPayload);
     }
+    if (insertError && isMissingColorColumnError(insertError)) {
+      const { color: _c, ...next } = insertPayload;
+      insertPayload = next;
+      insertError = await attemptInsert(insertPayload);
+    }
     if (insertError) return { error: formatDbError(insertError) };
     revalidatePath("/settings");
     revalidatePath("/services");
@@ -274,6 +304,7 @@ export async function updateService(
     price_minor?: number;
     processing_time_minutes?: number;
     description?: string;
+    color?: string;
   }
 ): Promise<ServiceMutationResult> {
   try {
@@ -293,6 +324,7 @@ export async function updateService(
       payload.processing_time_minutes = Math.max(0, Math.min(d, p));
     }
     if (data.description !== undefined) payload.description = normalizeServiceDescription(data.description);
+    if (data.color !== undefined) payload.color = data.color?.trim() || null;
     if (Object.keys(payload).length === 0) return {};
     const supabase = await createClient();
     const admin = getOptionalAdminClient();
@@ -321,6 +353,12 @@ export async function updateService(
     }
     if (error && isMissingDescriptionColumnError(error)) {
       const { description: _d2, ...next } = updatePayload;
+      updatePayload = next;
+      if (Object.keys(updatePayload).length === 0) return { error: formatDbError(error) };
+      error = await attemptUpdate(updatePayload);
+    }
+    if (error && isMissingColorColumnError(error)) {
+      const { color: _c, ...next } = updatePayload;
       updatePayload = next;
       if (Object.keys(updatePayload).length === 0) return { error: formatDbError(error) };
       error = await attemptUpdate(updatePayload);

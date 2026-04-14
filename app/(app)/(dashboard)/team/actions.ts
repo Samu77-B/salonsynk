@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { revalidatePath } from "next/cache";
+import { hashPasscode } from "@/lib/passcode";
 
 const AVATAR_BUCKET = "team-avatars";
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2MB
@@ -170,6 +171,107 @@ export async function deleteInvite(inviteId: string) {
     .delete()
     .eq("id", inviteId);
 
+  if (error) return { error: error.message };
+  revalidatePath("/team");
+  return { error: null };
+}
+
+export async function getStylistServiceOverrides(
+  salonId: string,
+  stylistId: string
+): Promise<{ error: string | null; overrides?: { service_id: string; custom_duration_minutes: number }[] }> {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("stylist_service_overrides")
+    .select("service_id, custom_duration_minutes")
+    .eq("stylist_id", stylistId);
+  if (error) return { error: error.message };
+  return { error: null, overrides: data ?? [] };
+}
+
+export async function upsertStylistServiceOverride(
+  salonId: string,
+  stylistId: string,
+  serviceId: string,
+  customDurationMinutes: number
+): Promise<{ error: string | null }> {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
+  const duration = Math.max(1, Math.min(480, Math.round(customDurationMinutes)));
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("stylist_service_overrides")
+    .upsert(
+      { stylist_id: stylistId, service_id: serviceId, custom_duration_minutes: duration, updated_at: new Date().toISOString() },
+      { onConflict: "stylist_id,service_id" }
+    );
+  if (error) return { error: error.message };
+  revalidatePath("/team");
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
+export async function deleteStylistServiceOverride(
+  salonId: string,
+  stylistId: string,
+  serviceId: string
+): Promise<{ error: string | null }> {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("stylist_service_overrides")
+    .delete()
+    .eq("stylist_id", stylistId)
+    .eq("service_id", serviceId);
+  if (error) return { error: error.message };
+  revalidatePath("/team");
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
+export async function setMemberPasscode(
+  salonId: string,
+  memberId: string,
+  pin: string
+): Promise<{ error: string | null }> {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
+  if (context.member.role !== "owner") return { error: "Only owners can set passcodes" };
+  if (!/^\d{4}$/.test(pin)) return { error: "Passcode must be exactly 4 digits" };
+  const hashed = hashPasscode(pin);
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("salon_members")
+    .update({ passcode_hash: hashed })
+    .eq("id", memberId)
+    .eq("salon_id", salonId);
+  if (error) {
+    const msg = (error.message ?? "").toLowerCase();
+    if (msg.includes("passcode_hash") && (msg.includes("does not exist") || msg.includes("schema cache"))) {
+      return { error: "Passcode column not available yet. Run the latest migration." };
+    }
+    return { error: error.message };
+  }
+  revalidatePath("/team");
+  return { error: null };
+}
+
+export async function clearMemberPasscode(
+  salonId: string,
+  memberId: string
+): Promise<{ error: string | null }> {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
+  if (context.member.role !== "owner") return { error: "Only owners can clear passcodes" };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("salon_members")
+    .update({ passcode_hash: null })
+    .eq("id", memberId)
+    .eq("salon_id", salonId);
   if (error) return { error: error.message };
   revalidatePath("/team");
   return { error: null };

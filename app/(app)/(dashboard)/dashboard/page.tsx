@@ -7,6 +7,7 @@ import { isMissingProcessingColumnError } from "@/lib/db/service-schema";
 import { Reveal } from "@/components/reveal";
 import { DiaryView } from "./diary-view";
 import { GapFillerSection } from "./gap-filler-section";
+import { TargetsWidget, type TargetWidgetItem } from "./targets-widget";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +62,12 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
   rangeEnd.setHours(0, 0, 0, 0);
 
   const servicesPromise = (async () => {
+    const withColor = await supabase
+      .from("services")
+      .select("id, name, duration_minutes, processing_time_minutes, color")
+      .eq("salon_id", context.salon.id)
+      .order("name");
+    if (!withColor.error) return withColor;
     const withProcessing = await supabase
       .from("services")
       .select("id, name, duration_minutes, processing_time_minutes")
@@ -78,22 +85,30 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
   const [membersRes, servicesRes, clientsRes, appointmentsRes] = await Promise.all([
     supabase
       .from("salon_members")
-      .select("id, display_name, role, calendar_color")
+      .select("id, display_name, role, avatar_url")
       .eq("salon_id", context.salon.id)
       .eq("is_active", true)
       .order("role", { ascending: false }),
     servicesPromise,
-    supabase
-      .from("clients")
-      .select("id, name, email, phone")
-      .eq("salon_id", context.salon.id)
-      .order("name"),
+    (async () => {
+      const withSkinTest = await supabase
+        .from("clients")
+        .select("id, name, email, phone, last_skin_test_at")
+        .eq("salon_id", context.salon.id)
+        .order("name");
+      if (!withSkinTest.error) return withSkinTest;
+      return supabase
+        .from("clients")
+        .select("id, name, email, phone")
+        .eq("salon_id", context.salon.id)
+        .order("name");
+    })(),
     (async () => {
       const fullSelect = `
         id, start_time, end_time, status, notes,
         client_id, guest_name, guest_email, guest_phone,
         stylist_id, service_id, send_reminder_sms, send_review_request, send_aftercare,
-        deposit_payment_intent_id, before_photo_url, after_photo_url,
+        deposit_payment_intent_id, before_photo_url, after_photo_url, change_charge_minor,
         clients(name, email, phone),
         services(name, duration_minutes, processing_time_minutes),
         salon_members(display_name)
@@ -128,15 +143,100 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
       name: string;
       duration_minutes: number;
       processing_time_minutes?: number | null;
+      color?: string | null;
     };
     return {
       id: row.id,
       name: row.name,
       duration_minutes: row.duration_minutes,
       processing_time_minutes: row.processing_time_minutes ?? 0,
+      color: row.color ?? null,
     };
   });
   const clients = clientsRes.data ?? [];
+
+  // Load stylist timing overrides (graceful if table doesn't exist yet)
+  const stylistOverrides: Record<string, Record<string, number>> = {};
+  try {
+    const memberIds = members.map((m: { id: string }) => m.id);
+    if (memberIds.length > 0) {
+      const { data: overridesData } = await supabase
+        .from("stylist_service_overrides")
+        .select("stylist_id, service_id, custom_duration_minutes")
+        .in("stylist_id", memberIds);
+      for (const o of overridesData ?? []) {
+        const row = o as { stylist_id: string; service_id: string; custom_duration_minutes: number };
+        if (!stylistOverrides[row.stylist_id]) stylistOverrides[row.stylist_id] = {};
+        stylistOverrides[row.stylist_id][row.service_id] = row.custom_duration_minutes;
+      }
+    }
+  } catch {
+    // stylist_service_overrides table may not exist yet
+  }
+
+  // Build client prompt data from loaded appointments and client fields
+  const clientLastVisit: Record<string, string> = {};
+  for (const a of (appointmentsRes.data ?? []) as unknown as { client_id: string | null; start_time: string; status: string }[]) {
+    if (!a.client_id || a.status === "canceled") continue;
+    if (!clientLastVisit[a.client_id] || a.start_time > clientLastVisit[a.client_id]) {
+      clientLastVisit[a.client_id] = a.start_time;
+    }
+  }
+
+  // Load colour formulas for client prompts (lightweight: just client_id + last formula)
+  const clientColourFormula: Record<string, string> = {};
+  try {
+    const clientIds = clients.map((c: { id: string }) => c.id);
+    if (clientIds.length > 0) {
+      const { data: formulaRows } = await supabase
+        .from("clients")
+        .select("id, color_formulas")
+        .in("id", clientIds);
+      for (const row of formulaRows ?? []) {
+        const r = row as { id: string; color_formulas: unknown };
+        const formulas = Array.isArray(r.color_formulas) ? r.color_formulas : [];
+        if (formulas.length > 0) {
+          const last = formulas[formulas.length - 1] as { formula?: string; text?: string; brand?: string };
+          const display = last.formula || last.text || (last.brand ? `Brand: ${last.brand}` : "");
+          if (display) clientColourFormula[r.id] = display;
+        }
+      }
+    }
+  } catch {
+    // color_formulas column may not exist
+  }
+
+  // Load important client notes for prompts (allergy / skin_test type)
+  const clientAlertNotes: Record<string, string[]> = {};
+  try {
+    const clientIds = clients.map((c: { id: string }) => c.id);
+    if (clientIds.length > 0) {
+      const { data: noteRows } = await supabase
+        .from("client_notes")
+        .select("client_id, note, note_type")
+        .in("client_id", clientIds)
+        .in("note_type", ["allergy", "skin_test"])
+        .order("created_at", { ascending: false })
+        .limit(200);
+      for (const row of noteRows ?? []) {
+        const r = row as { client_id: string; note: string; note_type: string };
+        if (!clientAlertNotes[r.client_id]) clientAlertNotes[r.client_id] = [];
+        clientAlertNotes[r.client_id].push(r.note);
+      }
+    }
+  } catch {
+    // client_notes table may not exist yet
+  }
+
+  const clientPromptData: Record<string, { lastVisit?: string; lastFormula?: string; alertNotes?: string[] }> = {};
+  for (const c of clients) {
+    const cid = (c as { id: string }).id;
+    const entry: { lastVisit?: string; lastFormula?: string; alertNotes?: string[] } = {};
+    if (clientLastVisit[cid]) entry.lastVisit = clientLastVisit[cid];
+    if (clientColourFormula[cid]) entry.lastFormula = clientColourFormula[cid];
+    if (clientAlertNotes[cid]?.length) entry.alertNotes = clientAlertNotes[cid];
+    if (Object.keys(entry).length > 0) clientPromptData[cid] = entry;
+  }
 
   const clientPhotoMap: Record<string, string> = {};
   try {
@@ -179,6 +279,100 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
     salon_members: { display_name: string | null } | { display_name: string | null }[] | null;
   }[];
 
+  // --- Targets widget data ---
+  const targetWidgetItems: TargetWidgetItem[] = [];
+  try {
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    const { data: activeTargets } = await supabase
+      .from("staff_targets")
+      .select("member_id, target_type, target_value, period")
+      .eq("salon_id", context.salon.id)
+      .eq("is_active", true);
+
+    if (activeTargets && activeTargets.length > 0) {
+      const [weekSalesRes, monthSalesRes, weekApptsRes, monthApptsRes] = await Promise.all([
+        supabase
+          .from("sales_transactions")
+          .select("amount_minor, salon_members(id)")
+          .eq("salon_id", context.salon.id)
+          .gte("paid_at", weekStart.toISOString())
+          .lt("paid_at", weekEnd.toISOString()),
+        supabase
+          .from("sales_transactions")
+          .select("amount_minor, salon_members(id)")
+          .eq("salon_id", context.salon.id)
+          .gte("paid_at", monthStart.toISOString())
+          .lt("paid_at", monthEnd.toISOString()),
+        supabase
+          .from("appointments")
+          .select("stylist_id")
+          .eq("salon_id", context.salon.id)
+          .eq("status", "completed")
+          .gte("start_time", weekStart.toISOString())
+          .lt("start_time", weekEnd.toISOString()),
+        supabase
+          .from("appointments")
+          .select("stylist_id")
+          .eq("salon_id", context.salon.id)
+          .eq("status", "completed")
+          .gte("start_time", monthStart.toISOString())
+          .lt("start_time", monthEnd.toISOString()),
+      ]);
+
+      type WRow = { amount_minor: number; salon_members: { id: string } | { id: string }[] | null };
+      const revByMember = (rows: WRow[], _period: string) => {
+        const m: Record<string, number> = {};
+        for (const r of rows) {
+          const sm = Array.isArray(r.salon_members) ? r.salon_members[0] : r.salon_members;
+          if (sm?.id) m[sm.id] = (m[sm.id] ?? 0) + Number(r.amount_minor ?? 0);
+        }
+        return m;
+      };
+      const apptByMember = (rows: { stylist_id: string | null }[]) => {
+        const m: Record<string, number> = {};
+        for (const r of rows) { if (r.stylist_id) m[r.stylist_id] = (m[r.stylist_id] ?? 0) + 1; }
+        return m;
+      };
+
+      const weekRev = revByMember((weekSalesRes.data ?? []) as WRow[], "weekly");
+      const monthRev = revByMember((monthSalesRes.data ?? []) as WRow[], "monthly");
+      const weekAppt = apptByMember(weekApptsRes.data ?? []);
+      const monthAppt = apptByMember(monthApptsRes.data ?? []);
+
+      const memberNameMap: Record<string, string> = {};
+      for (const m of members) {
+        memberNameMap[m.id] = m.display_name || "Unnamed";
+      }
+
+      for (const t of activeTargets) {
+        const isMoney = t.target_type === "revenue" || t.target_type === "retail";
+        let current = 0;
+        if (isMoney) {
+          current = t.period === "weekly" ? (weekRev[t.member_id] ?? 0) : (monthRev[t.member_id] ?? 0);
+        } else {
+          current = t.period === "weekly" ? (weekAppt[t.member_id] ?? 0) : (monthAppt[t.member_id] ?? 0);
+        }
+        targetWidgetItems.push({
+          memberName: memberNameMap[t.member_id] ?? "Unknown",
+          targetType: t.target_type,
+          period: t.period,
+          current,
+          target: t.target_value,
+        });
+      }
+    }
+  } catch {
+    // staff_targets table may not exist yet
+  }
+
   return (
     <main className="p-4 md:p-6 min-w-0 space-y-6">
       <Reveal>
@@ -190,8 +384,15 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
           clients={jsonClone(clients)}
           appointments={jsonClone(appointments)}
           clientPhotoMap={jsonClone(clientPhotoMap)}
+          stylistOverrides={jsonClone(stylistOverrides)}
+          clientPromptData={jsonClone(clientPromptData)}
         />
       </Reveal>
+      {targetWidgetItems.length > 0 && (
+        <Reveal>
+          <TargetsWidget items={targetWidgetItems} />
+        </Reveal>
+      )}
       <Reveal>
         <GapFillerSection />
       </Reveal>

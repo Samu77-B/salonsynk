@@ -36,6 +36,7 @@ export type UpdateAppointmentInput = {
   after_photo_url?: string | null;
   allowScheduleOverlap?: boolean;
   status?: AppointmentDbStatus | string;
+  change_charge_minor?: number;
 };
 
 /**
@@ -152,6 +153,9 @@ export async function executeAppointmentPatch(
     if (!st) return { error: "Invalid appointment status." };
     payload.status = st;
   }
+  if (updates.change_charge_minor !== undefined) {
+    payload.change_charge_minor = updates.change_charge_minor;
+  }
 
   if (updates.start_time !== undefined || updates.end_time !== undefined) {
     payload.reminder_sent_at = null;
@@ -165,11 +169,12 @@ export async function executeAppointmentPatch(
     .eq("id", id)
     .eq("salon_id", context.salon.id);
 
-  if (error && "reminder_sent_at" in payload) {
+  if (error) {
     const msg = error.message ?? "";
-    if (/reminder_sent_at|does not exist|42703|schema cache/i.test(msg)) {
+    if (/reminder_sent_at|change_charge_minor|does not exist|42703|schema cache/i.test(msg)) {
       const retryPayload = { ...payload };
       delete retryPayload.reminder_sent_at;
+      delete retryPayload.change_charge_minor;
       const second = await db
         .from("appointments")
         .update(retryPayload)

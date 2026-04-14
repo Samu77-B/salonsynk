@@ -29,6 +29,24 @@ export default async function BookPage({
     supabase.from("salon_members").select("id, display_name").eq("salon_id", salon.id).eq("is_active", true),
   ]);
 
+  const stylistOverrides: Record<string, Record<string, number>> = {};
+  try {
+    const memberIds = (membersRes.data ?? []).map((m: { id: string }) => m.id);
+    if (memberIds.length > 0) {
+      const { data: ov } = await supabase
+        .from("stylist_service_overrides")
+        .select("stylist_id, service_id, custom_duration_minutes")
+        .in("stylist_id", memberIds);
+      for (const o of ov ?? []) {
+        const row = o as { stylist_id: string; service_id: string; custom_duration_minutes: number };
+        if (!stylistOverrides[row.stylist_id]) stylistOverrides[row.stylist_id] = {};
+        stylistOverrides[row.stylist_id][row.service_id] = row.custom_duration_minutes;
+      }
+    }
+  } catch {
+    // table may not exist yet
+  }
+
   const settings = (salon.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | undefined>) ?? {};
   const displayName = (branding.company_name?.trim() || salon.name) as string;
@@ -71,6 +89,7 @@ export default async function BookPage({
           salonName={displayName}
           services={servicesRes.data ?? []}
           stylists={membersRes.data ?? []}
+          stylistOverrides={stylistOverrides}
         />
       </Reveal>
     </main>

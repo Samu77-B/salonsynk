@@ -11,11 +11,13 @@ export function GuestBookingForm({
   salonName,
   services,
   stylists,
+  stylistOverrides = {},
 }: {
   salonId: string;
   salonName: string;
   services: Service[];
   stylists: Stylist[];
+  stylistOverrides?: Record<string, Record<string, number>>;
 }) {
   const [serviceId, setServiceId] = useState("");
   const [stylistId, setStylistId] = useState(stylists[0]?.id ?? "");
@@ -37,7 +39,8 @@ export function GuestBookingForm({
     setLoading(true);
     const start = new Date(`${date}T${time}:00`);
     const service = services.find((s) => s.id === serviceId);
-    const end = new Date(start.getTime() + (service?.duration_minutes ?? 60) * 60 * 1000);
+    const overrideDur = stylistId && serviceId ? stylistOverrides[stylistId]?.[serviceId] : undefined;
+    const end = new Date(start.getTime() + (overrideDur ?? service?.duration_minutes ?? 60) * 60 * 1000);
     const result = await createGuestBooking(salonId, {
       serviceId: serviceId || undefined,
       stylistId: stylistId || undefined,

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AppHeader } from "./app-header";
+import { HelpAgentWidget } from "./help-agent-widget";
 import type { DashboardTheme } from "./dashboard-theme";
 
 const STORAGE_KEY = "salonsynk-dashboard-theme";
@@ -69,6 +70,7 @@ export function LoggedInAppShell({
           {children}
         </div>
       </main>
+      <HelpAgentWidget />
     </div>
   );
 }

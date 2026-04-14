@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.53",
+    "@ai-sdk/react": "^3.0.161",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.47.0",
     "@tiptap/extension-image": "^3.22.3",
@@ -19,6 +21,7 @@
     "@tiptap/pm": "^3.22.3",
     "@tiptap/react": "^3.22.3",
     "@tiptap/starter-kit": "^3.22.3",
+    "ai": "^6.0.159",
     "jspdf": "^4.2.1",
     "next": "^15.0.0",
     "react": "^19.0.0",

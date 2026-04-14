@@ -26,23 +26,36 @@ export default async function ClientDetailPage({
     marketing_opt_in?: boolean | null;
     color_formulas: unknown;
     patch_test_due_at: string | null;
+    last_skin_test_at?: string | null;
   };
 
   const supabase = await createClient();
-  const fullQ = await supabase
-    .from("clients")
-    .select("id, name, email, phone, notes, sex, marketing_opt_in, color_formulas, patch_test_due_at")
-    .eq("id", id)
-    .eq("salon_id", context.salon.id)
-    .single();
-  const client: ClientRow | null = fullQ.error
-    ? (await supabase
-        .from("clients")
-        .select("id, name, email, phone, notes, color_formulas, patch_test_due_at, marketing_opt_in")
-        .eq("id", id)
-        .eq("salon_id", context.salon.id)
-        .single()).data as ClientRow | null
-    : fullQ.data as ClientRow | null;
+
+  async function loadClient(): Promise<ClientRow | null> {
+    const withSkinTest = await supabase
+      .from("clients")
+      .select("id, name, email, phone, notes, sex, marketing_opt_in, color_formulas, patch_test_due_at, last_skin_test_at")
+      .eq("id", id)
+      .eq("salon_id", context!.salon.id)
+      .single();
+    if (!withSkinTest.error) return withSkinTest.data as ClientRow | null;
+    const withSex = await supabase
+      .from("clients")
+      .select("id, name, email, phone, notes, sex, marketing_opt_in, color_formulas, patch_test_due_at")
+      .eq("id", id)
+      .eq("salon_id", context!.salon.id)
+      .single();
+    if (!withSex.error) return withSex.data as ClientRow | null;
+    const basic = await supabase
+      .from("clients")
+      .select("id, name, email, phone, notes, color_formulas, patch_test_due_at, marketing_opt_in")
+      .eq("id", id)
+      .eq("salon_id", context!.salon.id)
+      .single();
+    return basic.data as ClientRow | null;
+  }
+
+  const client = await loadClient();
 
   if (!client) notFound();
 
@@ -60,6 +73,19 @@ export default async function ClientDetailPage({
     }));
   } catch {
     // client_photos table may not exist yet
+  }
+
+  let clientNotes: { id: string; note: string; note_type: string; created_by: string | null; created_at: string }[] = [];
+  try {
+    const { data: notes } = await supabase
+      .from("client_notes")
+      .select("id, note, note_type, created_by, created_at")
+      .eq("client_id", id)
+      .eq("salon_id", context.salon.id)
+      .order("created_at", { ascending: false });
+    clientNotes = (notes ?? []) as typeof clientNotes;
+  } catch {
+    // table may not exist yet
   }
 
   const { data: appointments } = await supabase
@@ -113,6 +139,25 @@ export default async function ClientDetailPage({
   const daysUntilPatch = patchDue
     ? Math.ceil((patchDue.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
     : null;
+
+  let loyaltyData: { points: number; total_visits: number; tier: string } | null = null;
+  try {
+    const { data: inc } = await supabase
+      .from("client_incentives")
+      .select("points, total_visits, tier")
+      .eq("salon_id", context.salon.id)
+      .eq("client_id", id)
+      .maybeSingle();
+    if (inc) {
+      loyaltyData = {
+        points: inc.points as number,
+        total_visits: inc.total_visits as number,
+        tier: inc.tier as string,
+      };
+    }
+  } catch {
+    // table may not exist yet
+  }
 
   const profilePhoto = clientPhotos.find((p) => p.slot === "profile");
   const avatarSrc = profilePhoto
@@ -194,10 +239,14 @@ export default async function ClientDetailPage({
 
       <ClientDetailView
         clientId={client.id}
+        salonId={context.salon.id}
         formulas={formulas}
         appointments={appointments ?? []}
         sales={salesHistory}
         onPatchTestDueAt={client.patch_test_due_at}
+        onLastSkinTestAt={client.last_skin_test_at ?? null}
+        clientNotes={clientNotes}
+        loyaltyData={loyaltyData}
       />
     </main>
   );

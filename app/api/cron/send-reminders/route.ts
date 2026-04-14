@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const results = await sendReminders(24);
+  const results = await sendReminders(48);
   return NextResponse.json({ sent: results.filter((r) => r.ok).length, results });
 }
 

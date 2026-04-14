@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { CreateAppointmentInput } from "./actions";
@@ -73,9 +73,9 @@ async function patchAppointmentViaApi(
   return { error: parsed.error ?? null };
 }
 
-type Member = { id: string; display_name: string | null; role: string; calendar_color?: string | null };
-type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number };
-type Client = { id: string; name: string | null; email: string | null; phone: string | null };
+type Member = { id: string; display_name: string | null; role: string; avatar_url?: string | null };
+type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number; color?: string | null };
+type Client = { id: string; name: string | null; email: string | null; phone: string | null; last_skin_test_at?: string | null };
 type Appointment = {
   id: string;
   start_time: string;
@@ -94,6 +94,7 @@ type Appointment = {
   send_reminder_sms?: boolean;
   send_review_request?: boolean;
   send_aftercare?: boolean;
+  change_charge_minor?: number;
   clients: { name: string | null; email: string | null; phone: string | null } | { name: string | null; email: string | null; phone: string | null }[] | null;
   services:
     | { name: string; duration_minutes: number; processing_time_minutes?: number }
@@ -296,6 +297,102 @@ function sameLocalTimeOnDay(source: Date, targetDay: Date): Date {
   return d;
 }
 
+type ContextMenuState = {
+  appointmentId: string;
+  x: number;
+  y: number;
+  statusSubmenuOpen: boolean;
+};
+
+function DiaryContextMenu({
+  menu,
+  onClose,
+  onMarkStatus,
+  onMakeSale,
+  onRunningLate,
+  onToggleStatusSubmenu,
+}: {
+  menu: ContextMenuState;
+  onClose: () => void;
+  onMarkStatus: (status: string) => void;
+  onMakeSale: () => void;
+  onRunningLate: () => void;
+  onToggleStatusSubmenu: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const el = ref.current;
+    const rect = el.getBoundingClientRect();
+    if (rect.right > window.innerWidth) el.style.left = `${menu.x - rect.width}px`;
+    if (rect.bottom > window.innerHeight) el.style.top = `${menu.y - rect.height}px`;
+  }, [menu.x, menu.y]);
+
+  const itemClass =
+    "w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors flex items-center gap-2";
+
+  return (
+    <div
+      ref={ref}
+      className="fixed z-[100] min-w-[180px] rounded-lg border border-border bg-background shadow-xl py-1"
+      style={{ left: menu.x, top: menu.y }}
+    >
+      <div className="relative">
+        <button
+          type="button"
+          onClick={onToggleStatusSubmenu}
+          className={itemClass}
+        >
+          <span className="flex-1">Mark status</span>
+          <span className="text-muted text-xs">&#9656;</span>
+        </button>
+        {menu.statusSubmenuOpen && (
+          <div className="absolute left-full top-0 ml-1 min-w-[150px] rounded-lg border border-border bg-background shadow-xl py-1">
+            <button type="button" onClick={() => onMarkStatus("completed")} className={itemClass}>
+              <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+              Completed
+            </button>
+            <button type="button" onClick={() => onMarkStatus("no_show")} className={itemClass}>
+              <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+              No-show
+            </button>
+            <button type="button" onClick={() => onMarkStatus("canceled")} className={itemClass}>
+              <span className="h-2 w-2 rounded-full bg-zinc-400 shrink-0" />
+              Cancelled
+            </button>
+            <button type="button" onClick={() => onMarkStatus("scheduled")} className={itemClass}>
+              <span className="h-2 w-2 rounded-full bg-sky-400 shrink-0" />
+              Scheduled
+            </button>
+          </div>
+        )}
+      </div>
+      <button type="button" onClick={onMakeSale} className={itemClass}>
+        Make sale
+      </button>
+      <button type="button" onClick={onRunningLate} className={itemClass}>
+        Running late
+      </button>
+    </div>
+  );
+}
+
 export function DiaryView({
   salonId,
   salonName,
@@ -304,6 +401,8 @@ export function DiaryView({
   clients,
   appointments: appointmentsFromServer,
   clientPhotoMap = {},
+  stylistOverrides = {},
+  clientPromptData = {},
 }: {
   salonId: string;
   salonName: string;
@@ -312,6 +411,8 @@ export function DiaryView({
   clients: Client[];
   appointments: Appointment[];
   clientPhotoMap?: Record<string, string>;
+  stylistOverrides?: Record<string, Record<string, number>>;
+  clientPromptData?: Record<string, { lastVisit?: string; lastFormula?: string; alertNotes?: string[] }>;
 }) {
   const [view, setView] = useState<"day" | "week">("day");
   const [currentDate, setCurrentDate] = useState(() => formatDate(new Date()));
@@ -322,6 +423,10 @@ export function DiaryView({
   const [error, setError] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [optimisticAppointments, setOptimisticAppointments] = useState<Appointment[]>([]);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [runningLateId, setRunningLateId] = useState<string | null>(null);
+  const [dragChargePrompt, setDragChargePrompt] = useState<{ appointmentId: string } | null>(null);
+  const [dragChargeAmount, setDragChargeAmount] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -349,13 +454,13 @@ export function DiaryView({
   }, []);
 
   const dateObj = useMemo(() => new Date(currentDate + "T12:00:00"), [currentDate]);
-  const stylistColorMap = useMemo(() => {
+  const serviceColorMap = useMemo(() => {
     const m: Record<string, string> = {};
-    for (const member of members) {
-      if (member.calendar_color) m[member.id] = member.calendar_color;
+    for (const svc of services) {
+      if (svc.color) m[svc.id] = svc.color;
     }
     return m;
-  }, [members]);
+  }, [services]);
 
   const daysToShow = useMemo(
     () =>
@@ -421,7 +526,12 @@ export function DiaryView({
     if (result.error) setError(result.error);
     else {
       setMovingId(null);
-      scheduleRouterRefresh(router);
+      if (appointment.status === "scheduled") {
+        setDragChargePrompt({ appointmentId });
+        setDragChargeAmount("");
+      } else {
+        scheduleRouterRefresh(router);
+      }
     }
   }
 
@@ -431,6 +541,77 @@ export function DiaryView({
     const result = await deleteAppointmentViaApi(id);
     if (result.error) setError(result.error);
     else scheduleRouterRefresh(router);
+  }
+
+  const openContextMenu = useCallback((e: React.MouseEvent, appointmentId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ appointmentId, x: e.clientX, y: e.clientY, statusSubmenuOpen: false });
+  }, []);
+
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  async function handleContextMenuStatusChange(status: string) {
+    if (!contextMenu) return;
+    setError(null);
+    const result = await patchAppointmentViaApi(contextMenu.appointmentId, { status });
+    if (result.error) setError(result.error);
+    else scheduleRouterRefresh(router);
+    setContextMenu(null);
+  }
+
+  function handleContextMenuMakeSale() {
+    if (!contextMenu) return;
+    const apt = appointments.find((a) => a.id === contextMenu.appointmentId);
+    setContextMenu(null);
+    if (apt) {
+      const params = new URLSearchParams();
+      if (apt.client_id) params.set("clientId", apt.client_id);
+      if (apt.service_id) params.set("serviceId", apt.service_id);
+      params.set("stylistId", apt.stylist_id);
+      router.push(`/checkout?${params.toString()}`);
+    } else {
+      router.push("/checkout");
+    }
+  }
+
+  function handleContextMenuRunningLate() {
+    if (!contextMenu) return;
+    setRunningLateId(contextMenu.appointmentId);
+    setContextMenu(null);
+  }
+
+  async function confirmRunningLate() {
+    if (!runningLateId) return;
+    setError(null);
+    const apt = appointments.find((a) => a.id === runningLateId);
+    if (!apt) {
+      setRunningLateId(null);
+      return;
+    }
+    const client = Array.isArray(apt.clients) ? apt.clients[0] : apt.clients;
+    const clientName = client?.name || apt.guest_name || "the client";
+    const phone = client?.phone ?? apt.guest_phone;
+    if (!phone) {
+      setError(`No phone number on file for ${clientName} — cannot send a running-late message.`);
+      setRunningLateId(null);
+      return;
+    }
+    try {
+      const res = await fetch("/api/appointments/running-late", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appointmentId: runningLateId }),
+        credentials: "same-origin",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        setError(data.error || "Could not send running-late notification.");
+      }
+    } catch {
+      setError("Could not send running-late notification.");
+    }
+    setRunningLateId(null);
   }
 
   const todayStr = formatDate(new Date());
@@ -563,18 +744,28 @@ export function DiaryView({
                   <div className="flex border-b border-border bg-white/5" style={{ minWidth: `${minTotalW}px` }}>
                     <div style={{ width: `${gutterW}px` }} className="shrink-0" aria-hidden />
                     {visibleMembers.map((m) => {
-                      const c = stylistColorMap[m.id] || "#22c55e";
+                      const initials = (m.display_name || m.role || "?").charAt(0).toUpperCase();
                       return (
                         <div
                           key={m.id}
-                          className="flex-1 min-w-[100px] border-l border-border px-2 py-2 text-center"
+                          className="flex-1 min-w-[100px] border-l border-border px-2 py-2 flex flex-col items-center gap-1"
                         >
-                          <span
-                            className="inline-block h-2 w-2 rounded-full align-middle mr-1.5"
-                            style={{ backgroundColor: c }}
-                            aria-hidden
-                          />
-                          <span className="text-xs font-semibold truncate align-middle">
+                          <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted">
+                            {m.avatar_url ? (
+                              <Image
+                                src={m.avatar_url}
+                                alt={m.display_name || "Stylist"}
+                                fill
+                                className="object-cover"
+                                sizes="32px"
+                              />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center text-xs font-medium text-muted-foreground">
+                                {initials}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs font-semibold truncate max-w-full">
                             {m.display_name || m.role}
                           </span>
                         </div>
@@ -699,7 +890,7 @@ export function DiaryView({
                               const phone = client?.phone ?? a.guest_phone ?? "";
                               const label = client?.name || a.guest_name || "Walk-in";
                               const serviceName = svc?.name || "Service";
-                              const color = stylistColorMap[a.stylist_id] || "#22c55e";
+                              const color = (a.service_id && serviceColorMap[a.service_id]) || "#22c55e";
                               const lane = lanes.get(a.id) ?? { lane: 0, laneCount: 1 };
                               const { lane: li, laneCount: lc } = lane;
                               const pct = 100 / lc;
@@ -714,6 +905,7 @@ export function DiaryView({
                                   key={a.id}
                                   type="button"
                                   onClick={() => setEditId(a.id)}
+                                  onContextMenu={(e) => openContextMenu(e, a.id)}
                                   draggable={drag}
                                   onDragStart={(e) => {
                                     if (!drag) {
@@ -736,10 +928,17 @@ export function DiaryView({
                                     opacity: movingId === a.id ? 0.7 : muted ? 0.65 : 1,
                                   }}
                                 >
-                                  <span
-                                    className={`mb-1 inline-block shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusBadge.className}`}
-                                  >
-                                    {statusBadge.label}
+                                  <span className="flex items-center gap-1 mb-1">
+                                    <span
+                                      className={`inline-block shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusBadge.className}`}
+                                    >
+                                      {statusBadge.label}
+                                    </span>
+                                    {(a.change_charge_minor ?? 0) > 0 && (
+                                      <span className="inline-block shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                        &pound;{((a.change_charge_minor ?? 0) / 100).toFixed(2)} charge
+                                      </span>
+                                    )}
                                   </span>
                                   <div className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
                                     {a.client_id && clientPhotoMap[a.client_id] && (
@@ -840,7 +1039,7 @@ export function DiaryView({
                         const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
                         const label = client?.name || a.guest_name || "Walk-in";
                         const serviceName = svc?.name || "Service";
-                        const color = stylistColorMap[a.stylist_id] || "#22c55e";
+                        const color = (a.service_id && serviceColorMap[a.service_id]) || "#22c55e";
                         const stylistName =
                           members.find((m) => m.id === a.stylist_id)?.display_name ||
                           members.find((m) => m.id === a.stylist_id)?.role ||
@@ -854,6 +1053,7 @@ export function DiaryView({
                           <div
                             key={a.id}
                             draggable={drag}
+                            onContextMenu={(e) => openContextMenu(e, a.id)}
                             onDragStart={(e) => {
                               if (!drag) {
                                 e.preventDefault();
@@ -871,10 +1071,17 @@ export function DiaryView({
                               opacity: movingId === a.id ? 0.75 : muted ? 0.65 : 1,
                             }}
                           >
-                            <span
-                              className={`mb-1.5 inline-block shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusBadge.className}`}
-                            >
-                              {statusBadge.label}
+                            <span className="flex items-center gap-1 mb-1.5">
+                              <span
+                                className={`inline-block shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusBadge.className}`}
+                              >
+                                {statusBadge.label}
+                              </span>
+                              {(a.change_charge_minor ?? 0) > 0 && (
+                                <span className="inline-block shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                  &pound;{((a.change_charge_minor ?? 0) / 100).toFixed(2)} charge
+                                </span>
+                              )}
                             </span>
                             <button
                               type="button"
@@ -953,6 +1160,8 @@ export function DiaryView({
           services={services}
           clients={clients}
           currentDate={currentDate}
+          stylistOverrides={stylistOverrides}
+          clientPromptData={clientPromptData}
           onCreate={async (data) => {
             const result = await createAppointmentViaApi(data);
             if (result.error) setError(result.error);
@@ -983,6 +1192,7 @@ export function DiaryView({
             members={members}
             services={services}
             clients={clients}
+            stylistOverrides={stylistOverrides}
             onUpdate={async (id, data) => {
               const result = await patchAppointmentViaApi(id, data);
               if (result.error) setError(result.error);
@@ -1001,6 +1211,109 @@ export function DiaryView({
           />
         );
       })()}
+
+      {contextMenu && (
+        <DiaryContextMenu
+          menu={contextMenu}
+          onClose={closeContextMenu}
+          onMarkStatus={(status) => void handleContextMenuStatusChange(status)}
+          onMakeSale={handleContextMenuMakeSale}
+          onRunningLate={handleContextMenuRunningLate}
+          onToggleStatusSubmenu={() =>
+            setContextMenu((prev) =>
+              prev ? { ...prev, statusSubmenuOpen: !prev.statusSubmenuOpen } : null
+            )
+          }
+        />
+      )}
+
+      {runningLateId && (() => {
+        const apt = appointments.find((a) => a.id === runningLateId);
+        const client = apt ? (Array.isArray(apt.clients) ? apt.clients[0] : apt.clients) : null;
+        const clientName = client?.name || apt?.guest_name || "the client";
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            onClick={() => setRunningLateId(null)}
+          >
+            <div
+              className="w-full max-w-sm rounded-lg border border-border bg-background p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-lg font-semibold mb-2">Running late</h2>
+              <p className="text-sm text-muted mb-4">
+                Send a running-late notification to {clientName}?
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setRunningLateId(null)}
+                  className="rounded-lg border border-border px-4 py-2 text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmRunningLate()}
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background"
+                >
+                  Send notification
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {dragChargePrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => { setDragChargePrompt(null); scheduleRouterRefresh(router); }}>
+          <div className="w-full max-w-sm rounded-xl border border-border bg-background p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-2">Chargeable change?</h3>
+            <p className="text-sm text-muted mb-4">
+              You moved this appointment. Is this change chargeable to the client?
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Charge amount</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">&pound;</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={dragChargeAmount}
+                  onChange={(e) => setDragChargeAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full rounded-lg border border-border bg-background pl-7 pr-3 py-2 text-sm"
+                  aria-label="Charge amount in pounds"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="flex-1 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/30"
+                onClick={() => { setDragChargePrompt(null); scheduleRouterRefresh(router); }}
+              >
+                No charge
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-background disabled:opacity-50"
+                disabled={!dragChargeAmount || Number(dragChargeAmount) <= 0}
+                onClick={async () => {
+                  const id = dragChargePrompt.appointmentId;
+                  const minor = Math.round(Number(dragChargeAmount) * 100);
+                  setDragChargePrompt(null);
+                  await patchAppointmentViaApi(id, { change_charge_minor: minor });
+                  scheduleRouterRefresh(router);
+                }}
+              >
+                Apply charge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

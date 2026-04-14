@@ -5,43 +5,81 @@ import { canSendSms, canSendWhatsApp, sendSms, sendWhatsApp } from "./sms";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+const DEFAULT_REMINDER_HOURS = [24];
+
 type AppointmentRow = {
   id: string;
+  salon_id: string;
   start_time: string;
   send_reminder_sms?: boolean;
   guest_email: string | null;
   guest_name: string | null;
   guest_phone: string | null;
   clients: { email?: string; phone?: string } | null;
-  salons: { name?: string } | null;
+  salons: { name?: string; settings?: Record<string, unknown> } | null;
 };
 
 /**
- * Get appointments starting within the next hoursAhead (e.g. 24 for tomorrow) that have send_reminder_sms enabled.
+ * Load salon-configured reminder intervals, then fetch appointments that
+ * fall inside any of those windows and haven't been reminded yet.
+ *
+ * The hoursAhead parameter acts as a maximum ceiling (e.g. 48) — the cron
+ * caller should pass the largest possible interval so we never miss a window.
  */
 export async function getUpcomingAppointmentsForReminder(hoursAhead: number) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  const from = new Date();
-  const to = new Date(from.getTime() + hoursAhead * 60 * 60 * 1000);
+  const now = new Date();
+  const to = new Date(now.getTime() + hoursAhead * 60 * 60 * 1000);
   const { data } = await supabase
     .from("appointments")
-    .select("id, start_time, send_reminder_sms, guest_email, guest_name, guest_phone, clients(email, phone), salons(name)")
+    .select("id, salon_id, start_time, send_reminder_sms, guest_email, guest_name, guest_phone, clients(email, phone), salons(name, settings)")
     .eq("status", "scheduled")
     .eq("send_reminder_sms", true)
     .is("reminder_sent_at", null)
-    .gte("start_time", from.toISOString())
+    .gte("start_time", now.toISOString())
     .lte("start_time", to.toISOString());
   return (data ?? []) as unknown as AppointmentRow[];
 }
 
-export async function sendReminders(hoursAhead = 24) {
+function getReminderHoursForSalon(settings: Record<string, unknown> | undefined | null): number[] {
+  if (!settings) return DEFAULT_REMINDER_HOURS;
+  const hours = settings.reminder_hours;
+  if (Array.isArray(hours) && hours.length > 0) {
+    return hours.filter((h): h is number => typeof h === "number" && [12, 24, 48].includes(h));
+  }
+  return DEFAULT_REMINDER_HOURS;
+}
+
+/**
+ * Should this appointment receive a reminder right now?
+ * True if the appointment starts within any of the salon's configured intervals
+ * (e.g. within 12h, 24h, or 48h from now).
+ */
+function shouldSendNow(appointmentStart: Date, salonReminderHours: number[], now: Date): boolean {
+  const msUntilStart = appointmentStart.getTime() - now.getTime();
+  if (msUntilStart < 0) return false;
+  const hoursUntilStart = msUntilStart / (60 * 60 * 1000);
+  for (const h of salonReminderHours) {
+    if (hoursUntilStart <= h) return true;
+  }
+  return false;
+}
+
+export async function sendReminders(hoursAhead = 48) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const now = new Date();
   const appointments = await getUpcomingAppointmentsForReminder(hoursAhead);
   const results: { id: string; ok: boolean; error?: string }[] = [];
+
   for (const a of appointments) {
+    const salonSettings = a.salons?.settings ?? null;
+    const salonHours = getReminderHoursForSalon(salonSettings);
+    const start = new Date(a.start_time);
+
+    if (!shouldSendNow(start, salonHours, now)) continue;
+
     const email = a.guest_email ?? a.clients?.email ?? null;
     const phone = a.guest_phone ?? a.clients?.phone ?? null;
-    const start = new Date(a.start_time);
     const salonName = a.salons?.name ?? "Salon";
     const dateStr = start.toLocaleDateString("en-GB");
     const timeStr = start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });

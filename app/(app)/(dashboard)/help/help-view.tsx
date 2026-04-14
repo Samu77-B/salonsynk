@@ -58,7 +58,7 @@ export function HelpView({ salonName, userEmail }: { salonName: string; userEmai
         </p>
         <ul className="text-sm text-muted list-disc list-inside space-y-1">
           <li>Day diary (per stylist) and week list view with appointments</li>
-          <li>Team members with roles and diary colours</li>
+          <li>Team members with roles and profile photos</li>
           <li>Client database with notes and colour formulas</li>
           <li>In-salon checkout (Stripe payments)</li>
           <li>Online booking page for clients</li>
@@ -73,18 +73,18 @@ export function HelpView({ salonName, userEmail }: { salonName: string; userEmai
           <div>
             <h3 className="font-medium text-foreground">Diary</h3>
             <p className="text-muted">
-              Your appointment calendar. <strong>Day</strong> shows one time column per stylist (with client photos when set); drag a booking to another column or time to reschedule or reassign. <strong>Week</strong> lists each day in order—drag onto another day to move (same time of day). Filter by stylist, use <strong>Add appointment</strong> to book, click to edit. Team diary colours apply to each stylist.
+              Your appointment calendar. <strong>Day</strong> shows one time column per stylist (with profile photos); drag a booking to another column or time to reschedule or reassign. <strong>Week</strong> lists each day in order—drag onto another day to move (same time of day). Filter by stylist, use <strong>Add appointment</strong> to book, click to edit. Appointment blocks are colour-coded by service category.
             </p>
           </div>
 
           <div>
             <h3 className="font-medium text-foreground">Team</h3>
             <p className="text-muted mb-2">
-              Manage your team members. Each member can have a role, diary colour, and profile photo.
+              Manage your team members. Each member can have a role and profile photo.
             </p>
             <ul className="text-muted list-disc list-inside space-y-1">
               <li><strong>Add team member</strong> – Add someone with or without an email (invite later)</li>
-              <li><strong>Edit</strong> – Change name, role, diary colour, employment type</li>
+              <li><strong>Edit</strong> – Change name, role, profile photo, employment type</li>
               <li><strong>Deactivate</strong> – Hide from diary but keep their record</li>
               <li><strong>Reactivate</strong> – Bring back a deactivated member</li>
               <li><strong>Delete</strong> – Permanently remove (only if they have no appointments)</li>

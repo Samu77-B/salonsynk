@@ -14,6 +14,7 @@ import {
   type PresetReportRange,
 } from "./report-window";
 import { ReportsCustomRangeForm } from "./reports-custom-range-form";
+import { BusinessSnapshot, type SnapshotGeneralData, type SnapshotStylistRow, type SnapshotGoneAwayRow } from "./business-snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,8 @@ type AppointmentRow = {
   id: string;
   status: string;
   start_time: string;
+  stylist_id: string | null;
+  client_id: string | null;
   services: { name: string | null; price_minor: number | null } | null;
 };
 
@@ -227,6 +230,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         id,
         status,
         start_time,
+        stylist_id,
+        client_id,
         services(name, price_minor)
       `)
       .eq("salon_id", context.salon.id)
@@ -290,6 +295,131 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   const currentProductAgg = buildProductAggregates(currentSalesRows, nameById);
   const previousProductAgg = buildProductAggregates(previousSalesRows, nameById);
+
+  // --- Snapshot: new clients ---
+  const [newClientsCurrentRes, newClientsPrevRes] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id", { count: "exact", head: true })
+      .eq("salon_id", context.salon.id)
+      .gte("created_at", ctx.currentStart.toISOString())
+      .lt("created_at", ctx.currentEnd.toISOString()),
+    supabase
+      .from("clients")
+      .select("id", { count: "exact", head: true })
+      .eq("salon_id", context.salon.id)
+      .gte("created_at", ctx.previousStart.toISOString())
+      .lt("created_at", ctx.currentStart.toISOString()),
+  ]);
+
+  // --- Snapshot: rebooking rate ---
+  function computeRebookingRate(apptRows: AppointmentRow[]): number {
+    const completed = apptRows.filter((r) => r.status === "completed" && r.client_id);
+    if (completed.length === 0) return 0;
+    const clientAppointments = new Map<string, number>();
+    for (const r of completed) {
+      clientAppointments.set(r.client_id!, (clientAppointments.get(r.client_id!) ?? 0) + 1);
+    }
+    const rebooked = [...clientAppointments.values()].filter((c) => c > 1).length;
+    return clientAppointments.size > 0 ? (rebooked / clientAppointments.size) * 100 : 0;
+  }
+
+  // --- Snapshot: per-stylist data ---
+  const membersRes = await supabase
+    .from("salon_members")
+    .select("id, display_name")
+    .eq("salon_id", context.salon.id)
+    .eq("is_active", true);
+  const memberNameById = new Map<string, string>();
+  for (const m of membersRes.data ?? []) {
+    memberNameById.set(m.id, m.display_name || "Unnamed");
+  }
+
+  function buildStylistReport(apptRows: AppointmentRow[], salesRows: SalesTransactionRow[]): SnapshotStylistRow[] {
+    const stylistRevenue = new Map<string, number>();
+    for (const row of salesRows) {
+      const name = row.salon_members?.display_name?.trim() || "Unassigned";
+      stylistRevenue.set(name, (stylistRevenue.get(name) ?? 0) + Number(row.amount_minor ?? 0));
+    }
+
+    const stylistAppts = new Map<string, number>();
+    for (const row of apptRows) {
+      if (row.status !== "completed" || !row.stylist_id) continue;
+      const name = memberNameById.get(row.stylist_id) ?? "Unassigned";
+      stylistAppts.set(name, (stylistAppts.get(name) ?? 0) + 1);
+    }
+
+    const allNames = new Set([...stylistRevenue.keys(), ...stylistAppts.keys()]);
+    return [...allNames].map((name) => {
+      const rev = stylistRevenue.get(name) ?? 0;
+      const count = stylistAppts.get(name) ?? 0;
+      return {
+        name,
+        revenueMinor: rev,
+        appointmentCount: count,
+        avgSpendMinor: count > 0 ? Math.round(rev / count) : 0,
+      };
+    });
+  }
+
+  // --- Snapshot: gone aways ---
+  const GONE_AWAY_WEEKS = 8;
+  const goneAwayCutoff = new Date();
+  goneAwayCutoff.setDate(goneAwayCutoff.getDate() - GONE_AWAY_WEEKS * 7);
+
+  const { data: allClients } = await supabase
+    .from("clients")
+    .select("id, name, email, phone")
+    .eq("salon_id", context.salon.id);
+
+  const { data: lastVisitRows } = await supabase
+    .from("appointments")
+    .select("client_id, start_time")
+    .eq("salon_id", context.salon.id)
+    .eq("status", "completed")
+    .order("start_time", { ascending: false });
+
+  const lastVisitByClient = new Map<string, string>();
+  for (const row of lastVisitRows ?? []) {
+    if (row.client_id && !lastVisitByClient.has(row.client_id)) {
+      lastVisitByClient.set(row.client_id, row.start_time);
+    }
+  }
+
+  const goneAways: SnapshotGoneAwayRow[] = [];
+  for (const c of allClients ?? []) {
+    const lastVisit = lastVisitByClient.get(c.id);
+    if (!lastVisit) continue;
+    const visitDate = new Date(lastVisit);
+    if (visitDate >= goneAwayCutoff) continue;
+    const weeksSince = Math.floor((Date.now() - visitDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    goneAways.push({
+      id: c.id,
+      name: c.name ?? "",
+      email: c.email ?? null,
+      phone: c.phone ?? null,
+      lastVisit,
+      weeksSince,
+    });
+  }
+  goneAways.sort((a, b) => b.weeksSince - a.weeksSince);
+
+  // --- Build snapshot data ---
+  const VAT_RATE = 0.2;
+  const snapshotGeneral: SnapshotGeneralData = {
+    totalRevenueMinor: currentSalesAgg.totalSalesMinor,
+    prevRevenueMinor: previousSalesAgg.totalSalesMinor,
+    completedAppointments: currentAgg.completedAppointments,
+    prevCompletedAppointments: previousAgg.completedAppointments,
+    newClients: newClientsCurrentRes.count ?? 0,
+    prevNewClients: newClientsPrevRes.count ?? 0,
+    rebookingRate: computeRebookingRate(currentRows),
+    prevRebookingRate: computeRebookingRate(previousRows),
+    totalBookings: currentAgg.totalBookings,
+    noShows: currentAgg.noShows,
+    canceled: currentAgg.canceled,
+  };
+  const snapshotStylists = buildStylistReport(currentRows, currentSalesRows);
 
   const completedRate =
     currentAgg.totalBookings === 0 ? 0 : (currentAgg.completedAppointments / currentAgg.totalBookings) * 100;
@@ -411,6 +541,17 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           Could not load report data: {appointmentsRes.error?.message ?? salesRes.error?.message}
         </p>
       )}
+
+      <Reveal>
+        <BusinessSnapshot
+          general={snapshotGeneral}
+          stylists={snapshotStylists}
+          goneAways={goneAways}
+          goneAwayWeeks={GONE_AWAY_WEEKS}
+          deltaLabel={ctx.deltaLabel}
+          vatRate={VAT_RATE}
+        />
+      </Reveal>
 
       <Reveal>
       <section className="rounded-lg border border-border bg-white/5 p-4">

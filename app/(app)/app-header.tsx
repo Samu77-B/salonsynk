@@ -54,6 +54,7 @@ const NAV_LINKS = [
   { href: "/clients", label: "Clients" },
   { href: "/checkout", label: "Checkout" },
   { href: "/reports", label: "Reports" },
+  { href: "/targets", label: "Targets" },
   { href: "/campaigns", label: "Campaigns" },
   { href: "/services", label: "Services" },
   { href: "/products", label: "Products" },

@@ -49,23 +49,87 @@ export async function updateClientAction(
     marketing_opt_in?: boolean;
     color_formulas?: unknown;
     patch_test_due_at?: string | null;
+    last_skin_test_at?: string | null;
   }
 ) {
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
 
-  const { error } = await supabase
+  const payload: Record<string, unknown> = { ...updates };
+
+  // Gracefully handle missing last_skin_test_at column
+  let { error } = await supabase
     .from("clients")
-    .update(updates)
+    .update(payload)
     .eq("id", id)
     .eq("salon_id", context.salon.id);
+
+  if (error && payload.last_skin_test_at !== undefined) {
+    const msg = (error.message ?? "").toLowerCase();
+    if (msg.includes("last_skin_test_at") && (msg.includes("does not exist") || msg.includes("schema cache"))) {
+      const { last_skin_test_at: _, ...rest } = payload;
+      const retry = await supabase.from("clients").update(rest).eq("id", id).eq("salon_id", context.salon.id);
+      error = retry.error;
+    }
+  }
 
   if (error) return { error: error.message };
   revalidatePath("/clients");
   revalidatePath(`/clients/${id}`);
   return { error: null };
 }
+
+// ── Client Notes ──
+
+export type ClientNote = {
+  id: string;
+  note: string;
+  note_type: string;
+  created_by: string | null;
+  created_at: string;
+};
+
+export async function addClientNote(
+  clientId: string,
+  salonId: string,
+  note: string,
+  noteType: string = "general"
+): Promise<{ error: string | null; noteRow?: ClientNote }> {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
+  const text = note.trim();
+  if (!text) return { error: "Note cannot be empty" };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from("client_notes")
+    .insert({ client_id: clientId, salon_id: salonId, note: text, note_type: noteType, created_by: user?.id ?? null })
+    .select("id, note, note_type, created_by, created_at")
+    .single();
+  if (error) return { error: error.message };
+  revalidatePath(`/clients/${clientId}`);
+  return { error: null, noteRow: data as ClientNote };
+}
+
+export async function deleteClientNote(
+  noteId: string,
+  clientId: string
+): Promise<{ error: string | null }> {
+  const context = await getCurrentUserSalon();
+  if (!context) return { error: "Unauthorized" };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("client_notes")
+    .delete()
+    .eq("id", noteId)
+    .eq("salon_id", context.salon.id);
+  if (error) return { error: error.message };
+  revalidatePath(`/clients/${clientId}`);
+  return { error: null };
+}
+
+// ── Client Photos ──
 
 const PHOTO_BUCKET = "client-photos";
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, updateDepositSettings, updateSalonMarketingSettings } from "./actions";
+import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, updateDepositSettings, updateReminderSettings, updateSalonMarketingSettings } from "./actions";
 
 export function SettingsView({
   salonId,
@@ -20,6 +20,7 @@ export function SettingsView({
   depositRequired = false,
   depositType = "percent",
   depositValue = 20,
+  reminderHours = [24],
   googleReviewUrl = "",
   weMissYouWeeksMin = 6,
   weMissYouWeeksMax = 10,
@@ -43,6 +44,7 @@ export function SettingsView({
   depositRequired?: boolean;
   depositType?: "percent" | "flat";
   depositValue?: number;
+  reminderHours?: number[];
   googleReviewUrl?: string;
   weMissYouWeeksMin?: number;
   weMissYouWeeksMax?: number;
@@ -70,6 +72,9 @@ export function SettingsView({
   );
   const [depositMsg, setDepositMsg] = useState<"saved" | "error" | null>(null);
   const [depositLoading, setDepositLoading] = useState(false);
+  const [reminderHoursVal, setReminderHoursVal] = useState<number[]>(reminderHours);
+  const [reminderMsg, setReminderMsg] = useState<"saved" | "error" | null>(null);
+  const [reminderLoading, setReminderLoading] = useState(false);
   const [googleReviewUrlVal, setGoogleReviewUrlVal] = useState(googleReviewUrl);
   const [wmWeeksMin, setWmWeeksMin] = useState(String(weMissYouWeeksMin));
   const [wmWeeksMax, setWmWeeksMax] = useState(String(weMissYouWeeksMax));
@@ -370,6 +375,59 @@ export function SettingsView({
             </p>
           )}
       </section>
+
+      {isOwner && (
+        <section>
+          <h2 className="text-lg font-semibold mb-2">Appointment Reminders</h2>
+          <p className="text-muted text-sm mb-4">
+            Choose when to send appointment reminders. Clients with a phone number or email will receive a message before their appointment.
+          </p>
+          <div className="space-y-2">
+            {[
+              { value: 12, label: "12 hours before" },
+              { value: 24, label: "24 hours before" },
+              { value: 48, label: "48 hours before" },
+            ].map((opt) => (
+              <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={reminderHoursVal.includes(opt.value)}
+                  onChange={(e) => {
+                    setReminderHoursVal((prev) =>
+                      e.target.checked
+                        ? [...prev, opt.value].sort((a, b) => a - b)
+                        : prev.filter((h) => h !== opt.value)
+                    );
+                  }}
+                  className="rounded border-border"
+                />
+                <span className="text-sm">{opt.label}</span>
+              </label>
+            ))}
+          </div>
+          {reminderHoursVal.length === 0 && (
+            <p className="text-xs text-amber-500 mt-2">No reminders selected — clients won&apos;t receive any appointment reminders.</p>
+          )}
+          <div className="flex items-center gap-2 mt-3">
+            <button
+              type="button"
+              disabled={reminderLoading}
+              onClick={async () => {
+                setReminderMsg(null);
+                setReminderLoading(true);
+                const result = await updateReminderSettings(salonId, reminderHoursVal);
+                setReminderLoading(false);
+                setReminderMsg(result.error ? "error" : "saved");
+              }}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+            >
+              {reminderLoading ? "Saving…" : "Save reminder settings"}
+            </button>
+            {reminderMsg === "saved" && <span className="text-sm text-green-400">Saved.</span>}
+            {reminderMsg === "error" && <span className="text-sm text-red-400">Failed.</span>}
+          </div>
+        </section>
+      )}
 
       {isOwner && (
         <section>

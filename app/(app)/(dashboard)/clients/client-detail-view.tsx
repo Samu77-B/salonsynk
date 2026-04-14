@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { updateClientAction } from "./actions";
+import { updateClientAction, addClientNote, deleteClientNote, type ClientNote } from "./actions";
 
 export type ColorFormula = {
   text?: string;
@@ -21,20 +21,41 @@ export type ClientSaleRow = {
   productLabels: string[];
 };
 
+const NOTE_TYPES = [
+  { value: "general", label: "General" },
+  { value: "colour_formula", label: "Colour formula" },
+  { value: "skin_test", label: "Skin test" },
+  { value: "allergy", label: "Allergy / sensitivity" },
+  { value: "preference", label: "Preference" },
+] as const;
+
 export function ClientDetailView({
   clientId,
+  salonId,
   formulas,
   appointments,
   sales,
   onPatchTestDueAt,
+  onLastSkinTestAt,
+  clientNotes = [],
+  loyaltyData = null,
 }: {
   clientId: string;
+  salonId: string;
   formulas: ColorFormula[];
   appointments: Appointment[];
   sales: ClientSaleRow[];
   onPatchTestDueAt: string | null;
+  onLastSkinTestAt?: string | null;
+  clientNotes?: ClientNote[];
+  loyaltyData?: { points: number; total_visits: number; tier: string } | null;
 }) {
   const [patchDate, setPatchDate] = useState(onPatchTestDueAt?.slice(0, 10) ?? "");
+  const [lastSkinTestDate, setLastSkinTestDate] = useState(onLastSkinTestAt?.slice(0, 10) ?? "");
+  const [localNotes, setLocalNotes] = useState<ClientNote[]>(clientNotes);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [newNoteType, setNewNoteType] = useState("general");
+  const [noteSaving, setNoteSaving] = useState(false);
   const [formulaText, setFormulaText] = useState("");
   const [brand, setBrand] = useState("");
   const [formula, setFormula] = useState("");
@@ -50,6 +71,16 @@ export function ClientDetailView({
     setLoading(true);
     const result = await updateClientAction(clientId, {
       patch_test_due_at: patchDate ? `${patchDate}T12:00:00` : null,
+    });
+    setLoading(false);
+    if (result.error) setError(result.error);
+  }
+
+  async function handleSaveSkinTest() {
+    setError(null);
+    setLoading(true);
+    const result = await updateClientAction(clientId, {
+      last_skin_test_at: lastSkinTestDate ? `${lastSkinTestDate}T12:00:00` : null,
     });
     setLoading(false);
     if (result.error) setError(result.error);
@@ -93,8 +124,111 @@ export function ClientDetailView({
   const serviceName = (s: Appointment["services"]) =>
     Array.isArray(s) ? s[0]?.name : s?.name;
 
+  async function handleAddNote() {
+    if (!newNoteText.trim()) return;
+    setNoteSaving(true);
+    setError(null);
+    const result = await addClientNote(clientId, salonId, newNoteText, newNoteType);
+    setNoteSaving(false);
+    if (result.error) { setError(result.error); return; }
+    if (result.noteRow) setLocalNotes((prev) => [result.noteRow!, ...prev]);
+    setNewNoteText("");
+    setNewNoteType("general");
+  }
+
+  async function handleDeleteNote(noteId: string) {
+    if (!confirm("Delete this note?")) return;
+    setError(null);
+    const result = await deleteClientNote(noteId, clientId);
+    if (result.error) { setError(result.error); return; }
+    setLocalNotes((prev) => prev.filter((n) => n.id !== noteId));
+  }
+
   return (
     <div className="space-y-8">
+      {loyaltyData && (
+        <section className="rounded-xl border border-border bg-white/[0.03] p-4">
+          <h2 className="text-lg font-semibold mb-2">Loyalty</h2>
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className={`inline-block rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wide border ${
+              loyaltyData.tier === "gold" ? "bg-yellow-500/15 text-yellow-300 border-yellow-500/30"
+              : loyaltyData.tier === "silver" ? "bg-zinc-400/15 text-zinc-300 border-zinc-400/30"
+              : "bg-orange-500/15 text-orange-300 border-orange-500/30"
+            }`}>
+              {loyaltyData.tier}
+            </span>
+            <div className="text-sm">
+              <span className="font-semibold">{loyaltyData.points}</span> <span className="text-muted">points</span>
+            </div>
+            <div className="text-sm">
+              <span className="font-semibold">{loyaltyData.total_visits}</span> <span className="text-muted">visits</span>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section>
+        <h2 className="text-lg font-semibold mb-2">Notes</h2>
+        <div className="space-y-3 mb-4">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <select
+              value={newNoteType}
+              onChange={(e) => setNewNoteType(e.target.value)}
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm sm:w-44 shrink-0"
+              aria-label="Note type"
+            >
+              {NOTE_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={newNoteText}
+              onChange={(e) => setNewNoteText(e.target.value)}
+              placeholder="Add a note..."
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddNote())}
+              className="flex-1 min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={handleAddNote}
+              disabled={noteSaving || !newNoteText.trim()}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50 shrink-0"
+            >
+              {noteSaving ? "Adding…" : "Add"}
+            </button>
+          </div>
+        </div>
+        {localNotes.length === 0 ? (
+          <p className="text-sm text-muted">No notes yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {localNotes.map((n) => (
+              <li key={n.id} className="rounded-lg border border-border px-4 py-3 text-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <span className="inline-block rounded bg-muted/30 px-2 py-0.5 text-xs font-medium capitalize mb-1">
+                      {NOTE_TYPES.find((t) => t.value === n.note_type)?.label ?? n.note_type}
+                    </span>
+                    <p className="whitespace-pre-wrap">{n.note}</p>
+                    <p className="text-xs text-muted mt-1">
+                      {new Date(n.created_at).toLocaleString("en-GB")}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteNote(n.id)}
+                    className="shrink-0 text-xs text-red-400 hover:underline"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <section>
         <h2 className="text-lg font-semibold mb-2">Color history</h2>
         <ul className="space-y-2 mb-4">
@@ -151,22 +285,57 @@ export function ClientDetailView({
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold mb-2">Patch test due date</h2>
-        <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 sm:items-center">
-          <input
-            type="date"
-            value={patchDate}
-            onChange={(e) => setPatchDate(e.target.value)}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          />
-          <button
-            type="button"
-            onClick={handleSavePatchTest}
-            disabled={loading}
-            className="rounded-lg border border-border px-4 py-2 text-sm"
-          >
-            Save
-          </button>
+        <h2 className="text-lg font-semibold mb-2">Skin &amp; Patch Testing</h2>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">Last skin test date</label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 sm:items-center">
+              <input
+                type="date"
+                value={lastSkinTestDate}
+                onChange={(e) => setLastSkinTestDate(e.target.value)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                onClick={handleSaveSkinTest}
+                disabled={loading}
+                className="rounded-lg border border-border px-4 py-2 text-sm"
+              >
+                Save
+              </button>
+            </div>
+            {lastSkinTestDate && (() => {
+              const testDate = new Date(lastSkinTestDate);
+              const monthsSince = Math.floor((Date.now() - testDate.getTime()) / (30.44 * 24 * 60 * 60 * 1000));
+              if (monthsSince >= 12) {
+                return <p className="text-xs text-red-400 mt-1">Skin test expired — over 12 months ago ({monthsSince} months)</p>;
+              }
+              if (monthsSince >= 10) {
+                return <p className="text-xs text-amber-400 mt-1">Skin test expires soon ({12 - monthsSince} months remaining)</p>;
+              }
+              return <p className="text-xs text-green-400 mt-1">Skin test valid ({12 - monthsSince} months remaining)</p>;
+            })()}
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Patch test due date</label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 sm:items-center">
+              <input
+                type="date"
+                value={patchDate}
+                onChange={(e) => setPatchDate(e.target.value)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                onClick={handleSavePatchTest}
+                disabled={loading}
+                className="rounded-lg border border-border px-4 py-2 text-sm"
+              >
+                Save
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 

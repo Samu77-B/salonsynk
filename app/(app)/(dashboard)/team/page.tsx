@@ -10,12 +10,22 @@ export default async function TeamPage() {
   if (!context) redirect("/onboarding");
 
   const supabase = await createClient();
-  const [membersRes, invitesRes, countsRes, salonRes] = await Promise.all([
-    supabase
+  const membersQuery = async () => {
+    const withPasscode = await supabase
       .from("salon_members")
-      .select("id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url, calendar_color")
-      .eq("salon_id", context.salon.id)
-      .order("role", { ascending: false }),
+      .select("id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url, passcode_hash")
+      .eq("salon_id", context!.salon.id)
+      .order("role", { ascending: false });
+    if (!withPasscode.error) return withPasscode;
+    return supabase
+      .from("salon_members")
+      .select("id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url")
+      .eq("salon_id", context!.salon.id)
+      .order("role", { ascending: false });
+  };
+
+  const [membersRes, invitesRes, countsRes, salonRes, servicesRes] = await Promise.all([
+    membersQuery(),
     supabase
       .from("salon_invites")
       .select("id, email, role, display_name, created_at")
@@ -26,9 +36,47 @@ export default async function TeamPage() {
       .eq("salon_id", context.salon.id)
       .gte("start_time", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
     supabase.from("salons").select("settings").eq("id", context.salon.id).single(),
+    supabase
+      .from("services")
+      .select("id, name, duration_minutes")
+      .eq("salon_id", context.salon.id)
+      .order("name"),
   ]);
 
-  const members = membersRes.data ?? [];
+  const rawMembers = membersRes.data ?? [];
+  const members = rawMembers.map((m) => ({
+    ...m,
+    has_passcode: Boolean((m as Record<string, unknown>).passcode_hash),
+  }));
+  // Strip the actual hash before passing to client
+  for (const m of members) {
+    delete (m as Record<string, unknown>).passcode_hash;
+  }
+  const salonServices = (servicesRes.data ?? []).map((s) => ({
+    id: s.id as string,
+    name: s.name as string,
+    duration_minutes: s.duration_minutes as number,
+  }));
+
+  const memberIds = members.map((m) => m.id as string);
+  let overridesData: { stylist_id: string; service_id: string; custom_duration_minutes: number }[] = [];
+  if (memberIds.length > 0) {
+    try {
+      const { data } = await supabase
+        .from("stylist_service_overrides")
+        .select("stylist_id, service_id, custom_duration_minutes")
+        .in("stylist_id", memberIds);
+      overridesData = (data ?? []) as typeof overridesData;
+    } catch {
+      // table may not exist yet
+    }
+  }
+  const overridesByMember: Record<string, Record<string, number>> = {};
+  for (const o of overridesData) {
+    if (!overridesByMember[o.stylist_id]) overridesByMember[o.stylist_id] = {};
+    overridesByMember[o.stylist_id][o.service_id] = o.custom_duration_minutes;
+  }
+
   const userIds = [...new Set(members.map((m) => m.user_id).filter(Boolean))] as string[];
   const profilesMap: Record<string, string> = {};
   if (userIds.length > 0) {
@@ -66,6 +114,8 @@ export default async function TeamPage() {
         appointmentCountByStylist={appointmentCountByStylist}
         isOwner={context.member.role === "owner"}
         customRoles={customRoles}
+        salonServices={salonServices}
+        overridesByMember={overridesByMember}
       />
     </main>
   );
