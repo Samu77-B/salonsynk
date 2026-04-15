@@ -369,12 +369,12 @@ function DiaryContextMenu({
   }, [menu.x, menu.y, menu.appointmentId, menu.statusSubmenuOpen]);
 
   const itemClass =
-    "w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors flex items-center gap-2";
+    "w-full text-left px-3 py-2 text-sm text-zinc-100 hover:bg-white/10 transition-colors flex items-center gap-2";
 
   return (
     <div
       ref={ref}
-      className="fixed z-[100] min-w-[180px] rounded-lg border border-border bg-background shadow-xl py-1"
+      className="fixed z-[100] min-w-[180px] rounded-lg border border-zinc-700/90 bg-zinc-950 py-1 text-zinc-100 shadow-2xl shadow-black/50 ring-1 ring-black/40"
       style={{ left: pos.left, top: pos.top }}
     >
       <div className="relative">
@@ -384,10 +384,10 @@ function DiaryContextMenu({
           className={itemClass}
         >
           <span className="flex-1">Mark status</span>
-          <span className="text-muted text-xs">&#9656;</span>
+          <span className="text-zinc-400 text-xs">&#9656;</span>
         </button>
         {menu.statusSubmenuOpen && (
-          <div className="absolute left-full top-0 ml-1 min-w-[150px] rounded-lg border border-border bg-background shadow-xl py-1">
+          <div className="absolute left-full top-0 ml-1 min-w-[150px] rounded-lg border border-zinc-700/90 bg-zinc-950 py-1 shadow-2xl shadow-black/50 ring-1 ring-black/40">
             <button type="button" onClick={() => onMarkStatus("completed")} className={itemClass}>
               <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
               Completed
@@ -593,11 +593,12 @@ export function DiaryView({
     e.preventDefault();
     e.stopPropagation();
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const inset = 4;
+    // Start the menu further right so more of the booking card stays visible (clamp stays on-screen).
+    const xOffset = Math.min(72, Math.max(28, Math.round(r.width * 0.34)));
     setContextMenu({
       appointmentId,
-      x: Math.round(r.left + inset),
-      y: Math.round(r.top + inset),
+      x: Math.round(r.left + xOffset),
+      y: Math.round(r.top + 6),
       statusSubmenuOpen: false,
     });
   }, []);
@@ -910,17 +911,19 @@ export function DiaryView({
                                 const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                                 const y = e.clientY - rect.top;
                                 const minsFromStart = snapMinsFromY(y, pxPerMin, startHour, endHour);
+                                const snappedTopPx = minsFromStart * pxPerMin;
                                 const slot = new Date(day);
                                 slot.setHours(startHour, 0, 0, 0);
                                 slot.setMinutes(slot.getMinutes() + minsFromStart);
                                 const stylistLabel = member.display_name || member.role || "Stylist";
+                                // Anchor tooltip to the time guide (crosshair row) near the column’s left edge
                                 setSlotHover({
                                   memberId: member.id,
-                                  topPx: minsFromStart * pxPerMin,
+                                  topPx: snappedTopPx,
                                   timeLabel: formatTime(slot),
                                   stylistLabel,
-                                  tooltipX: e.clientX,
-                                  tooltipY: e.clientY,
+                                  tooltipX: Math.round(rect.left + 6),
+                                  tooltipY: Math.round(rect.top + snappedTopPx),
                                 });
                               }}
                               onMouseLeave={() => setSlotHover(null)}
@@ -1231,13 +1234,17 @@ export function DiaryView({
 
       {view === "day" && slotHover && (
         <div
-          className="pointer-events-none fixed z-[100] max-w-[min(240px,calc(100vw-1.5rem)))] rounded-md border border-border bg-background/95 px-2 py-1.5 text-xs shadow-lg backdrop-blur-sm"
-          style={{ left: slotHover.tooltipX + 14, top: slotHover.tooltipY + 14 }}
+          className="pointer-events-none fixed z-[100] max-w-[min(220px,calc(100vw-1rem))] rounded-md border border-zinc-600/80 bg-zinc-950/95 px-2 py-1 text-[11px] leading-tight text-zinc-100 shadow-lg shadow-black/40 ring-1 ring-black/30"
+          style={{
+            left: slotHover.tooltipX,
+            top: slotHover.tooltipY,
+            transform: "translate(4px, -50%)",
+          }}
           role="status"
           aria-live="polite"
         >
-          <div className="font-semibold tabular-nums text-foreground">{slotHover.timeLabel}</div>
-          <div className="text-muted truncate">{slotHover.stylistLabel}</div>
+          <div className="font-semibold tabular-nums text-zinc-50">{slotHover.timeLabel}</div>
+          <div className="truncate text-zinc-400">{slotHover.stylistLabel}</div>
         </div>
       )}
 
