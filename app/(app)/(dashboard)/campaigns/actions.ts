@@ -10,12 +10,18 @@ import { sendMarketingEmail } from "@/lib/email";
 import { signUnsubscribeToken } from "@/lib/marketing-unsubscribe";
 import { getPublicSiteUrl } from "@/lib/public-site-url";
 import { revalidatePath } from "next/cache";
+import { normalizeCampaignSegment } from "@/lib/campaign-audience";
 
 const CAMPAIGN_ASSETS_BUCKET = "campaign-assets";
 const MAX_CAMPAIGN_IMAGE_BYTES = 3 * 1024 * 1024;
 const ALLOWED_CAMPAIGN_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 const BATCH_SIZE = 25;
+
+type CampaignRecipientRow = { id: string; email: string; name: string | null };
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function assertCanManageCampaigns(salonId: string): Promise<{ ok: true } | { error: string }> {
   const context = await getCurrentUserSalon();
@@ -66,7 +72,21 @@ export async function uploadCampaignImageAction(
   return { url: urlData.publicUrl };
 }
 
-export async function countMarketingRecipientsAction(): Promise<{ count: number; error?: string }> {
+function parseRpcCount(data: unknown): number {
+  if (data == null) return 0;
+  if (typeof data === "bigint") return Number(data);
+  if (typeof data === "number") return Number.isFinite(data) ? data : 0;
+  if (typeof data === "string") {
+    const n = Number(data);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+export async function countMarketingRecipientsAction(params?: {
+  segment?: string;
+  serviceId?: string | null;
+}): Promise<{ count: number; error?: string }> {
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context) return { count: 0, error: "Unauthorized" };
@@ -75,23 +95,42 @@ export async function countMarketingRecipientsAction(): Promise<{ count: number;
     return { count: 0, error: "Forbidden" };
   }
 
-  const { count, error } = await supabase
-    .from("clients")
-    .select("id", { count: "exact", head: true })
-    .eq("salon_id", context.salon.id)
-    .eq("marketing_opt_in", true)
-    .not("email", "is", null);
+  const segment = normalizeCampaignSegment(params?.segment);
+  const serviceId = params?.serviceId?.trim() || null;
+  if (segment === "service_booked" && !serviceId) {
+    return { count: 0, error: "Choose a service to count this audience." };
+  }
+  if (segment === "service_booked" && serviceId && !UUID_RE.test(serviceId)) {
+    return { count: 0, error: "Invalid service." };
+  }
+
+  const { data, error } = await supabase.rpc("count_campaign_recipients", {
+    p_salon_id: context.salon.id,
+    p_segment: segment,
+    p_service_id: segment === "service_booked" && serviceId ? serviceId : null,
+  });
 
   if (error) return { count: 0, error: error.message };
-  return { count: count ?? 0 };
+  return { count: parseRpcCount(data) };
 }
 
 export async function sendMarketingCampaignAction(formData: FormData): Promise<{ error?: string; sent?: number }> {
   const subject = String(formData.get("subject") ?? "").trim();
+  const preheader = String(formData.get("preheader") ?? "").trim();
   const bodyHtml = String(formData.get("bodyHtml") ?? "").trim();
+  const audienceSegment = normalizeCampaignSegment(String(formData.get("audienceSegment") ?? "all"));
+  const audienceServiceIdRaw = String(formData.get("audienceServiceId") ?? "").trim();
+  const audience_service_id: string | null =
+    audienceSegment === "service_booked" && audienceServiceIdRaw ? audienceServiceIdRaw : null;
 
   if (!subject) return { error: "Subject is required" };
   if (!bodyHtml) return { error: "Message body is required" };
+  if (audienceSegment === "service_booked" && !audience_service_id) {
+    return { error: "Choose a service for this audience." };
+  }
+  if (audience_service_id && !UUID_RE.test(audience_service_id)) {
+    return { error: "Invalid service." };
+  }
 
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
@@ -99,6 +138,16 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
   const isSuperAdmin = await getIsSuperAdmin();
   if (!canViewReports(isSuperAdmin, context.member.role ?? "")) {
     return { error: "Forbidden" };
+  }
+
+  if (audience_service_id) {
+    const { data: svc, error: svcErr } = await supabase
+      .from("services")
+      .select("id")
+      .eq("salon_id", context.salon.id)
+      .eq("id", audience_service_id)
+      .maybeSingle();
+    if (svcErr || !svc) return { error: "Invalid service for this salon." };
   }
 
   const {
@@ -113,6 +162,8 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
       body_html: bodyHtml,
       status: "sending",
       created_by: user?.id ?? null,
+      audience_segment: audienceSegment,
+      audience_service_id,
     })
     .select("id")
     .single();
@@ -123,12 +174,11 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
 
   const campaignId = campaignRow.id as string;
 
-  const { data: recipients, error: recErr } = await supabase
-    .from("clients")
-    .select("id, email, name")
-    .eq("salon_id", context.salon.id)
-    .eq("marketing_opt_in", true)
-    .not("email", "is", null);
+  const { data: recipients, error: recErr } = await supabase.rpc("list_campaign_recipients", {
+    p_salon_id: context.salon.id,
+    p_segment: audienceSegment,
+    p_service_id: audience_service_id,
+  });
 
   if (recErr) {
     await supabase
@@ -138,7 +188,8 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
     return { error: recErr.message };
   }
 
-  const list = (recipients ?? []).filter((r) => r.email && String(r.email).includes("@"));
+  const rawList = (recipients ?? []) as CampaignRecipientRow[];
+  const list = rawList.filter((r) => r.email && String(r.email).includes("@"));
   if (list.length === 0) {
     await supabase
       .from("email_campaigns")
@@ -153,7 +204,7 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const slice = list.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
-      slice.map(async (c) => {
+      slice.map(async (c: CampaignRecipientRow) => {
         const token = signUnsubscribeToken(c.id, context.salon.id);
         const unsubscribeUrl = `${baseUrl}/unsubscribe?token=${encodeURIComponent(token)}`;
         return sendMarketingEmail({
@@ -161,6 +212,7 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
           subject,
           html: bodyHtml,
           unsubscribeUrl,
+          preheader: preheader || undefined,
         });
       }),
     );

@@ -7,6 +7,9 @@ import type { DashboardTheme } from "./dashboard-theme";
 
 const STORAGE_KEY = "salonsynk-dashboard-theme";
 
+/** Set to true to show the floating AI help chat again. */
+const SHOW_AI_HELP_AGENT = false;
+
 export function LoggedInAppShell({
   children,
   userEmail,
@@ -70,7 +73,7 @@ export function LoggedInAppShell({
           {children}
         </div>
       </main>
-      <HelpAgentWidget />
+      {SHOW_AI_HELP_AGENT ? <HelpAgentWidget /> : null}
     </div>
   );
 }

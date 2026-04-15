@@ -79,7 +79,7 @@ export function getPageHelpContext(pathname: string): PageHelpContext {
       pageId: "campaigns",
       pageLabel: "Campaigns",
       helpPrompt: "Need help with marketing campaigns?",
-      knowledge: `Campaigns (/campaigns): Marketing campaigns for the salon (owners/managers). Uses salon data and integrations as configured.`,
+      knowledge: `Campaigns (/campaigns): Owners and managers build marketing email in three steps — Audience (pick a segment: all opt-in subscribers, no-show history, male/female using client profile sex, or clients who have booked a chosen service), Email (subject, optional inbox preview text, design/HTML editor), Review & send. Delivery uses Resend. Marketing opt-in is on each client profile under Clients.`,
     };
   }
   if (match(path, "/services")) {

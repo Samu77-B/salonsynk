@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { CreateAppointmentInput } from "./actions";
@@ -335,6 +336,7 @@ function DiaryContextMenu({
   onToggleStatusSubmenu: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ left: menu.x, top: menu.y });
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -351,13 +353,20 @@ function DiaryContextMenu({
     };
   }, [onClose]);
 
-  useEffect(() => {
-    if (!ref.current) return;
+  useLayoutEffect(() => {
     const el = ref.current;
-    const rect = el.getBoundingClientRect();
-    if (rect.right > window.innerWidth) el.style.left = `${menu.x - rect.width}px`;
-    if (rect.bottom > window.innerHeight) el.style.top = `${menu.y - rect.height}px`;
-  }, [menu.x, menu.y]);
+    if (!el) return;
+    const pad = 8;
+    let left = menu.x;
+    let top = menu.y;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    if (left + w > window.innerWidth - pad) left = Math.max(pad, window.innerWidth - w - pad);
+    if (top + h > window.innerHeight - pad) top = Math.max(pad, window.innerHeight - h - pad);
+    if (left < pad) left = pad;
+    if (top < pad) top = pad;
+    setPos({ left, top });
+  }, [menu.x, menu.y, menu.appointmentId, menu.statusSubmenuOpen]);
 
   const itemClass =
     "w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors flex items-center gap-2";
@@ -366,7 +375,7 @@ function DiaryContextMenu({
     <div
       ref={ref}
       className="fixed z-[100] min-w-[180px] rounded-lg border border-border bg-background shadow-xl py-1"
-      style={{ left: menu.x, top: menu.y }}
+      style={{ left: pos.left, top: pos.top }}
     >
       <div className="relative">
         <button
@@ -583,7 +592,14 @@ export function DiaryView({
   const openContextMenu = useCallback((e: React.MouseEvent, appointmentId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    setContextMenu({ appointmentId, x: e.clientX, y: e.clientY, statusSubmenuOpen: false });
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const inset = 4;
+    setContextMenu({
+      appointmentId,
+      x: Math.round(r.left + inset),
+      y: Math.round(r.top + inset),
+      statusSubmenuOpen: false,
+    });
   }, []);
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
@@ -1291,20 +1307,22 @@ export function DiaryView({
         );
       })()}
 
-      {contextMenu && (
-        <DiaryContextMenu
-          menu={contextMenu}
-          onClose={closeContextMenu}
-          onMarkStatus={(status) => void handleContextMenuStatusChange(status)}
-          onMakeSale={handleContextMenuMakeSale}
-          onRunningLate={handleContextMenuRunningLate}
-          onToggleStatusSubmenu={() =>
-            setContextMenu((prev) =>
-              prev ? { ...prev, statusSubmenuOpen: !prev.statusSubmenuOpen } : null
-            )
-          }
-        />
-      )}
+      {contextMenu &&
+        createPortal(
+          <DiaryContextMenu
+            menu={contextMenu}
+            onClose={closeContextMenu}
+            onMarkStatus={(status) => void handleContextMenuStatusChange(status)}
+            onMakeSale={handleContextMenuMakeSale}
+            onRunningLate={handleContextMenuRunningLate}
+            onToggleStatusSubmenu={() =>
+              setContextMenu((prev) =>
+                prev ? { ...prev, statusSubmenuOpen: !prev.statusSubmenuOpen } : null
+              )
+            }
+          />,
+          document.body
+        )}
 
       {runningLateId && (() => {
         const apt = appointments.find((a) => a.id === runningLateId);

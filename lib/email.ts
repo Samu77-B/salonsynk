@@ -177,19 +177,37 @@ export async function sendReviewRequest(
   return { error: normalizeResendError(error) };
 }
 
+function escapeHtmlPlainText(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** Invisible inbox preview line (Mailchimp-style preheader), plain text only. */
+function marketingPreheaderHtml(preheader: string): string {
+  const t = preheader.trim();
+  if (!t) return "";
+  const safe = escapeHtmlPlainText(t);
+  return `<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${safe}</div>`;
+}
+
 export async function sendMarketingEmail(params: {
   to: string;
   subject: string;
   html: string;
   unsubscribeUrl: string;
+  /** Optional inbox preview line after the subject (plain text). */
+  preheader?: string | null;
 }): Promise<{ error?: string }> {
   if (!resend) return { error: "Resend not configured" };
   const footer = `<hr style="border:none;border-top:1px solid #e5e5e5;margin:24px 0" /><p style="font-size:12px;color:#666">You received this because you opted in at your salon. <a href="${params.unsubscribeUrl}">Unsubscribe from marketing</a></p>`;
+  const pre = marketingPreheaderHtml(params.preheader ?? "");
   const { error } = await resend.emails.send({
     from: fromAddress,
     to: [params.to],
     subject: params.subject,
-    html: params.html + footer,
+    html: pre + params.html + footer,
   });
   return { error: normalizeResendError(error) };
 }
