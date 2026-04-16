@@ -16,6 +16,7 @@ export const OUTCOME_GROUPS: OutcomeGroup[] = [
     title: "Run the day",
     bulletsHome: [
       "Whole-team diary with day and week views — drag to reschedule or reassign",
+      "Hover the day grid for snapped times; click empty space to add at that slot for that stylist",
       "Filters and per-stylist calendars so the floor stays clear",
       "Less double-booking and less spreadsheet chaos",
     ],
@@ -24,17 +25,20 @@ export const OUTCOME_GROUPS: OutcomeGroup[] = [
       "Drag to reschedule or reassign appointments",
       "Filters to focus on the right column or day",
       "Add and edit appointments without leaving the diary",
+      "Day grid: hover a stylist column to see the snapped time at your pointer; click empty space to open “add appointment” for that stylist and time",
+      "Right-click a booking for quick actions (mark status, make sale, running late where configured)",
     ],
   },
   {
     title: "Own the client",
     bulletsHome: [
       "Client records with notes and structured colour formula history",
+      "Per-client marketing opt-in for campaign emails",
       "Branded booking page and embed — your look, your URL",
-      "Clients pick service, stylist, and time online",
     ],
     bulletsFull: [
       "Client database with notes and structured colour history (brand, formula, processing time, notes)",
+      "Per-client marketing opt-in — campaigns only reach clients who’ve agreed and have an email on file",
       "Branded booking page at your public URL (e.g. salonsynk.com/book/your-salon)",
       "Embeddable booking that can match your primary brand colour",
       "Online booking: clients choose service, stylist, and time — 24/7",
@@ -58,11 +62,15 @@ export const OUTCOME_GROUPS: OutcomeGroup[] = [
     title: "Stay in touch",
     bulletsHome: [
       "Email reminders to cut no-shows",
+      "Marketing campaigns to opted-in clients — pick an audience, compose, send",
       "Review requests with your Google review link",
       "Re-engagement (“We Miss You”) and aftercare-style messaging where enabled",
     ],
     bulletsFull: [
       "Email appointment reminders",
+      "Marketing email campaigns (owners/managers): guided steps — audience, message with design or HTML editor, then review and send via Resend",
+      "Campaign audiences: all marketing subscribers, clients with a no-show on record, male/female (from profile), or anyone who’s booked a specific service — with a live recipient count before you send",
+      "Optional inbox preview line after the subject; every campaign email includes an unsubscribe link",
       "Post-visit review requests using your Google review URL from settings",
       "We Miss You campaigns for lapsed clients (optional discount code in settings)",
       "Aftercare messaging via scheduled jobs where configured",
@@ -79,6 +87,7 @@ export const INCLUDED_IN_PLAN = [
   "Diary, team, and client management",
   "Reports and PDF exports from your dashboard",
   "Email reminders and review requests (where configured)",
+  "Marketing campaigns to opted-in clients with audience filters and a rich composer (where enabled for your role)",
 ] as const;
 
 /** Label clearly so buyers trust you vs full-suite incumbents (see docs/FEATURES_ROADMAP.md) */

@@ -38,7 +38,7 @@ export default async function CampaignsPage() {
   const { data: past } = await supabase
     .from("email_campaigns")
     .select(
-      "id, subject, status, recipient_count, sent_at, created_at, error_message, audience_segment, audience_service_id"
+      "id, subject, status, recipient_count, sent_at, created_at, audience_segment, audience_service_id"
     )
     .eq("salon_id", context.salon.id)
     .order("created_at", { ascending: false })
@@ -72,7 +72,6 @@ export default async function CampaignsPage() {
                 sent_at: string | null;
                 audience_segment?: string | null;
                 audience_service_id?: string | null;
-                error_message?: string | null;
               };
               const seg = normalizeCampaignSegment(r.audience_segment);
               const svcId = r.audience_service_id ?? null;
@@ -87,7 +86,6 @@ export default async function CampaignsPage() {
                     {r.recipient_count != null ? ` · ${r.recipient_count} recipients` : ""}
                     {r.sent_at ? ` · ${new Date(r.sent_at).toLocaleString("en-GB")}` : ""}
                   </p>
-                  {r.error_message && <p className="text-xs text-red-400 mt-1">{r.error_message}</p>}
                 </li>
               );
             })}
