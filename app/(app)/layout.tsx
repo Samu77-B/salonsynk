@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { LoggedInAppShell } from "./logged-in-app-shell";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { isManagerRole } from "@/lib/dashboard-roles";
 
 export default async function AppLayout({
   children,
@@ -18,6 +19,8 @@ export default async function AppLayout({
 
   const isSuperAdmin = await getIsSuperAdmin();
   const salonContext = await getCurrentUserSalon();
+  const memberRole = salonContext?.member.role ?? null;
+  const isManager = isManagerRole(isSuperAdmin, memberRole ?? "");
 
   let adminSalons: { id: string; name: string }[] = [];
   if (isSuperAdmin) {
@@ -32,6 +35,8 @@ export default async function AppLayout({
     <LoggedInAppShell
       userEmail={user.email}
       isSuperAdmin={isSuperAdmin}
+      isManager={isManager}
+      memberRole={memberRole}
       currentSalon={salonContext?.salon}
       adminSalons={adminSalons}
     >

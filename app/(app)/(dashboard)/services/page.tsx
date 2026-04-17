@@ -1,9 +1,14 @@
 import { SettingsNav } from "../settings/settings-nav";
 import { ServicesView } from "../settings/services-view";
 import { getSettingsData } from "../settings/data";
+import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { isManagerRole } from "@/lib/dashboard-roles";
+import { redirect } from "next/navigation";
 
 export default async function ServicesPage() {
   const data = await getSettingsData();
+  const isSuperAdmin = await getIsSuperAdmin();
+  if (!isManagerRole(isSuperAdmin, data.context.member.role ?? "")) redirect("/dashboard");
 
   return (
     <main className="mx-auto w-full min-w-0 max-w-7xl p-4 md:p-6">

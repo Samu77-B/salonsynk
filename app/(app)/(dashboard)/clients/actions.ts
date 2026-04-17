@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { revalidatePath } from "next/cache";
+import { requireStaffElevationOrError } from "@/lib/staff-elevation";
 
 export async function createClientAction(data: {
   salonId: string;
@@ -55,6 +56,12 @@ export async function updateClientAction(
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
+
+  const elevationError = await requireStaffElevationOrError({
+    salonId: context.salon.id,
+    memberRole: context.member.role ?? "",
+  });
+  if (elevationError) return { error: elevationError };
 
   const payload: Record<string, unknown> = { ...updates };
 

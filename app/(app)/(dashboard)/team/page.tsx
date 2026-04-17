@@ -1,5 +1,7 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
+import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { isManagerRole } from "@/lib/dashboard-roles";
 import { redirect } from "next/navigation";
 import { TeamView } from "./team-view";
 
@@ -8,6 +10,9 @@ export const dynamic = "force-dynamic";
 export default async function TeamPage() {
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");
+
+  const isSuperAdmin = await getIsSuperAdmin();
+  if (!isManagerRole(isSuperAdmin, context.member.role ?? "")) redirect("/dashboard");
 
   const supabase = await createClient();
   const membersQuery = async () => {

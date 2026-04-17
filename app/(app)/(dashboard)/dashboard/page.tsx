@@ -8,6 +8,7 @@ import { Reveal } from "@/components/reveal";
 import { DiaryView } from "./diary-view";
 import { GapFillerSection } from "./gap-filler-section";
 import { TargetsWidget, type TargetWidgetItem } from "./targets-widget";
+import { isManagerRole } from "@/lib/dashboard-roles";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export default async function DashboardPage() {
 async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeof getCurrentUserSalon>>>) {
   const userSb = await createClient();
   const isSuperAdmin = await getIsSuperAdmin();
+  const isManager = isManagerRole(isSuperAdmin, context.member.role ?? "");
   /** Super admins may have no salon_members row; RLS would hide salon data. Scope all queries to context.salon.id. */
   const supabase = isSuperAdmin
     ? (() => {
@@ -281,96 +283,98 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
 
   // --- Targets widget data ---
   const targetWidgetItems: TargetWidgetItem[] = [];
-  try {
-    const now = new Date();
-    const weekStart = new Date(now);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
-    weekStart.setHours(0, 0, 0, 0);
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 7);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  if (isManager) {
+    try {
+      const now = new Date();
+      const weekStart = new Date(now);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    const { data: activeTargets } = await supabase
-      .from("staff_targets")
-      .select("member_id, target_type, target_value, period")
-      .eq("salon_id", context.salon.id)
-      .eq("is_active", true);
+      const { data: activeTargets } = await supabase
+        .from("staff_targets")
+        .select("member_id, target_type, target_value, period")
+        .eq("salon_id", context.salon.id)
+        .eq("is_active", true);
 
-    if (activeTargets && activeTargets.length > 0) {
-      const [weekSalesRes, monthSalesRes, weekApptsRes, monthApptsRes] = await Promise.all([
-        supabase
-          .from("sales_transactions")
-          .select("amount_minor, salon_members(id)")
-          .eq("salon_id", context.salon.id)
-          .gte("paid_at", weekStart.toISOString())
-          .lt("paid_at", weekEnd.toISOString()),
-        supabase
-          .from("sales_transactions")
-          .select("amount_minor, salon_members(id)")
-          .eq("salon_id", context.salon.id)
-          .gte("paid_at", monthStart.toISOString())
-          .lt("paid_at", monthEnd.toISOString()),
-        supabase
-          .from("appointments")
-          .select("stylist_id")
-          .eq("salon_id", context.salon.id)
-          .eq("status", "completed")
-          .gte("start_time", weekStart.toISOString())
-          .lt("start_time", weekEnd.toISOString()),
-        supabase
-          .from("appointments")
-          .select("stylist_id")
-          .eq("salon_id", context.salon.id)
-          .eq("status", "completed")
-          .gte("start_time", monthStart.toISOString())
-          .lt("start_time", monthEnd.toISOString()),
-      ]);
+      if (activeTargets && activeTargets.length > 0) {
+        const [weekSalesRes, monthSalesRes, weekApptsRes, monthApptsRes] = await Promise.all([
+          supabase
+            .from("sales_transactions")
+            .select("amount_minor, salon_members(id)")
+            .eq("salon_id", context.salon.id)
+            .gte("paid_at", weekStart.toISOString())
+            .lt("paid_at", weekEnd.toISOString()),
+          supabase
+            .from("sales_transactions")
+            .select("amount_minor, salon_members(id)")
+            .eq("salon_id", context.salon.id)
+            .gte("paid_at", monthStart.toISOString())
+            .lt("paid_at", monthEnd.toISOString()),
+          supabase
+            .from("appointments")
+            .select("stylist_id")
+            .eq("salon_id", context.salon.id)
+            .eq("status", "completed")
+            .gte("start_time", weekStart.toISOString())
+            .lt("start_time", weekEnd.toISOString()),
+          supabase
+            .from("appointments")
+            .select("stylist_id")
+            .eq("salon_id", context.salon.id)
+            .eq("status", "completed")
+            .gte("start_time", monthStart.toISOString())
+            .lt("start_time", monthEnd.toISOString()),
+        ]);
 
-      type WRow = { amount_minor: number; salon_members: { id: string } | { id: string }[] | null };
-      const revByMember = (rows: WRow[], _period: string) => {
-        const m: Record<string, number> = {};
-        for (const r of rows) {
-          const sm = Array.isArray(r.salon_members) ? r.salon_members[0] : r.salon_members;
-          if (sm?.id) m[sm.id] = (m[sm.id] ?? 0) + Number(r.amount_minor ?? 0);
+        type WRow = { amount_minor: number; salon_members: { id: string } | { id: string }[] | null };
+        const revByMember = (rows: WRow[], _period: string) => {
+          const m: Record<string, number> = {};
+          for (const r of rows) {
+            const sm = Array.isArray(r.salon_members) ? r.salon_members[0] : r.salon_members;
+            if (sm?.id) m[sm.id] = (m[sm.id] ?? 0) + Number(r.amount_minor ?? 0);
+          }
+          return m;
+        };
+        const apptByMember = (rows: { stylist_id: string | null }[]) => {
+          const m: Record<string, number> = {};
+          for (const r of rows) { if (r.stylist_id) m[r.stylist_id] = (m[r.stylist_id] ?? 0) + 1; }
+          return m;
+        };
+
+        const weekRev = revByMember((weekSalesRes.data ?? []) as WRow[], "weekly");
+        const monthRev = revByMember((monthSalesRes.data ?? []) as WRow[], "monthly");
+        const weekAppt = apptByMember(weekApptsRes.data ?? []);
+        const monthAppt = apptByMember(monthApptsRes.data ?? []);
+
+        const memberNameMap: Record<string, string> = {};
+        for (const m of members) {
+          memberNameMap[m.id] = m.display_name || "Unnamed";
         }
-        return m;
-      };
-      const apptByMember = (rows: { stylist_id: string | null }[]) => {
-        const m: Record<string, number> = {};
-        for (const r of rows) { if (r.stylist_id) m[r.stylist_id] = (m[r.stylist_id] ?? 0) + 1; }
-        return m;
-      };
 
-      const weekRev = revByMember((weekSalesRes.data ?? []) as WRow[], "weekly");
-      const monthRev = revByMember((monthSalesRes.data ?? []) as WRow[], "monthly");
-      const weekAppt = apptByMember(weekApptsRes.data ?? []);
-      const monthAppt = apptByMember(monthApptsRes.data ?? []);
-
-      const memberNameMap: Record<string, string> = {};
-      for (const m of members) {
-        memberNameMap[m.id] = m.display_name || "Unnamed";
-      }
-
-      for (const t of activeTargets) {
-        const isMoney = t.target_type === "revenue" || t.target_type === "retail";
-        let current = 0;
-        if (isMoney) {
-          current = t.period === "weekly" ? (weekRev[t.member_id] ?? 0) : (monthRev[t.member_id] ?? 0);
-        } else {
-          current = t.period === "weekly" ? (weekAppt[t.member_id] ?? 0) : (monthAppt[t.member_id] ?? 0);
+        for (const t of activeTargets) {
+          const isMoney = t.target_type === "revenue" || t.target_type === "retail";
+          let current = 0;
+          if (isMoney) {
+            current = t.period === "weekly" ? (weekRev[t.member_id] ?? 0) : (monthRev[t.member_id] ?? 0);
+          } else {
+            current = t.period === "weekly" ? (weekAppt[t.member_id] ?? 0) : (monthAppt[t.member_id] ?? 0);
+          }
+          targetWidgetItems.push({
+            memberName: memberNameMap[t.member_id] ?? "Unknown",
+            targetType: t.target_type,
+            period: t.period,
+            current,
+            target: t.target_value,
+          });
         }
-        targetWidgetItems.push({
-          memberName: memberNameMap[t.member_id] ?? "Unknown",
-          targetType: t.target_type,
-          period: t.period,
-          current,
-          target: t.target_value,
-        });
       }
+    } catch {
+      // staff_targets table may not exist yet
     }
-  } catch {
-    // staff_targets table may not exist yet
   }
 
   return (
@@ -388,7 +392,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
           clientPromptData={jsonClone(clientPromptData)}
         />
       </Reveal>
-      {targetWidgetItems.length > 0 && (
+      {isManager && targetWidgetItems.length > 0 && (
         <Reveal>
           <TargetsWidget items={targetWidgetItems} />
         </Reveal>

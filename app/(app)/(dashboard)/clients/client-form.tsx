@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClientAction, uploadClientPhoto } from "./actions";
+import { StaffElevationModal } from "@/app/(app)/staff-elevation-modal";
 import { DefaultAvatar } from "./client-photos";
 
 const inputClass =
@@ -40,6 +41,8 @@ export function ClientForm({
   const [error, setError] = useState<string | null>(null);
   const [profileFile, setProfileFile] = useState<File | null>(null);
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
+  const [elevateOpen, setElevateOpen] = useState(false);
+  const [pendingClientUpdate, setPendingClientUpdate] = useState(false);
 
   const showCancel = Boolean(clientId) || !inlineOnCreate;
   const isCreate = !clientId;
@@ -73,6 +76,12 @@ export function ClientForm({
         sex: sex || null,
         marketing_opt_in: marketingOptIn,
       });
+      if (result.error === "PIN_REQUIRED") {
+        setPendingClientUpdate(true);
+        setElevateOpen(true);
+        setLoading(false);
+        return;
+      }
       if (result.error) setError(result.error);
       else router.push(`/clients/${clientId}`);
     } else {
@@ -156,7 +165,23 @@ export function ClientForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <>
+      <StaffElevationModal
+        open={elevateOpen}
+        onClose={() => { setElevateOpen(false); setPendingClientUpdate(false); }}
+        onSuccess={() => {
+          setElevateOpen(false);
+          if (pendingClientUpdate) {
+            setPendingClientUpdate(false);
+            // Re-submit with the same form values now that elevation cookie exists.
+            const fakeEvent = { preventDefault() {} } as unknown as React.FormEvent;
+            void handleSubmit(fakeEvent);
+          }
+        }}
+        title="Staff verification"
+        subtitle="To edit client details, select your name and enter your PIN."
+      />
+      <form onSubmit={handleSubmit} className="space-y-4">
       {isCreate && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
           <div className="flex flex-col items-center gap-2 shrink-0">
@@ -310,6 +335,7 @@ export function ClientForm({
           {loading ? "Saving…" : clientId ? "Save" : "Add client"}
         </button>
       </div>
-    </form>
+      </form>
+    </>
   );
 }

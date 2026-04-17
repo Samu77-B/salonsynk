@@ -62,9 +62,13 @@ const NAV_LINKS = [
   { href: "/help", label: "Help" },
 ] as const;
 
+const STAFF_ALLOWED_LINKS = new Set(["/dashboard", "/clients", "/checkout", "/help"]);
+
 export function AppHeader({
   userEmail,
   isSuperAdmin = false,
+  isManager = false,
+  memberRole = null,
   currentSalon,
   adminSalons = [],
   theme = "dark",
@@ -72,6 +76,8 @@ export function AppHeader({
 }: {
   userEmail: string | undefined;
   isSuperAdmin?: boolean;
+  isManager?: boolean;
+  memberRole?: string | null;
   currentSalon?: { id: string; name: string; slug: string };
   adminSalons?: { id: string; name: string }[];
   theme?: DashboardTheme;
@@ -80,6 +86,10 @@ export function AppHeader({
   const [menuOpen, setMenuOpen] = useState(false);
   const navHover =
     theme === "dark" ? "hover:bg-white/5" : "hover:bg-black/[0.06]";
+
+  const visibleLinks = isManager || isSuperAdmin
+    ? NAV_LINKS
+    : NAV_LINKS.filter((l) => STAFF_ALLOWED_LINKS.has(l.href));
 
   return (
     <header className="flex min-h-[4.5rem] min-w-0 items-center justify-between gap-2 border-b border-border px-3 py-3 sm:gap-4 sm:px-4 sm:py-4">
@@ -123,7 +133,7 @@ export function AppHeader({
             </li>
           </ul>
         )}
-        {NAV_LINKS.map(({ href, label }) => (
+        {visibleLinks.map(({ href, label }) => (
           <Link key={href} href={href} className="text-muted hover:text-foreground whitespace-nowrap">
             {label}
           </Link>
@@ -153,7 +163,6 @@ export function AppHeader({
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
           className={`rounded-lg p-2 text-muted hover:text-foreground ${navHover}`}
-          aria-expanded={menuOpen ? "true" : "false"}
           aria-label="Toggle menu"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,7 +218,7 @@ export function AppHeader({
                 </svg>
               </button>
             </div>
-            {NAV_LINKS.map(({ href, label }) => (
+            {visibleLinks.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}

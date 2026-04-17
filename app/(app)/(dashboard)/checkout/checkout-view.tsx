@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { StaffElevationModal } from "@/app/(app)/staff-elevation-modal";
 
 type Client = { id: string; name: string | null; email: string | null };
 type Service = { id: string; name: string; duration_minutes: number; price_minor: number };
@@ -33,6 +34,8 @@ export function CheckoutView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [elevateOpen, setElevateOpen] = useState(false);
+  const [pendingPay, setPendingPay] = useState(false);
 
   const lineServicesMinor = selectedServiceIds.reduce((sum, id) => {
     const s = services.find((x) => x.id === id);
@@ -72,6 +75,12 @@ export function CheckoutView({
       });
       const data = await res.json();
       if (!res.ok) {
+        if (data?.error === "PIN_REQUIRED") {
+          setPendingPay(true);
+          setElevateOpen(true);
+          setLoading(false);
+          return;
+        }
         setError(data.error ?? "Failed");
         setLoading(false);
         return;
@@ -93,12 +102,26 @@ export function CheckoutView({
 
   return (
     <div className="space-y-4">
+      <StaffElevationModal
+        open={elevateOpen}
+        onClose={() => { setElevateOpen(false); setPendingPay(false); }}
+        onSuccess={() => {
+          setElevateOpen(false);
+          if (pendingPay) {
+            setPendingPay(false);
+            void handlePay();
+          }
+        }}
+        title="Staff verification"
+        subtitle="To take payment, select your name and enter your PIN."
+      />
       <div>
         <label className="block text-sm font-medium mb-1">Stylist</label>
         <select
           value={stylistId}
           onChange={(e) => setStylistId(e.target.value)}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          aria-label="Stylist"
         >
           {stylists.map((s) => (
             <option key={s.id} value={s.id}>
@@ -113,6 +136,7 @@ export function CheckoutView({
           value={clientId}
           onChange={(e) => setClientId(e.target.value)}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          aria-label="Client"
         >
           <option value="">Walk-in</option>
           {clients.map((c) => (
@@ -128,6 +152,7 @@ export function CheckoutView({
             value={walkInName}
             onChange={(e) => setWalkInName(e.target.value)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            aria-label="Walk-in name"
           />
         </div>
       )}

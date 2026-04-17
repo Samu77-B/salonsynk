@@ -49,3 +49,35 @@ export function verifyPinSessionToken(
   if (sig !== expectedSig) return null;
   return { memberId, salonId };
 }
+
+/**
+ * Short-lived elevated session for staff step-up (name + PIN) on shared devices.
+ * Token format matches pin_session: `${memberId}:${salonId}:${ts}:${sig}`.
+ */
+export function createStaffElevationToken(actorMemberId: string, salonId: string): string {
+  const payload = `${actorMemberId}:${salonId}:${Date.now()}`;
+  const sig = createHmac("sha256", PASSCODE_SECRET)
+    .update(payload)
+    .digest("hex")
+    .slice(0, 16);
+  return `${payload}:${sig}`;
+}
+
+/** Verify elevated token. Defaults to 15 minutes. */
+export function verifyStaffElevationToken(
+  token: string,
+  maxAgeMs = 15 * 60 * 1000
+): { actorMemberId: string; salonId: string } | null {
+  const parts = token.split(":");
+  if (parts.length !== 4) return null;
+  const [actorMemberId, salonId, tsStr, sig] = parts;
+  const ts = Number(tsStr);
+  if (!actorMemberId || !salonId || !ts || !sig) return null;
+  if (Date.now() - ts > maxAgeMs) return null;
+  const expectedSig = createHmac("sha256", PASSCODE_SECRET)
+    .update(`${actorMemberId}:${salonId}:${tsStr}`)
+    .digest("hex")
+    .slice(0, 16);
+  if (sig !== expectedSig) return null;
+  return { actorMemberId, salonId };
+}

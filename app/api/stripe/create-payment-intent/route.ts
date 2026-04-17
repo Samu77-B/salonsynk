@@ -2,10 +2,17 @@ import { NextResponse } from "next/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/server";
+import { requireStaffElevationOrError } from "@/lib/staff-elevation";
 
 export async function POST(request: Request) {
   const context = await getCurrentUserSalon();
   if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+
+  const elevationError = await requireStaffElevationOrError({
+    salonId: context.salon.id,
+    memberRole: context.member.role ?? "",
+  });
+  if (elevationError) return NextResponse.json({ error: elevationError }, { status: 401 });
 
   const body = await request.json();
   const {

@@ -2,9 +2,14 @@ import { formatFlatFee } from "@/config/subscription";
 import { SettingsView } from "./settings-view";
 import { SettingsNav } from "./settings-nav";
 import { getSettingsData } from "./data";
+import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { isManagerRole } from "@/lib/dashboard-roles";
+import { redirect } from "next/navigation";
 
 export default async function SettingsPage() {
   const data = await getSettingsData();
+  const isSuperAdmin = await getIsSuperAdmin();
+  if (!isManagerRole(isSuperAdmin, data.context.member.role ?? "")) redirect("/dashboard");
 
   return (
     <main className="mx-auto w-full min-w-0 max-w-2xl p-4 md:p-6">

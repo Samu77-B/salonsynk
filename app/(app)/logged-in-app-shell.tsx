@@ -14,12 +14,16 @@ export function LoggedInAppShell({
   children,
   userEmail,
   isSuperAdmin,
+  isManager,
+  memberRole,
   currentSalon,
   adminSalons,
 }: {
   children: React.ReactNode;
   userEmail: string | undefined;
   isSuperAdmin: boolean;
+  isManager: boolean;
+  memberRole: string | null;
   currentSalon?: { id: string; name: string; slug: string };
   adminSalons?: { id: string; name: string }[];
 }) {
@@ -61,6 +65,8 @@ export function LoggedInAppShell({
       <AppHeader
         userEmail={userEmail}
         isSuperAdmin={isSuperAdmin}
+        isManager={isManager}
+        memberRole={memberRole}
         currentSalon={currentSalon}
         adminSalons={adminSalons}
         theme={theme}

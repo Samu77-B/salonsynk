@@ -3,11 +3,17 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { verifyPinSessionToken } from "@/lib/passcode";
 import { createClient } from "@/lib/supabase/server";
+import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { isManagerRole } from "@/lib/dashboard-roles";
 import PinEntryView from "./pin-entry-view";
 
 export default async function PinPage() {
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");
+
+  const isSuperAdmin = await getIsSuperAdmin();
+  const isManager = isManagerRole(isSuperAdmin, context.member.role ?? "");
+  if (isManager) redirect("/dashboard");
 
   const supabase = await createClient();
   let hasPasscode = false;

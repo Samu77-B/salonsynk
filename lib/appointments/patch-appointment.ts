@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getMutateClient } from "@/lib/supabase/mutate-client";
+import { requireStaffElevationOrError } from "@/lib/staff-elevation";
 import {
   hasBlockingOverlapWithExisting,
   rangeToMinutes,
@@ -49,6 +50,29 @@ export async function executeAppointmentPatch(
 ): Promise<{ error: string | null }> {
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
+
+  // Staff can "check in" (mark completed) without step-up, but any sensitive changes require elevation.
+  const nextStatus =
+    updates.status !== undefined ? normalizeAppointmentStatusInput(String(updates.status)) : null;
+  const isCheckInOnly = nextStatus === "completed" && Object.keys({ ...updates, status: undefined }).length === 0;
+  const sensitive =
+    !isCheckInOnly &&
+    (updates.start_time !== undefined ||
+      updates.end_time !== undefined ||
+      updates.stylist_id !== undefined ||
+      updates.client_id !== undefined ||
+      updates.service_id !== undefined ||
+      updates.guest_email !== undefined ||
+      updates.guest_phone !== undefined ||
+      updates.status !== undefined);
+
+  if (sensitive) {
+    const elevationError = await requireStaffElevationOrError({
+      salonId: context.salon.id,
+      memberRole: context.member.role ?? "",
+    });
+    if (elevationError) return { error: elevationError };
+  }
 
   const db = await getMutateClient();
 

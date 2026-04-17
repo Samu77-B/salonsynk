@@ -1,6 +1,7 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { isManagerRole } from "@/lib/dashboard-roles";
 import { redirect } from "next/navigation";
 import { ProductsView, type ProductRow } from "./products-view";
 
@@ -12,6 +13,7 @@ export default async function ProductsPage() {
 
   const supabase = await createClient();
   const isSuperAdmin = await getIsSuperAdmin();
+  if (!isManagerRole(isSuperAdmin, context.member.role ?? "")) redirect("/dashboard");
   const canManage = context.member.role === "owner" || isSuperAdmin;
 
   const { data: rows, error } = await supabase
