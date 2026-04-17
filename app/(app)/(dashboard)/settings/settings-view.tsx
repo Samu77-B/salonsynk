@@ -3,31 +3,7 @@
 import { useState, useRef } from "react";
 import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, updateDepositSettings, updateReminderSettings, updateSalonMarketingSettings } from "./actions";
 
-export function SettingsView({
-  salonId,
-  salonName,
-  salonSlug,
-  stripeConnectAccountId,
-  subscriptionStatus,
-  formatFlatFee,
-  branding,
-  showSalonTaxVault,
-  salonTaxVaultMinor,
-  showRenterTaxVault,
-  renterTaxVaultMinor,
-  isOwner,
-  adminFeePercent,
-  depositRequired = false,
-  depositType = "percent",
-  depositValue = 20,
-  reminderHours = [24],
-  googleReviewUrl = "",
-  weMissYouWeeksMin = 6,
-  weMissYouWeeksMax = 10,
-  weMissYouDiscountCode = "",
-  subscriptionCheckoutAvailable = false,
-  hasBillingCustomer = false,
-}: {
+export function SettingsView(props: {
   salonId: string;
   salonName: string;
   salonSlug: string;
@@ -52,6 +28,27 @@ export function SettingsView({
   subscriptionCheckoutAvailable?: boolean;
   hasBillingCustomer?: boolean;
 }) {
+  const {
+    salonId,
+    salonName,
+    salonSlug,
+    stripeConnectAccountId,
+    subscriptionStatus,
+    formatFlatFee,
+    branding,
+    isOwner,
+    adminFeePercent,
+    depositRequired = false,
+    depositType = "percent",
+    depositValue = 20,
+    reminderHours = [24],
+    googleReviewUrl = "",
+    weMissYouWeeksMin = 6,
+    weMissYouWeeksMax = 10,
+    weMissYouDiscountCode = "",
+    subscriptionCheckoutAvailable = false,
+    hasBillingCustomer = false,
+  } = props;
   const connectUrl = `/api/stripe/connect?salonId=${encodeURIComponent(salonId)}`;
   const subscribeUrl = `/api/stripe/create-subscription-checkout?salonId=${encodeURIComponent(salonId)}`;
   const billingPortalUrl = `/api/stripe/billing-portal?salonId=${encodeURIComponent(salonId)}`;
@@ -506,29 +503,6 @@ export function SettingsView({
         </section>
       )}
 
-      {showSalonTaxVault && (
-        <section>
-          <h2 className="text-lg font-semibold mb-2">Tax Vault</h2>
-          <p className="text-muted text-sm mb-2">
-            Tax collected on employee revenue (subscription and related). Reserve for your tax obligations.
-          </p>
-          <p className="text-sm font-medium">
-            Balance: £{((salonTaxVaultMinor ?? 0) / 100).toFixed(2)}
-          </p>
-        </section>
-      )}
-
-      {showRenterTaxVault && (
-        <section>
-          <h2 className="text-lg font-semibold mb-2">Your Tax Vault</h2>
-          <p className="text-muted text-sm mb-2">
-            Save for your own tax obligations on renter income.
-          </p>
-          <p className="text-sm font-medium">
-            Balance: £{((renterTaxVaultMinor ?? 0) / 100).toFixed(2)}
-          </p>
-        </section>
-      )}
     </div>
   );
 }
