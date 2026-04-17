@@ -9,6 +9,9 @@ import {
   adminInviteOwner,
   adminCreateOwnerWithPassword,
   adminResendOwnerInvite,
+  adminAssignStaff,
+  adminInviteStaff,
+  adminCreateStaffWithPassword,
   adminDeleteSalon,
   type BrandingInput,
 } from "../actions";
@@ -60,6 +63,23 @@ export function AdminEditSalonForm({
   const [createMsg, setCreateMsg] = useState<"saved" | "error" | null>(null);
   const [createErrorText, setCreateErrorText] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
+
+  const [staffCreateEmail, setStaffCreateEmail] = useState("");
+  const [staffCreatePassword, setStaffCreatePassword] = useState("");
+  const [staffCreateName, setStaffCreateName] = useState("");
+  const [staffCreateMsg, setStaffCreateMsg] = useState<"saved" | "error" | null>(null);
+  const [staffCreateErrorText, setStaffCreateErrorText] = useState("");
+  const [staffCreateLoading, setStaffCreateLoading] = useState(false);
+
+  const [staffInviteEmail, setStaffInviteEmail] = useState("");
+  const [staffInviteName, setStaffInviteName] = useState("");
+  const [staffInviteMsg, setStaffInviteMsg] = useState<"saved" | "error" | null>(null);
+  const [staffInviteErrorText, setStaffInviteErrorText] = useState("");
+  const [staffInviteLoading, setStaffInviteLoading] = useState(false);
+
+  const [staffAssignEmail, setStaffAssignEmail] = useState("");
+  const [staffAssignMsg, setStaffAssignMsg] = useState<"saved" | "error" | null>(null);
+  const [staffAssignLoading, setStaffAssignLoading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -109,6 +129,17 @@ export function AdminEditSalonForm({
     if (!result.error) setOwnerEmail("");
   }
 
+  async function handleAssignStaff(e: React.FormEvent) {
+    e.preventDefault();
+    if (!staffAssignEmail.trim()) return;
+    setStaffAssignMsg(null);
+    setStaffAssignLoading(true);
+    const result = await adminAssignStaff(salonId, staffAssignEmail, "staff");
+    setStaffAssignLoading(false);
+    setStaffAssignMsg(result.error ? "error" : "saved");
+    if (!result.error) setStaffAssignEmail("");
+  }
+
   return (
     <div className="space-y-10">
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -120,6 +151,7 @@ export function AdminEditSalonForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            aria-label="Business name"
           />
         </div>
         <div>
@@ -129,6 +161,7 @@ export function AdminEditSalonForm({
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            aria-label="URL slug"
           />
           <p className="text-xs text-muted mt-1">
             /book/{slug || "…"} · /shop/{slug || "…"}
@@ -410,6 +443,186 @@ export function AdminEditSalonForm({
             </form>
             {resendMsg === "saved" && <p className="text-sm text-green-400 mt-2">New invite link sent to that email.</p>}
             {resendMsg === "error" && <p className="text-sm text-red-400 mt-2">{resendErrorText || "Could not send."}</p>}
+          </div>
+        </div>
+      </section>
+
+      <section className="pt-8 border-t border-border">
+        <h2 className="text-lg font-semibold mb-2">Staff logins (general salon)</h2>
+        <p className="text-xs text-muted mb-4">
+          Create the shared front-desk/general login here as <strong>staff</strong> (non-manager). Staff will only see Diary, Clients,
+          Checkout and Help, and will be prompted for their name + PIN for sensitive actions.
+        </p>
+
+        {owners.filter((m) => m.role !== "owner").length > 0 && (
+          <ul className="text-sm text-muted mb-4">
+            {owners
+              .filter((m) => m.role !== "owner")
+              .map((m) => (
+                <li key={m.id}>
+                  {m.display_name ?? "—"} ({m.email ?? "—"}) — {m.role}
+                </li>
+              ))}
+          </ul>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-medium mb-1">Create staff login (no email verification)</h3>
+            <p className="text-xs text-muted mb-2">Set email and password directly. They can log in immediately.</p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!staffCreateEmail.trim() || !staffCreatePassword.trim()) return;
+                setStaffCreateMsg(null);
+                setStaffCreateErrorText("");
+                setStaffCreateLoading(true);
+                const result = await adminCreateStaffWithPassword(
+                  salonId,
+                  staffCreateEmail,
+                  staffCreatePassword,
+                  staffCreateName || undefined,
+                  "staff"
+                );
+                setStaffCreateLoading(false);
+                setStaffCreateMsg(result.error ? "error" : "saved");
+                if (result.error) setStaffCreateErrorText(result.error);
+                else {
+                  setStaffCreateEmail("");
+                  setStaffCreatePassword("");
+                  setStaffCreateName("");
+                }
+              }}
+              className="flex flex-wrap gap-2 items-end"
+            >
+              <div>
+                <label htmlFor="staff-create-email" className="sr-only">Email</label>
+                <input
+                  id="staff-create-email"
+                  type="email"
+                  value={staffCreateEmail}
+                  onChange={(e) => setStaffCreateEmail(e.target.value)}
+                  placeholder="frontdesk@salon.com"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-64"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="staff-create-password" className="sr-only">Password</label>
+                <input
+                  id="staff-create-password"
+                  type="password"
+                  value={staffCreatePassword}
+                  onChange={(e) => setStaffCreatePassword(e.target.value)}
+                  placeholder="Password (min 6 chars)"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-40"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div>
+                <label htmlFor="staff-create-name" className="sr-only">Name</label>
+                <input
+                  id="staff-create-name"
+                  type="text"
+                  value={staffCreateName}
+                  onChange={(e) => setStaffCreateName(e.target.value)}
+                  placeholder="Front Desk (optional)"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-40"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={staffCreateLoading || !staffCreateEmail.trim() || !staffCreatePassword.trim()}
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+              >
+                {staffCreateLoading ? "Creating…" : "Create staff"}
+              </button>
+            </form>
+            {staffCreateMsg === "saved" && <p className="text-sm text-green-400 mt-2">Staff login created. They can log in with that email and password.</p>}
+            {staffCreateMsg === "error" && <p className="text-sm text-red-400 mt-2">{staffCreateErrorText || "Could not create."}</p>}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium mb-1">Invite staff (sends email)</h3>
+            <p className="text-xs text-muted mb-2">Sends them an email to create their login.</p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!staffInviteEmail.trim()) return;
+                setStaffInviteMsg(null);
+                setStaffInviteErrorText("");
+                setStaffInviteLoading(true);
+                const result = await adminInviteStaff(salonId, staffInviteEmail, staffInviteName || undefined, "staff");
+                setStaffInviteLoading(false);
+                setStaffInviteMsg(result.error ? "error" : "saved");
+                if (result.error) setStaffInviteErrorText(result.error);
+                else {
+                  setStaffInviteEmail("");
+                  setStaffInviteName("");
+                }
+              }}
+              className="flex flex-wrap gap-2 items-end"
+            >
+              <div>
+                <label htmlFor="staff-invite-email" className="sr-only">Email</label>
+                <input
+                  id="staff-invite-email"
+                  type="email"
+                  value={staffInviteEmail}
+                  onChange={(e) => setStaffInviteEmail(e.target.value)}
+                  placeholder="frontdesk@salon.com"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-64"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="staff-invite-name" className="sr-only">Name</label>
+                <input
+                  id="staff-invite-name"
+                  type="text"
+                  value={staffInviteName}
+                  onChange={(e) => setStaffInviteName(e.target.value)}
+                  placeholder="Front Desk (optional)"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-40"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={staffInviteLoading || !staffInviteEmail.trim()}
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+              >
+                {staffInviteLoading ? "Sending…" : "Invite staff"}
+              </button>
+            </form>
+            {staffInviteMsg === "saved" && <p className="text-sm text-green-400 mt-2">Invite sent. They will receive an email to create their login.</p>}
+            {staffInviteMsg === "error" && <p className="text-sm text-red-400 mt-2">{staffInviteErrorText || "Could not send invite."}</p>}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium mb-1">Add existing staff (already has account)</h3>
+            <form onSubmit={handleAssignStaff} className="flex gap-2 flex-wrap items-end">
+              <div>
+                <label htmlFor="staff-email" className="sr-only">Email</label>
+                <input
+                  id="staff-email"
+                  type="email"
+                  value={staffAssignEmail}
+                  onChange={(e) => setStaffAssignEmail(e.target.value)}
+                  placeholder="staff@example.com"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-64"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={staffAssignLoading || !staffAssignEmail.trim()}
+                className="rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-50"
+              >
+                {staffAssignLoading ? "Adding…" : "Add staff"}
+              </button>
+            </form>
+            {staffAssignMsg === "saved" && <p className="text-sm text-green-400 mt-2">Staff added.</p>}
+            {staffAssignMsg === "error" && <p className="text-sm text-red-400 mt-2">Could not add (user may not exist).</p>}
           </div>
         </div>
       </section>

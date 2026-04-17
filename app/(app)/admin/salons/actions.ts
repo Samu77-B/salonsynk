@@ -301,6 +301,160 @@ export async function adminInviteOwner(
   return {};
 }
 
+function assertNonManagerRole(role: string): { ok: true } | { error: string } {
+  const r = (role ?? "").trim().toLowerCase();
+  if (!r) return { error: "Role is required" };
+  if (r === "owner" || r.includes("manager")) return { error: "Role must not be owner/manager" };
+  return { ok: true };
+}
+
+export async function adminAssignStaff(
+  salonId: string,
+  email: string,
+  role = "staff"
+): Promise<{ error?: string }> {
+  await requireAdmin();
+  const roleCheck = assertNonManagerRole(role);
+  if ("error" in roleCheck) return roleCheck;
+
+  const supabase = createAdminClient();
+  const trimmed = email.trim();
+  if (!trimmed) return { error: "Email is required" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .eq("email", trimmed)
+    .single();
+  if (!profile) return { error: "No user found with that email" };
+
+  const displayName =
+    (profile.full_name as string) || trimmed.split("@")[0] || "Staff";
+
+  const { error } = await supabase.from("salon_members").upsert(
+    {
+      salon_id: salonId,
+      user_id: profile.id,
+      role,
+      display_name: displayName,
+      is_active: true,
+    },
+    { onConflict: "salon_id,user_id" }
+  );
+  if (error) return { error: error.message };
+  revalidatePath("/admin/salons");
+  revalidatePath(`/admin/salons/${salonId}`);
+  return {};
+}
+
+/** Create staff login with email + password directly. No email verification. */
+export async function adminCreateStaffWithPassword(
+  salonId: string,
+  email: string,
+  password: string,
+  displayName?: string,
+  role = "staff"
+): Promise<{ error?: string }> {
+  await requireAdmin();
+  const roleCheck = assertNonManagerRole(role);
+  if ("error" in roleCheck) return roleCheck;
+
+  const supabase = createAdminClient();
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) return { error: "Email is required" };
+  if (!password || password.length < 6) return { error: "Password must be at least 6 characters" };
+
+  const name = (displayName?.trim() || trimmed.split("@")[0]) || "Staff";
+
+  const { data: userData, error: createError } = await supabase.auth.admin.createUser({
+    email: trimmed,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: name },
+  });
+
+  if (createError) {
+    if (createError.message?.toLowerCase().includes("already") || createError.message?.toLowerCase().includes("registered")) {
+      return { error: "That email is already registered. Use Add existing staff instead." };
+    }
+    return { error: createError.message };
+  }
+
+  const userId = userData?.user?.id;
+  if (!userId) return { error: "User created but could not add as staff." };
+
+  const { error: memberError } = await supabase.from("salon_members").upsert(
+    {
+      salon_id: salonId,
+      user_id: userId,
+      role,
+      display_name: name,
+      is_active: true,
+    },
+    { onConflict: "salon_id,user_id" }
+  );
+
+  if (memberError) return { error: memberError.message };
+  revalidatePath("/admin/salons");
+  revalidatePath(`/admin/salons/${salonId}`);
+  return {};
+}
+
+/** Invite a new user by email and add them as staff. Sends a signup email. */
+export async function adminInviteStaff(
+  salonId: string,
+  email: string,
+  displayName?: string,
+  role = "staff"
+): Promise<{ error?: string }> {
+  await requireAdmin();
+  const roleCheck = assertNonManagerRole(role);
+  if ("error" in roleCheck) return roleCheck;
+
+  const supabase = createAdminClient();
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) return { error: "Email is required" };
+
+  const name = (displayName?.trim() || trimmed.split("@")[0]) || "Staff";
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+    "https://salonsynk.vercel.app";
+  const redirectTo = `${baseUrl}/auth/callback`;
+
+  const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+    trimmed,
+    { data: { full_name: name }, redirectTo }
+  );
+
+  if (inviteError) {
+    if (inviteError.message?.includes("already been registered")) {
+      return { error: "That email is already registered. Use Add existing staff instead." };
+    }
+    return { error: inviteError.message };
+  }
+
+  const userId = inviteData?.user?.id;
+  if (!userId) return { error: "Invite sent but could not add as staff. Add them manually after they sign up." };
+
+  const { error: memberError } = await supabase.from("salon_members").upsert(
+    {
+      salon_id: salonId,
+      user_id: userId,
+      role,
+      display_name: name,
+      is_active: true,
+    },
+    { onConflict: "salon_id,user_id" }
+  );
+
+  if (memberError) return { error: memberError.message };
+  revalidatePath("/admin/salons");
+  revalidatePath(`/admin/salons/${salonId}`);
+  return {};
+}
+
 /** Resend invite link to an owner's email (e.g. after fixing Site URL). Uses generateLink + Resend. */
 export async function adminResendOwnerInvite(
   salonId: string,
