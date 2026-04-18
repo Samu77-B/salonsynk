@@ -18,6 +18,95 @@ const LAYOUT_SNIPPETS = {
   twoCol: `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:560px;margin:16px auto;border-collapse:collapse;"><tr><td width="50%" valign="top" style="padding:8px;vertical-align:top;"><p style="margin:0;color:#374151;font-size:14px;">Left column — offer or image.</p></td><td width="50%" valign="top" style="padding:8px;vertical-align:top;"><p style="margin:0;color:#374151;font-size:14px;">Right column — details or CTA.</p></td></tr></table>`,
 };
 
+type LayoutBlockId = keyof typeof LAYOUT_SNIPPETS;
+
+/** Miniature wireframe shown on each layout block card (matches email styling, not interactive). */
+function LayoutBlockVisual({ variant }: { variant: LayoutBlockId }) {
+  const canvas = "relative min-h-[112px] overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-200/80 dark:bg-zinc-950/60 dark:ring-zinc-700/80";
+
+  switch (variant) {
+    case "hero":
+      return (
+        <div className={canvas} aria-hidden>
+          <div className="flex h-full min-h-[112px] flex-col items-center justify-center gap-2.5 px-6 py-5">
+            <div className="h-2.5 w-[72%] max-w-[160px] rounded-md bg-zinc-500/90" />
+            <div className="h-1.5 w-[88%] max-w-[180px] rounded bg-zinc-400/70" />
+            <div className="h-1.5 w-[64%] max-w-[130px] rounded bg-zinc-400/70" />
+          </div>
+        </div>
+      );
+    case "cta":
+      return (
+        <div className={canvas} aria-hidden>
+          <div className="flex min-h-[112px] items-center justify-center px-4 py-6">
+            <span className="rounded-lg bg-emerald-700 px-5 py-2.5 text-[11px] font-semibold tracking-wide text-white shadow-md ring-1 ring-emerald-900/20 dark:bg-emerald-600">
+              Book now
+            </span>
+          </div>
+        </div>
+      );
+    case "divider":
+      return (
+        <div className={canvas} aria-hidden>
+          <div className="flex min-h-[112px] flex-col justify-center gap-4 px-5 py-4">
+            <div className="h-2 rounded-sm bg-white shadow-sm ring-1 ring-zinc-200/90 dark:bg-zinc-900 dark:ring-zinc-700" />
+            <div className="h-px w-full bg-zinc-300 dark:bg-zinc-600" />
+            <div className="h-2 rounded-sm bg-white shadow-sm ring-1 ring-zinc-200/90 dark:bg-zinc-900 dark:ring-zinc-700" />
+          </div>
+        </div>
+      );
+    case "twoCol":
+      return (
+        <div className={canvas} aria-hidden>
+          <div className="grid min-h-[112px] grid-cols-2 gap-2 p-3">
+            <div className="flex flex-col gap-1.5 rounded-lg border border-zinc-200/90 bg-white p-2.5 shadow-sm dark:border-zinc-600 dark:bg-zinc-900">
+              <div className="h-2 w-full rounded bg-zinc-400/80" />
+              <div className="h-1.5 w-[85%] rounded bg-zinc-300/90" />
+              <div className="h-1.5 w-[60%] rounded bg-zinc-300/90" />
+            </div>
+            <div className="flex flex-col gap-1.5 rounded-lg border border-zinc-200/90 bg-white p-2.5 shadow-sm dark:border-zinc-600 dark:bg-zinc-900">
+              <div className="h-2 w-full rounded bg-zinc-400/80" />
+              <div className="h-1.5 w-[90%] rounded bg-zinc-300/90" />
+              <div className="h-1.5 w-[55%] rounded bg-zinc-300/90" />
+            </div>
+          </div>
+        </div>
+      );
+  }
+}
+
+const LAYOUT_BLOCKS: {
+  id: LayoutBlockId;
+  title: string;
+  description: string;
+  insertTitle: string;
+}[] = [
+  {
+    id: "hero",
+    title: "Hero",
+    description: "Centred headline and supporting line — good for openings.",
+    insertTitle: "Insert hero section",
+  },
+  {
+    id: "cta",
+    title: "CTA button",
+    description: "Centre-aligned button — edit the link and label after inserting.",
+    insertTitle: "Insert CTA button block",
+  },
+  {
+    id: "divider",
+    title: "Divider",
+    description: "Breathing room plus a horizontal rule between sections.",
+    insertTitle: "Insert divider",
+  },
+  {
+    id: "twoCol",
+    title: "Two columns",
+    description: "Side-by-side text (email-safe table) for offers and details.",
+    insertTitle: "Insert two-column layout",
+  },
+];
+
 function ToolbarBtn({
   onClick,
   active,
@@ -263,40 +352,33 @@ export function CampaignRichEditor({
         </div>
 
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Layout blocks</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS.hero)}
-              className="rounded-xl border border-border bg-white/90 px-3.5 py-2 text-left text-sm font-medium text-foreground shadow-sm transition-colors hover:border-accent/50 hover:bg-accent/5 dark:bg-zinc-900/60"
-            >
-              <span className="block">Hero</span>
-              <span className="text-[11px] font-normal text-muted">Headline + supporting line</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS.cta)}
-              className="rounded-xl border border-border bg-white/90 px-3.5 py-2 text-left text-sm font-medium text-foreground shadow-sm transition-colors hover:border-accent/50 hover:bg-accent/5 dark:bg-zinc-900/60"
-            >
-              <span className="block">CTA button</span>
-              <span className="text-[11px] font-normal text-muted">Centre — edit link and text</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS.divider)}
-              className="rounded-xl border border-border bg-white/90 px-3.5 py-2 text-left text-sm font-medium text-foreground shadow-sm transition-colors hover:border-accent/50 hover:bg-accent/5 dark:bg-zinc-900/60"
-            >
-              <span className="block">Divider</span>
-              <span className="text-[11px] font-normal text-muted">Space + horizontal rule</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS.twoCol)}
-              className="rounded-xl border border-border bg-white/90 px-3.5 py-2 text-left text-sm font-medium text-foreground shadow-sm transition-colors hover:border-accent/50 hover:bg-accent/5 dark:bg-zinc-900/60"
-            >
-              <span className="block">Two columns</span>
-              <span className="text-[11px] font-normal text-muted">Email-safe side-by-side</span>
-            </button>
+          <div className="mb-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Layout blocks</p>
+            <p className="text-[11px] text-muted mt-1 max-w-2xl">
+              Click a block to insert it at the cursor. The preview shows roughly how it will look in the email.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {LAYOUT_BLOCKS.map((block) => (
+              <button
+                key={block.id}
+                type="button"
+                title={block.insertTitle}
+                onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS[block.id])}
+                className="group flex w-full flex-col overflow-hidden rounded-2xl border border-border bg-white/95 text-left shadow-sm ring-0 transition-all hover:border-accent/55 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 dark:bg-zinc-900/55"
+              >
+                <div className="border-b border-zinc-100 bg-zinc-50/80 p-3 dark:border-zinc-800 dark:bg-zinc-950/40">
+                  <LayoutBlockVisual variant={block.id} />
+                </div>
+                <div className="space-y-1 px-4 py-3.5">
+                  <span className="block text-base font-semibold text-foreground group-hover:text-accent transition-colors">
+                    {block.title}
+                  </span>
+                  <span className="block text-sm text-muted leading-snug">{block.description}</span>
+                  <span className="block pt-2 text-xs font-medium text-accent/90">Click to insert at cursor</span>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       </div>
