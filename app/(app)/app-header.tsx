@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { switchAdminSalon } from "./admin/actions";
 import dashboardLogo from "../../salonsynk-light.png";
+import dashboardLogoWhite from "../../salonsynk_logo-wht.png";
 import type { DashboardTheme } from "./dashboard-theme";
 
 function ThemeToggleButton({
@@ -85,20 +86,33 @@ export function AppHeader({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const navHover =
-    theme === "dark" ? "hover:bg-white/5" : "hover:bg-black/[0.06]";
+    theme === "dark" ? "hover:bg-white/5" : "hover:bg-white/10";
+
+  const navLinkClass =
+    theme === "light"
+      ? "text-zinc-300 hover:text-white whitespace-nowrap"
+      : "text-muted hover:text-foreground whitespace-nowrap";
+
+  const metaTextClass = theme === "light" ? "text-zinc-400" : "text-muted";
 
   const visibleLinks = isManager || isSuperAdmin
     ? NAV_LINKS
     : NAV_LINKS.filter((l) => STAFF_ALLOWED_LINKS.has(l.href));
 
   return (
-    <header className="flex min-h-[4.5rem] min-w-0 items-center justify-between gap-2 border-b border-border px-3 py-3 sm:gap-4 sm:px-4 sm:py-4">
+    <header
+      className={`flex min-h-[4.5rem] min-w-0 items-center justify-between gap-2 border-b px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 ${
+        theme === "light"
+          ? "border-zinc-600 bg-zinc-700"
+          : "border-border bg-transparent"
+      }`}
+    >
       <Link
         href="/dashboard"
         className="flex min-w-0 max-w-[min(100%,10.5rem)] shrink items-center gap-2 overflow-hidden sm:max-w-none"
       >
         <Image
-          src={dashboardLogo}
+          src={theme === "light" ? dashboardLogoWhite : dashboardLogo}
           alt="SalonSynk logo"
           width={280}
           height={80}
@@ -113,7 +127,7 @@ export function AppHeader({
       <nav className="hidden md:flex items-center gap-4 text-sm shrink-0">
         {isSuperAdmin && adminSalons.length > 0 && (
           <ul className="flex items-center gap-2">
-            <li className="text-muted text-xs">Salon:</li>
+            <li className={`${metaTextClass} text-xs`}>Salon:</li>
             <li>
               <select
                 value={currentSalon?.id ?? ""}
@@ -121,7 +135,11 @@ export function AppHeader({
                   const id = e.target.value;
                   if (id) switchAdminSalon(id);
                 }}
-                className="rounded border border-border bg-background px-2 py-1 text-sm max-w-[160px] truncate"
+                className={`rounded border px-2 py-1 text-sm max-w-[160px] truncate ${
+                  theme === "light"
+                    ? "border-zinc-500 bg-white text-zinc-900"
+                    : "border-border bg-background"
+                }`}
                 aria-label="Switch salon"
               >
                 {adminSalons.map((s) => (
@@ -134,7 +152,7 @@ export function AppHeader({
           </ul>
         )}
         {visibleLinks.map(({ href, label }) => (
-          <Link key={href} href={href} className="text-muted hover:text-foreground whitespace-nowrap">
+          <Link key={href} href={href} className={navLinkClass}>
             {label}
           </Link>
         ))}
@@ -144,13 +162,24 @@ export function AppHeader({
           </Link>
         )}
         {userEmail && (
-          <span className="text-muted text-xs max-w-[120px] truncate lg:max-w-[180px]" title={userEmail}>
+          <span className={`${metaTextClass} text-xs max-w-[120px] truncate lg:max-w-[180px]`} title={userEmail}>
             {userEmail}
           </span>
         )}
-        {onToggleTheme && <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />}
+        {onToggleTheme && (
+          <ThemeToggleButton
+            theme={theme}
+            onToggle={onToggleTheme}
+            className={theme === "light" ? "text-zinc-300 hover:text-white" : ""}
+          />
+        )}
         <form action="/api/auth/signout" method="post">
-          <button type="submit" className="text-muted hover:text-foreground text-sm whitespace-nowrap">
+          <button
+            type="submit"
+            className={`text-sm whitespace-nowrap ${
+              theme === "light" ? "text-zinc-300 hover:text-white" : "text-muted hover:text-foreground"
+            }`}
+          >
             Sign out
           </button>
         </form>
@@ -158,11 +187,17 @@ export function AppHeader({
 
       {/* Mobile: hamburger + overlay */}
       <div className="flex shrink-0 items-center gap-2 md:hidden">
-        {onToggleTheme && <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />}
+        {onToggleTheme && (
+          <ThemeToggleButton
+            theme={theme}
+            onToggle={onToggleTheme}
+            className={theme === "light" ? "text-zinc-300 hover:text-white" : ""}
+          />
+        )}
         <button
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
-          className={`rounded-lg p-2 text-muted hover:text-foreground ${navHover}`}
+          className={`rounded-lg p-2 ${theme === "light" ? "text-zinc-300 hover:text-white" : "text-muted hover:text-foreground"} ${navHover}`}
           aria-label="Toggle menu"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
