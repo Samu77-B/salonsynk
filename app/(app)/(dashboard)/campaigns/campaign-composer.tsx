@@ -295,8 +295,8 @@ export function CampaignComposer({
               </p>
             </div>
 
-            <div className="grid gap-8 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)] xl:items-start">
-              <aside className="space-y-5 rounded-2xl border border-border bg-gradient-to-b from-white/[0.06] to-transparent p-5 sm:p-6 shadow-sm">
+            <div className="flex flex-col gap-8">
+              <section className="space-y-5 rounded-2xl border border-border bg-gradient-to-b from-white/[0.06] to-transparent p-5 sm:p-6 shadow-sm w-full min-w-0">
                 <div>
                   <h4 className="text-sm font-semibold text-foreground">Inbox appearance</h4>
                   <p className="text-xs text-muted mt-1.5 leading-relaxed">
@@ -349,18 +349,18 @@ export function CampaignComposer({
                     </div>
                   </div>
                 </div>
-              </aside>
+              </section>
 
-              <div className="min-w-0 space-y-4">
+              <section className="min-w-0 w-full space-y-4">
                 <div className="rounded-2xl border border-border bg-background/30 shadow-sm overflow-hidden">
                   <div className="flex flex-col gap-4 border-b border-border bg-white/[0.03] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground">Message body</p>
                       <p className="text-xs text-muted mt-0.5 hidden sm:block">
                         Rich editor, raw HTML, or a quick layout check before review.
                       </p>
                     </div>
-                    <div className="inline-flex w-full max-w-md rounded-xl border border-border bg-muted/20 p-1 sm:w-auto">
+                    <div className="inline-flex w-full min-w-0 rounded-xl border border-border bg-muted/20 p-1 sm:w-auto">
                       <button
                         type="button"
                         onClick={() => goDesign(mode === "html")}
@@ -441,7 +441,7 @@ export function CampaignComposer({
                     )}
                   </div>
                 </div>
-              </div>
+              </section>
             </div>
 
             <div className="flex flex-wrap justify-between gap-3">
