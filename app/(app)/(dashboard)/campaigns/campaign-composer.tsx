@@ -286,125 +286,161 @@ export function CampaignComposer({
         )}
 
         {step === 2 && (
-          <div className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,320px)_1fr] lg:items-start">
-              <div className="space-y-4 rounded-lg border border-border bg-background/40 p-4">
-                <h3 className="text-sm font-semibold text-foreground">Campaign details</h3>
-                <p className="text-xs text-muted leading-relaxed">
-                  From name appears as your platform sender (Resend). For a custom domain and reply-to, configure your
-                  Resend project and DNS.
-                </p>
+          <div className="space-y-8">
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-foreground">Write your email</h3>
+              <p className="text-sm text-muted max-w-2xl">
+                Set how the message appears in the inbox, then compose the body. Use Design for formatting and layout
+                blocks, or HTML if you prefer to paste markup.
+              </p>
+            </div>
+
+            <div className="grid gap-8 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)] xl:items-start">
+              <aside className="space-y-5 rounded-2xl border border-border bg-gradient-to-b from-white/[0.06] to-transparent p-5 sm:p-6 shadow-sm">
                 <div>
-                  <label htmlFor="camp-from" className="mb-1 block text-xs font-medium text-muted uppercase tracking-wide">
-                    Sending as
-                  </label>
-                  <p id="camp-from" className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground">
-                    {salonName}
+                  <h4 className="text-sm font-semibold text-foreground">Inbox appearance</h4>
+                  <p className="text-xs text-muted mt-1.5 leading-relaxed">
+                    The sender name uses your salon. For a custom sending domain, configure DNS in your Resend project.
                   </p>
                 </div>
-                <div>
-                  <label htmlFor="camp-subject" className="mb-1 block text-sm font-medium">
-                    Subject line <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    id="camp-subject"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                    placeholder="February colour event — book your patch test"
-                    autoComplete="off"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="camp-preheader" className="mb-1 block text-sm font-medium">
-                    Preview text <span className="text-muted font-normal">(optional)</span>
-                  </label>
-                  <input
-                    id="camp-preheader"
-                    value={preheader}
-                    onChange={(e) => setPreheader(e.target.value.slice(0, 140))}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                    placeholder="Short line shown after the subject in the inbox"
-                    maxLength={140}
-                    autoComplete="off"
-                  />
-                  <p className="text-[11px] text-muted mt-1">{preheader.length}/140 characters</p>
-                </div>
-              </div>
-
-              <div className="min-w-0 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="text-sm font-medium">Message body</label>
-                  <div className="flex rounded-lg border border-border overflow-hidden text-xs">
-                    <button
-                      type="button"
-                      onClick={() => goDesign(mode === "html")}
-                      className={`px-3 py-1.5 font-medium transition-colors ${
-                        mode === "design" ? "bg-accent text-background" : "bg-background hover:bg-white/10"
-                      }`}
+                <div className="space-y-4">
+                  <div>
+                    <label
+                      htmlFor="camp-from"
+                      className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted"
                     >
-                      Design
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMode("html")}
-                      className={`px-3 py-1.5 font-medium border-l border-border transition-colors ${
-                        mode === "html" ? "bg-accent text-background" : "bg-background hover:bg-white/10"
-                      }`}
+                      Sending as
+                    </label>
+                    <p
+                      id="camp-from"
+                      className="rounded-xl border border-border/80 bg-background/80 px-3.5 py-2.5 text-sm font-medium text-foreground"
                     >
-                      HTML
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMode("preview")}
-                      className={`px-3 py-1.5 font-medium border-l border-border transition-colors ${
-                        mode === "preview" ? "bg-accent text-background" : "bg-background hover:bg-white/10"
-                      }`}
-                    >
-                      Preview
-                    </button>
-                  </div>
-                </div>
-                <p className="text-xs text-muted">
-                  <strong className="text-foreground">Design</strong> — blocks and images.{" "}
-                  <strong className="text-foreground">HTML</strong> — raw markup.{" "}
-                  <strong className="text-foreground">Preview</strong> — layout check (footer is added when sent).
-                </p>
-
-                {mode === "design" && (
-                  <CampaignRichEditor
-                    key={designMountKey}
-                    salonId={salonId}
-                    initialHtml={bodyHtml}
-                    onHtmlChange={setBodyHtml}
-                  />
-                )}
-                {mode === "html" && (
-                  <textarea
-                    id="camp-body"
-                    value={bodyHtml}
-                    onChange={(e) => setBodyHtml(e.target.value)}
-                    rows={14}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm text-zinc-900 dark:text-zinc-100"
-                    placeholder="<p>Hi,</p><p>We have new retail in stock…</p>"
-                  />
-                )}
-                {mode === "preview" && (
-                  <div className="rounded-lg border border-border bg-zinc-100 dark:bg-zinc-900/40 p-4">
-                    <p className="text-[10px] uppercase tracking-wide text-muted mb-2">Approximate email body</p>
-                    <div
-                      className="mx-auto max-w-[600px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 p-6 shadow-sm text-zinc-900 dark:text-zinc-100 text-[15px] leading-relaxed [&_a]:text-green-700 [&_a]:underline"
-                      dangerouslySetInnerHTML={{
-                        __html:
-                          bodyHtml.trim() ||
-                          '<p class="text-zinc-400 italic">Nothing to preview yet — switch to Design or HTML.</p>',
-                      }}
-                    />
-                    <p className="text-[11px] text-muted mt-3 max-w-[600px] mx-auto">
-                      Unsubscribe footer is appended automatically when the campaign is sent.
+                      {salonName}
                     </p>
                   </div>
-                )}
+                  <div>
+                    <label htmlFor="camp-subject" className="mb-1.5 block text-sm font-medium text-foreground">
+                      Subject line <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      id="camp-subject"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm shadow-sm transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
+                      placeholder="February colour event — book your patch test"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="camp-preheader" className="mb-1.5 block text-sm font-medium text-foreground">
+                      Preview text <span className="text-muted font-normal">(optional)</span>
+                    </label>
+                    <input
+                      id="camp-preheader"
+                      value={preheader}
+                      onChange={(e) => setPreheader(e.target.value.slice(0, 140))}
+                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm shadow-sm transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
+                      placeholder="Shown after the subject in many inboxes"
+                      maxLength={140}
+                      autoComplete="off"
+                    />
+                    <div className="mt-1.5 flex justify-end">
+                      <span className="text-[11px] tabular-nums text-muted">{preheader.length} / 140</span>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+
+              <div className="min-w-0 space-y-4">
+                <div className="rounded-2xl border border-border bg-background/30 shadow-sm overflow-hidden">
+                  <div className="flex flex-col gap-4 border-b border-border bg-white/[0.03] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Message body</p>
+                      <p className="text-xs text-muted mt-0.5 hidden sm:block">
+                        Rich editor, raw HTML, or a quick layout check before review.
+                      </p>
+                    </div>
+                    <div className="inline-flex w-full max-w-md rounded-xl border border-border bg-muted/20 p-1 sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => goDesign(mode === "html")}
+                        className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all sm:flex-none sm:min-w-[5.5rem] ${
+                          mode === "design"
+                            ? "bg-accent text-background shadow-sm"
+                            : "text-muted hover:text-foreground hover:bg-white/5"
+                        }`}
+                      >
+                        Design
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMode("html")}
+                        className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all sm:flex-none sm:min-w-[5.5rem] ${
+                          mode === "html"
+                            ? "bg-accent text-background shadow-sm"
+                            : "text-muted hover:text-foreground hover:bg-white/5"
+                        }`}
+                      >
+                        HTML
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMode("preview")}
+                        className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all sm:flex-none sm:min-w-[5.5rem] ${
+                          mode === "preview"
+                            ? "bg-accent text-background shadow-sm"
+                            : "text-muted hover:text-foreground hover:bg-white/5"
+                        }`}
+                      >
+                        Preview
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-4 sm:p-5">
+                    {mode === "design" && (
+                      <CampaignRichEditor
+                        key={designMountKey}
+                        salonId={salonId}
+                        initialHtml={bodyHtml}
+                        onHtmlChange={setBodyHtml}
+                      />
+                    )}
+                    {mode === "html" && (
+                      <div className="space-y-2">
+                        <label htmlFor="camp-body" className="text-xs font-medium text-muted">
+                          Raw HTML (advanced)
+                        </label>
+                        <textarea
+                          id="camp-body"
+                          value={bodyHtml}
+                          onChange={(e) => setBodyHtml(e.target.value)}
+                          rows={16}
+                          className="w-full min-h-[280px] rounded-xl border border-border bg-background px-3.5 py-3 font-mono text-sm leading-relaxed text-zinc-900 shadow-inner dark:text-zinc-100 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
+                          placeholder="<p>Hi,</p><p>We have new retail in stock…</p>"
+                        />
+                      </div>
+                    )}
+                    {mode === "preview" && (
+                      <div className="rounded-xl border border-dashed border-border/80 bg-zinc-100/80 p-4 dark:bg-zinc-950/40">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted mb-3">
+                          Approximate email body
+                        </p>
+                        <div
+                          className="mx-auto max-w-[600px] rounded-xl border border-zinc-200 bg-white p-6 shadow-md text-zinc-900 text-[15px] leading-relaxed dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 [&_a]:text-green-700 [&_a]:underline"
+                          dangerouslySetInnerHTML={{
+                            __html:
+                              bodyHtml.trim() ||
+                              '<p class="text-zinc-400 italic">Nothing to preview yet — switch to Design or HTML.</p>',
+                          }}
+                        />
+                        <p className="text-[11px] text-muted mt-4 max-w-[600px] mx-auto text-center">
+                          The unsubscribe footer is added automatically when you send.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 

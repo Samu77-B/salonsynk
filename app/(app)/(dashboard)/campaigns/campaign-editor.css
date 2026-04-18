@@ -1,8 +1,8 @@
 /* TipTap / ProseMirror — campaign body (light “email canvas” on dark dashboard) */
 .campaign-rich-editor .campaign-tiptap {
-  min-height: 280px;
+  min-height: 320px;
   outline: none;
-  padding: 0.75rem 1rem 1.25rem;
+  padding: 1rem 1.25rem 1.5rem;
   font-size: 0.9375rem;
   line-height: 1.6;
   color: #18181b;

@@ -37,14 +37,32 @@ function ToolbarBtn({
       title={title}
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-md px-2 py-1 text-xs font-medium border transition-colors disabled:opacity-40 ${
+      className={`inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg border px-2.5 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-40 ${
         active
-          ? "border-accent bg-accent/15 text-foreground"
-          : "border-border bg-background hover:bg-white/10 text-foreground"
+          ? "border-accent bg-accent/20 text-foreground shadow-sm"
+          : "border-transparent bg-white/80 text-zinc-700 hover:bg-white hover:border-border dark:bg-zinc-800/80 dark:text-zinc-200 dark:hover:bg-zinc-800"
       }`}
     >
       {children}
     </button>
+  );
+}
+
+function ToolbarCluster({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="flex flex-wrap items-center gap-1 rounded-xl border border-zinc-200/80 bg-white/90 px-2 py-1.5 shadow-sm dark:border-zinc-700/80 dark:bg-zinc-900/50"
+      role="group"
+      aria-label={label}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -145,14 +163,14 @@ export function CampaignRichEditor({
 
   if (!editor) {
     return (
-      <div className="rounded-lg border border-border bg-white min-h-[280px] flex items-center justify-center text-sm text-zinc-500">
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 min-h-[320px] flex items-center justify-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/40">
         Loading editor…
       </div>
     );
   }
 
   return (
-    <div className="campaign-rich-editor space-y-2">
+    <div className="campaign-rich-editor space-y-4">
       <input
         ref={fileRef}
         type="file"
@@ -162,87 +180,139 @@ export function CampaignRichEditor({
         onChange={onFile}
       />
 
-      <div className="flex flex-wrap gap-1.5 pb-2 border-b border-border">
-        <span className="text-[10px] uppercase tracking-wide text-muted w-full mb-0.5">Format</span>
-        <ToolbarBtn title="Bold" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
-          B
-        </ToolbarBtn>
-        <ToolbarBtn
-          title="Italic"
-          active={editor.isActive("italic")}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-        >
-          <i>I</i>
-        </ToolbarBtn>
-        <ToolbarBtn
-          title="Underline"
-          active={editor.isActive("underline")}
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-        >
-          <span className="underline">U</span>
-        </ToolbarBtn>
-        <ToolbarBtn title="Heading 2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-          H2
-        </ToolbarBtn>
-        <ToolbarBtn title="Heading 3" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
-          H3
-        </ToolbarBtn>
-        <ToolbarBtn title="Bullet list" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-          • List
-        </ToolbarBtn>
-        <ToolbarBtn title="Numbered list" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-          1. List
-        </ToolbarBtn>
-        <ToolbarBtn title="Align left" onClick={() => editor.chain().focus().setTextAlign("left").run()}>
-          ←
-        </ToolbarBtn>
-        <ToolbarBtn title="Align centre" onClick={() => editor.chain().focus().setTextAlign("center").run()}>
-          C
-        </ToolbarBtn>
-        <ToolbarBtn title="Align right" onClick={() => editor.chain().focus().setTextAlign("right").run()}>
-          →
-        </ToolbarBtn>
-        <ToolbarBtn title="Horizontal rule" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
-          HR
-        </ToolbarBtn>
-        <ToolbarBtn title="Link" active={editor.isActive("link")} onClick={() => setLink(editor)}>
-          Link
-        </ToolbarBtn>
-        <ToolbarBtn title="Insert image" disabled={uploading} onClick={pickImage}>
-          {uploading ? "…" : "Image"}
-        </ToolbarBtn>
-        <ToolbarBtn title="Undo" onClick={() => editor.chain().focus().undo().run()}>
-          Undo
-        </ToolbarBtn>
-        <ToolbarBtn title="Redo" onClick={() => editor.chain().focus().redo().run()}>
-          Redo
-        </ToolbarBtn>
-      </div>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Formatting</p>
+            <p className="text-[11px] text-muted mt-0.5 max-w-xl hidden sm:block">
+              Style text, then add structure with layout blocks — they insert ready-made sections you can edit.
+            </p>
+          </div>
+        </div>
 
-      <div className="flex flex-wrap gap-1.5 pb-2 border-b border-border">
-        <span className="text-[10px] uppercase tracking-wide text-muted w-full mb-0.5">Layout blocks</span>
-        <ToolbarBtn title="Centered headline + subtext" onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS.hero)}>
-          Hero
-        </ToolbarBtn>
-        <ToolbarBtn title="Centered green button (edit URL + text)" onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS.cta)}>
-          CTA button
-        </ToolbarBtn>
-        <ToolbarBtn title="Spacer + divider" onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS.divider)}>
-          Divider
-        </ToolbarBtn>
-        <ToolbarBtn title="Two-column row (email-safe table)" onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS.twoCol)}>
-          2 columns
-        </ToolbarBtn>
+        <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-start">
+          <ToolbarCluster label="Text style">
+            <ToolbarBtn title="Bold" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
+              <strong className="font-bold">B</strong>
+            </ToolbarBtn>
+            <ToolbarBtn
+              title="Italic"
+              active={editor.isActive("italic")}
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+            >
+              <em className="italic">I</em>
+            </ToolbarBtn>
+            <ToolbarBtn
+              title="Underline"
+              active={editor.isActive("underline")}
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+            >
+              <span className="underline">U</span>
+            </ToolbarBtn>
+            <ToolbarBtn
+              title="Heading 2"
+              active={editor.isActive("heading", { level: 2 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            >
+              H2
+            </ToolbarBtn>
+            <ToolbarBtn
+              title="Heading 3"
+              active={editor.isActive("heading", { level: 3 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+            >
+              H3
+            </ToolbarBtn>
+          </ToolbarCluster>
+
+          <ToolbarCluster label="Lists and alignment">
+            <ToolbarBtn title="Bullet list" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+              <span className="text-xs">• List</span>
+            </ToolbarBtn>
+            <ToolbarBtn title="Numbered list" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+              <span className="text-xs">1. List</span>
+            </ToolbarBtn>
+            <ToolbarBtn title="Align left" onClick={() => editor.chain().focus().setTextAlign("left").run()}>
+              <span className="text-xs font-semibold">Left</span>
+            </ToolbarBtn>
+            <ToolbarBtn title="Align centre" onClick={() => editor.chain().focus().setTextAlign("center").run()}>
+              <span className="text-xs font-semibold">Centre</span>
+            </ToolbarBtn>
+            <ToolbarBtn title="Align right" onClick={() => editor.chain().focus().setTextAlign("right").run()}>
+              <span className="text-xs font-semibold">Right</span>
+            </ToolbarBtn>
+          </ToolbarCluster>
+
+          <ToolbarCluster label="Insert and history">
+            <ToolbarBtn title="Horizontal rule" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
+              <span className="text-xs">Rule</span>
+            </ToolbarBtn>
+            <ToolbarBtn title="Link" active={editor.isActive("link")} onClick={() => setLink(editor)}>
+              Link
+            </ToolbarBtn>
+            <ToolbarBtn title="Insert image" disabled={uploading} onClick={pickImage}>
+              {uploading ? "…" : "Image"}
+            </ToolbarBtn>
+            <ToolbarBtn title="Undo" onClick={() => editor.chain().focus().undo().run()}>
+              <span className="text-xs">Undo</span>
+            </ToolbarBtn>
+            <ToolbarBtn title="Redo" onClick={() => editor.chain().focus().redo().run()}>
+              <span className="text-xs">Redo</span>
+            </ToolbarBtn>
+          </ToolbarCluster>
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Layout blocks</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS.hero)}
+              className="rounded-xl border border-border bg-white/90 px-3.5 py-2 text-left text-sm font-medium text-foreground shadow-sm transition-colors hover:border-accent/50 hover:bg-accent/5 dark:bg-zinc-900/60"
+            >
+              <span className="block">Hero</span>
+              <span className="text-[11px] font-normal text-muted">Headline + supporting line</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS.cta)}
+              className="rounded-xl border border-border bg-white/90 px-3.5 py-2 text-left text-sm font-medium text-foreground shadow-sm transition-colors hover:border-accent/50 hover:bg-accent/5 dark:bg-zinc-900/60"
+            >
+              <span className="block">CTA button</span>
+              <span className="text-[11px] font-normal text-muted">Centre — edit link and text</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS.divider)}
+              className="rounded-xl border border-border bg-white/90 px-3.5 py-2 text-left text-sm font-medium text-foreground shadow-sm transition-colors hover:border-accent/50 hover:bg-accent/5 dark:bg-zinc-900/60"
+            >
+              <span className="block">Divider</span>
+              <span className="text-[11px] font-normal text-muted">Space + horizontal rule</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => insertSnippet(editor, LAYOUT_SNIPPETS.twoCol)}
+              className="rounded-xl border border-border bg-white/90 px-3.5 py-2 text-left text-sm font-medium text-foreground shadow-sm transition-colors hover:border-accent/50 hover:bg-accent/5 dark:bg-zinc-900/60"
+            >
+              <span className="block">Two columns</span>
+              <span className="text-[11px] font-normal text-muted">Email-safe side-by-side</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {uploadErr && <p className="text-xs text-red-400">{uploadErr}</p>}
 
-      <div className="rounded-lg border border-border bg-white shadow-inner overflow-hidden">
+      <div className="rounded-2xl border border-zinc-200/90 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] ring-1 ring-black/5 overflow-hidden dark:border-zinc-700 dark:bg-zinc-950 dark:ring-white/5">
+        <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/90 px-3 py-2 text-[11px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-400">
+          <span className="inline-block h-2 w-2 rounded-full bg-zinc-300 dark:bg-zinc-600" aria-hidden />
+          Email preview area
+        </div>
         <EditorContent editor={editor} />
       </div>
-      <p className="text-[11px] text-muted">
-        Images upload to your salon folder and load in inboxes via a public link. For best results use JPEG or PNG
-        under ~1&nbsp;MB.
+      <p className="text-[11px] text-muted leading-relaxed">
+        Images are stored for your salon and shown via a public URL. Use JPEG or PNG under about 1&nbsp;MB for reliable
+        loading.
       </p>
     </div>
   );
