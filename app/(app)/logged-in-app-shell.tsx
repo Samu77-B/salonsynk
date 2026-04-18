@@ -53,14 +53,9 @@ export function LoggedInAppShell({
   const shellClass =
     theme === "dark" ? "app-shell-dark" : "app-shell-light";
 
-  const mainSurfaceClass =
-    theme === "dark"
-      ? "bg-background"
-      : "bg-gradient-to-br from-stone-100 via-neutral-50 to-stone-100";
-
   return (
     <div
-      className={`${shellClass} min-h-screen flex flex-col overflow-x-hidden bg-background text-foreground`}
+      className={`${shellClass} min-h-screen flex flex-col overflow-x-hidden bg-canvas text-foreground`}
     >
       <AppHeader
         userEmail={userEmail}
@@ -72,9 +67,7 @@ export function LoggedInAppShell({
         theme={theme}
         onToggleTheme={toggleTheme}
       />
-      <main
-        className={`flex min-h-0 min-w-0 flex-1 flex-col text-foreground ${mainSurfaceClass}`}
-      >
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col text-foreground">
         <div className="mx-auto w-full min-w-0 max-w-[1600px] px-3 py-5 sm:px-6 sm:py-6 lg:px-8">
           {children}
         </div>

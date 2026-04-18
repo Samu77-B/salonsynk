@@ -4,6 +4,7 @@
 
 :root {
   --background: #ffffff;
+  --canvas: #ffffff;
   --foreground: #000000;
   --muted: #808080;
   --accent: #000000;
@@ -13,7 +14,10 @@
 
 /* Logged-in app shell: light theme (dashboard toggle) */
 .app-shell-light {
-  --background: #fafaf9;
+  /* Raised surfaces (cards, inputs using bg-background) stay light on top of the grey page */
+  --background: #ffffff;
+  /* Page chrome: light grey so panels and borders read clearly vs the canvas */
+  --canvas: #e4e4e7; /* zinc-200 */
   --foreground: #18181b;
   --muted: #71717a;
   --accent: #15803d; /* green-700 on light bg */
@@ -26,6 +30,7 @@
 /* Logged-in app shell: dark theme — aligned with Reports page palette */
 .app-shell-dark {
   --background: #121212;
+  --canvas: #121212;
   --foreground: #ffffff;
   --muted: #b0b0b0;
   --accent: #22c55e; /* green-500 — matches Reports CTAs / toggles */
@@ -66,7 +71,7 @@ html {
 }
 
 body {
-  background: var(--background);
+  /* Background from Tailwind bg-canvas on <body> (see app/layout.tsx) */
   color: var(--foreground);
   min-height: 100vh;
   overflow-wrap: break-word;

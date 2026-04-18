@@ -27,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen font-sans bg-background text-foreground overflow-x-hidden">
+      <body className="min-h-screen font-sans bg-canvas text-foreground overflow-x-hidden">
         <RegisterSw />
         {children}
       </body>

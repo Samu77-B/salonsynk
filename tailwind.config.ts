@@ -22,6 +22,8 @@ const config: Config = {
       },
       colors: {
         background: "var(--background)",
+        /** Full-page chrome behind cards (light dashboard = grey; dark = same as background). */
+        canvas: "var(--canvas)",
         foreground: "var(--foreground)",
         muted: "var(--muted)",
         accent: "var(--accent)",
