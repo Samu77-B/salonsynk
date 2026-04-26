@@ -96,11 +96,22 @@ Output: Return ONLY strict JSON with this shape:
     })),
   };
 
-  const result = await generateText({
-    model: openai("gpt-4o-mini"),
-    system,
-    prompt: JSON.stringify(input),
-  });
+  let result: { text: string };
+  try {
+    result = await generateText({
+      model: openai("gpt-4o-mini"),
+      system,
+      prompt: JSON.stringify(input),
+    });
+  } catch (err) {
+    console.error("[api/ai/smart-reschedule] provider error", err);
+    const msg =
+      err instanceof Error
+        ? err.message
+        : "The AI provider request failed. Check OPENAI_API_KEY and server logs.";
+    // Surface as 502 so the client shows a friendly message (not a 500).
+    return Response.json({ error: msg }, { status: 502 });
+  }
 
   const parsed = safeJsonParse(result.text);
   const picks = (parsed as { picks?: unknown })?.picks;
