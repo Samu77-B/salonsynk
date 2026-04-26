@@ -326,6 +326,7 @@ function DiaryContextMenu({
   onMarkStatus,
   onMakeSale,
   onRunningLate,
+  onSmartReschedule,
   onToggleStatusSubmenu,
 }: {
   menu: ContextMenuState;
@@ -333,6 +334,7 @@ function DiaryContextMenu({
   onMarkStatus: (status: string) => void;
   onMakeSale: () => void;
   onRunningLate: () => void;
+  onSmartReschedule: () => void;
   onToggleStatusSubmenu: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -407,6 +409,9 @@ function DiaryContextMenu({
           </div>
         )}
       </div>
+      <button type="button" onClick={onSmartReschedule} className={itemClass}>
+        Smart Reschedule
+      </button>
       <button type="button" onClick={onMakeSale} className={itemClass}>
         Make sale
       </button>
@@ -449,6 +454,12 @@ export function DiaryView({
   const [optimisticAppointments, setOptimisticAppointments] = useState<Appointment[]>([]);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [runningLateId, setRunningLateId] = useState<string | null>(null);
+  const [smartReschedule, setSmartReschedule] = useState<{
+    appointmentId: string;
+    loading: boolean;
+    error: string | null;
+    picks: { startIso: string; endIso: string; label: string; reason: string }[] | null;
+  } | null>(null);
   const [dragChargePrompt, setDragChargePrompt] = useState<{ appointmentId: string } | null>(null);
   const [dragChargeAmount, setDragChargeAmount] = useState("");
   /** Hover guide on day grid: snapped time line + tooltip position */
@@ -633,6 +644,230 @@ export function DiaryView({
     if (!contextMenu) return;
     setRunningLateId(contextMenu.appointmentId);
     setContextMenu(null);
+  }
+
+  function fmtDayLabel(d: Date): string {
+    return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  }
+
+  function fmtTimeLabel(d: Date): string {
+    return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function intervalOverlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+    return aStart < bEnd && bStart < aEnd;
+  }
+
+  async function sendConfirmationSMSMock(input: {
+    appointmentId: string;
+    clientName: string;
+    startIso: string;
+  }) {
+    await new Promise((r) => setTimeout(r, 350));
+    console.info("[mock sendConfirmationSMS]", input);
+  }
+
+  async function handleSmartReschedule() {
+    if (!contextMenu) return;
+    const appointmentId = contextMenu.appointmentId;
+    const apt = appointments.find((a) => a.id === appointmentId);
+    setContextMenu(null);
+    if (!apt) return;
+
+    const start = parseDate(apt.start_time);
+    const end = parseDate(apt.end_time);
+    if (!start || !end) {
+      setSmartReschedule({ appointmentId, loading: false, error: "Could not read appointment time.", picks: null });
+      return;
+    }
+
+    const serviceDurationMins = Math.max(1, Math.round((end.getTime() - start.getTime()) / 60000));
+    const stylistId = apt.stylist_id;
+    const client = Array.isArray(apt.clients) ? apt.clients[0] : apt.clients;
+    const clientName = client?.name || apt.guest_name || "Client";
+
+    setSmartReschedule({ appointmentId, loading: true, error: null, picks: null });
+
+    const rangeFrom = new Date(start);
+    rangeFrom.setMinutes(0, 0, 0);
+    const rangeTo = new Date(rangeFrom);
+    rangeTo.setDate(rangeTo.getDate() + 7);
+
+    const rangeRes = await fetch("/api/appointments/range", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ stylistId, fromIso: rangeFrom.toISOString(), toIso: rangeTo.toISOString() }),
+    });
+
+    const rangeBody = (await rangeRes.json().catch(() => null)) as
+      | { error?: string | null; appointments?: { id: string; start_time: string; end_time: string }[] }
+      | null;
+
+    if (!rangeRes.ok || !rangeBody || rangeBody.error) {
+      setSmartReschedule({
+        appointmentId,
+        loading: false,
+        error: rangeBody?.error || `Could not load schedule (${rangeRes.status}).`,
+        picks: null,
+      });
+      return;
+    }
+
+    const busy = (rangeBody.appointments ?? [])
+      .filter((a) => a.id !== appointmentId)
+      .map((a) => {
+        const s = parseDate(a.start_time);
+        const e = parseDate(a.end_time);
+        if (!s || !e) return null;
+        return { start: s, end: e };
+      })
+      .filter((v): v is { start: Date; end: Date } => v !== null)
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    const bufferMins = 10;
+    const dayStartHour = 6;
+    const dayEndHour = 19;
+    const stepMins = 15;
+
+    const candidates: {
+      startIso: string;
+      endIso: string;
+      dayLabel: string;
+      timeLabel: string;
+      gapBeforeMins: number;
+      gapAfterMins: number;
+      _score: number;
+    }[] = [];
+
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const day = new Date(rangeFrom);
+      day.setDate(day.getDate() + dayOffset);
+      day.setHours(0, 0, 0, 0);
+
+      const dayStart = new Date(day);
+      dayStart.setHours(dayStartHour, 0, 0, 0);
+      const dayEnd = new Date(day);
+      dayEnd.setHours(dayEndHour + 1, 0, 0, 0);
+
+      const busyToday = busy
+        .filter((b) => b.start >= day && b.start < new Date(day.getTime() + 24 * 60 * 60 * 1000))
+        .map((b) => ({
+          startM: minutesSinceDayStart(b.start, day),
+          endM: minutesSinceDayStart(b.end, day),
+        }))
+        .sort((a, b) => a.startM - b.startM);
+
+      const blocked = busyToday.map((b) => ({
+        startM: Math.max(0, b.startM - bufferMins),
+        endM: Math.min(24 * 60, b.endM + bufferMins),
+      }));
+
+      for (
+        let startMins = dayStartHour * 60;
+        startMins + serviceDurationMins <= (dayEndHour + 1) * 60;
+        startMins += stepMins
+      ) {
+        const endMins = startMins + serviceDurationMins;
+        const slotStartBlocked = startMins - bufferMins;
+        const slotEndBlocked = endMins + bufferMins;
+
+        if (blocked.some((b) => intervalOverlaps(slotStartBlocked, slotEndBlocked, b.startM, b.endM))) continue;
+
+        let prevEnd = dayStartHour * 60;
+        for (const b of busyToday) {
+          if (b.endM <= startMins) prevEnd = Math.max(prevEnd, b.endM);
+          else break;
+        }
+        let nextStart = (dayEndHour + 1) * 60;
+        for (const b of busyToday) {
+          if (b.startM >= endMins) {
+            nextStart = b.startM;
+            break;
+          }
+        }
+
+        const gapBefore = Math.max(0, startMins - prevEnd);
+        const gapAfter = Math.max(0, nextStart - endMins);
+        const score =
+          Math.min(gapBefore, 180) +
+          Math.min(gapAfter, 180) +
+          (gapBefore <= 15 ? -25 : 0) +
+          (gapAfter <= 15 ? -25 : 0);
+
+        const slotStart = new Date(dayStart);
+        slotStart.setHours(0, 0, 0, 0);
+        slotStart.setMinutes(startMins);
+        const slotEnd = new Date(slotStart.getTime() + serviceDurationMins * 60_000);
+
+        if (slotStart < dayStart || slotEnd > dayEnd) continue;
+
+        candidates.push({
+          startIso: slotStart.toISOString(),
+          endIso: slotEnd.toISOString(),
+          dayLabel: fmtDayLabel(slotStart),
+          timeLabel: fmtTimeLabel(slotStart),
+          gapBeforeMins: gapBefore,
+          gapAfterMins: gapAfter,
+          _score: score,
+        });
+      }
+    }
+
+    if (candidates.length === 0) {
+      setSmartReschedule({
+        appointmentId,
+        loading: false,
+        error: "No suitable gaps found in the next 7 days (with 10-minute buffers).",
+        picks: null,
+      });
+      return;
+    }
+
+    const topForAi = [...candidates].sort((a, b) => a._score - b._score).slice(0, 30);
+
+    const aiRes = await fetch("/api/ai/smart-reschedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        appointment: { id: appointmentId, stylistId, serviceDurationMins, clientName },
+        candidates: topForAi.map(({ _score, ...rest }) => rest),
+      }),
+    });
+
+    const aiBody = (await aiRes.json().catch(() => null)) as
+      | { error?: string | null; picks?: { startIso: string; endIso: string; label: string; reason: string }[] }
+      | null;
+
+    if (!aiRes.ok || !aiBody || aiBody.error || !Array.isArray(aiBody.picks)) {
+      setSmartReschedule({
+        appointmentId,
+        loading: false,
+        error: aiBody?.error || `AI ranking failed (${aiRes.status}).`,
+        picks: null,
+      });
+      return;
+    }
+
+    setSmartReschedule({ appointmentId, loading: false, error: null, picks: aiBody.picks.slice(0, 3) });
+  }
+
+  async function applySmartReschedulePick(
+    pick: { startIso: string; endIso: string },
+    clientName: string
+  ) {
+    if (!smartReschedule) return;
+    const id = smartReschedule.appointmentId;
+    setSmartReschedule((prev) => (prev ? { ...prev, loading: true, error: null } : prev));
+    const result = await patchAppointmentViaApi(id, { start_time: pick.startIso, end_time: pick.endIso });
+    if (result.error) {
+      setSmartReschedule((prev) => (prev ? { ...prev, loading: false, error: result.error } : prev));
+      return;
+    }
+    await sendConfirmationSMSMock({ appointmentId: id, clientName, startIso: pick.startIso });
+    setSmartReschedule(null);
+    scheduleRouterRefresh(router);
   }
 
   async function confirmRunningLate() {
@@ -1320,6 +1555,7 @@ export function DiaryView({
             menu={contextMenu}
             onClose={closeContextMenu}
             onMarkStatus={(status) => void handleContextMenuStatusChange(status)}
+            onSmartReschedule={() => void handleSmartReschedule()}
             onMakeSale={handleContextMenuMakeSale}
             onRunningLate={handleContextMenuRunningLate}
             onToggleStatusSubmenu={() =>
@@ -1330,6 +1566,99 @@ export function DiaryView({
           />,
           document.body
         )}
+
+      {smartReschedule && (() => {
+        const apt = appointments.find((a) => a.id === smartReschedule.appointmentId);
+        const client = apt ? (Array.isArray(apt.clients) ? apt.clients[0] : apt.clients) : null;
+        const clientName = client?.name || apt?.guest_name || "the client";
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            onClick={() => !smartReschedule.loading && setSmartReschedule(null)}
+          >
+            <div
+              className="w-full max-w-lg rounded-xl border border-zinc-700/90 bg-zinc-950 p-5 shadow-2xl shadow-black/50 ring-1 ring-black/40 text-zinc-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-lg font-semibold">Smart Reschedule</h3>
+                  <p className="text-sm text-zinc-300 mt-1">
+                    Suggestions for moving this appointment for {clientName}.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSmartReschedule(null)}
+                  disabled={smartReschedule.loading}
+                  className="rounded-lg px-2 py-1 text-zinc-300 hover:bg-white/10 disabled:opacity-40"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {smartReschedule.loading && (
+                <div className="mt-4 rounded-lg border border-zinc-800 bg-black/30 px-4 py-3 text-sm text-zinc-300">
+                  Finding the best gaps in the next 7 days…
+                </div>
+              )}
+
+              {smartReschedule.error && (
+                <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  {smartReschedule.error}
+                </div>
+              )}
+
+              {smartReschedule.picks && !smartReschedule.loading && (
+                <div className="mt-4 space-y-3">
+                  {smartReschedule.picks.map((p, idx) => {
+                    const s = parseDate(p.startIso);
+                    const day = s ? fmtDayLabel(s) : "—";
+                    const time = s ? fmtTimeLabel(s) : "—";
+                    const badge =
+                      idx === 0
+                        ? "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/25"
+                        : "bg-white/5 text-zinc-200 ring-1 ring-white/10";
+                    return (
+                      <button
+                        key={p.startIso + p.endIso}
+                        type="button"
+                        onClick={() => void applySmartReschedulePick(p, clientName)}
+                        className="w-full rounded-xl border border-zinc-800 bg-black/30 p-4 text-left hover:bg-white/5 transition-colors disabled:opacity-50"
+                        disabled={smartReschedule.loading}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-base font-semibold text-zinc-100 truncate">
+                              {day} · {time}
+                            </p>
+                            <p className="text-sm text-zinc-300 mt-1">{p.reason}</p>
+                          </div>
+                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${badge}`}>
+                            {p.label}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSmartReschedule(null)}
+                  disabled={smartReschedule.loading}
+                  className="rounded-lg border border-zinc-700/90 px-4 py-2 text-sm text-zinc-100 hover:bg-white/10 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {runningLateId && (() => {
         const apt = appointments.find((a) => a.id === runningLateId);
