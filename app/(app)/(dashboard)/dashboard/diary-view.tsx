@@ -1600,7 +1600,20 @@ export function DiaryView({
 
               {smartReschedule.loading && (
                 <div className="mt-4 rounded-lg border border-zinc-800 bg-black/30 px-4 py-3 text-sm text-zinc-300">
-                  Finding the best gaps in the next 7 days…
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-700/80 bg-zinc-950/40"
+                      aria-hidden
+                    >
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-600 border-t-emerald-400" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-zinc-200">Finding the best gaps in the next 7 days…</p>
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                        <div className="h-full w-1/2 animate-pulse rounded-full bg-emerald-400/40" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
