@@ -1,6 +1,11 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getMutateClient } from "@/lib/supabase/mutate-client";
-import { fetchAppointmentsForOverlapCheck, type OverlapAppointmentRow } from "./overlap-queries";
+import {
+  fetchAppointmentsForOverlapCheck,
+  processingMinutesFromOverlapRow,
+  type OverlapAppointmentRow,
+} from "./overlap-queries";
+import { dedupeOrderedServiceIds, syncAppointmentServices } from "./appointment-service-lines";
 import {
   hasBlockingOverlapWithExisting,
   rangeToMinutes,
@@ -14,6 +19,8 @@ export type CreateAppointmentInput = {
   stylistId: string;
   clientId: string | null;
   serviceId: string | null;
+  /** When set, replaces single serviceId — combined visit; first service is mirrored to appointments.service_id. */
+  serviceIds?: string[];
   startTime: string;
   endTime: string;
   guestName?: string | null;
@@ -24,6 +31,8 @@ export type CreateAppointmentInput = {
   sendReviewRequest?: boolean;
   sendAftercare?: boolean;
   allowScheduleOverlap?: boolean;
+  /** Client prefers minimal conversation (stored as silent_service on the row). */
+  silentService?: boolean;
 };
 
 export type CreateAppointmentResult =
@@ -57,28 +66,38 @@ export async function executeCreateAppointment(
     dayEnd.toISOString()
   );
 
+  const orderedSvc = dedupeOrderedServiceIds(
+    input.serviceIds !== undefined ? input.serviceIds : input.serviceId ? [input.serviceId] : []
+  );
+
   let newProcessing = 0;
-  if (input.serviceId) {
-    const { data: svc } = await db
+  if (orderedSvc.length > 0) {
+    const { data: procRows, error: procErr } = await db
       .from("services")
-      .select("processing_time_minutes")
-      .eq("id", input.serviceId)
-      .eq("salon_id", input.salonId)
-      .maybeSingle();
-    newProcessing = Number(svc?.processing_time_minutes) || 0;
+      .select("id, processing_time_minutes")
+      .in("id", orderedSvc)
+      .eq("salon_id", input.salonId);
+    if (procErr || !procRows || procRows.length !== orderedSvc.length) {
+      return { error: "One or more services are invalid for this salon." };
+    }
+    const pmap = Object.fromEntries(
+      procRows.map((r) => [
+        (r as { id: string }).id,
+        Number((r as { processing_time_minutes?: number }).processing_time_minutes) || 0,
+      ])
+    );
+    newProcessing = Math.max(...orderedSvc.map((sid) => pmap[sid] ?? 0));
   }
 
   const blockingExisting: AppointmentBlockingInput[] = (existing as OverlapAppointmentRow[]).map((row) => {
     const s = new Date(row.start_time);
     const e = new Date(row.end_time);
     const r = rangeToMinutes(s, e);
-    const svc = row.services as { processing_time_minutes?: number } | { processing_time_minutes?: number }[] | null;
-    const proc = Array.isArray(svc) ? svc[0]?.processing_time_minutes : svc?.processing_time_minutes;
     return {
       id: row.id,
       startMinutes: r.startMinutes,
       endMinutes: r.endMinutes,
-      processingMinutes: Number(proc) || 0,
+      processingMinutes: processingMinutesFromOverlapRow(row),
     };
   });
 
@@ -93,11 +112,13 @@ export async function executeCreateAppointment(
     };
   }
 
+  const primaryServiceId = orderedSvc[0] ?? input.serviceId ?? null;
+
   const row: Record<string, unknown> = {
     salon_id: input.salonId,
     stylist_id: input.stylistId,
     client_id: input.clientId || null,
-    service_id: input.serviceId || null,
+    service_id: primaryServiceId,
     start_time: input.startTime,
     end_time: input.endTime,
     guest_name: input.guestName || null,
@@ -105,6 +126,7 @@ export async function executeCreateAppointment(
     guest_phone: input.guestPhone || null,
     notes: input.notes || null,
     status: "scheduled",
+    silent_service: input.silentService === true,
   };
   if (input.sendReminderSms !== undefined) row.send_reminder_sms = input.sendReminderSms;
   if (input.sendReviewRequest !== undefined) row.send_review_request = input.sendReviewRequest;
@@ -117,14 +139,29 @@ export async function executeCreateAppointment(
   if (!appointmentId) return { error: "Could not read new appointment id." };
 
   let serviceName: string | null = null;
-  if (input.serviceId) {
-    const { data: svc } = await db
+  const nameIds = orderedSvc.length > 0 ? orderedSvc : input.serviceId ? [input.serviceId] : [];
+  if (nameIds.length > 0) {
+    const { data: nameRows } = await db
       .from("services")
-      .select("name")
-      .eq("id", input.serviceId)
-      .eq("salon_id", input.salonId)
-      .maybeSingle();
-    serviceName = (svc as { name?: string } | null)?.name ?? null;
+      .select("id, name")
+      .in("id", nameIds)
+      .eq("salon_id", input.salonId);
+    const nmap = Object.fromEntries(
+      (nameRows ?? []).map((n) => [(n as { id: string }).id, (n as { name?: string }).name ?? ""])
+    );
+    const namesOrdered = nameIds.map((id) => nmap[id]).filter(Boolean);
+    serviceName =
+      namesOrdered.length === 0
+        ? null
+        : namesOrdered.length <= 4
+          ? namesOrdered.join(" · ")
+          : `${namesOrdered.slice(0, 4).join(" · ")}…`;
+  }
+
+  const syn = await syncAppointmentServices(db, appointmentId, orderedSvc);
+  if (syn.error) {
+    await db.from("appointments").delete().eq("id", appointmentId);
+    return { error: syn.error };
   }
 
   void sendClientBookingConfirmation({

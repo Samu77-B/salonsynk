@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import type { CreateAppointmentInput } from "./actions";
 
 type Member = { id: string; display_name: string | null; role: string };
@@ -41,7 +41,7 @@ export function AddAppointmentModal({
 }) {
   const [stylistId, setStylistId] = useState(() => resolveInitialStylistId(members, initialStylistId));
   const [clientId, setClientId] = useState<string>("");
-  const [serviceId, setServiceId] = useState<string>("");
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [guestName, setGuestName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -52,6 +52,9 @@ export function AddAppointmentModal({
   const [sendReviewRequest, setSendReviewRequest] = useState(true);
   const [sendAftercare, setSendAftercare] = useState(false);
   const [allowScheduleOverlap, setAllowScheduleOverlap] = useState(false);
+  const [silentService, setSilentService] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientPickerFocused, setClientPickerFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const errorAndOverlapRef = useRef<HTMLDivElement>(null);
@@ -73,13 +76,40 @@ export function AddAppointmentModal({
     }
   }, [clientId, clients]);
 
-  const service = services.find((s) => s.id === serviceId);
   const messagingOn = sendReminderSms || sendReviewRequest || sendAftercare;
   const hasContact = !!(email?.trim() || phone?.trim());
-  const overrideDuration = stylistId && serviceId ? stylistOverrides[stylistId]?.[serviceId] : undefined;
-  const durationMinutes = overrideDuration ?? service?.duration_minutes ?? 60;
 
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null;
+
+  const serviceSummariesForNotes = selectedServiceIds
+    .map((sid) => services.find((x) => x.id === sid))
+    .filter((s): s is Service => s !== undefined);
+
+  const durationMinutes = useMemo(() => {
+    if (serviceSummariesForNotes.length === 0) return 60;
+    let sum = 0;
+    for (const s of serviceSummariesForNotes) {
+      const ov = stylistId ? stylistOverrides[stylistId]?.[s.id] : undefined;
+      sum += ov ?? s.duration_minutes;
+    }
+    return Math.max(15, sum);
+  }, [serviceSummariesForNotes, stylistId, stylistOverrides]);
+
+  const filteredClients = useMemo(() => {
+    const raw = clientSearch.trim();
+    const q = raw.toLowerCase();
+    const digits = raw.replace(/\D/g, "");
+    if (!q.length) return clients.slice(0, 20);
+    return clients.filter((c) => {
+      const name = (c.name ?? "").toLowerCase();
+      const email = (c.email ?? "").toLowerCase();
+      const phoneDigits = (c.phone ?? "").replace(/\D/g, "");
+      if (name.includes(q) || email.includes(q)) return true;
+      if (digits.length >= 3 && phoneDigits.includes(digits)) return true;
+      return false;
+    }).slice(0, 30);
+  }, [clients, clientSearch]);
+
   const skinTestExpired = (() => {
     if (!selectedClient?.last_skin_test_at) return false;
     const testDate = new Date(selectedClient.last_skin_test_at);
@@ -102,7 +132,8 @@ export function AddAppointmentModal({
         salonId,
         stylistId,
         clientId: clientId || null,
-        serviceId: serviceId || null,
+        serviceId: selectedServiceIds[0] ?? null,
+        serviceIds: selectedServiceIds.length > 0 ? selectedServiceIds : undefined,
         startTime: start.toISOString(),
         endTime: end.toISOString(),
         guestName: guestName || null,
@@ -113,6 +144,7 @@ export function AddAppointmentModal({
         sendReviewRequest,
         sendAftercare,
         allowScheduleOverlap,
+        silentService,
       });
       if (result?.error) setSubmitError(result.error);
     } catch (e) {
@@ -123,8 +155,11 @@ export function AddAppointmentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto" onClick={onClose}>
-      <div className="my-auto w-full min-w-0 max-w-md max-h-[90vh] overflow-y-auto rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 pb-8 pt-[max(1rem,env(safe-area-inset-top))] scroll-pt-4 sm:pt-8"
+      onClick={onClose}
+    >
+      <div className="my-auto w-full min-w-0 max-w-md max-h-[calc(100dvh-2.5rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold mb-4">Add appointment</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -140,18 +175,78 @@ export function AddAppointmentModal({
               ))}
             </select>
           </div>
-          <div>
+          <div className="relative z-50">
             <label className="block text-sm font-medium mb-1">Client</label>
-            <select
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Walk-in (guest)</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name || c.email || c.phone || c.id}</option>
-              ))}
-            </select>
+            {selectedClient ? (
+              <div className="flex gap-2 items-center rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                <span className="flex-1 min-w-0 truncate">
+                  {selectedClient.name || selectedClient.email || selectedClient.phone || "Saved client"}
+                </span>
+                <button
+                  type="button"
+                  className="shrink-0 text-sm text-accent hover:underline"
+                  onClick={() => {
+                    setClientId("");
+                    setClientSearch("");
+                  }}
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <>
+                <input
+                  type="search"
+                  autoComplete="off"
+                  placeholder="Search by name, email, or phone"
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  onFocus={() => setClientPickerFocused(true)}
+                  onBlur={() => {
+                    window.setTimeout(() => setClientPickerFocused(false), 150);
+                  }}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  aria-haspopup="listbox"
+                  aria-expanded={clientPickerFocused && filteredClients.length > 0}
+                />
+                {clientPickerFocused && filteredClients.length > 0 && (
+                  <ul
+                    role="listbox"
+                    className="absolute left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-lg border border-border bg-background py-1 shadow-lg z-[60]"
+                  >
+                    {filteredClients.map((c) => (
+                      <li key={c.id} role="option">
+                        <button
+                          type="button"
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted/40"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setClientId(c.id);
+                            setClientSearch("");
+                          }}
+                        >
+                          <span className="font-medium">{c.name || "Unnamed"}</span>
+                          {(c.email || c.phone) && (
+                            <span className="mt-0.5 block text-xs text-muted-foreground truncate">
+                              {[c.email, c.phone].filter(Boolean).join(" · ")}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {clientPickerFocused &&
+                clientSearch.trim().length > 0 &&
+                filteredClients.length === 0 ? (
+                  <p className="mt-2 text-xs text-muted-foreground">No matches — enter a walk-in guest below.</p>
+                ) : (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Focus the field or type to browse clients, or add walk-in guest details below.
+                  </p>
+                )}
+              </>
+            )}
             {selectedClient && (() => {
               const prompts = clientPromptData[selectedClient.id];
               const hasPrompts = skinTestExpired || prompts?.lastVisit || prompts?.lastFormula || prompts?.alertNotes?.length;
@@ -227,27 +322,40 @@ export function AddAppointmentModal({
             </p>
           )}
           <div>
-            <label className="block text-sm font-medium mb-1">Service</label>
-            <select
-              value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Select service</option>
+            <label className="block text-sm font-medium mb-1">Services</label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Select one or more; durations are combined for this appointment ({durationMinutes} min total).
+            </p>
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-border bg-background px-2 py-1 divide-y divide-border">
               {services.map((s) => {
                 const ov = stylistId ? stylistOverrides[stylistId]?.[s.id] : undefined;
                 const dur = ov ?? s.duration_minutes;
+                const checked = selectedServiceIds.includes(s.id);
                 return (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({dur} min{ov !== undefined ? " — custom" : ""})
-                  </option>
+                  <label key={s.id} className="flex cursor-pointer items-start gap-2 py-2 px-1 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 rounded border-border"
+                      checked={checked}
+                      onChange={() => {
+                        setSelectedServiceIds((prev) =>
+                          checked ? prev.filter((id) => id !== s.id) : [...prev, s.id]
+                        );
+                      }}
+                    />
+                    <span className="min-w-0">
+                      <span className="font-medium">{s.name}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {dur} min{ov !== undefined ? " · custom timing" : ""}
+                      </span>
+                    </span>
+                  </label>
                 );
               })}
-            </select>
-            {service && (service.processing_time_minutes ?? 0) > 0 && (
-              <p className="text-xs text-muted mt-1">
-                This service has <strong>{service.processing_time_minutes}</strong> min processing time (e.g. colour developing).
-                Another appointment can overlap that window for the same stylist — configure under the Services tab.
+            </div>
+            {serviceSummariesForNotes.some((s) => (s.processing_time_minutes ?? 0) > 0) && (
+              <p className="text-xs text-muted mt-2">
+                At least one selected service uses processing time — another booking can overlap that window during processing.
               </p>
             )}
           </div>
@@ -282,6 +390,21 @@ export function AddAppointmentModal({
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             />
           </div>
+          <label className="flex items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={silentService}
+              onChange={(e) => setSilentService(e.target.checked)}
+              className="mt-0.5 rounded border-border"
+              aria-label="Quiet session — client prefers minimal conversation"
+            />
+            <span className="text-sm">
+              <span className="font-medium text-foreground">Quiet session</span>
+              <span className="block text-muted-foreground text-xs mt-0.5">
+                Client prefers minimal small talk — same as Silent booking on checkout.
+              </span>
+            </span>
+          </label>
           <div className="rounded-lg border border-border p-3 space-y-2">
             <p className="text-sm font-medium">Messages to client</p>
             <label className="flex items-center gap-2 cursor-pointer">

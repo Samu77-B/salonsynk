@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -29,14 +30,16 @@ export default async function CheckoutPage() {
   return (
     <main className="mx-auto w-full min-w-0 max-w-lg p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-6">Checkout</h1>
-      <CheckoutView
-        salonId={context.salon.id}
-        clients={clientsRes.data ?? []}
-        services={servicesRes.data ?? []}
-        products={productsRes.data ?? []}
-        stylists={stylists}
-        defaultStylistId={defaultStylistId}
-      />
+      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading checkout…</p>}>
+        <CheckoutView
+          salonId={context.salon.id}
+          clients={clientsRes.data ?? []}
+          services={servicesRes.data ?? []}
+          products={productsRes.data ?? []}
+          stylists={stylists}
+          defaultStylistId={defaultStylistId}
+        />
+      </Suspense>
     </main>
   );
 }

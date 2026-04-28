@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { StaffElevationModal } from "@/app/(app)/staff-elevation-modal";
 
 type Client = { id: string; name: string | null; email: string | null };
@@ -23,6 +24,9 @@ export function CheckoutView({
   stylists: Stylist[];
   defaultStylistId: string;
 }) {
+  const searchParams = useSearchParams();
+  const appliedFromUrlRef = useRef(false);
+
   const [clientId, setClientId] = useState("");
   const [stylistId, setStylistId] = useState((defaultStylistId || stylists[0]?.id) ?? "");
   const [walkInName, setWalkInName] = useState("");
@@ -36,6 +40,35 @@ export function CheckoutView({
   const [done, setDone] = useState(false);
   const [elevateOpen, setElevateOpen] = useState(false);
   const [pendingPay, setPendingPay] = useState(false);
+
+  /** Diary "Make Sale" passes ?clientId=&serviceId=&stylistId= */
+  useEffect(() => {
+    if (appliedFromUrlRef.current) return;
+    const cid = searchParams.get("clientId");
+    const tid = searchParams.get("stylistId");
+    const singleSvc = searchParams.get("serviceId");
+    const multiSvc = searchParams.get("serviceIds");
+    let serviceIds: string[] = [];
+    if (multiSvc) serviceIds = multiSvc.split(",").map((s) => s.trim()).filter(Boolean);
+    else if (singleSvc) serviceIds = [singleSvc];
+
+    const validSvc = serviceIds.filter((id) => services.some((s) => s.id === id));
+
+    let applied = false;
+    if (cid && clients.some((c) => c.id === cid)) {
+      setClientId(cid);
+      applied = true;
+    }
+    if (tid && stylists.some((s) => s.id === tid)) {
+      setStylistId(tid);
+      applied = true;
+    }
+    if (validSvc.length > 0) {
+      setSelectedServiceIds(validSvc);
+      applied = true;
+    }
+    if (applied) appliedFromUrlRef.current = true;
+  }, [searchParams, clients, services, stylists]);
 
   const lineServicesMinor = selectedServiceIds.reduce((sum, id) => {
     const s = services.find((x) => x.id === id);

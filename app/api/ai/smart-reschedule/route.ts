@@ -31,6 +31,21 @@ function safeJsonParse(text: string): unknown {
   }
 }
 
+/** Models often wrap JSON in ``` fences or add a short preamble — extract a parsable JSON object. */
+function extractJsonFromModelText(text: string): unknown {
+  const trimmed = text.trim();
+  const fence = /^```(?:json)?\s*\n?([\s\S]*?)\n?```/im.exec(trimmed);
+  const candidate = fence?.[1]?.trim() ?? trimmed;
+  let parsed = safeJsonParse(candidate);
+  if (parsed !== null) return parsed;
+  const start = candidate.indexOf("{");
+  const end = candidate.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    parsed = safeJsonParse(candidate.slice(start, end + 1));
+  }
+  return parsed;
+}
+
 export async function POST(req: Request) {
   const context = await getCurrentUserSalon();
   if (!context) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -113,7 +128,7 @@ Output: Return ONLY strict JSON with this shape:
     return Response.json({ error: msg }, { status: 502 });
   }
 
-  const parsed = safeJsonParse(result.text);
+  const parsed = extractJsonFromModelText(result.text) ?? safeJsonParse(result.text);
   const picks = (parsed as { picks?: unknown })?.picks;
   if (!Array.isArray(picks) || picks.length !== 3) {
     return Response.json({ error: "AI returned an invalid response" }, { status: 502 });

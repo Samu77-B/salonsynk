@@ -3,12 +3,13 @@ import { after } from "next/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getMutateClient } from "@/lib/supabase/mutate-client";
 import { requireStaffElevationOrError } from "@/lib/staff-elevation";
+import { dedupeOrderedServiceIds, syncAppointmentServices } from "./appointment-service-lines";
 import {
   hasBlockingOverlapWithExisting,
   rangeToMinutes,
   type AppointmentBlockingInput,
 } from "@/lib/diary-rules";
-import { fetchAppointmentsForOverlapCheck, type OverlapAppointmentRow } from "./overlap-queries";
+import { fetchAppointmentsForOverlapCheck, processingMinutesFromOverlapRow, type OverlapAppointmentRow } from "./overlap-queries";
 
 /** Values allowed by DB check on `appointments.status` (US spelling for canceled). */
 export const APPOINTMENT_DB_STATUSES = ["scheduled", "completed", "no_show", "canceled"] as const;
@@ -26,6 +27,8 @@ export type UpdateAppointmentInput = {
   stylist_id?: string;
   client_id?: string | null;
   service_id?: string | null;
+  /** Full visit line-items; updates appointments.service_id (first item) + junction rows. */
+  serviceIds?: string[];
   guest_name?: string | null;
   guest_email?: string | null;
   guest_phone?: string | null;
@@ -50,6 +53,7 @@ export async function executeAppointmentPatch(
 ): Promise<{ error: string | null }> {
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
+  const salonId = context.salon.id;
 
   // Staff can "check in" (mark completed) without step-up, but any sensitive changes require elevation.
   const nextStatus =
@@ -62,13 +66,14 @@ export async function executeAppointmentPatch(
       updates.stylist_id !== undefined ||
       updates.client_id !== undefined ||
       updates.service_id !== undefined ||
+      updates.serviceIds !== undefined ||
       updates.guest_email !== undefined ||
       updates.guest_phone !== undefined ||
       updates.status !== undefined);
 
   if (sensitive) {
     const elevationError = await requireStaffElevationOrError({
-      salonId: context.salon.id,
+      salonId,
       memberRole: context.member.role ?? "",
     });
     if (elevationError) return { error: elevationError };
@@ -76,12 +81,18 @@ export async function executeAppointmentPatch(
 
   const db = await getMutateClient();
 
-  if (updates.start_time !== undefined || updates.end_time !== undefined || updates.stylist_id !== undefined) {
+  if (
+    updates.start_time !== undefined ||
+    updates.end_time !== undefined ||
+    updates.stylist_id !== undefined ||
+    updates.service_id !== undefined ||
+    updates.serviceIds !== undefined
+  ) {
     const { data: current } = await db
       .from("appointments")
       .select("start_time, end_time, stylist_id")
       .eq("id", id)
-      .eq("salon_id", context.salon.id)
+      .eq("salon_id", salonId)
       .single();
 
     if (!current) return { error: "Appointment not found" };
@@ -100,33 +111,44 @@ export async function executeAppointmentPatch(
 
     const existing = await fetchAppointmentsForOverlapCheck(
       db,
-      context.salon.id,
+      salonId,
       stylistId,
       dayStart.toISOString(),
       dayEnd.toISOString()
     );
 
-    const serviceIdForProc =
-      updates.service_id !== undefined
-        ? updates.service_id
-        : (
-            await db
-              .from("appointments")
-              .select("service_id")
-              .eq("id", id)
-              .eq("salon_id", context.salon.id)
-              .single()
-          ).data?.service_id;
+    async function resolveProcessingServiceIds(): Promise<string[]> {
+      if (updates.serviceIds !== undefined) return dedupeOrderedServiceIds(updates.serviceIds);
+      if (updates.service_id !== undefined) return updates.service_id ? [updates.service_id] : [];
+      const { data: lines } = await db
+        .from("appointment_services")
+        .select("service_id, sort_order")
+        .eq("appointment_id", id)
+        .order("sort_order", { ascending: true });
+      const fromJn = (lines ?? [])
+        .map((l: { service_id?: string | null }) => l.service_id)
+        .filter((x): x is string => typeof x === "string" && x.length > 0);
+      if (fromJn.length > 0) return dedupeOrderedServiceIds(fromJn);
+      const fk = (
+        await db.from("appointments").select("service_id").eq("id", id).eq("salon_id", salonId).single()
+      ).data?.service_id as string | null | undefined;
+      return fk ? [fk] : [];
+    }
 
+    const procIds = await resolveProcessingServiceIds();
     let newProcessing = 0;
-    if (serviceIdForProc) {
-      const { data: svc } = await db
+    if (procIds.length > 0) {
+      const { data: procRows } = await db
         .from("services")
-        .select("processing_time_minutes")
-        .eq("id", serviceIdForProc)
-        .eq("salon_id", context.salon.id)
-        .maybeSingle();
-      newProcessing = Number(svc?.processing_time_minutes) || 0;
+        .select("id, processing_time_minutes")
+        .in("id", procIds)
+        .eq("salon_id", salonId);
+      if (procRows && procRows.length === procIds.length) {
+        const pmap = Object.fromEntries(
+          procRows.map((r) => [(r as { id: string }).id, Number((r as { processing_time_minutes?: number }).processing_time_minutes) || 0])
+        );
+        newProcessing = Math.max(...procIds.map((sid) => pmap[sid] ?? 0));
+      }
     }
 
     const blockingExisting: AppointmentBlockingInput[] = (existing as OverlapAppointmentRow[])
@@ -135,13 +157,11 @@ export async function executeAppointmentPatch(
         const s = new Date(row.start_time);
         const e = new Date(row.end_time);
         const r = rangeToMinutes(s, e);
-        const svc = row.services as { processing_time_minutes?: number } | { processing_time_minutes?: number }[] | null;
-        const proc = Array.isArray(svc) ? svc[0]?.processing_time_minutes : svc?.processing_time_minutes;
         return {
           id: row.id,
           startMinutes: r.startMinutes,
           endMinutes: r.endMinutes,
-          processingMinutes: Number(proc) || 0,
+          processingMinutes: processingMinutesFromOverlapRow(row),
         };
       });
 
@@ -162,7 +182,10 @@ export async function executeAppointmentPatch(
   if (updates.end_time !== undefined) payload.end_time = updates.end_time;
   if (updates.stylist_id !== undefined) payload.stylist_id = updates.stylist_id;
   if (updates.client_id !== undefined) payload.client_id = updates.client_id;
-  if (updates.service_id !== undefined) payload.service_id = updates.service_id;
+  if (updates.serviceIds !== undefined) {
+    const o = dedupeOrderedServiceIds(updates.serviceIds);
+    payload.service_id = o.length > 0 ? o[0] : null;
+  } else if (updates.service_id !== undefined) payload.service_id = updates.service_id;
   if (updates.guest_name !== undefined) payload.guest_name = updates.guest_name;
   if (updates.guest_email !== undefined) payload.guest_email = updates.guest_email;
   if (updates.guest_phone !== undefined) payload.guest_phone = updates.guest_phone;
@@ -185,13 +208,13 @@ export async function executeAppointmentPatch(
     payload.reminder_sent_at = null;
   }
 
-  if (Object.keys(payload).length === 0) return { error: null };
+  if (Object.keys(payload).length === 0 && updates.serviceIds === undefined) return { error: null };
 
   let { error } = await db
     .from("appointments")
     .update(payload)
     .eq("id", id)
-    .eq("salon_id", context.salon.id);
+    .eq("salon_id", salonId);
 
   if (error) {
     const msg = error.message ?? "";
@@ -203,12 +226,17 @@ export async function executeAppointmentPatch(
         .from("appointments")
         .update(retryPayload)
         .eq("id", id)
-        .eq("salon_id", context.salon.id);
+        .eq("salon_id", salonId);
       error = second.error;
     }
   }
 
   if (error) return { error: error.message };
+
+  if (updates.serviceIds !== undefined) {
+    const syncRes = await syncAppointmentServices(db, id, dedupeOrderedServiceIds(updates.serviceIds));
+    if (syncRes.error) return { error: syncRes.error };
+  }
 
   let revalidateClientId: string | null = null;
   const hasContact = !!(updates.guest_email?.trim() || updates.guest_phone?.trim());
@@ -216,14 +244,14 @@ export async function executeAppointmentPatch(
     const clientId =
       updates.client_id !== undefined
         ? updates.client_id
-        : (await db.from("appointments").select("client_id").eq("id", id).eq("salon_id", context.salon.id).single()).data
+        : (await db.from("appointments").select("client_id").eq("id", id).eq("salon_id", salonId).single()).data
             ?.client_id;
     if (clientId) {
       const clientUpdates: Record<string, unknown> = {};
       if (updates.guest_email?.trim()) clientUpdates.email = updates.guest_email.trim();
       if (updates.guest_phone?.trim()) clientUpdates.phone = updates.guest_phone.trim();
       if (Object.keys(clientUpdates).length > 0) {
-        await db.from("clients").update(clientUpdates).eq("id", clientId).eq("salon_id", context.salon.id);
+        await db.from("clients").update(clientUpdates).eq("id", clientId).eq("salon_id", salonId);
         revalidateClientId = clientId as string;
       }
     }

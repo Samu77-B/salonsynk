@@ -8,6 +8,7 @@ import type { CreateAppointmentInput } from "./actions";
 import { AddAppointmentModal } from "./add-appointment-modal";
 import { EditAppointmentModal } from "./edit-appointment-modal";
 import { validateMoveWithProcessing, type AppointmentBlockingInput } from "@/lib/diary-rules";
+import { dedupeOrderedServiceIds } from "@/lib/appointments/appointment-service-lines";
 import type { UpdateAppointmentInput } from "@/lib/appointments/patch-appointment";
 
 /** Route Handler + JSON — avoids Next.js server-action digest errors on diary saves (add, delete, status, drag, form). */
@@ -89,6 +90,8 @@ type Appointment = {
   guest_phone: string | null;
   stylist_id: string;
   service_id: string | null;
+  /** When loaded from `/dashboard`, junction order for checkout + edit. */
+  service_line_ids?: string[];
   deposit_payment_intent_id?: string | null;
   before_photo_url?: string | null;
   after_photo_url?: string | null;
@@ -110,11 +113,41 @@ function buildCreatedAppointment(
   input: CreateAppointmentInput,
   members: Member[],
   services: Service[],
-  clients: Client[]
+  clients: Client[],
+  stylistOverrides: Record<string, Record<string, number>>
 ): Appointment {
+  const orderedSvc = dedupeOrderedServiceIds(
+    input.serviceIds !== undefined && input.serviceIds.length > 0
+      ? input.serviceIds
+      : input.serviceId
+        ? [input.serviceId]
+        : []
+  );
   const client = input.clientId ? clients.find((c) => c.id === input.clientId) : undefined;
-  const service = input.serviceId ? services.find((s) => s.id === input.serviceId) : undefined;
   const stylist = members.find((m) => m.id === input.stylistId);
+  const svcList = orderedSvc
+    .map((sid) => services.find((s) => s.id === sid))
+    .filter((s): s is Service => s !== undefined);
+
+  let servicesBlock: Appointment["services"] = null;
+  if (svcList.length === 1) {
+    servicesBlock = {
+      name: svcList[0].name,
+      duration_minutes: svcList[0].duration_minutes,
+      processing_time_minutes: svcList[0].processing_time_minutes ?? 0,
+    };
+  } else if (svcList.length > 1) {
+    const durSum = svcList.reduce((acc, s) => {
+      const ov = stylistOverrides[input.stylistId]?.[s.id];
+      return acc + (ov ?? s.duration_minutes);
+    }, 0);
+    servicesBlock = {
+      name: svcList.map((s) => s.name).join(" · "),
+      duration_minutes: durSum,
+      processing_time_minutes: Math.max(...svcList.map((s) => s.processing_time_minutes ?? 0)),
+    };
+  }
+
   return {
     id,
     start_time: input.startTime,
@@ -126,18 +159,13 @@ function buildCreatedAppointment(
     guest_email: input.guestEmail ?? null,
     guest_phone: input.guestPhone ?? null,
     stylist_id: input.stylistId,
-    service_id: input.serviceId,
+    service_id: orderedSvc[0] ?? input.serviceId ?? null,
+    service_line_ids: orderedSvc.length > 0 ? orderedSvc : undefined,
     send_reminder_sms: input.sendReminderSms,
     send_review_request: input.sendReviewRequest,
     send_aftercare: input.sendAftercare,
     clients: client ? { name: client.name, email: client.email, phone: client.phone } : null,
-    services: service
-      ? {
-          name: service.name,
-          duration_minutes: service.duration_minutes,
-          processing_time_minutes: service.processing_time_minutes ?? 0,
-        }
-      : null,
+    services: servicesBlock,
     salon_members: stylist ? { display_name: stylist.display_name } : null,
   };
 }
@@ -632,7 +660,14 @@ export function DiaryView({
     if (apt) {
       const params = new URLSearchParams();
       if (apt.client_id) params.set("clientId", apt.client_id);
-      if (apt.service_id) params.set("serviceId", apt.service_id);
+      const lineIds =
+        apt.service_line_ids && apt.service_line_ids.length > 0
+          ? apt.service_line_ids
+          : apt.service_id
+            ? [apt.service_id]
+            : [];
+      if (lineIds.length === 1 && lineIds[0]) params.set("serviceId", lineIds[0]);
+      if (lineIds.length > 1) params.set("serviceIds", lineIds.join(","));
       params.set("stylistId", apt.stylist_id);
       router.push(`/checkout?${params.toString()}`);
     } else {
@@ -860,14 +895,22 @@ export function DiaryView({
     if (!smartReschedule) return;
     const id = smartReschedule.appointmentId;
     setSmartReschedule((prev) => (prev ? { ...prev, loading: true, error: null } : prev));
-    const result = await patchAppointmentViaApi(id, { start_time: pick.startIso, end_time: pick.endIso });
-    if (result.error) {
-      setSmartReschedule((prev) => (prev ? { ...prev, loading: false, error: result.error } : prev));
-      return;
+    try {
+      const result = await patchAppointmentViaApi(id, { start_time: pick.startIso, end_time: pick.endIso });
+      if (result.error) {
+        setSmartReschedule((prev) => (prev ? { ...prev, loading: false, error: result.error } : prev));
+        return;
+      }
+      await sendConfirmationSMSMock({ appointmentId: id, clientName, startIso: pick.startIso });
+      setSmartReschedule(null);
+      scheduleRouterRefresh(router);
+    } catch (e) {
+      const msg =
+        e instanceof Error
+          ? e.message
+          : "Something went wrong while rescheduling. Please try again or refresh.";
+      setSmartReschedule((prev) => (prev ? { ...prev, loading: false, error: msg } : prev));
     }
-    await sendConfirmationSMSMock({ appointmentId: id, clientName, startIso: pick.startIso });
-    setSmartReschedule(null);
-    scheduleRouterRefresh(router);
   }
 
   async function confirmRunningLate() {
@@ -1137,7 +1180,19 @@ export function DiaryView({
                             className="relative flex-1 min-w-[100px] border-l border-border first:border-l-0"
                           >
                             <div
-                              className="absolute inset-0 z-0 cursor-crosshair"
+                              className="pointer-events-none absolute inset-0 z-[1]"
+                              aria-hidden
+                            >
+                              {Array.from({ length: gridSpanMins / 15 }).map((_, qi) => (
+                                <div
+                                  key={qi}
+                                  className={`absolute left-0 right-0 ${qi % 2 === 1 ? "bg-muted/25 dark:bg-white/[0.04]" : "bg-transparent"}`}
+                                  style={{ top: `${qi * 15 * pxPerMin}px`, height: `${15 * pxPerMin}px` }}
+                                />
+                              ))}
+                            </div>
+                            <div
+                              className="absolute inset-0 z-[3] cursor-crosshair"
                               onDragOver={(e) => {
                                 e.preventDefault();
                                 e.dataTransfer.dropEffect = "move";
@@ -1506,7 +1561,7 @@ export function DiaryView({
               if (result.appointmentId) {
                 setOptimisticAppointments((prev) => [
                   ...prev,
-                  buildCreatedAppointment(result.appointmentId!, data, members, services, clients),
+                  buildCreatedAppointment(result.appointmentId!, data, members, services, clients, stylistOverrides),
                 ]);
               } else {
                 scheduleRouterRefresh(router);

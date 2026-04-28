@@ -113,7 +113,8 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
         deposit_payment_intent_id, before_photo_url, after_photo_url, change_charge_minor,
         clients(name, email, phone),
         services(name, duration_minutes, processing_time_minutes),
-        salon_members(display_name)
+        salon_members(display_name),
+        appointment_services(sort_order, service_id, services(name, duration_minutes, processing_time_minutes))
       `;
       const minimalSelect = `
         id, start_time, end_time, status, notes,
@@ -258,7 +259,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
     // client_photos table may not exist yet — gracefully degrade
   }
 
-  const appointments = (appointmentsRes.data ?? []) as unknown as {
+  type RawApptRow = {
     id: string;
     start_time: string;
     end_time: string;
@@ -270,6 +271,68 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
     guest_phone: string | null;
     stylist_id: string;
     service_id: string | null;
+    deposit_payment_intent_id?: string | null;
+    before_photo_url?: string | null;
+    after_photo_url?: string | null;
+    send_reminder_sms?: boolean;
+    send_review_request?: boolean;
+    send_aftercare?: boolean;
+    clients: { name: string | null; email: string | null; phone: string | null } | { name: string | null; email: string | null; phone: string | null }[] | null;
+    services: { name: string; duration_minutes: number; processing_time_minutes?: number } | { name: string; duration_minutes: number; processing_time_minutes?: number }[] | null;
+    salon_members: { display_name: string | null } | { display_name: string | null }[] | null;
+    appointment_services?: {
+      sort_order: number;
+      service_id: string;
+      services: { name: string; duration_minutes: number; processing_time_minutes?: number } | null;
+    }[] | null;
+  };
+
+  const appointments = ((appointmentsRes.data ?? []) as unknown as RawApptRow[]).map((a) => {
+    const lines = Array.isArray(a.appointment_services) ? [...a.appointment_services] : [];
+    lines.sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0));
+    const ids = lines.map((l) => l.service_id).filter(Boolean);
+    const service_line_ids = ids.length > 0 ? ids : a.service_id ? [a.service_id] : [];
+
+    let services = a.services;
+    if (lines.length > 1) {
+      const names: string[] = [];
+      let durSum = 0;
+      let procMax = 0;
+      for (const l of lines) {
+        const svc = l.services;
+        if (svc?.name) names.push(svc.name);
+        durSum += Number(svc?.duration_minutes) || 0;
+        procMax = Math.max(procMax, Number(svc?.processing_time_minutes) || 0);
+      }
+      services = {
+        name: names.join(" · "),
+        duration_minutes: durSum,
+        processing_time_minutes: procMax,
+      };
+    } else if (lines.length === 1 && lines[0].services) {
+      const svc = lines[0].services;
+      services = {
+        name: svc.name,
+        duration_minutes: Number(svc.duration_minutes) || 60,
+        processing_time_minutes: Number(svc.processing_time_minutes) || 0,
+      };
+    }
+
+    const { appointment_services: _, ...rest } = a;
+    return { ...rest, services, service_line_ids };
+  }) as {
+    id: string;
+    start_time: string;
+    end_time: string;
+    status: string;
+    notes: string | null;
+    client_id: string | null;
+    guest_name: string | null;
+    guest_email: string | null;
+    guest_phone: string | null;
+    stylist_id: string;
+    service_id: string | null;
+    service_line_ids: string[];
     deposit_payment_intent_id?: string | null;
     before_photo_url?: string | null;
     after_photo_url?: string | null;

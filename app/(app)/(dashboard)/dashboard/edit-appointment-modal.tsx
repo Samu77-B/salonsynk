@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { AppointmentDbStatus, UpdateAppointmentInput } from "./actions";
 import { uploadAppointmentPhoto } from "./actions";
@@ -33,7 +33,7 @@ function mapSubmitCatchError(e: unknown, router: ReturnType<typeof useRouter>): 
 }
 
 type Member = { id: string; display_name: string | null; role: string };
-type Service = { id: string; name: string; duration_minutes: number };
+type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number };
 type Client = { id: string; name: string | null; email: string | null; phone: string | null; last_skin_test_at?: string | null };
 type Appointment = {
   id: string;
@@ -49,11 +49,23 @@ type Appointment = {
   guest_phone: string | null;
   stylist_id: string;
   service_id: string | null;
+  /** From appointment_services junction (dashboard load). */
+  service_line_ids?: string[];
   notes: string | null;
   send_reminder_sms?: boolean;
   send_review_request?: boolean;
   send_aftercare?: boolean;
 };
+
+function svcIdsSignature(ids: string[]): string {
+  return [...ids].sort().join("|");
+}
+
+function initialAppointmentServiceIds(appointment: Appointment): string[] {
+  const line = appointment.service_line_ids?.filter(Boolean) ?? [];
+  if (line.length > 0) return line;
+  return appointment.service_id ? [appointment.service_id] : [];
+}
 
 function timeFromISO(iso: string): string {
   const d = new Date(iso);
@@ -205,7 +217,9 @@ export function EditAppointmentModal({
   const client = clients.find((c) => c.id === appointment.client_id);
   const [stylistId, setStylistId] = useState(appointment.stylist_id);
   const [clientId, setClientId] = useState(appointment.client_id ?? "");
-  const [serviceId, setServiceId] = useState(appointment.service_id ?? "");
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(() =>
+    initialAppointmentServiceIds(appointment)
+  );
   const [guestName, setGuestName] = useState(appointment.guest_name ?? "");
   const [email, setEmail] = useState(appointment.guest_email ?? client?.email ?? "");
   const [phone, setPhone] = useState(appointment.guest_phone ?? client?.phone ?? "");
@@ -240,7 +254,7 @@ export function EditAppointmentModal({
     const c = clients.find((x) => x.id === appointment.client_id);
     setStylistId(appointment.stylist_id);
     setClientId(appointment.client_id ?? "");
-    setServiceId(appointment.service_id ?? "");
+    setSelectedServiceIds(initialAppointmentServiceIds(appointment));
     setGuestName(appointment.guest_name ?? "");
     setEmail(appointment.guest_email ?? c?.email ?? "");
     setPhone(appointment.guest_phone ?? c?.phone ?? "");
@@ -259,9 +273,19 @@ export function EditAppointmentModal({
   const messagingOn = sendReminderSms || sendReviewRequest || sendAftercare;
   const hasContact = !!(email?.trim() || phone?.trim());
 
-  const service = services.find((s) => s.id === serviceId);
-  const overrideDuration = stylistId && serviceId ? stylistOverrides[stylistId]?.[serviceId] : undefined;
-  const durationMinutes = overrideDuration ?? service?.duration_minutes ?? 60;
+  const svcRows = selectedServiceIds
+    .map((sid) => services.find((s) => s.id === sid))
+    .filter((s): s is Service => s !== undefined);
+
+  const durationMinutes = useMemo(() => {
+    if (svcRows.length === 0) return 60;
+    let sum = 0;
+    for (const s of svcRows) {
+      const ov = stylistId ? stylistOverrides[stylistId]?.[s.id] : undefined;
+      sum += ov ?? s.duration_minutes;
+    }
+    return Math.max(15, sum);
+  }, [svcRows, stylistId, stylistOverrides]);
 
   async function applyStatus(next: AppointmentDbStatus, confirmMessage?: string) {
     if (confirmMessage && !confirm(confirmMessage)) return;
@@ -285,7 +309,8 @@ export function EditAppointmentModal({
     return {
       stylist_id: stylistId,
       client_id: clientId || null,
-      service_id: serviceId || null,
+      service_id: selectedServiceIds[0] ?? null,
+      serviceIds: selectedServiceIds,
       guest_name: guestName || null,
       guest_email: email?.trim() || null,
       guest_phone: phone?.trim() || null,
@@ -307,7 +332,8 @@ export function EditAppointmentModal({
     const timeChanged = data.start_time !== undefined && (
       origDate !== date || origTime !== time
     );
-    const serviceChanged = data.service_id !== undefined && data.service_id !== appointment.service_id;
+    const serviceChanged =
+      svcIdsSignature(selectedServiceIds) !== svcIdsSignature(initialAppointmentServiceIds(appointment));
     return timeChanged || serviceChanged;
   }
 
@@ -489,23 +515,35 @@ export function EditAppointmentModal({
             </p>
           )}
           <div>
-            <label className="block text-sm font-medium mb-1">Service</label>
-            <select
-              value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Select service</option>
+            <label className="block text-sm font-medium mb-1">Services</label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Combined duration for this appointment: {durationMinutes} min.
+            </p>
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-border bg-background px-2 py-1 divide-y divide-border">
               {services.map((s) => {
                 const ov = stylistId ? stylistOverrides[stylistId]?.[s.id] : undefined;
                 const dur = ov ?? s.duration_minutes;
+                const checked = selectedServiceIds.includes(s.id);
                 return (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({dur} min{ov !== undefined ? " — custom" : ""})
-                  </option>
+                  <label key={s.id} className="flex cursor-pointer items-start gap-2 py-2 px-1 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 rounded border-border"
+                      checked={checked}
+                      onChange={() => {
+                        setSelectedServiceIds((prev) =>
+                          checked ? prev.filter((id) => id !== s.id) : [...prev, s.id]
+                        );
+                      }}
+                    />
+                    <span className="min-w-0">
+                      <span className="font-medium">{s.name}</span>
+                      <span className="block text-xs text-muted-foreground">{dur} min</span>
+                    </span>
+                  </label>
                 );
               })}
-            </select>
+            </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
             <div className="flex-1 min-w-0">
