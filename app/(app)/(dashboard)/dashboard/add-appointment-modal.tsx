@@ -176,26 +176,32 @@ export function AddAppointmentModal({
             </select>
           </div>
           <div className="relative z-50">
-            <label className="block text-sm font-medium mb-1">Client</label>
             {selectedClient ? (
-              <div className="flex gap-2 items-center rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                <span className="flex-1 min-w-0 truncate">
-                  {selectedClient.name || selectedClient.email || selectedClient.phone || "Saved client"}
-                </span>
-                <button
-                  type="button"
-                  className="shrink-0 text-sm text-accent hover:underline"
-                  onClick={() => {
-                    setClientId("");
-                    setClientSearch("");
-                  }}
-                >
-                  Change
-                </button>
-              </div>
+              <>
+                <label className="block text-sm font-medium mb-1">Client</label>
+                <div className="flex gap-2 items-center rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                  <span className="flex-1 min-w-0 truncate">
+                    {selectedClient.name || selectedClient.email || selectedClient.phone || "Saved client"}
+                  </span>
+                  <button
+                    type="button"
+                    className="shrink-0 text-sm text-accent hover:underline"
+                    onClick={() => {
+                      setClientId("");
+                      setClientSearch("");
+                    }}
+                  >
+                    Change
+                  </button>
+                </div>
+              </>
             ) : (
               <>
+                <label className="block text-sm font-medium mb-1" htmlFor="add-appointment-client-search">
+                  Client
+                </label>
                 <input
+                  id="add-appointment-client-search"
                   type="search"
                   autoComplete="off"
                   placeholder="Search by name, email, or phone"
@@ -206,18 +212,19 @@ export function AddAppointmentModal({
                     window.setTimeout(() => setClientPickerFocused(false), 150);
                   }}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  aria-haspopup="listbox"
-                  aria-expanded={clientPickerFocused && filteredClients.length > 0}
                 />
                 {clientPickerFocused && filteredClients.length > 0 && (
                   <ul
                     role="listbox"
+                    aria-label="Matching clients"
                     className="absolute left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-lg border border-border bg-background py-1 shadow-lg z-[60]"
                   >
                     {filteredClients.map((c) => (
-                      <li key={c.id} role="option">
+                      <li key={c.id} role="presentation">
                         <button
                           type="button"
+                          role="option"
+                          aria-selected={clientId === c.id}
                           className="w-full px-3 py-2 text-left text-sm hover:bg-muted/40"
                           onMouseDown={(e) => {
                             e.preventDefault();

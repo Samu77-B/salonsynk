@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { upsertStaffTarget, deleteStaffTarget, type TargetType, type TargetPeriod } from "./actions";
 
@@ -195,7 +196,13 @@ export function TargetsView({
                   <div key={m.id} className="rounded-xl border border-border bg-white/[0.03] p-4 space-y-3">
                     <div className="flex items-center gap-3">
                       {m.avatar_url ? (
-                        <img src={m.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        <Image
+                          src={m.avatar_url}
+                          alt=""
+                          width={40}
+                          height={40}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-sm font-bold text-accent">
                           {(m.display_name || "?")[0].toUpperCase()}
