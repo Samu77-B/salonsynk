@@ -136,7 +136,7 @@ export function AddAppointmentModal({
         serviceIds: selectedServiceIds.length > 0 ? selectedServiceIds : undefined,
         startTime: start.toISOString(),
         endTime: end.toISOString(),
-        guestName: guestName || null,
+        guestName: clientId ? null : guestName?.trim() || null,
         guestEmail: email?.trim() || null,
         guestPhone: phone?.trim() || null,
         notes: notes || null,
@@ -156,10 +156,10 @@ export function AddAppointmentModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 pb-8 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6 sm:pt-4"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 pb-10 pt-[max(0.125rem,env(safe-area-inset-top))] sm:px-6 sm:pt-2 sm:pb-12"
       onClick={onClose}
     >
-      <div className="mt-0 w-full min-w-0 max-w-md max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full min-w-0 max-w-md max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold mb-4">Add appointment</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -178,7 +178,7 @@ export function AddAppointmentModal({
           <div className="relative z-50">
             {selectedClient ? (
               <>
-                <label className="block text-sm font-medium mb-1">Client</label>
+                <label className="block text-sm font-medium mb-1">Saved client</label>
                 <div className="flex gap-2 items-center rounded-lg border border-border bg-background px-3 py-2 text-sm">
                   <span className="flex-1 min-w-0 truncate">
                     {selectedClient.name || selectedClient.email || selectedClient.phone || "Saved client"}
@@ -198,7 +198,7 @@ export function AddAppointmentModal({
             ) : (
               <>
                 <label className="block text-sm font-medium mb-1" htmlFor="add-appointment-client-search">
-                  Client
+                  Saved client
                 </label>
                 <input
                   id="add-appointment-client-search"
@@ -228,6 +228,7 @@ export function AddAppointmentModal({
                           className="w-full px-3 py-2 text-left text-sm hover:bg-muted/40"
                           onMouseDown={(e) => {
                             e.preventDefault();
+                            setGuestName("");
                             setClientId(c.id);
                             setClientSearch("");
                           }}
@@ -243,15 +244,9 @@ export function AddAppointmentModal({
                     ))}
                   </ul>
                 )}
-                {clientPickerFocused &&
-                clientSearch.trim().length > 0 &&
-                filteredClients.length === 0 ? (
-                  <p className="mt-2 text-xs text-muted-foreground">No matches — enter a walk-in guest below.</p>
-                ) : (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Focus the field or type to browse clients, or add walk-in guest details below.
-                  </p>
-                )}
+                {clientPickerFocused && clientSearch.trim().length > 0 && filteredClients.length === 0 ? (
+                  <p className="mt-2 text-xs text-muted-foreground">No matches — use Walk-in guest below instead.</p>
+                ) : null}
               </>
             )}
             {selectedClient && (() => {
@@ -289,41 +284,77 @@ export function AddAppointmentModal({
               );
             })()}
           </div>
-          {!clientId && (
-            <div>
-              <label className="block text-sm font-medium mb-1">Guest name</label>
-              <input
-                type="text"
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                placeholder="Name"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
+          {clientId ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="block text-sm font-medium mb-1">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="client@example.com"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="07xxx xxxxxx"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+              <p className="text-xs font-medium text-muted-foreground leading-snug">
+                Walk-in guest{" "}
+                <span className="font-normal opacity-90">
+                  (not linked to your client list — name appears on this booking only.)
+                </span>
+              </p>
+              <div>
+                <label className="block text-sm font-medium mb-1">Name</label>
+                <input
+                  type="text"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder="For the diary column"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="client@example.com"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="07xxx xxxxxx"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              {!hasContact && (
+                <p className="text-sm text-amber-600">
+                  No email or phone – we can&apos;t send a booking confirmation or reminders.
+                </p>
+              )}
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="client@example.com"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Phone</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="07xxx xxxxxx"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
-          {!hasContact && (
+          {clientId && !hasContact && (
             <p className="text-sm text-amber-600">
               No email or phone – we can&apos;t send a booking confirmation or reminders.
             </p>
