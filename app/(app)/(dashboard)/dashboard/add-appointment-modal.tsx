@@ -442,37 +442,37 @@ export function AddAppointmentModal({
                   />
                 </div>
               </div>
+              <ServicePickerField
+                id="add-appointment-service-search"
+                services={services}
+                stylistId={stylistId}
+                stylistOverrides={stylistOverrides}
+                selectedIds={selectedServiceIds}
+                onSelectedIdsChange={setSelectedServiceIds}
+                hint={`Type to add one or more; durations are combined for this appointment (${durationMinutes} min total).`}
+              />
+              {serviceSummariesForNotes.some((s) => (s.processing_time_minutes ?? 0) > 0) && (
+                <p className="text-xs text-muted-foreground">
+                  At least one selected service uses processing time — another booking can overlap that window during processing.
+                </p>
+              )}
+              <label className="flex items-start gap-2 rounded-lg border border-border bg-background px-3 py-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={silentService}
+                  onChange={(e) => setSilentService(e.target.checked)}
+                  className="mt-0.5 rounded border-border"
+                  aria-label="Quiet session — client prefers minimal conversation"
+                />
+                <span className="text-sm">
+                  <span className="font-medium text-foreground">Quiet session</span>
+                  <span className="block text-muted-foreground text-xs mt-0.5">
+                    Client prefers minimal small talk — same as Silent booking on checkout.
+                  </span>
+                </span>
+              </label>
             </div>
           </div>
-          <ServicePickerField
-            id="add-appointment-service-search"
-            services={services}
-            stylistId={stylistId}
-            stylistOverrides={stylistOverrides}
-            selectedIds={selectedServiceIds}
-            onSelectedIdsChange={setSelectedServiceIds}
-            hint={`Type to add one or more; durations are combined for this appointment (${durationMinutes} min total).`}
-          />
-          {serviceSummariesForNotes.some((s) => (s.processing_time_minutes ?? 0) > 0) && (
-            <p className="text-xs text-muted">
-              At least one selected service uses processing time — another booking can overlap that window during processing.
-            </p>
-          )}
-          <label className="flex items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={silentService}
-              onChange={(e) => setSilentService(e.target.checked)}
-              className="mt-0.5 rounded border-border"
-              aria-label="Quiet session — client prefers minimal conversation"
-            />
-            <span className="text-sm">
-              <span className="font-medium text-foreground">Quiet session</span>
-              <span className="block text-muted-foreground text-xs mt-0.5">
-                Client prefers minimal small talk — same as Silent booking on checkout.
-              </span>
-            </span>
-          </label>
           <div className="rounded-lg border border-border p-3 space-y-2">
             <p className="text-sm font-medium">Messages to client</p>
             <label className="flex items-center gap-2 cursor-pointer">
