@@ -1206,11 +1206,11 @@ export function DiaryView({
                                 slot.setHours(startHour, 0, 0, 0);
                                 slot.setMinutes(slot.getMinutes() + minsFromStart);
                                 const stylistLabel = member.display_name || member.role || "Stylist";
-                                /** Tight gap from pointer tip — top-left of tooltip anchored near cursor */
+                                /** Portal to document.body so coords match pointer (Reveal’s transform breaks fixed inside it) */
                                 const pad = 8;
                                 const approxW = Math.min(220, window.innerWidth - 2 * pad);
                                 const approxH = 48;
-                                const gap = 4;
+                                const gap = 2;
                                 let left = e.clientX + gap;
                                 let top = e.clientY + gap;
                                 if (left + approxW > window.innerWidth - pad) {
@@ -1536,20 +1536,24 @@ export function DiaryView({
         </div>
       )}
 
-      {view === "day" && slotHover && (
-        <div
-          className="pointer-events-none fixed z-[100] max-w-[min(220px,calc(100vw-1rem))] rounded-md border border-zinc-600/80 bg-zinc-950/95 px-2 py-1 text-[11px] leading-tight text-zinc-100 shadow-lg shadow-black/40 ring-1 ring-black/30"
-          style={{
-            left: slotHover.tooltipX,
-            top: slotHover.tooltipY,
-          }}
-          role="status"
-          aria-live="polite"
-        >
-          <div className="font-semibold tabular-nums text-zinc-50">{slotHover.timeLabel}</div>
-          <div className="truncate text-zinc-400">{slotHover.stylistLabel}</div>
-        </div>
-      )}
+      {typeof window !== "undefined" &&
+        view === "day" &&
+        slotHover &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[100] max-w-[min(220px,calc(100vw-1rem))] rounded-md border border-zinc-600/80 bg-zinc-950/95 px-2 py-1 text-[11px] leading-tight text-zinc-100 shadow-lg shadow-black/40 ring-1 ring-black/30"
+            style={{
+              left: slotHover.tooltipX,
+              top: slotHover.tooltipY,
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            <div className="font-semibold tabular-nums text-zinc-50">{slotHover.timeLabel}</div>
+            <div className="truncate text-zinc-400">{slotHover.stylistLabel}</div>
+          </div>,
+          document.body
+        )}
 
       <p className="text-xs text-muted px-1">
         Day: hover for snapped time (label follows your pointer), click empty space to add there; drag to reschedule. Week:
