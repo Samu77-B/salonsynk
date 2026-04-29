@@ -13,6 +13,11 @@ function resolveInitialStylistId(members: Member[], initialStylistId?: string | 
   return members[0]?.id ?? "";
 }
 
+function resolveInitialClientId(clientsList: Client[], initialClientId?: string | null) {
+  if (initialClientId && clientsList.some((c) => c.id === initialClientId)) return initialClientId;
+  return "";
+}
+
 export function AddAppointmentModal({
   salonId,
   members,
@@ -21,6 +26,7 @@ export function AddAppointmentModal({
   currentDate,
   initialStylistId,
   initialTimeHHmm,
+  initialClientId,
   stylistOverrides = {},
   clientPromptData = {},
   entryAnimation = "from-top",
@@ -36,6 +42,8 @@ export function AddAppointmentModal({
   initialStylistId?: string | null;
   /** HH:mm (24h) for the clicked slot */
   initialTimeHHmm?: string | null;
+  /** Pre-select a saved client (e.g. “Book next” from Checkout). */
+  initialClientId?: string | null;
   stylistOverrides?: Record<string, Record<string, number>>;
   clientPromptData?: Record<string, { lastVisit?: string; lastFormula?: string; alertNotes?: string[] }>;
   entryAnimation?: "from-top" | "none";
@@ -43,7 +51,7 @@ export function AddAppointmentModal({
   onClose: () => void;
 }) {
   const [stylistId, setStylistId] = useState(() => resolveInitialStylistId(members, initialStylistId));
-  const [clientId, setClientId] = useState<string>("");
+  const [clientId, setClientId] = useState(() => resolveInitialClientId(clients, initialClientId));
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [guestName, setGuestName] = useState("");
   const [email, setEmail] = useState("");
@@ -94,6 +102,11 @@ export function AddAppointmentModal({
       panel.style.removeProperty("transform");
     };
   }, [entryAnimation]);
+
+  useEffect(() => {
+    const resolved = resolveInitialClientId(clients, initialClientId);
+    if (resolved) setClientId(resolved);
+  }, [initialClientId, clients]);
 
   useEffect(() => {
     if (submitError) {

@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import type { CreateAppointmentInput } from "./actions";
 import { AddAppointmentModal } from "./add-appointment-modal";
 import { EditAppointmentModal, type EditModalEntryAnchor } from "./edit-appointment-modal";
@@ -519,16 +519,19 @@ export function DiaryView({
     tooltipX: number;
     tooltipY: number;
   } | null>(null);
-  const [addPrefill, setAddPrefill] = useState<{ stylistId: string; timeHHmm: string } | null>(null);
+  const [addPrefill, setAddPrefill] = useState<{ stylistId?: string; timeHHmm?: string; clientId?: string } | null>(null);
   const [addModalKey, setAddModalKey] = useState(0);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const consumedAddQueryRef = useRef(false);
 
-  function openAddModal(prefill: { stylistId: string; timeHHmm: string } | null) {
+  const openAddModal = useCallback((prefill: { stylistId?: string; timeHHmm?: string; clientId?: string } | null) => {
     setAddPrefill(prefill);
     setAddModalKey((k) => k + 1);
     setSlotHover(null);
     setAddOpen(true);
-  }
+  }, []);
 
   const openEditFromDiary = useCallback((appointmentId: string, e: React.MouseEvent<Element>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -540,6 +543,24 @@ export function DiaryView({
     setEditId(null);
     setEditEntryAnchor(null);
   }, []);
+
+  // Opens add-appointment modal from Checkout "Book next" deep link (?addAppointmentClient=…&prefillStylist=…).
+  useEffect(() => {
+    if (consumedAddQueryRef.current) return;
+    const cid = searchParams.get("addAppointmentClient");
+    if (!cid?.trim()) return;
+    if (!clients.some((c) => c.id === cid.trim())) return;
+    const st = searchParams.get("prefillStylist");
+    const stylistOk = !!(st?.trim() && members.some((m) => m.id === st.trim()));
+    consumedAddQueryRef.current = true;
+    openAddModal(
+      stylistOk
+        ? { clientId: cid.trim(), stylistId: st!.trim(), timeHHmm: "09:00" }
+        : { clientId: cid.trim(), timeHHmm: "09:00" }
+    );
+    const path = pathname || "/dashboard";
+    router.replace(path, { scroll: false });
+  }, [clients, members, pathname, router, searchParams, openAddModal]);
 
   useEffect(() => {
     const ids = new Set(appointmentsFromServer.map((a) => a.id));
@@ -1643,6 +1664,7 @@ export function DiaryView({
           currentDate={currentDate}
           initialStylistId={addPrefill?.stylistId ?? undefined}
           initialTimeHHmm={addPrefill?.timeHHmm ?? undefined}
+          initialClientId={addPrefill?.clientId ?? undefined}
           stylistOverrides={stylistOverrides}
           clientPromptData={clientPromptData}
           entryAnimation="from-top"

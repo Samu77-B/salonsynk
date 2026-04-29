@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { StaffElevationModal } from "@/app/(app)/staff-elevation-modal";
 
@@ -40,8 +41,13 @@ export function CheckoutView({
   const [done, setDone] = useState(false);
   const [elevateOpen, setElevateOpen] = useState(false);
   const [pendingPay, setPendingPay] = useState(false);
+  const [visitServiceIds, setVisitServiceIds] = useState<string[]>([]);
+  const [visitLoading, setVisitLoading] = useState(false);
+  const [extraSearch, setExtraSearch] = useState("");
+  const [extraOpen, setExtraOpen] = useState(false);
+  const extraBlurTimer = useRef<number | null>(null);
 
-  /** Diary "Make Sale" passes ?clientId=&serviceId=&stylistId= */
+  /** Diary "Make Sale" passes ?clientId=&serviceId=&serviceIds=&stylistId= */
   useEffect(() => {
     if (appliedFromUrlRef.current) return;
     const cid = searchParams.get("clientId");
@@ -70,6 +76,35 @@ export function CheckoutView({
     if (applied) appliedFromUrlRef.current = true;
   }, [searchParams, clients, services, stylists]);
 
+  useEffect(() => {
+    if (!clientId?.trim() || !stylistId?.trim()) {
+      setVisitServiceIds([]);
+      setVisitLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setVisitLoading(true);
+    const q = `/api/checkout/relevant-visit?clientId=${encodeURIComponent(clientId)}&stylistId=${encodeURIComponent(stylistId)}`;
+    fetch(q, { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((data: { serviceIds?: unknown }) => {
+        if (cancelled) return;
+        const ids = Array.isArray(data.serviceIds) ? data.serviceIds.filter((x): x is string => typeof x === "string") : [];
+        setVisitServiceIds(ids);
+        setSelectedServiceIds((prev) => (prev.length > 0 ? prev : ids));
+        setVisitLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setVisitServiceIds([]);
+          setVisitLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, stylistId]);
+
   const lineServicesMinor = selectedServiceIds.reduce((sum, id) => {
     const s = services.find((x) => x.id === id);
     return sum + (s?.price_minor ?? 0);
@@ -80,6 +115,19 @@ export function CheckoutView({
   }, 0);
   const lineTotalMinor = lineServicesMinor + lineProductsMinor;
   const totalMinor = customAmountMinor ?? lineTotalMinor;
+
+  const extraServiceMatches = useMemo(() => {
+    const q = extraSearch.trim().toLowerCase();
+    if (q.length < 1) return [];
+    return services
+      .filter((s) => !selectedServiceIds.includes(s.id) && (s.name ?? "").toLowerCase().includes(q))
+      .slice(0, 16);
+  }, [extraSearch, services, selectedServiceIds]);
+
+  const bookNextHref =
+    clientId && stylistId
+      ? `/dashboard?addAppointmentClient=${encodeURIComponent(clientId)}&prefillStylist=${encodeURIComponent(stylistId)}`
+      : null;
 
   async function handlePay() {
     if (!cancellationPolicyAccepted) {
@@ -152,7 +200,10 @@ export function CheckoutView({
         <label className="block text-sm font-medium mb-1">Stylist</label>
         <select
           value={stylistId}
-          onChange={(e) => setStylistId(e.target.value)}
+          onChange={(e) => {
+            setStylistId(e.target.value);
+            setSelectedServiceIds([]);
+          }}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
           aria-label="Stylist"
         >
@@ -167,7 +218,10 @@ export function CheckoutView({
         <label className="block text-sm font-medium mb-1">Client</label>
         <select
           value={clientId}
-          onChange={(e) => setClientId(e.target.value)}
+          onChange={(e) => {
+            setClientId(e.target.value);
+            setSelectedServiceIds([]);
+          }}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
           aria-label="Client"
         >
@@ -189,23 +243,119 @@ export function CheckoutView({
           />
         </div>
       )}
-      <div>
-        <label className="block text-sm font-medium mb-1">Services</label>
-        {services.map((s) => (
-          <label key={s.id} className="flex items-center gap-2 py-1">
-            <input
-              type="checkbox"
-              checked={selectedServiceIds.includes(s.id)}
-              onChange={(e) => {
-                if (e.target.checked) setSelectedServiceIds((x) => [...x, s.id]);
-                else setSelectedServiceIds((x) => x.filter((id) => id !== s.id));
-              }}
-            />
-            <span>{s.name}</span>
-            <span className="text-muted">£{((s.price_minor ?? 0) / 100).toFixed(2)}</span>
+      <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <label className="block text-sm font-medium">Services on this bill</label>
+            {visitLoading ? (
+              <span className="text-xs text-muted-foreground">Checking diary…</span>
+            ) : visitServiceIds.length > 0 ? (
+              <span className="text-xs text-muted-foreground">Prefilled from diary visit</span>
+            ) : clientId ? (
+              <span className="text-xs text-muted-foreground">Pick services below or search to add</span>
+            ) : null}
+          </div>
+          {selectedServiceIds.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No services added yet — use the search box to add what was done today.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {selectedServiceIds.map((sid) => {
+                const s = services.find((x) => x.id === sid);
+                if (!s) {
+                  return (
+                    <li key={sid} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1.5 text-sm">
+                      <span className="text-muted-foreground">Unknown service (remove via ×)</span>
+                      <button
+                        type="button"
+                        className="text-xs text-red-400 hover:underline"
+                        onClick={() => setSelectedServiceIds((xs) => xs.filter((id) => id !== sid))}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  );
+                }
+                return (
+                  <li key={sid}>
+                    <label className="flex items-start gap-2 rounded-md border border-border bg-background px-2 py-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 shrink-0 rounded border-border"
+                        checked
+                        onChange={() => setSelectedServiceIds((xs) => xs.filter((id) => id !== sid))}
+                        aria-label={`Remove ${s.name} from bill`}
+                      />
+                      <span className="flex flex-1 min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0">
+                        <span className="font-medium text-foreground">{s.name}</span>
+                        <span className="text-muted-foreground text-sm">£{((s.price_minor ?? 0) / 100).toFixed(2)}</span>
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+        <div className="relative z-20">
+          <label className="block text-sm font-medium mb-1" htmlFor="checkout-extra-service">
+            Add another service
           </label>
-        ))}
+          <p className="text-xs text-muted-foreground mb-2">Type part of the name — tint, toner, upgrades, extras.</p>
+          <input
+            id="checkout-extra-service"
+            type="search"
+            autoComplete="off"
+            placeholder="Search services…"
+            value={extraSearch}
+            onChange={(e) => {
+              setExtraSearch(e.target.value);
+              setExtraOpen(true);
+            }}
+            onFocus={() => setExtraOpen(true)}
+            onBlur={() => {
+              const tid = window.setTimeout(() => setExtraOpen(false), 175);
+              extraBlurTimer.current = tid as unknown as number;
+            }}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          />
+          {extraOpen && extraServiceMatches.length > 0 ? (
+            <ul className="absolute left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-lg border border-border bg-background py-1 shadow-lg z-30">
+              {extraServiceMatches.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      if (extraBlurTimer.current) clearTimeout(extraBlurTimer.current);
+                      setSelectedServiceIds((xs) => (xs.includes(s.id) ? xs : [...xs, s.id]));
+                      setExtraSearch("");
+                      setExtraOpen(false);
+                    }}
+                  >
+                    <span className="font-medium">{s.name}</span>
+                    <span className="ml-2 text-muted-foreground">£{((s.price_minor ?? 0) / 100).toFixed(2)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       </div>
+      {bookNextHref ? (
+        <div className="rounded-lg border border-accent/40 bg-accent/5 px-4 py-3 space-y-2">
+          <p className="text-sm font-medium text-foreground">Book next visit</p>
+          <p className="text-xs text-muted-foreground leading-snug">
+            After payment, open the diary with this client and stylist chosen so you can drop their next appointment without searching again.
+          </p>
+          <Link
+            href={bookNextHref}
+            className="inline-flex text-sm font-medium text-accent hover:underline"
+          >
+            Open diary → add appointment for this client
+          </Link>
+        </div>
+      ) : null}
       <div>
         <label className="block text-sm font-medium mb-1">Products</label>
         {products.length === 0 ? (

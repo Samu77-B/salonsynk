@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -443,17 +444,19 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
   return (
     <main className="p-4 md:p-6 min-w-0 space-y-6">
       <Reveal>
-        <DiaryView
-          salonId={context.salon.id}
-          salonName={context.salon.name}
-          members={jsonClone(members)}
-          services={jsonClone(services)}
-          clients={jsonClone(clients)}
-          appointments={jsonClone(appointments)}
-          clientPhotoMap={jsonClone(clientPhotoMap)}
-          stylistOverrides={jsonClone(stylistOverrides)}
-          clientPromptData={jsonClone(clientPromptData)}
-        />
+        <Suspense fallback={<p className="text-sm text-muted-foreground">Loading diary…</p>}>
+          <DiaryView
+            salonId={context.salon.id}
+            salonName={context.salon.name}
+            members={jsonClone(members)}
+            services={jsonClone(services)}
+            clients={jsonClone(clients)}
+            appointments={jsonClone(appointments)}
+            clientPhotoMap={jsonClone(clientPhotoMap)}
+            stylistOverrides={jsonClone(stylistOverrides)}
+            clientPromptData={jsonClone(clientPromptData)}
+          />
+        </Suspense>
       </Reveal>
       {isManager && targetWidgetItems.length > 0 && (
         <Reveal>
