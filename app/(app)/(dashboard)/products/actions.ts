@@ -57,6 +57,32 @@ function normalizeDescription(raw: string | undefined): string | null {
   return t.length > DESCRIPTION_MAX ? t.slice(0, DESCRIPTION_MAX) : t;
 }
 
+export async function replaceProductServiceLinks(
+  salonId: string,
+  productId: string,
+  serviceIds: string[]
+): Promise<{ error: string | null }> {
+  const auth = await assertCanManageProducts(salonId);
+  if ("error" in auth) return { error: auth.error };
+  const ids = [...new Set(serviceIds.filter((x) => typeof x === "string" && x.length > 0))];
+  const supabase = await createClient();
+  const admin = getOptionalAdminClient();
+  const exec = async (client: Awaited<ReturnType<typeof createClient>>) => {
+    const del = await client.from("product_services").delete().eq("product_id", productId);
+    if (del.error) return del.error;
+    if (ids.length === 0) return null;
+    const { data: svcRows } = await client.from("services").select("id").eq("salon_id", salonId).in("id", ids);
+    const ok = new Set((svcRows ?? []).map((r) => r.id as string));
+    const rows = ids.filter((id) => ok.has(id)).map((service_id) => ({ product_id: productId, service_id }));
+    if (rows.length === 0) return null;
+    return (await client.from("product_services").insert(rows)).error;
+  };
+  let err = await exec(supabase);
+  if (err && admin) err = await exec(admin);
+  if (err) return { error: formatDbError(err) };
+  return { error: null };
+}
+
 export async function addProduct(
   salonId: string,
   data: {
@@ -67,6 +93,8 @@ export async function addProduct(
     currency?: string;
     image_url?: string | null;
     sort_order?: number;
+    /** When set, product is surfaced at checkout when these services are on the bill */
+    linked_service_ids?: string[];
   }
 ): Promise<{ error: string | null }> {
   const auth = await assertCanManageProducts(salonId);
@@ -78,7 +106,6 @@ export async function addProduct(
   const currency = normalizeProductCurrency(data.currency);
   const supabase = await createClient();
   const admin = getOptionalAdminClient();
-  const db = admin ?? supabase;
   const payload = {
     salon_id: salonId,
     name,
@@ -90,13 +117,20 @@ export async function addProduct(
     sort_order: sortOrder,
     is_active: true,
   };
-  let { error } = await db.from("products").insert(payload);
-  if (error && admin) {
-    const r = await admin.from("products").insert(payload);
-    error = r.error;
+  let inserted = await supabase.from("products").insert(payload).select("id").single();
+  if (inserted.error && admin) {
+    inserted = await admin.from("products").insert(payload).select("id").single();
   }
-  if (error) return { error: formatDbError(error) };
+  if (inserted.error) return { error: formatDbError(inserted.error) };
+  const insertedId = inserted.data?.id;
+  if (!insertedId) return { error: "Could not create product" };
+
+  if (data.linked_service_ids?.length) {
+    const linkRes = await replaceProductServiceLinks(salonId, insertedId, data.linked_service_ids);
+    if (linkRes.error) return { error: linkRes.error };
+  }
   revalidatePath("/products");
+  revalidatePath("/checkout");
   const ctx = await getCurrentUserSalon();
   if (ctx?.salon.slug) {
     revalidatePath(`/shop/${ctx.salon.slug}`);
@@ -117,6 +151,7 @@ export async function updateProduct(
     image_url?: string | null;
     is_active?: boolean;
     sort_order?: number;
+    linked_service_ids?: string[] | null;
   }
 ): Promise<{ error: string | null }> {
   const auth = await assertCanManageProducts(salonId);
@@ -130,18 +165,25 @@ export async function updateProduct(
   if (data.image_url !== undefined) payload.image_url = data.image_url?.trim() || null;
   if (data.is_active !== undefined) payload.is_active = data.is_active;
   if (data.sort_order !== undefined) payload.sort_order = Math.round(data.sort_order);
-  if (Object.keys(payload).length === 0) return { error: null };
-  payload.updated_at = new Date().toISOString();
+  if (Object.keys(payload).length === 0 && data.linked_service_ids === undefined) return { error: null };
   const supabase = await createClient();
   const admin = getOptionalAdminClient();
   const db = admin ?? supabase;
-  let { error } = await db.from("products").update(payload).eq("id", productId).eq("salon_id", salonId);
-  if (error && admin) {
-    const r = await admin.from("products").update(payload).eq("id", productId).eq("salon_id", salonId);
-    error = r.error;
+  if (Object.keys(payload).length > 0) {
+    payload.updated_at = new Date().toISOString();
+    let { error } = await db.from("products").update(payload).eq("id", productId).eq("salon_id", salonId);
+    if (error && admin) {
+      const r = await admin.from("products").update(payload).eq("id", productId).eq("salon_id", salonId);
+      error = r.error;
+    }
+    if (error) return { error: formatDbError(error) };
   }
-  if (error) return { error: formatDbError(error) };
+  if (data.linked_service_ids !== undefined) {
+    const linkRes = await replaceProductServiceLinks(salonId, productId, data.linked_service_ids ?? []);
+    if (linkRes.error) return { error: linkRes.error };
+  }
   revalidatePath("/products");
+  revalidatePath("/checkout");
   const ctx = await getCurrentUserSalon();
   if (ctx?.salon.slug) {
     revalidatePath(`/shop/${ctx.salon.slug}`);
@@ -163,6 +205,7 @@ export async function deleteProduct(salonId: string, productId: string): Promise
   }
   if (error) return { error: formatDbError(error) };
   revalidatePath("/products");
+  revalidatePath("/checkout");
   const ctx = await getCurrentUserSalon();
   if (ctx?.salon.slug) {
     revalidatePath(`/shop/${ctx.salon.slug}`);

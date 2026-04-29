@@ -16,12 +16,22 @@ export default async function ProductsPage() {
   if (!isManagerRole(isSuperAdmin, context.member.role ?? "")) redirect("/dashboard");
   const canManage = context.member.role === "owner" || isSuperAdmin;
 
-  const { data: rows, error } = await supabase
-    .from("products")
-    .select("id, name, description, category, price_minor, currency, is_active, sort_order, image_url")
-    .eq("salon_id", context.salon.id)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
+  const [{ data: svcRows }, { data: rows, error }] = await Promise.all([
+    supabase.from("services").select("id, name").eq("salon_id", context.salon.id).order("name"),
+    supabase
+      .from("products")
+      .select(
+        "id, name, description, category, price_minor, currency, is_active, sort_order, image_url, product_services(service_id)"
+      )
+      .eq("salon_id", context.salon.id)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
+  ]);
+
+  const servicesForLinks = (svcRows ?? []).map((s) => ({
+    id: s.id as string,
+    name: (s.name as string) ?? "Service",
+  }));
 
   const products: ProductRow[] = error
     ? []
@@ -36,7 +46,10 @@ export default async function ProductsPage() {
           is_active: boolean | null;
           sort_order: number | null;
           image_url: string | null;
+          product_services?: { service_id: string }[] | null;
         };
+        const linked =
+          row.product_services?.map((x) => x.service_id).filter((id): id is string => typeof id === "string") ?? [];
         return {
           id: row.id,
           name: row.name,
@@ -47,6 +60,7 @@ export default async function ProductsPage() {
           is_active: row.is_active ?? true,
           sort_order: row.sort_order ?? 0,
           image_url: row.image_url,
+          linked_service_ids: linked,
         };
       });
 
@@ -64,6 +78,7 @@ export default async function ProductsPage() {
         salonSlug={context.salon.slug}
         canManage={canManage}
         products={products}
+        servicesForLinks={servicesForLinks}
       />
     </main>
   );

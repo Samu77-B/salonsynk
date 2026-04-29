@@ -23,7 +23,60 @@ export type ProductRow = {
   is_active: boolean;
   sort_order: number;
   image_url: string | null;
+  /** Empty = universal at checkout; otherwise suggest when any of these services are on the bill */
+  linked_service_ids: string[];
 };
+
+export type ServiceLinkOption = { id: string; name: string };
+
+function toggleServiceId(ids: string[], id: string, on: boolean): string[] {
+  if (on) return ids.includes(id) ? ids : [...ids, id];
+  return ids.filter((x) => x !== id);
+}
+
+function ProductServiceLinksField({
+  idPrefix,
+  services,
+  selectedIds,
+  onToggle,
+}: {
+  idPrefix: string;
+  services: ServiceLinkOption[];
+  selectedIds: Set<string>;
+  onToggle: (id: string, on: boolean) => void;
+}) {
+  if (services.length === 0) {
+    return (
+      <p className="text-xs text-muted">
+        Add services under Services to link retail items to them for checkout.
+      </p>
+    );
+  }
+  return (
+    <fieldset className="space-y-2">
+      <legend className="mb-1 block text-sm font-medium">
+        Checkout: show when these services are on the bill
+      </legend>
+      <p id={`${idPrefix}-links-hint`} className="text-xs text-muted">
+        Leave all unchecked for a universal suggestion on every checkout. Tick services to surface this product mainly
+        when those services appear on the bill.
+      </p>
+      <div className="max-h-44 space-y-1 overflow-y-auto rounded-md border border-border p-3">
+        {services.map((s) => (
+          <label key={s.id} className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="rounded border-border"
+              checked={selectedIds.has(s.id)}
+              onChange={(e) => onToggle(s.id, e.target.checked)}
+            />
+            <span>{s.name}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 const inputClass =
   "rounded-lg border border-border bg-background px-3 py-2 text-sm w-full min-w-0 placeholder:text-muted-foreground/60";
@@ -144,10 +197,12 @@ function ProductImageFields({
 function ProductCard({
   salonId,
   salonSlug,
+  servicesForLinks,
   product,
 }: {
   salonId: string;
   salonSlug: string;
+  servicesForLinks: ServiceLinkOption[];
   product: ProductRow;
 }) {
   const router = useRouter();
@@ -159,6 +214,7 @@ function ProductCard({
   const [imageUrl, setImageUrl] = useState(product.image_url ?? "");
   const [sortOrder, setSortOrder] = useState(String(product.sort_order));
   const [isActive, setIsActive] = useState(product.is_active);
+  const [linkedServiceIds, setLinkedServiceIds] = useState(product.linked_service_ids);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [feedback, setFeedback] = useState<"saved" | "error" | null>(null);
@@ -173,6 +229,7 @@ function ProductCard({
     setImageUrl(product.image_url ?? "");
     setSortOrder(String(product.sort_order));
     setIsActive(product.is_active);
+    setLinkedServiceIds(product.linked_service_ids);
   }, [product]);
 
   async function save() {
@@ -202,6 +259,7 @@ function ProductCard({
       image_url: imageUrl.trim() || null,
       is_active: isActive,
       sort_order: Number.isFinite(so) ? so : 0,
+      linked_service_ids: linkedServiceIds,
     });
     setSaving(false);
     if (result.error) {
@@ -299,6 +357,12 @@ function ProductCard({
         imageUrl={imageUrl}
         onImageUrlChange={setImageUrl}
       />
+      <ProductServiceLinksField
+        idPrefix={`edit-${product.id}`}
+        services={servicesForLinks}
+        selectedIds={new Set(linkedServiceIds)}
+        onToggle={(id, on) => setLinkedServiceIds((prev) => toggleServiceId(prev, id, on))}
+      />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor={`product-sort-${product.id}`} className="mb-1 block text-sm font-medium">
@@ -368,11 +432,13 @@ export function ProductsView({
   salonSlug,
   canManage,
   products,
+  servicesForLinks,
 }: {
   salonId: string;
   salonSlug: string;
   canManage: boolean;
   products: ProductRow[];
+  servicesForLinks: ServiceLinkOption[];
 }) {
   const router = useRouter();
   const [newName, setNewName] = useState("");
@@ -381,6 +447,7 @@ export function ProductsView({
   const [newCurrency, setNewCurrency] = useState("gbp");
   const [newDescription, setNewDescription] = useState("");
   const [newImageUrl, setNewImageUrl] = useState("");
+  const [newLinkedServiceIds, setNewLinkedServiceIds] = useState<string[]>([]);
   const [addLoading, setAddLoading] = useState(false);
   const [addMsg, setAddMsg] = useState<"saved" | "error" | null>(null);
   const [addError, setAddError] = useState("");
@@ -526,6 +593,7 @@ export function ProductsView({
                 currency: newCurrency,
                 description: newDescription,
                 image_url: newImageUrl.trim() || null,
+                linked_service_ids: newLinkedServiceIds.length ? newLinkedServiceIds : undefined,
               });
               setAddMsg(result.error ? "error" : "saved");
               if (result.error) setAddError(result.error);
@@ -535,6 +603,7 @@ export function ProductsView({
                 setNewPrice("");
                 setNewDescription("");
                 setNewImageUrl("");
+                setNewLinkedServiceIds([]);
                 router.refresh();
               }
             } catch (err) {
@@ -608,6 +677,12 @@ export function ProductsView({
             imageUrl={newImageUrl}
             onImageUrlChange={setNewImageUrl}
           />
+          <ProductServiceLinksField
+            idPrefix="new-product"
+            services={servicesForLinks}
+            selectedIds={new Set(newLinkedServiceIds)}
+            onToggle={(id, on) => setNewLinkedServiceIds((prev) => toggleServiceId(prev, id, on))}
+          />
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="submit"
@@ -640,7 +715,13 @@ export function ProductsView({
           <h2 className="mb-3 text-base font-semibold">Your products</h2>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {products.map((p) => (
-              <ProductCard key={p.id} salonId={salonId} salonSlug={salonSlug} product={p} />
+              <ProductCard
+                key={p.id}
+                salonId={salonId}
+                salonSlug={salonSlug}
+                servicesForLinks={servicesForLinks}
+                product={p}
+              />
             ))}
           </div>
         </div>

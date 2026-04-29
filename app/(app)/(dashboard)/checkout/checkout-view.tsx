@@ -7,8 +7,20 @@ import { StaffElevationModal } from "@/app/(app)/staff-elevation-modal";
 
 type Client = { id: string; name: string | null; email: string | null };
 type Service = { id: string; name: string; duration_minutes: number; price_minor: number };
-type Product = { id: string; name: string; price_minor: number };
+type Product = {
+  id: string;
+  name: string;
+  price_minor: number;
+  /** Empty = always suggested; otherwise only when overlapping services are on the bill */
+  linkedServiceIds: string[];
+};
 type Stylist = { id: string; displayName: string; employmentType: string };
+
+function productSuggestedForBill(p: Product, selectedServiceIds: string[]): boolean {
+  if (p.linkedServiceIds.length === 0) return true;
+  const sel = new Set(selectedServiceIds);
+  return p.linkedServiceIds.some((id) => sel.has(id));
+}
 
 export function CheckoutView({
   salonId,
@@ -128,6 +140,16 @@ export function CheckoutView({
       .filter((s) => !selectedServiceIds.includes(s.id) && (s.name ?? "").toLowerCase().includes(q))
       .slice(0, 16);
   }, [extraSearch, services, selectedServiceIds]);
+
+  const { suggestedProducts, otherProducts } = useMemo(() => {
+    const suggested: Product[] = [];
+    const other: Product[] = [];
+    for (const p of products) {
+      if (productSuggestedForBill(p, selectedServiceIds)) suggested.push(p);
+      else other.push(p);
+    }
+    return { suggestedProducts: suggested, otherProducts: other };
+  }, [products, selectedServiceIds]);
 
   const bookNextHref =
     clientId && stylistId
@@ -366,20 +388,59 @@ export function CheckoutView({
         {products.length === 0 ? (
           <p className="text-sm text-muted">No active products. Add some under Products.</p>
         ) : (
-          products.map((p) => (
-            <label key={p.id} className="flex items-center gap-2 py-1">
-              <input
-                type="checkbox"
-                checked={selectedProductIds.includes(p.id)}
-                onChange={(e) => {
-                  if (e.target.checked) setSelectedProductIds((x) => [...x, p.id]);
-                  else setSelectedProductIds((x) => x.filter((id) => id !== p.id));
-                }}
-              />
-              <span>{p.name}</span>
-              <span className="text-muted">£{((p.price_minor ?? 0) / 100).toFixed(2)}</span>
-            </label>
-          ))
+          <>
+            <p className="text-xs text-muted-foreground mb-2">
+              {selectedServiceIds.length > 0
+                ? "Suggested items include universal products and anything linked to a service on this bill."
+                : "Link products to services on the Products page to keep this list focused; until those services are on the bill, linked-only items appear under Other retail."}
+            </p>
+            {suggestedProducts.length > 0 ? (
+              <div className="space-y-1 mb-3">
+                {selectedServiceIds.length > 0 && otherProducts.length > 0 ? (
+                  <p className="text-xs font-medium text-foreground">Suggested for this bill</p>
+                ) : null}
+                {suggestedProducts.map((p) => (
+                  <label key={p.id} className="flex items-center gap-2 py-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedProductIds.includes(p.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedProductIds((x) => [...x, p.id]);
+                        else setSelectedProductIds((x) => x.filter((id) => id !== p.id));
+                      }}
+                    />
+                    <span>{p.name}</span>
+                    <span className="text-muted">£{((p.price_minor ?? 0) / 100).toFixed(2)}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground mb-2">No products match this bill yet — add services above or open Other retail.</p>
+            )}
+            {otherProducts.length > 0 ? (
+              <details className="rounded-lg border border-border bg-muted/10">
+                <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium">
+                  Other retail ({otherProducts.length})
+                </summary>
+                <div className="border-t border-border px-3 py-2 space-y-1">
+                  {otherProducts.map((p) => (
+                    <label key={p.id} className="flex items-center gap-2 py-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedProductIds.includes(p.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedProductIds((x) => [...x, p.id]);
+                          else setSelectedProductIds((x) => x.filter((id) => id !== p.id));
+                        }}
+                      />
+                      <span>{p.name}</span>
+                      <span className="text-muted">£{((p.price_minor ?? 0) / 100).toFixed(2)}</span>
+                    </label>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+          </>
         )}
       </div>
       <div>

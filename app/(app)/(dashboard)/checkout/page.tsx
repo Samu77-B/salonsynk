@@ -12,9 +12,33 @@ export default async function CheckoutPage() {
   const [clientsRes, servicesRes, productsRes, stylistsRes] = await Promise.all([
     supabase.from("clients").select("id, name, email").eq("salon_id", context.salon.id).order("name"),
     supabase.from("services").select("id, name, duration_minutes, price_minor").eq("salon_id", context.salon.id),
-    supabase.from("products").select("id, name, price_minor").eq("salon_id", context.salon.id).eq("is_active", true),
+    supabase
+      .from("products")
+      .select("id, name, price_minor, product_services(service_id)")
+      .eq("salon_id", context.salon.id)
+      .eq("is_active", true),
     supabase.from("salon_members").select("id, display_name, employment_type").eq("salon_id", context.salon.id).eq("is_active", true),
   ]);
+
+  type ProductRowRaw = {
+    id: string;
+    name: string;
+    price_minor: number | null;
+    product_services?: { service_id: string }[] | null;
+  };
+
+  const products =
+    (productsRes.data ?? []).map((r) => {
+      const row = r as ProductRowRaw;
+      const linked =
+        row.product_services?.map((x) => x.service_id).filter((id): id is string => typeof id === "string") ?? [];
+      return {
+        id: row.id,
+        name: row.name,
+        price_minor: row.price_minor ?? 0,
+        linkedServiceIds: linked,
+      };
+    });
 
   const stylists = (stylistsRes.data ?? []).map((s) => ({
     id: s.id,
@@ -35,7 +59,7 @@ export default async function CheckoutPage() {
           salonId={context.salon.id}
           clients={clientsRes.data ?? []}
           services={servicesRes.data ?? []}
-          products={productsRes.data ?? []}
+          products={products}
           stylists={stylists}
           defaultStylistId={defaultStylistId}
         />
