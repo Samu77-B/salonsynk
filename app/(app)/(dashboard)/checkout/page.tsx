@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { memberShowsOnDiary } from "@/lib/show-on-diary";
+import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 import { CheckoutView } from "./checkout-view";
 
 export default async function CheckoutPage() {
@@ -10,7 +10,7 @@ export default async function CheckoutPage() {
   if (!context) redirect("/onboarding");
 
   const supabase = await createClient();
-  const [clientsRes, servicesRes, productsRes, stylistsRes] = await Promise.all([
+  const [clientsRes, servicesRes, productsRes] = await Promise.all([
     supabase.from("clients").select("id, name, email").eq("salon_id", context.salon.id).order("name"),
     supabase.from("services").select("id, name, duration_minutes, price_minor").eq("salon_id", context.salon.id),
     supabase
@@ -18,7 +18,6 @@ export default async function CheckoutPage() {
       .select("id, name, price_minor, product_services(service_id)")
       .eq("salon_id", context.salon.id)
       .eq("is_active", true),
-    supabase.from("salon_members").select("id, display_name, employment_type, show_on_diary").eq("salon_id", context.salon.id).eq("is_active", true),
   ]);
 
   type ProductRowRaw = {
@@ -41,7 +40,15 @@ export default async function CheckoutPage() {
       };
     });
 
-  const stylists = (stylistsRes.data ?? [])
+  const stylistsLoad = await fetchSalonMembersAdaptiveSelect(supabase, context.salon.id, [
+    "id, display_name, employment_type, show_on_diary",
+    "id, display_name, employment_type",
+  ]);
+  if (stylistsLoad.error) {
+    console.error("[CheckoutPage] salon_members load failed:", stylistsLoad.error.message);
+  }
+
+  const stylists = (stylistsLoad.data as { id: string; display_name?: string | null; employment_type?: string | null; show_on_diary?: boolean | null }[])
     .filter((s) => memberShowsOnDiary(s as { show_on_diary?: boolean | null }))
     .map((s) => ({
     id: s.id,

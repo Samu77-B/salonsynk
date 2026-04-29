@@ -3,7 +3,7 @@ import { Reveal } from "@/components/reveal";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GuestBookingForm } from "./guest-booking-form";
-import { memberShowsOnDiary } from "@/lib/show-on-diary";
+import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 
 export default async function BookPage({
   params,
@@ -25,13 +25,21 @@ export default async function BookPage({
 
   if (!salon) notFound();
 
-  const [servicesRes, membersRes] = await Promise.all([
+  const [servicesRes, membersLoad] = await Promise.all([
     supabase.from("services").select("id, name, duration_minutes").eq("salon_id", salon.id),
-    supabase.from("salon_members").select("id, display_name, show_on_diary").eq("salon_id", salon.id).eq("is_active", true),
+    fetchSalonMembersAdaptiveSelect(supabase, salon.id as string, [
+      "id, display_name, show_on_diary",
+      "id, display_name",
+    ]),
   ]);
 
-  const stylistRows = membersRes.data ?? [];
-  const bookableStylists = stylistRows.filter((m: { show_on_diary?: boolean | null }) => memberShowsOnDiary(m));
+  const stylistRows = membersLoad.data as { id: string; display_name?: string | null; show_on_diary?: boolean | null }[];
+  const bookableStylists = stylistRows
+    .filter((m: { show_on_diary?: boolean | null }) => memberShowsOnDiary(m))
+    .map((m) => ({
+      id: m.id,
+      display_name: m.display_name ?? null,
+    }));
 
   const stylistOverrides: Record<string, Record<string, number>> = {};
   try {

@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { isManagerRole } from "@/lib/dashboard-roles";
 import { redirect } from "next/navigation";
-import { TeamView } from "./team-view";
+import { fetchSalonMembersAdaptiveSelect } from "@/lib/show-on-diary";
+import { TeamView, type Member } from "./team-view";
 
 export const dynamic = "force-dynamic";
 
@@ -16,17 +17,15 @@ export default async function TeamPage() {
 
   const supabase = await createClient();
   const membersQuery = async () => {
-    const withPasscode = await supabase
-      .from("salon_members")
-      .select("id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url, passcode_hash, show_on_diary")
-      .eq("salon_id", context!.salon.id)
-      .order("role", { ascending: false });
-    if (!withPasscode.error) return withPasscode;
-    return supabase
-      .from("salon_members")
-      .select("id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url, show_on_diary")
-      .eq("salon_id", context!.salon.id)
-      .order("role", { ascending: false });
+    const BASE =
+      "id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url";
+    const r = await fetchSalonMembersAdaptiveSelect(supabase, context!.salon.id, [
+      `${BASE}, passcode_hash, show_on_diary`,
+      `${BASE}, passcode_hash`,
+      `${BASE}, show_on_diary`,
+      BASE,
+    ], { activeOnly: false });
+    return { data: r.data, error: r.error };
   };
 
   const [membersRes, invitesRes, countsRes, salonRes, servicesRes] = await Promise.all([
@@ -48,15 +47,12 @@ export default async function TeamPage() {
       .order("name"),
   ]);
 
-  const rawMembers = membersRes.data ?? [];
-  const members = rawMembers.map((m) => ({
-    ...m,
-    has_passcode: Boolean((m as Record<string, unknown>).passcode_hash),
-  }));
-  // Strip the actual hash before passing to client
-  for (const m of members) {
-    delete (m as Record<string, unknown>).passcode_hash;
-  }
+  const rawMembers = (membersRes.data ?? []) as Record<string, unknown>[];
+  const members: Member[] = rawMembers.map((m) => {
+    const row = { ...m, has_passcode: Boolean(m.passcode_hash) } as Member & { passcode_hash?: unknown };
+    delete (row as Record<string, unknown>).passcode_hash;
+    return row as Member;
+  });
   const salonServices = (servicesRes.data ?? []).map((s) => ({
     id: s.id as string,
     name: s.name as string,

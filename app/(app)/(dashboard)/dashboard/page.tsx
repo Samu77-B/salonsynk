@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { redirect } from "next/navigation";
-import { memberShowsOnDiary } from "@/lib/show-on-diary";
+import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 import { isMissingProcessingColumnError } from "@/lib/db/service-schema";
 import { Reveal } from "@/components/reveal";
 import { DiaryView } from "./diary-view";
@@ -86,13 +86,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
       .order("name");
   })();
 
-  const [membersRes, servicesRes, clientsRes, appointmentsRes] = await Promise.all([
-    supabase
-      .from("salon_members")
-      .select("id, display_name, role, avatar_url, show_on_diary")
-      .eq("salon_id", context.salon.id)
-      .eq("is_active", true)
-      .order("role", { ascending: false }),
+  const [servicesRes, clientsRes, appointmentsRes] = await Promise.all([
     servicesPromise,
     (async () => {
       const withSkinTest = await supabase
@@ -141,7 +135,20 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
     })(),
   ]);
 
-  const allMembers = membersRes.data ?? [];
+  const membersLoad = await fetchSalonMembersAdaptiveSelect(supabase, context.salon.id, [
+    "id, display_name, role, avatar_url, show_on_diary",
+    "id, display_name, role, avatar_url",
+  ]);
+  if (membersLoad.error) {
+    console.error("[DashboardPage] salon_members load failed:", membersLoad.error.message);
+  }
+  const allMembers = membersLoad.data as {
+    id: string;
+    display_name: string | null;
+    role: string;
+    avatar_url?: string | null;
+    show_on_diary?: boolean | null;
+  }[];
   const membersForDiary = allMembers.filter((m: { show_on_diary?: boolean | null }) => memberShowsOnDiary(m));
   const services = (servicesRes.data ?? []).map((s) => {
     const row = s as {

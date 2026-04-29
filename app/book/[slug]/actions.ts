@@ -3,7 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendClientBookingConfirmation } from "@/lib/booking-notifications";
 import { hasOverlap, rangeToMinutes } from "@/lib/diary-rules";
-import { memberShowsOnDiary } from "@/lib/show-on-diary";
+import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary, isMissingShowOnDiaryColumnError } from "@/lib/show-on-diary";
 
 export async function createGuestBooking(
   salonId: string,
@@ -23,22 +23,33 @@ export async function createGuestBooking(
   if (!salon) return { error: "Salon not found" };
 
   if (!data.stylistId) {
-    const { data: candidates } = await supabase
-      .from("salon_members")
-      .select("id, show_on_diary")
-      .eq("salon_id", salonId)
-      .eq("is_active", true);
-    const first = (candidates ?? []).find((m: { show_on_diary?: boolean | null }) => memberShowsOnDiary(m));
+    const { data: candidates } = await fetchSalonMembersAdaptiveSelect(supabase, salonId, [
+      "id, show_on_diary",
+      "id",
+    ]);
+    const first = (candidates as { id: string; show_on_diary?: boolean | null }[]).find((m) =>
+      memberShowsOnDiary(m),
+    );
     if (!first) return { error: "No stylists available" };
     data.stylistId = first.id;
   } else {
-    const { data: sm } = await supabase
+    let smRow = await supabase
       .from("salon_members")
       .select("id, show_on_diary")
       .eq("id", data.stylistId)
       .eq("salon_id", salonId)
       .eq("is_active", true)
       .maybeSingle();
+    if (smRow.error && isMissingShowOnDiaryColumnError(smRow.error)) {
+      smRow = await supabase
+        .from("salon_members")
+        .select("id")
+        .eq("id", data.stylistId)
+        .eq("salon_id", salonId)
+        .eq("is_active", true)
+        .maybeSingle();
+    }
+    const sm = smRow.data;
     if (!sm || !memberShowsOnDiary(sm as { show_on_diary?: boolean | null }))
       return { error: "Invalid stylist" };
   }

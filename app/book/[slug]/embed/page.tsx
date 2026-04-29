@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Reveal } from "@/components/reveal";
 import { notFound } from "next/navigation";
 import { GuestBookingForm } from "../guest-booking-form";
-import { memberShowsOnDiary } from "@/lib/show-on-diary";
+import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 
 /**
  * Embeddable booking page for use in iframes on salon websites.
@@ -32,15 +32,21 @@ export default async function BookEmbedPage({
 
   if (!salon) notFound();
 
-  const [servicesRes, membersRes] = await Promise.all([
+  const [servicesRes, membersLoad] = await Promise.all([
     supabase.from("services").select("id, name, duration_minutes").eq("salon_id", salon.id),
-    supabase.from("salon_members").select("id, display_name, show_on_diary").eq("salon_id", salon.id).eq("is_active", true),
+    fetchSalonMembersAdaptiveSelect(supabase, salon.id as string, [
+      "id, display_name, show_on_diary",
+      "id, display_name",
+    ]),
   ]);
 
-  const stylistRowsEmbed = membersRes.data ?? [];
-  const bookableStylistsEmbed = stylistRowsEmbed.filter((m: { show_on_diary?: boolean | null }) =>
-    memberShowsOnDiary(m),
-  );
+  const stylistRowsEmbed = membersLoad.data as { id: string; display_name?: string | null; show_on_diary?: boolean | null }[];
+  const bookableStylistsEmbed = stylistRowsEmbed
+    .filter((m: { show_on_diary?: boolean | null }) => memberShowsOnDiary(m))
+    .map((m) => ({
+      id: m.id,
+      display_name: m.display_name ?? null,
+    }));
 
   const stylistOverrides: Record<string, Record<string, number>> = {};
   try {
