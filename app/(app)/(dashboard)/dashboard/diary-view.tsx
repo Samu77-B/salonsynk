@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { CreateAppointmentInput } from "./actions";
 import { AddAppointmentModal } from "./add-appointment-modal";
-import { EditAppointmentModal } from "./edit-appointment-modal";
+import { EditAppointmentModal, type EditModalEntryAnchor } from "./edit-appointment-modal";
 import { validateMoveWithProcessing, type AppointmentBlockingInput } from "@/lib/diary-rules";
 import { dedupeOrderedServiceIds } from "@/lib/appointments/appointment-service-lines";
 import type { UpdateAppointmentInput } from "@/lib/appointments/patch-appointment";
@@ -494,6 +494,7 @@ export function DiaryView({
   const [filterStylistId, setFilterStylistId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [editEntryAnchor, setEditEntryAnchor] = useState<EditModalEntryAnchor | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -528,6 +529,17 @@ export function DiaryView({
     setSlotHover(null);
     setAddOpen(true);
   }
+
+  const openEditFromDiary = useCallback((appointmentId: string, e: React.MouseEvent<Element>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setEditEntryAnchor({ top: r.top, left: r.left, width: r.width, height: r.height });
+    setEditId(appointmentId);
+  }, []);
+
+  const closeEditModal = useCallback(() => {
+    setEditId(null);
+    setEditEntryAnchor(null);
+  }, []);
 
   useEffect(() => {
     const ids = new Set(appointmentsFromServer.map((a) => a.id));
@@ -1352,7 +1364,7 @@ export function DiaryView({
                                 <button
                                   key={a.id}
                                   type="button"
-                                  onClick={() => setEditId(a.id)}
+                                  onClick={(e) => openEditFromDiary(a.id, e)}
                                   onContextMenu={(e) => openContextMenu(e, a.id)}
                                   draggable={drag}
                                   onDragStart={(e) => {
@@ -1533,7 +1545,7 @@ export function DiaryView({
                             </span>
                             <button
                               type="button"
-                              onClick={() => setEditId(a.id)}
+                              onClick={(e) => openEditFromDiary(a.id, e)}
                               className="w-full text-left"
                             >
                               <div className="flex items-start gap-2">
@@ -1572,7 +1584,7 @@ export function DiaryView({
                             <div className="flex gap-2 mt-2 pt-2 border-t border-border">
                               <button
                                 type="button"
-                                onClick={() => setEditId(a.id)}
+                                onClick={(e) => openEditFromDiary(a.id, e)}
                                 className="text-xs text-accent hover:underline touch-manipulation"
                               >
                                 Edit
@@ -1633,6 +1645,7 @@ export function DiaryView({
           initialTimeHHmm={addPrefill?.timeHHmm ?? undefined}
           stylistOverrides={stylistOverrides}
           clientPromptData={clientPromptData}
+          entryAnimation="from-top"
           onCreate={async (data) => {
             const result = await createAppointmentViaApi(data);
             if (result.error) setError(result.error);
@@ -1664,20 +1677,21 @@ export function DiaryView({
             services={services}
             clients={clients}
             stylistOverrides={stylistOverrides}
+            entryAnchor={editEntryAnchor}
             onUpdate={async (id, data) => {
               const result = await patchAppointmentViaApi(id, data);
               if (result.error) setError(result.error);
               else {
-                setEditId(null);
+                closeEditModal();
                 scheduleRouterRefresh(router);
               }
               return result;
             }}
             onDelete={(id) => {
-              setEditId(null);
+              closeEditModal();
               void handleDelete(id);
             }}
-            onClose={() => setEditId(null)}
+            onClose={closeEditModal}
             onNoShowCharged={() => scheduleRouterRefresh(router)}
           />
         );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { AppointmentDbStatus, UpdateAppointmentInput } from "./actions";
 import { uploadAppointmentPhoto } from "./actions";
@@ -193,12 +193,15 @@ function PhotoUploadField({
   );
 }
 
+export type EditModalEntryAnchor = { top: number; left: number; width: number; height: number };
+
 export function EditAppointmentModal({
   appointment,
   members,
   services,
   clients,
   stylistOverrides = {},
+  entryAnchor = null,
   onUpdate,
   onDelete,
   onClose,
@@ -209,6 +212,7 @@ export function EditAppointmentModal({
   services: Service[];
   clients: Client[];
   stylistOverrides?: Record<string, Record<string, number>>;
+  entryAnchor?: EditModalEntryAnchor | null;
   onUpdate: (id: string, data: UpdateAppointmentInput) => Promise<{ error?: string | null }>;
   onDelete: (id: string) => void;
   onClose: () => void;
@@ -242,6 +246,7 @@ export function EditAppointmentModal({
   } | null>(null);
   const [chargeAmount, setChargeAmount] = useState("");
   const errorAndOverlapRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const currentStatus = appointment.status ?? "scheduled";
   const canChargeNoShow = currentStatus === "scheduled";
 
@@ -250,6 +255,77 @@ export function EditAppointmentModal({
       errorAndOverlapRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }, [submitError]);
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let cleanupTimeout = 0;
+    let innerRaf = 0;
+
+    const runFallbackFromTop = () => {
+      panel.style.opacity = "0";
+      panel.style.transform = "translateY(-20px)";
+      const outerRaf = requestAnimationFrame(() => {
+        innerRaf = requestAnimationFrame(() => {
+          panel.style.transition =
+            "opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1), transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)";
+          panel.style.opacity = "1";
+          panel.style.transform = "translateY(0)";
+          cleanupTimeout = window.setTimeout(() => {
+            panel.style.transition = "";
+            panel.style.removeProperty("opacity");
+            panel.style.removeProperty("transform");
+          }, 380);
+        });
+      });
+      return () => {
+        cancelAnimationFrame(outerRaf);
+        cancelAnimationFrame(innerRaf);
+      };
+    };
+
+    const runFromAnchor = (anchor: EditModalEntryAnchor) => {
+      const pr = panel.getBoundingClientRect();
+      const acx = anchor.left + anchor.width / 2;
+      const acy = anchor.top + anchor.height / 2;
+      const pcx = pr.left + pr.width / 2;
+      const pcy = pr.top + pr.height / 2;
+      const dx = acx - pcx;
+      const dy = acy - pcy;
+
+      panel.style.opacity = "0";
+      panel.style.transform = `translate(${dx}px, ${dy}px)`;
+
+      const outerRaf = requestAnimationFrame(() => {
+        innerRaf = requestAnimationFrame(() => {
+          panel.style.transition =
+            "opacity 0.26s cubic-bezier(0.22, 1, 0.36, 1), transform 0.34s cubic-bezier(0.22, 1, 0.36, 1)";
+          panel.style.opacity = "1";
+          panel.style.transform = "translate(0, 0)";
+          cleanupTimeout = window.setTimeout(() => {
+            panel.style.transition = "";
+            panel.style.removeProperty("opacity");
+            panel.style.removeProperty("transform");
+          }, 420);
+        });
+      });
+      return () => {
+        cancelAnimationFrame(outerRaf);
+        cancelAnimationFrame(innerRaf);
+      };
+    };
+
+    const cancelFall = entryAnchor ? runFromAnchor(entryAnchor) : runFallbackFromTop();
+    return () => {
+      cancelFall();
+      clearTimeout(cleanupTimeout);
+      panel.style.transition = "";
+      panel.style.removeProperty("opacity");
+      panel.style.removeProperty("transform");
+    };
+  }, [appointment.id, entryAnchor]);
 
   useEffect(() => {
     const c = clients.find((x) => x.id === appointment.client_id);
@@ -365,7 +441,11 @@ export function EditAppointmentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 pb-10 pt-[max(0.125rem,env(safe-area-inset-top))] sm:px-6 sm:pt-2 sm:pb-12" onClick={onClose}>
-      <div className="w-full min-w-0 max-w-md xl:max-w-4xl max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={panelRef}
+        className="w-full min-w-0 max-w-md xl:max-w-4xl max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-lg font-semibold mb-4">Edit appointment</h2>
         <div className="mb-4 rounded-lg border border-border bg-muted/20 p-3 space-y-3">
           <div>

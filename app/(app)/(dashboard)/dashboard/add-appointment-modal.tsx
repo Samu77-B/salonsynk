@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import type { CreateAppointmentInput } from "./actions";
 import { ServicePickerField } from "./service-picker-field";
 
@@ -23,6 +23,7 @@ export function AddAppointmentModal({
   initialTimeHHmm,
   stylistOverrides = {},
   clientPromptData = {},
+  entryAnimation = "from-top",
   onCreate,
   onClose,
 }: {
@@ -37,6 +38,7 @@ export function AddAppointmentModal({
   initialTimeHHmm?: string | null;
   stylistOverrides?: Record<string, Record<string, number>>;
   clientPromptData?: Record<string, { lastVisit?: string; lastFormula?: string; alertNotes?: string[] }>;
+  entryAnimation?: "from-top" | "none";
   onCreate: (data: CreateAppointmentInput) => Promise<{ error?: string | null }>;
   onClose: () => void;
 }) {
@@ -59,6 +61,39 @@ export function AddAppointmentModal({
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const errorAndOverlapRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (entryAnimation !== "from-top") return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    panel.style.opacity = "0";
+    panel.style.transform = "translateY(-28px)";
+    let cleanupTimeout = 0;
+    let innerRaf = 0;
+    const outerRaf = requestAnimationFrame(() => {
+      innerRaf = requestAnimationFrame(() => {
+        panel.style.transition =
+          "opacity 0.26s cubic-bezier(0.22, 1, 0.36, 1), transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)";
+        panel.style.opacity = "1";
+        panel.style.transform = "translateY(0)";
+        cleanupTimeout = window.setTimeout(() => {
+          panel.style.transition = "";
+          panel.style.removeProperty("opacity");
+          panel.style.removeProperty("transform");
+        }, 400);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(outerRaf);
+      cancelAnimationFrame(innerRaf);
+      clearTimeout(cleanupTimeout);
+      panel.style.transition = "";
+      panel.style.removeProperty("opacity");
+      panel.style.removeProperty("transform");
+    };
+  }, [entryAnimation]);
 
   useEffect(() => {
     if (submitError) {
@@ -160,7 +195,11 @@ export function AddAppointmentModal({
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 pb-10 pt-[max(0.125rem,env(safe-area-inset-top))] sm:px-6 sm:pt-2 sm:pb-12"
       onClick={onClose}
     >
-      <div className="w-full min-w-0 max-w-md xl:max-w-4xl max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={panelRef}
+        className="w-full min-w-0 max-w-md xl:max-w-4xl max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-lg font-semibold mb-4">Add appointment</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 xl:grid-cols-2 xl:gap-x-8 xl:items-start gap-y-4">
