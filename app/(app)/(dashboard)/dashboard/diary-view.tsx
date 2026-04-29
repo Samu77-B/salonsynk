@@ -170,6 +170,24 @@ function buildCreatedAppointment(
   };
 }
 
+/** Local merge for drag-reschedule — card jumps before PATCH returns. */
+function buildRescheduledAppointment(
+  appointment: Appointment,
+  newStart: Date,
+  newEnd: Date,
+  targetStylistId: string,
+  membersList: Member[]
+): Appointment {
+  const stylist = membersList.find((m) => m.id === targetStylistId);
+  return {
+    ...appointment,
+    start_time: newStart.toISOString(),
+    end_time: newEnd.toISOString(),
+    stylist_id: targetStylistId,
+    salon_members: stylist ? { display_name: stylist.display_name } : appointment.salon_members,
+  };
+}
+
 const DIARY_VISIBLE_STATUSES = ["scheduled", "completed", "canceled", "no_show"] as const;
 
 function isDiaryVisibleStatus(status: string): boolean {
@@ -480,6 +498,7 @@ export function DiaryView({
   const [error, setError] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [optimisticAppointments, setOptimisticAppointments] = useState<Appointment[]>([]);
+  const [appointmentPatches, setAppointmentPatches] = useState<Record<string, Appointment>>({});
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [runningLateId, setRunningLateId] = useState<string | null>(null);
   const [smartReschedule, setSmartReschedule] = useState<{
@@ -515,11 +534,35 @@ export function DiaryView({
     setOptimisticAppointments((prev) => prev.filter((a) => !ids.has(a.id)));
   }, [appointmentsFromServer]);
 
+  useEffect(() => {
+    setAppointmentPatches((prev) => {
+      const keys = Object.keys(prev);
+      if (keys.length === 0) return prev;
+      const next = { ...prev };
+      let changed = false;
+      for (const id of keys) {
+        const serverRow = appointmentsFromServer.find((a) => a.id === id);
+        const patched = prev[id];
+        if (
+          serverRow &&
+          serverRow.start_time === patched.start_time &&
+          serverRow.end_time === patched.end_time &&
+          serverRow.stylist_id === patched.stylist_id
+        ) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [appointmentsFromServer]);
+
   const appointments = useMemo(() => {
+    const merged = appointmentsFromServer.map((a) => appointmentPatches[a.id] ?? a);
     const ids = new Set(appointmentsFromServer.map((a) => a.id));
     const extra = optimisticAppointments.filter((a) => !ids.has(a.id));
-    return [...appointmentsFromServer, ...extra];
-  }, [appointmentsFromServer, optimisticAppointments]);
+    return [...merged, ...extra];
+  }, [appointmentsFromServer, optimisticAppointments, appointmentPatches]);
 
   useEffect(() => {
     if (view !== "day") setSlotHover(null);
@@ -607,16 +650,34 @@ export function DiaryView({
     if (targetStylistId !== appointment.stylist_id) {
       updates.stylist_id = targetStylistId;
     }
-    const result = await patchAppointmentViaApi(appointmentId, updates);
-    if (result.error) setError(result.error);
-    else {
-      setMovingId(null);
+
+    const optimistic = buildRescheduledAppointment(appointment, newStart, newEnd, targetStylistId, members);
+    setAppointmentPatches((prev) => ({ ...prev, [appointmentId]: optimistic }));
+    setMovingId(null);
+
+    try {
+      const result = await patchAppointmentViaApi(appointmentId, updates);
+      if (result.error) {
+        setAppointmentPatches((prev) => {
+          const n = { ...prev };
+          delete n[appointmentId];
+          return n;
+        });
+        setError(result.error);
+        return;
+      }
+      scheduleRouterRefresh(router);
       if (appointment.status === "scheduled") {
         setDragChargePrompt({ appointmentId });
         setDragChargeAmount("");
-      } else {
-        scheduleRouterRefresh(router);
       }
+    } catch (e) {
+      setAppointmentPatches((prev) => {
+        const n = { ...prev };
+        delete n[appointmentId];
+        return n;
+      });
+      setError(e instanceof Error ? e.message : "Could not reschedule.");
     }
   }
 
@@ -1785,7 +1846,7 @@ export function DiaryView({
       })()}
 
       {dragChargePrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => { setDragChargePrompt(null); scheduleRouterRefresh(router); }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setDragChargePrompt(null)}>
           <div className="w-full max-w-sm rounded-xl border border-border bg-background p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-2">Chargeable change?</h3>
             <p className="text-sm text-muted mb-4">
@@ -1811,7 +1872,7 @@ export function DiaryView({
               <button
                 type="button"
                 className="flex-1 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/30"
-                onClick={() => { setDragChargePrompt(null); scheduleRouterRefresh(router); }}
+                onClick={() => setDragChargePrompt(null)}
               >
                 No charge
               </button>
