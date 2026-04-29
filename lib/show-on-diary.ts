@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 /**
  * salon_members.show_on_diary === false hides the member from diary columns,
  * checkout stylist pickers, and public booking stylist lists (e.g. front desk login only).
@@ -16,9 +18,8 @@ export function isMissingShowOnDiaryColumnError(error: { message?: string } | nu
 }
 
 /** Try SELECT variants in order until one succeeds — avoids failures when migration 038 isn’t applied or optional columns vary. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function fetchSalonMembersAdaptiveSelect(
-  supabase: any,
+  supabase: SupabaseClient,
   salonId: string,
   selectVariants: readonly string[],
   options?: { activeOnly?: boolean }
