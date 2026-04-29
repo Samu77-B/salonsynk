@@ -160,9 +160,11 @@ export function AddAppointmentModal({
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 pb-10 pt-[max(0.125rem,env(safe-area-inset-top))] sm:px-6 sm:pt-2 sm:pb-12"
       onClick={onClose}
     >
-      <div className="w-full min-w-0 max-w-md max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full min-w-0 max-w-md xl:max-w-4xl max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold mb-4">Add appointment</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 xl:gap-x-8 xl:items-start gap-y-4">
+            <div className="space-y-4 min-w-0">
           <div>
             <label className="block text-sm font-medium mb-1">Stylist</label>
             <select
@@ -285,6 +287,8 @@ export function AddAppointmentModal({
               );
             })()}
           </div>
+            </div>
+            <div className="space-y-4 min-w-0">
           {clientId ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
@@ -360,6 +364,39 @@ export function AddAppointmentModal({
               No email or phone – we can&apos;t send a booking confirmation or reminders.
             </p>
           )}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                <div className="flex-1 min-w-0">
+                  <label className="block text-sm font-medium mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="block text-sm font-medium mb-1">Time</label>
+                  <input
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Notes</label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+          </div>
           <ServicePickerField
             id="add-appointment-service-search"
             services={services}
@@ -374,37 +411,6 @@ export function AddAppointmentModal({
               At least one selected service uses processing time — another booking can overlap that window during processing.
             </p>
           )}
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-            <div className="flex-1 min-w-0">
-              <label className="block text-sm font-medium mb-1">Date</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <label className="block text-sm font-medium mb-1">Time</label>
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                required
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Notes</label>
-            <input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-          </div>
           <label className="flex items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 cursor-pointer">
             <input
               type="checkbox"
