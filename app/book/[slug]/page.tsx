@@ -3,6 +3,7 @@ import { Reveal } from "@/components/reveal";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GuestBookingForm } from "./guest-booking-form";
+import { memberShowsOnDiary } from "@/lib/show-on-diary";
 
 export default async function BookPage({
   params,
@@ -26,12 +27,15 @@ export default async function BookPage({
 
   const [servicesRes, membersRes] = await Promise.all([
     supabase.from("services").select("id, name, duration_minutes").eq("salon_id", salon.id),
-    supabase.from("salon_members").select("id, display_name").eq("salon_id", salon.id).eq("is_active", true),
+    supabase.from("salon_members").select("id, display_name, show_on_diary").eq("salon_id", salon.id).eq("is_active", true),
   ]);
+
+  const stylistRows = membersRes.data ?? [];
+  const bookableStylists = stylistRows.filter((m: { show_on_diary?: boolean | null }) => memberShowsOnDiary(m));
 
   const stylistOverrides: Record<string, Record<string, number>> = {};
   try {
-    const memberIds = (membersRes.data ?? []).map((m: { id: string }) => m.id);
+    const memberIds = bookableStylists.map((m: { id: string }) => m.id);
     if (memberIds.length > 0) {
       const { data: ov } = await supabase
         .from("stylist_service_overrides")
@@ -88,7 +92,7 @@ export default async function BookPage({
           salonId={salon.id}
           salonName={displayName}
           services={servicesRes.data ?? []}
-          stylists={membersRes.data ?? []}
+          stylists={bookableStylists}
           stylistOverrides={stylistOverrides}
         />
       </Reveal>

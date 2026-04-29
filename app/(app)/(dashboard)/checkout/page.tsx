@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { memberShowsOnDiary } from "@/lib/show-on-diary";
 import { CheckoutView } from "./checkout-view";
 
 export default async function CheckoutPage() {
@@ -17,7 +18,7 @@ export default async function CheckoutPage() {
       .select("id, name, price_minor, product_services(service_id)")
       .eq("salon_id", context.salon.id)
       .eq("is_active", true),
-    supabase.from("salon_members").select("id, display_name, employment_type").eq("salon_id", context.salon.id).eq("is_active", true),
+    supabase.from("salon_members").select("id, display_name, employment_type, show_on_diary").eq("salon_id", context.salon.id).eq("is_active", true),
   ]);
 
   type ProductRowRaw = {
@@ -40,7 +41,9 @@ export default async function CheckoutPage() {
       };
     });
 
-  const stylists = (stylistsRes.data ?? []).map((s) => ({
+  const stylists = (stylistsRes.data ?? [])
+    .filter((s) => memberShowsOnDiary(s as { show_on_diary?: boolean | null }))
+    .map((s) => ({
     id: s.id,
     displayName: s.display_name ?? "Stylist",
     employmentType: (s.employment_type as string) || "EMPLOYEE",

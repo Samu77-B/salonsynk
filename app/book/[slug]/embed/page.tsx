@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Reveal } from "@/components/reveal";
 import { notFound } from "next/navigation";
 import { GuestBookingForm } from "../guest-booking-form";
+import { memberShowsOnDiary } from "@/lib/show-on-diary";
 
 /**
  * Embeddable booking page for use in iframes on salon websites.
@@ -33,12 +34,17 @@ export default async function BookEmbedPage({
 
   const [servicesRes, membersRes] = await Promise.all([
     supabase.from("services").select("id, name, duration_minutes").eq("salon_id", salon.id),
-    supabase.from("salon_members").select("id, display_name").eq("salon_id", salon.id).eq("is_active", true),
+    supabase.from("salon_members").select("id, display_name, show_on_diary").eq("salon_id", salon.id).eq("is_active", true),
   ]);
+
+  const stylistRowsEmbed = membersRes.data ?? [];
+  const bookableStylistsEmbed = stylistRowsEmbed.filter((m: { show_on_diary?: boolean | null }) =>
+    memberShowsOnDiary(m),
+  );
 
   const stylistOverrides: Record<string, Record<string, number>> = {};
   try {
-    const memberIds = (membersRes.data ?? []).map((m: { id: string }) => m.id);
+    const memberIds = bookableStylistsEmbed.map((m: { id: string }) => m.id);
     if (memberIds.length > 0) {
       const { data: ov } = await supabase
         .from("stylist_service_overrides")
@@ -92,7 +98,7 @@ export default async function BookEmbedPage({
           salonId={salon.id}
           salonName={displayName}
           services={servicesRes.data ?? []}
-          stylists={membersRes.data ?? []}
+          stylists={bookableStylistsEmbed}
           stylistOverrides={stylistOverrides}
         />
       </Reveal>

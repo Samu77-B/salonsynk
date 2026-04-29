@@ -4,7 +4,19 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { inviteOrAddTeamMember, updateTeamMember, deleteTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles, upsertStylistServiceOverride, deleteStylistServiceOverride, setMemberPasscode, clearMemberPasscode } from "./actions";
 
-type Member = { id: string; user_id?: string | null; display_name: string | null; role: string; is_active: boolean; holiday_ranges?: unknown; employment_type?: string; avatar_url?: string | null; has_passcode?: boolean };
+type Member = {
+  id: string;
+  user_id?: string | null;
+  display_name: string | null;
+  role: string;
+  is_active: boolean;
+  holiday_ranges?: unknown;
+  employment_type?: string;
+  avatar_url?: string | null;
+  has_passcode?: boolean;
+  /** false = reception / login-only; omit from diary and bookable stylist lists */
+  show_on_diary?: boolean | null;
+};
 type Invite = { id: string; email: string; role: string; display_name: string | null; created_at: string };
 type SalonService = { id: string; name: string; duration_minutes: number };
 
@@ -58,6 +70,7 @@ export function TeamView({
   const [passcodeId, setPasscodeId] = useState<string | null>(null);
   const [pinDigits, setPinDigits] = useState(["", "", "", ""]);
   const [pinSaving, setPinSaving] = useState(false);
+  const [editShowOnDiary, setEditShowOnDiary] = useState(true);
   const [localOverrides, setLocalOverrides] = useState<Record<string, Record<string, number>>>(overridesByMember);
   const [timingsSaving, setTimingsSaving] = useState(false);
   const editAvatarInputRef = useRef<HTMLInputElement>(null);
@@ -125,7 +138,7 @@ export function TeamView({
     }
     const result = await updateTeamMember(editId, {
       display_name: editDisplayName,
-      ...(isOwner ? { employment_type: editEmploymentType, role: editRole } : {}),
+      ...(isOwner ? { employment_type: editEmploymentType, role: editRole, show_on_diary: editShowOnDiary } : {}),
     });
     setLoading(false);
     if (result.error) setError(result.error);
@@ -227,6 +240,9 @@ export function TeamView({
                     <p className="font-medium truncate">{m.display_name || m.role}</p>
                   </div>
                   <p className="text-sm text-muted capitalize">{m.role}</p>
+                  {m.show_on_diary === false ? (
+                    <p className="text-xs text-muted-foreground">Hidden from diary &amp; online booking as a stylist</p>
+                  ) : null}
                   {m.user_id && memberEmails[m.user_id] && (
                     <p className="text-xs text-muted" title="Has login">Login: {memberEmails[m.user_id]}</p>
                   )}
@@ -286,6 +302,7 @@ export function TeamView({
                           setEditDisplayName(m.display_name ?? "");
                           setEditRole(m.role || "stylist");
                           setEditEmploymentType((m.employment_type as "EMPLOYEE" | "RENTER") || "EMPLOYEE");
+                          setEditShowOnDiary(m.show_on_diary !== false);
                         }}
                         className="text-sm text-accent hover:underline"
                       >
@@ -691,6 +708,18 @@ export function TeamView({
                       <option value="RENTER">Renter (split: stylist + admin fee to salon)</option>
                     </select>
                   </div>
+                  <label className="flex cursor-pointer items-start gap-2 text-sm leading-snug">
+                    <input
+                      type="checkbox"
+                      className="mt-1 rounded border-border"
+                      checked={editShowOnDiary}
+                      onChange={(e) => setEditShowOnDiary(e.target.checked)}
+                    />
+                    <span>Show as a stylist column on the diary</span>
+                  </label>
+                  <p className="text-xs text-muted -mt-1 pl-7">
+                    Turn off for reception or shared logins who don&apos;t take appointments as a column.
+                  </p>
                   </>
                 )}
                 <div className="flex gap-2 pt-2">

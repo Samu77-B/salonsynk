@@ -18,13 +18,13 @@ export default async function TeamPage() {
   const membersQuery = async () => {
     const withPasscode = await supabase
       .from("salon_members")
-      .select("id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url, passcode_hash")
+      .select("id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url, passcode_hash, show_on_diary")
       .eq("salon_id", context!.salon.id)
       .order("role", { ascending: false });
     if (!withPasscode.error) return withPasscode;
     return supabase
       .from("salon_members")
-      .select("id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url")
+      .select("id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url, show_on_diary")
       .eq("salon_id", context!.salon.id)
       .order("role", { ascending: false });
   };

@@ -60,13 +60,23 @@ export async function inviteOrAddTeamMember(
 
 export async function updateTeamMember(
   id: string,
-  updates: { display_name?: string; role?: string; holiday_ranges?: string[]; is_active?: boolean; employment_type?: "EMPLOYEE" | "RENTER"; avatar_url?: string | null; calendar_color?: string | null }
+  updates: {
+    display_name?: string;
+    role?: string;
+    holiday_ranges?: string[];
+    is_active?: boolean;
+    employment_type?: "EMPLOYEE" | "RENTER";
+    avatar_url?: string | null;
+    calendar_color?: string | null;
+    show_on_diary?: boolean;
+  }
 ) {
   const supabase = await createClient();
   const context = await getCurrentUserSalon();
   if (!context) return { error: "Unauthorized" };
   if (updates.employment_type !== undefined && context.member.role !== "owner") return { error: "Only owners can set employment type" };
   if (updates.role !== undefined && context.member.role !== "owner") return { error: "Only owners can change roles" };
+  if (updates.show_on_diary !== undefined && context.member.role !== "owner") return { error: "Only owners can change diary visibility" };
 
   const payload: Record<string, unknown> = {};
   if (updates.display_name !== undefined) payload.display_name = updates.display_name;
@@ -75,6 +85,7 @@ export async function updateTeamMember(
   if (updates.employment_type !== undefined) payload.employment_type = updates.employment_type;
   if (updates.avatar_url !== undefined) payload.avatar_url = updates.avatar_url;
   if (updates.calendar_color !== undefined) payload.calendar_color = updates.calendar_color?.trim() || null;
+  if (updates.show_on_diary !== undefined) payload.show_on_diary = updates.show_on_diary;
   if (updates.holiday_ranges !== undefined) {
     payload.holiday_ranges = updates.holiday_ranges;
   }
@@ -87,6 +98,8 @@ export async function updateTeamMember(
 
   if (error) return { error: error.message };
   revalidatePath("/team");
+  revalidatePath("/dashboard");
+  revalidatePath("/checkout");
   return { error: null };
 }
 

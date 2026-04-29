@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { redirect } from "next/navigation";
+import { memberShowsOnDiary } from "@/lib/show-on-diary";
 import { isMissingProcessingColumnError } from "@/lib/db/service-schema";
 import { Reveal } from "@/components/reveal";
 import { DiaryView } from "./diary-view";
@@ -88,7 +89,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
   const [membersRes, servicesRes, clientsRes, appointmentsRes] = await Promise.all([
     supabase
       .from("salon_members")
-      .select("id, display_name, role, avatar_url")
+      .select("id, display_name, role, avatar_url, show_on_diary")
       .eq("salon_id", context.salon.id)
       .eq("is_active", true)
       .order("role", { ascending: false }),
@@ -140,7 +141,8 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
     })(),
   ]);
 
-  const members = membersRes.data ?? [];
+  const allMembers = membersRes.data ?? [];
+  const membersForDiary = allMembers.filter((m: { show_on_diary?: boolean | null }) => memberShowsOnDiary(m));
   const services = (servicesRes.data ?? []).map((s) => {
     const row = s as {
       id: string;
@@ -162,7 +164,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
   // Load stylist timing overrides (graceful if table doesn't exist yet)
   const stylistOverrides: Record<string, Record<string, number>> = {};
   try {
-    const memberIds = members.map((m: { id: string }) => m.id);
+    const memberIds = allMembers.map((m: { id: string }) => m.id);
     if (memberIds.length > 0) {
       const { data: overridesData } = await supabase
         .from("stylist_service_overrides")
@@ -415,7 +417,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
         const monthAppt = apptByMember(monthApptsRes.data ?? []);
 
         const memberNameMap: Record<string, string> = {};
-        for (const m of members) {
+        for (const m of allMembers) {
           memberNameMap[m.id] = m.display_name || "Unnamed";
         }
 
@@ -448,7 +450,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
           <DiaryView
             salonId={context.salon.id}
             salonName={context.salon.name}
-            members={jsonClone(members)}
+            members={jsonClone(membersForDiary)}
             services={jsonClone(services)}
             clients={jsonClone(clients)}
             appointments={jsonClone(appointments)}
