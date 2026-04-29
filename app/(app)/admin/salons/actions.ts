@@ -4,6 +4,31 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
 import { sendOwnerInviteLink } from "@/lib/email";
+import { isMissingShowOnDiaryColumnError } from "@/lib/show-on-diary";
+
+/**
+ * Staff logins added by SalonSynk admin (front desk / reception) are login-only by default —
+ * hidden from diary columns and stylist pickers. Falls back if the column isn't migrated yet.
+ */
+async function upsertSalonMemberLoginOnly(
+  admin: ReturnType<typeof createAdminClient>,
+  row: { salon_id: string; user_id: string; role: string; display_name: string }
+): Promise<{ error: string | null }> {
+  const fullRow = { ...row, is_active: true, show_on_diary: false };
+  const first = await admin
+    .from("salon_members")
+    .upsert(fullRow, { onConflict: "salon_id,user_id" });
+  if (!first.error) return { error: null };
+  if (isMissingShowOnDiaryColumnError(first.error)) {
+    const { show_on_diary: _omit, ...legacyRow } = fullRow;
+    void _omit;
+    const retry = await admin
+      .from("salon_members")
+      .upsert(legacyRow, { onConflict: "salon_id,user_id" });
+    return { error: retry.error?.message ?? null };
+  }
+  return { error: first.error.message };
+}
 
 export type BrandingInput = {
   logo_url?: string;
@@ -331,19 +356,16 @@ export async function adminAssignStaff(
   const displayName =
     (profile.full_name as string) || trimmed.split("@")[0] || "Staff";
 
-  const { error } = await supabase.from("salon_members").upsert(
-    {
-      salon_id: salonId,
-      user_id: profile.id,
-      role,
-      display_name: displayName,
-      is_active: true,
-    },
-    { onConflict: "salon_id,user_id" }
-  );
-  if (error) return { error: error.message };
+  const upsert = await upsertSalonMemberLoginOnly(supabase, {
+    salon_id: salonId,
+    user_id: profile.id,
+    role,
+    display_name: displayName,
+  });
+  if (upsert.error) return { error: upsert.error };
   revalidatePath("/admin/salons");
   revalidatePath(`/admin/salons/${salonId}`);
+  revalidatePath("/dashboard");
   return {};
 }
 
@@ -383,20 +405,17 @@ export async function adminCreateStaffWithPassword(
   const userId = userData?.user?.id;
   if (!userId) return { error: "User created but could not add as staff." };
 
-  const { error: memberError } = await supabase.from("salon_members").upsert(
-    {
-      salon_id: salonId,
-      user_id: userId,
-      role,
-      display_name: name,
-      is_active: true,
-    },
-    { onConflict: "salon_id,user_id" }
-  );
+  const upsert = await upsertSalonMemberLoginOnly(supabase, {
+    salon_id: salonId,
+    user_id: userId,
+    role,
+    display_name: name,
+  });
 
-  if (memberError) return { error: memberError.message };
+  if (upsert.error) return { error: upsert.error };
   revalidatePath("/admin/salons");
   revalidatePath(`/admin/salons/${salonId}`);
+  revalidatePath("/dashboard");
   return {};
 }
 
@@ -438,20 +457,17 @@ export async function adminInviteStaff(
   const userId = inviteData?.user?.id;
   if (!userId) return { error: "Invite sent but could not add as staff. Add them manually after they sign up." };
 
-  const { error: memberError } = await supabase.from("salon_members").upsert(
-    {
-      salon_id: salonId,
-      user_id: userId,
-      role,
-      display_name: name,
-      is_active: true,
-    },
-    { onConflict: "salon_id,user_id" }
-  );
+  const upsert = await upsertSalonMemberLoginOnly(supabase, {
+    salon_id: salonId,
+    user_id: userId,
+    role,
+    display_name: name,
+  });
 
-  if (memberError) return { error: memberError.message };
+  if (upsert.error) return { error: upsert.error };
   revalidatePath("/admin/salons");
   revalidatePath(`/admin/salons/${salonId}`);
+  revalidatePath("/dashboard");
   return {};
 }
 

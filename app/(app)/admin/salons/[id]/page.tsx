@@ -38,6 +38,21 @@ export default async function AdminEditSalonPage({
   const settings = (salon.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | undefined>) ?? {};
 
+  const brandingDone = Boolean(
+    branding.logo_url?.trim() || branding.primary_color?.trim() || branding.company_name?.trim()
+  );
+  const memberRows = members ?? [];
+  const ownerCount = memberRows.filter((m) => (m.role ?? "").toLowerCase() === "owner").length;
+  const staffCount = memberRows.length - ownerCount;
+  const ownerDone = ownerCount > 0;
+  const frontDeskDone = staffCount > 0;
+  const checklist: { label: string; done: boolean; hint: string }[] = [
+    { label: "Branding", done: brandingDone, hint: "Set company name, logo, primary colour" },
+    { label: "Owner / salon manager", done: ownerDone, hint: "Create or invite the manager login" },
+    { label: "Front desk login", done: frontDeskDone, hint: "Shared staff login (auto-hidden from diary)" },
+    { label: "Hand over", done: ownerDone && frontDeskDone, hint: "Owner sets up team, services, products, Stripe" },
+  ];
+
   return (
     <div className="max-w-2xl">
       <div className="flex items-center gap-4 mb-6">
@@ -46,6 +61,34 @@ export default async function AdminEditSalonPage({
         </Link>
         <h1 className="text-2xl font-bold">Edit salon</h1>
       </div>
+      <section
+        aria-label="Setup checklist"
+        className="mb-6 rounded-xl border border-border bg-background/60 p-4 shadow-sm"
+      >
+        <h2 className="mb-3 text-sm font-semibold">Setup checklist</h2>
+        <ol className="space-y-2 text-sm">
+          {checklist.map((step, i) => (
+            <li key={step.label} className="flex items-start gap-3">
+              <span
+                aria-hidden
+                className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold ${
+                  step.done
+                    ? "border-green-500/60 bg-green-500/15 text-green-400"
+                    : "border-border text-muted"
+                }`}
+              >
+                {step.done ? "✓" : i + 1}
+              </span>
+              <span className="min-w-0">
+                <span className={step.done ? "text-foreground" : "font-medium text-foreground"}>
+                  {step.label}
+                </span>
+                <span className="block text-xs text-muted">{step.hint}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </section>
       <div className="mb-4 flex flex-wrap gap-3 items-center">
         <a
           href={`/api/admin/switch-salon?salonId=${salon.id}`}
