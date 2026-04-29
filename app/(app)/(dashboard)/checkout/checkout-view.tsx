@@ -47,11 +47,12 @@ export function CheckoutView({
   const [extraOpen, setExtraOpen] = useState(false);
   const extraBlurTimer = useRef<number | null>(null);
 
-  /** Diary "Make Sale" passes ?clientId=&serviceId=&serviceIds=&stylistId= */
+  /** Diary "Make Sale" passes ?clientId=&serviceId=&serviceIds=&stylistId=&walkInName= for walk-ins */
   useEffect(() => {
     if (appliedFromUrlRef.current) return;
     const cid = searchParams.get("clientId");
     const tid = searchParams.get("stylistId");
+    const walkInFromUrl = searchParams.get("walkInName")?.trim() ?? "";
     const singleSvc = searchParams.get("serviceId");
     const multiSvc = searchParams.get("serviceIds");
     let serviceIds: string[] = [];
@@ -63,6 +64,10 @@ export function CheckoutView({
     let applied = false;
     if (cid && clients.some((c) => c.id === cid)) {
       setClientId(cid);
+      applied = true;
+    }
+    if (!cid && walkInFromUrl.length > 0) {
+      setWalkInName(walkInFromUrl.slice(0, 160));
       applied = true;
     }
     if (tid && stylists.some((s) => s.id === tid)) {

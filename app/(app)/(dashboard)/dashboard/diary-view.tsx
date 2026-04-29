@@ -763,6 +763,10 @@ export function DiaryView({
       if (lineIds.length === 1 && lineIds[0]) params.set("serviceId", lineIds[0]);
       if (lineIds.length > 1) params.set("serviceIds", lineIds.join(","));
       params.set("stylistId", apt.stylist_id);
+      const walkInLabel = apt.guest_name?.trim();
+      if (!apt.client_id && walkInLabel) {
+        params.set("walkInName", walkInLabel);
+      }
       router.push(`/checkout?${params.toString()}`);
     } else {
       router.push("/checkout");
