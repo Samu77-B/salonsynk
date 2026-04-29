@@ -8,3 +8,12 @@ export function canViewReports(isSuperAdmin: boolean, memberRole: string): boole
 export function isManagerRole(isSuperAdmin: boolean, memberRole: string): boolean {
   return canViewReports(isSuperAdmin, memberRole);
 }
+
+/**
+ * Shared front-desk / “general salon” logins created in admin as role `staff` (non-manager).
+ * They operate the diary daily — skip PIN-at-login and reschedule step-up PIN for diary moves only
+ * (see patch-appointment + dashboard layout).
+ */
+export function isGeneralSalonStaffRole(memberRole: string | null | undefined): boolean {
+  return (memberRole ?? "").trim().toLowerCase() === "staff";
+}

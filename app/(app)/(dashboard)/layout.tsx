@@ -4,7 +4,7 @@ import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { verifyPinSessionToken } from "@/lib/passcode";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
-import { isManagerRole } from "@/lib/dashboard-roles";
+import { isGeneralSalonStaffRole, isManagerRole } from "@/lib/dashboard-roles";
 
 export default async function DashboardGroupLayout({
   children,
@@ -15,7 +15,9 @@ export default async function DashboardGroupLayout({
   if (!salonContext) redirect("/onboarding");
 
   const isSuperAdmin = await getIsSuperAdmin();
-  const isManager = isManagerRole(isSuperAdmin, salonContext.member.role ?? "");
+  const memberRole = salonContext.member.role ?? "";
+  const isManager = isManagerRole(isSuperAdmin, memberRole);
+  const generalSalonStaff = isGeneralSalonStaffRole(memberRole);
 
   let hasPasscode = false;
   try {
@@ -30,7 +32,8 @@ export default async function DashboardGroupLayout({
     // column may not exist
   }
 
-  if (!isManager && hasPasscode) {
+  /** Front-desk `staff` logins browse without per-login PIN even if a legacy passcode was set on the row. */
+  if (!isManager && !generalSalonStaff && hasPasscode) {
     const jar = await cookies();
     const token = jar.get("pin_session")?.value;
     let valid = false;

@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { verifyPinSessionToken } from "@/lib/passcode";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
-import { isManagerRole } from "@/lib/dashboard-roles";
+import { isGeneralSalonStaffRole, isManagerRole } from "@/lib/dashboard-roles";
 import PinEntryView from "./pin-entry-view";
 
 export default async function PinPage() {
@@ -12,8 +12,9 @@ export default async function PinPage() {
   if (!context) redirect("/onboarding");
 
   const isSuperAdmin = await getIsSuperAdmin();
-  const isManager = isManagerRole(isSuperAdmin, context.member.role ?? "");
-  if (isManager) redirect("/dashboard");
+  const role = context.member.role ?? "";
+  const isManager = isManagerRole(isSuperAdmin, role);
+  if (isManager || isGeneralSalonStaffRole(role)) redirect("/dashboard");
 
   const supabase = await createClient();
   let hasPasscode = false;

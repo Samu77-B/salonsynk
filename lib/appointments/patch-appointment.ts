@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getMutateClient } from "@/lib/supabase/mutate-client";
+import { isGeneralSalonStaffRole } from "@/lib/dashboard-roles";
 import { requireStaffElevationOrError } from "@/lib/staff-elevation";
 import { dedupeOrderedServiceIds, syncAppointmentServices } from "./appointment-service-lines";
 import {
@@ -44,6 +45,19 @@ export type UpdateAppointmentInput = {
 };
 
 /**
+ * True when PATCH only relocates timing/column on the diary (drag reschedule),
+ * vs editing client/services/notes/contact.
+ */
+function updatesAreScheduleRelocationOnly(u: UpdateAppointmentInput): boolean {
+  const keys = (Object.keys(u) as (keyof UpdateAppointmentInput)[]).filter((k) => u[k] !== undefined);
+  if (keys.length === 0) return false;
+  for (const k of keys) {
+    if (k !== "start_time" && k !== "end_time" && k !== "stylist_id") return false;
+  }
+  return true;
+}
+
+/**
  * Core appointment PATCH used by the REST route and server actions.
  * Revalidation is deferred with `after()` so diary server actions (e.g. status changes) do not hit Next.js digest/RSC races.
  */
@@ -71,7 +85,13 @@ export async function executeAppointmentPatch(
       updates.guest_phone !== undefined ||
       updates.status !== undefined);
 
-  if (sensitive) {
+  const role = context.member.role ?? "";
+  let skipElevation = false;
+  if (isGeneralSalonStaffRole(role) && updatesAreScheduleRelocationOnly(updates)) {
+    skipElevation = true;
+  }
+
+  if (sensitive && !skipElevation) {
     const elevationError = await requireStaffElevationOrError({
       salonId,
       memberRole: context.member.role ?? "",
