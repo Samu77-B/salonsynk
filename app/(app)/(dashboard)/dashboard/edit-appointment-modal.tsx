@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { AppointmentDbStatus, UpdateAppointmentInput } from "./actions";
 import { uploadAppointmentPhoto } from "./actions";
+import { ServicePickerField } from "./service-picker-field";
 
 function isNextOpaqueServerErrorMessage(msg: string): boolean {
   return (
@@ -514,37 +515,15 @@ export function EditAppointmentModal({
               No email or phone – reminders won&apos;t be sent.
             </p>
           )}
-          <div>
-            <label className="block text-sm font-medium mb-1">Services</label>
-            <p className="text-xs text-muted-foreground mb-2">
-              Combined duration for this appointment: {durationMinutes} min.
-            </p>
-            <div className="max-h-48 overflow-y-auto rounded-lg border border-border bg-background px-2 py-1 divide-y divide-border">
-              {services.map((s) => {
-                const ov = stylistId ? stylistOverrides[stylistId]?.[s.id] : undefined;
-                const dur = ov ?? s.duration_minutes;
-                const checked = selectedServiceIds.includes(s.id);
-                return (
-                  <label key={s.id} className="flex cursor-pointer items-start gap-2 py-2 px-1 text-sm">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 rounded border-border"
-                      checked={checked}
-                      onChange={() => {
-                        setSelectedServiceIds((prev) =>
-                          checked ? prev.filter((id) => id !== s.id) : [...prev, s.id]
-                        );
-                      }}
-                    />
-                    <span className="min-w-0">
-                      <span className="font-medium">{s.name}</span>
-                      <span className="block text-xs text-muted-foreground">{dur} min</span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
+          <ServicePickerField
+            id="edit-appointment-service-search"
+            services={services}
+            stylistId={stylistId}
+            stylistOverrides={stylistOverrides}
+            selectedIds={selectedServiceIds}
+            onSelectedIdsChange={setSelectedServiceIds}
+            hint={`Type to add one or more; combined duration for this appointment: ${durationMinutes} min.`}
+          />
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
             <div className="flex-1 min-w-0">
               <label className="block text-sm font-medium mb-1">Date</label>
