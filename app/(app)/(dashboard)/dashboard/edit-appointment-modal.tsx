@@ -365,7 +365,7 @@ export function EditAppointmentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 pb-10 pt-[max(0.125rem,env(safe-area-inset-top))] sm:px-6 sm:pt-2 sm:pb-12" onClick={onClose}>
-      <div className="w-full min-w-0 max-w-md max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full min-w-0 max-w-md xl:max-w-4xl max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold mb-4">Edit appointment</h2>
         <div className="mb-4 rounded-lg border border-border bg-muted/20 p-3 space-y-3">
           <div>
@@ -439,82 +439,119 @@ export function EditAppointmentModal({
           </div>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Stylist</label>
-            <select
-              value={stylistId}
-              onChange={(e) => setStylistId(e.target.value)}
-              required
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            >
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>{m.display_name || m.role}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Client</label>
-            <select
-              value={clientId}
-              onChange={(e) => {
-                const newId = e.target.value;
-                setClientId(newId);
-                if (newId) {
-                  const c = clients.find((x) => x.id === newId);
-                  setEmail(c?.email ?? "");
-                  setPhone(c?.phone ?? "");
-                } else {
-                  setEmail("");
-                  setPhone("");
-                }
-              }}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Walk-in (guest)</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name || c.email || c.phone || c.id}</option>
-              ))}
-            </select>
-          </div>
-          {!clientId && (
-            <div>
-              <label className="block text-sm font-medium mb-1">Guest name</label>
-              <input
-                type="text"
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                placeholder="Name"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
+          <div className="grid grid-cols-1 xl:grid-cols-2 xl:gap-x-8 xl:items-start gap-y-4">
+            <div className="space-y-4 min-w-0">
+              <div>
+                <label className="block text-sm font-medium mb-1">Stylist</label>
+                <select
+                  value={stylistId}
+                  onChange={(e) => setStylistId(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>{m.display_name || m.role}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Client</label>
+                <select
+                  value={clientId}
+                  onChange={(e) => {
+                    const newId = e.target.value;
+                    setClientId(newId);
+                    if (newId) {
+                      const c = clients.find((x) => x.id === newId);
+                      setEmail(c?.email ?? "");
+                      setPhone(c?.phone ?? "");
+                    } else {
+                      setEmail("");
+                      setPhone("");
+                    }
+                  }}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Walk-in (guest)</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name || c.email || c.phone || c.id}</option>
+                  ))}
+                </select>
+              </div>
+              {!clientId && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Guest name</label>
+                  <input
+                    type="text"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="Name"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              )}
             </div>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="client@example.com"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Phone</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="07xxx xxxxxx"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
+            <div className="space-y-4 min-w-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="client@example.com"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="07xxx xxxxxx"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              {messagingOn && !hasContact && (
+                <p className="text-sm text-amber-600">
+                  No email or phone – reminders won&apos;t be sent.
+                </p>
+              )}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                <div className="flex-1 min-w-0">
+                  <label className="block text-sm font-medium mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="block text-sm font-medium mb-1">Time</label>
+                  <input
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Notes</label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
             </div>
           </div>
-          {messagingOn && !hasContact && (
-            <p className="text-sm text-amber-600">
-              No email or phone – reminders won&apos;t be sent.
-            </p>
-          )}
           <ServicePickerField
             id="edit-appointment-service-search"
             services={services}
@@ -524,38 +561,7 @@ export function EditAppointmentModal({
             onSelectedIdsChange={setSelectedServiceIds}
             hint={`Type to add one or more; combined duration for this appointment: ${durationMinutes} min.`}
           />
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-            <div className="flex-1 min-w-0">
-              <label className="block text-sm font-medium mb-1">Date</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <label className="block text-sm font-medium mb-1">Time</label>
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                required
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Notes</label>
-            <input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <PhotoUploadField
               label="Before photo"
               photoUrl={beforePhotoUrl}
