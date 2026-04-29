@@ -10,14 +10,24 @@ export default async function CheckoutPage() {
   if (!context) redirect("/onboarding");
 
   const supabase = await createClient();
-  const [clientsRes, servicesRes, productsRes] = await Promise.all([
-    supabase.from("clients").select("id, name, email").eq("salon_id", context.salon.id).order("name"),
-    supabase.from("services").select("id, name, duration_minutes, price_minor").eq("salon_id", context.salon.id),
-    supabase
+  const productsQuery = async () => {
+    const withLinks = await supabase
       .from("products")
       .select("id, name, price_minor, product_services(service_id)")
       .eq("salon_id", context.salon.id)
-      .eq("is_active", true),
+      .eq("is_active", true);
+    if (!withLinks.error) return withLinks;
+    return supabase
+      .from("products")
+      .select("id, name, price_minor")
+      .eq("salon_id", context.salon.id)
+      .eq("is_active", true);
+  };
+
+  const [clientsRes, servicesRes, productsRes] = await Promise.all([
+    supabase.from("clients").select("id, name, email").eq("salon_id", context.salon.id).order("name"),
+    supabase.from("services").select("id, name, duration_minutes, price_minor").eq("salon_id", context.salon.id),
+    productsQuery(),
   ]);
 
   type ProductRowRaw = {

@@ -16,17 +16,30 @@ export default async function ProductsPage() {
   if (!isManagerRole(isSuperAdmin, context.member.role ?? "")) redirect("/dashboard");
   const canManage = context.member.role === "owner" || isSuperAdmin;
 
-  const [{ data: svcRows }, { data: rows, error }] = await Promise.all([
-    supabase.from("services").select("id, name").eq("salon_id", context.salon.id).order("name"),
-    supabase
+  const productsQuery = async () => {
+    const PRODUCT_COLS =
+      "id, name, description, category, price_minor, currency, is_active, sort_order, image_url";
+    const withLinks = await supabase
       .from("products")
-      .select(
-        "id, name, description, category, price_minor, currency, is_active, sort_order, image_url, product_services(service_id)"
-      )
+      .select(`${PRODUCT_COLS}, product_services(service_id)`)
       .eq("salon_id", context.salon.id)
       .order("sort_order", { ascending: true })
-      .order("name", { ascending: true }),
+      .order("name", { ascending: true });
+    if (!withLinks.error) return { ...withLinks, productServicesAvailable: true };
+    const fallback = await supabase
+      .from("products")
+      .select(PRODUCT_COLS)
+      .eq("salon_id", context.salon.id)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true });
+    return { ...fallback, productServicesAvailable: false };
+  };
+
+  const [{ data: svcRows }, productsRes] = await Promise.all([
+    supabase.from("services").select("id, name").eq("salon_id", context.salon.id).order("name"),
+    productsQuery(),
   ]);
+  const { data: rows, error, productServicesAvailable } = productsRes;
 
   const servicesForLinks = (svcRows ?? []).map((s) => ({
     id: s.id as string,
@@ -73,12 +86,18 @@ export default async function ProductsPage() {
           table).
         </p>
       )}
+      {!error && !productServicesAvailable && (
+        <p className="mb-4 text-sm text-amber-400" role="alert">
+          Product → service linking is unavailable until migration 037 (product_services) runs on Supabase. Other
+          product fields still work.
+        </p>
+      )}
       <ProductsView
         salonId={context.salon.id}
         salonSlug={context.salon.slug}
         canManage={canManage}
         products={products}
-        servicesForLinks={servicesForLinks}
+        servicesForLinks={productServicesAvailable ? servicesForLinks : []}
       />
     </main>
   );
