@@ -1206,14 +1206,26 @@ export function DiaryView({
                                 slot.setHours(startHour, 0, 0, 0);
                                 slot.setMinutes(slot.getMinutes() + minsFromStart);
                                 const stylistLabel = member.display_name || member.role || "Stylist";
-                                // Anchor tooltip to the time guide (crosshair row) near the column’s left edge
+                                const pad = 8;
+                                const approxW = Math.min(220, window.innerWidth - 2 * pad);
+                                const approxH = 48;
+                                let tooltipX = e.clientX + 14;
+                                if (tooltipX + approxW > window.innerWidth - pad) {
+                                  tooltipX = e.clientX - approxW - 14;
+                                }
+                                tooltipX = Math.max(pad, Math.min(tooltipX, window.innerWidth - approxW - pad));
+                                let tooltipY = e.clientY;
+                                tooltipY = Math.max(
+                                  pad + approxH / 2,
+                                  Math.min(tooltipY, window.innerHeight - pad - approxH / 2),
+                                );
                                 setSlotHover({
                                   memberId: member.id,
                                   topPx: snappedTopPx,
                                   timeLabel: formatTime(slot),
                                   stylistLabel,
-                                  tooltipX: Math.round(rect.left + 6),
-                                  tooltipY: Math.round(rect.top + snappedTopPx),
+                                  tooltipX: Math.round(tooltipX),
+                                  tooltipY: Math.round(tooltipY),
                                 });
                               }}
                               onMouseLeave={() => setSlotHover(null)}
@@ -1528,7 +1540,7 @@ export function DiaryView({
           style={{
             left: slotHover.tooltipX,
             top: slotHover.tooltipY,
-            transform: "translate(4px, -50%)",
+            transform: "translate(0, -50%)",
           }}
           role="status"
           aria-live="polite"
@@ -1539,7 +1551,8 @@ export function DiaryView({
       )}
 
       <p className="text-xs text-muted px-1">
-        Day: hover the grid for the snapped time, click empty space to add there; drag to reschedule. Week: drag onto a day column. Edit / Delete on each booking.
+        Day: hover for snapped time (label follows your pointer), click empty space to add there; drag to reschedule. Week:
+        drag onto a day column. Edit / Delete on each booking.
       </p>
 
       {addOpen && (
