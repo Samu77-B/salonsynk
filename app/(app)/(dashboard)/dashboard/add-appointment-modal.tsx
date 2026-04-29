@@ -202,7 +202,7 @@ export function AddAppointmentModal({
       >
         <h2 className="text-lg font-semibold mb-4">Add appointment</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 xl:grid-cols-2 xl:gap-x-8 xl:items-start gap-y-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 xl:gap-x-8 xl:items-start gap-y-6">
             <div className="space-y-4 min-w-0">
           <div>
             <label className="block text-sm font-medium mb-1">Stylist</label>
@@ -326,8 +326,7 @@ export function AddAppointmentModal({
               );
             })()}
           </div>
-            </div>
-            <div className="space-y-4 min-w-0">
+
           {clientId ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
@@ -403,36 +402,45 @@ export function AddAppointmentModal({
               No email or phone – we can&apos;t send a booking confirmation or reminders.
             </p>
           )}
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-                <div className="flex-1 min-w-0">
-                  <label className="block text-sm font-medium mb-1">Date</label>
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    required
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            </div>
+
+            <div className="space-y-4 min-w-0">
+              <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-sm font-medium mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      required
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-sm font-medium mb-1">Time</label>
+                    <input
+                      type="time"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                      required
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="add-appt-notes">
+                    Notes
+                  </label>
+                  <textarea
+                    id="add-appt-notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Treatments discussed, formulas, sensitivities..."
+                    rows={5}
+                    className="w-full min-h-[8.5rem] resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm leading-relaxed placeholder:text-muted-foreground"
                   />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <label className="block text-sm font-medium mb-1">Time</label>
-                  <input
-                    type="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    required
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Notes</label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                />
               </div>
             </div>
           </div>
