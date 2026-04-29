@@ -1206,26 +1206,28 @@ export function DiaryView({
                                 slot.setHours(startHour, 0, 0, 0);
                                 slot.setMinutes(slot.getMinutes() + minsFromStart);
                                 const stylistLabel = member.display_name || member.role || "Stylist";
+                                /** Tight gap from pointer tip — top-left of tooltip anchored near cursor */
                                 const pad = 8;
                                 const approxW = Math.min(220, window.innerWidth - 2 * pad);
                                 const approxH = 48;
-                                let tooltipX = e.clientX + 14;
-                                if (tooltipX + approxW > window.innerWidth - pad) {
-                                  tooltipX = e.clientX - approxW - 14;
+                                const gap = 4;
+                                let left = e.clientX + gap;
+                                let top = e.clientY + gap;
+                                if (left + approxW > window.innerWidth - pad) {
+                                  left = e.clientX - approxW - gap;
                                 }
-                                tooltipX = Math.max(pad, Math.min(tooltipX, window.innerWidth - approxW - pad));
-                                let tooltipY = e.clientY;
-                                tooltipY = Math.max(
-                                  pad + approxH / 2,
-                                  Math.min(tooltipY, window.innerHeight - pad - approxH / 2),
-                                );
+                                if (top + approxH > window.innerHeight - pad) {
+                                  top = e.clientY - approxH - gap;
+                                }
+                                left = Math.max(pad, Math.min(left, window.innerWidth - approxW - pad));
+                                top = Math.max(pad, Math.min(top, window.innerHeight - approxH - pad));
                                 setSlotHover({
                                   memberId: member.id,
                                   topPx: snappedTopPx,
                                   timeLabel: formatTime(slot),
                                   stylistLabel,
-                                  tooltipX: Math.round(tooltipX),
-                                  tooltipY: Math.round(tooltipY),
+                                  tooltipX: Math.round(left),
+                                  tooltipY: Math.round(top),
                                 });
                               }}
                               onMouseLeave={() => setSlotHover(null)}
@@ -1540,7 +1542,6 @@ export function DiaryView({
           style={{
             left: slotHover.tooltipX,
             top: slotHover.tooltipY,
-            transform: "translate(0, -50%)",
           }}
           role="status"
           aria-live="polite"
