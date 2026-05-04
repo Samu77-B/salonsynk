@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { revalidatePath } from "next/cache";
 import { requireStaffElevationOrError } from "@/lib/staff-elevation";
+import { parseCsvRows } from "@/lib/simple-csv";
 
 export async function createClientAction(data: {
   salonId: string;
@@ -259,4 +260,219 @@ export async function deleteClientPhoto(
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");
   return { error: null };
+}
+
+// ── CSV Import ──
+
+export type CsvImportRowError = { line: number; message: string };
+
+const MAX_CLIENT_CSV_ROWS = 2000;
+
+function normCsvHeader(h: string): string {
+  return h.trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+function parseBoolCell(raw: string | undefined, defaultValue: boolean): boolean {
+  if (raw === undefined) return defaultValue;
+  const x = raw.trim().toLowerCase();
+  if (x === "") return defaultValue;
+  if (["1", "true", "yes", "y", "on"].includes(x)) return true;
+  if (["0", "false", "no", "n", "off"].includes(x)) return false;
+  return defaultValue;
+}
+
+function normalizeSex(raw: string | undefined): string | null {
+  const x = (raw ?? "").trim().toLowerCase();
+  if (x === "male" || x === "m") return "male";
+  if (x === "female" || x === "f") return "female";
+  return null;
+}
+
+// Strip non-digits except leading '+', so '+44 7700 900 000' and '07700900000' compare consistently.
+function normalizePhoneForCompare(raw: string | null | undefined): string {
+  const s = (raw ?? "").trim();
+  if (!s) return "";
+  const hasPlus = s.startsWith("+");
+  const digits = s.replace(/[^\d]/g, "");
+  return hasPlus ? `+${digits}` : digits;
+}
+
+function normalizeEmailForCompare(raw: string | null | undefined): string {
+  return (raw ?? "").trim().toLowerCase();
+}
+
+export async function importClientsFromCsv(
+  salonId: string,
+  csvText: string
+): Promise<{
+  error: string | null;
+  added: number;
+  skipped: number;
+  rowErrors: CsvImportRowError[];
+}> {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId) {
+    return { error: "Unauthorized", added: 0, skipped: 0, rowErrors: [] };
+  }
+
+  const rows = parseCsvRows(csvText);
+  if (rows.length < 2) {
+    return {
+      error: "Add a header row and at least one client row.",
+      added: 0,
+      skipped: 0,
+      rowErrors: [],
+    };
+  }
+
+  const headerCells = rows[0]!.map(normCsvHeader);
+  const col: Record<string, number> = {};
+  headerCells.forEach((h, i) => {
+    if (h && col[h] === undefined) col[h] = i;
+  });
+
+  function pick(row: string[], ...keys: string[]): string | undefined {
+    for (const k of keys) {
+      const j = col[k];
+      if (j !== undefined && row[j] !== undefined) return row[j];
+    }
+    return undefined;
+  }
+
+  const hasAnyIdColumn =
+    col.name !== undefined ||
+    col.full_name !== undefined ||
+    col.email !== undefined ||
+    col.email_address !== undefined ||
+    col.phone !== undefined ||
+    col.mobile !== undefined ||
+    col.phone_number !== undefined;
+  if (!hasAnyIdColumn) {
+    return {
+      error: 'CSV must include at least one of: "name", "email", or "phone".',
+      added: 0,
+      skipped: 0,
+      rowErrors: [],
+    };
+  }
+
+  const dataRows = rows.slice(1);
+  if (dataRows.length > MAX_CLIENT_CSV_ROWS) {
+    return {
+      error: `Too many rows (max ${MAX_CLIENT_CSV_ROWS}). Split into multiple files.`,
+      added: 0,
+      skipped: 0,
+      rowErrors: [],
+    };
+  }
+
+  const supabase = await createClient();
+
+  // Pull existing clients for de-dup; cap at a reasonable size for typical salons.
+  const existingEmails = new Set<string>();
+  const existingPhones = new Set<string>();
+  {
+    const { data: existing, error: existingErr } = await supabase
+      .from("clients")
+      .select("email, phone")
+      .eq("salon_id", salonId)
+      .limit(20000);
+    if (existingErr) {
+      return { error: existingErr.message, added: 0, skipped: 0, rowErrors: [] };
+    }
+    for (const r of existing ?? []) {
+      const e = normalizeEmailForCompare((r as { email: string | null }).email);
+      if (e) existingEmails.add(e);
+      const p = normalizePhoneForCompare((r as { phone: string | null }).phone);
+      if (p) existingPhones.add(p);
+    }
+  }
+
+  type Payload = {
+    salon_id: string;
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    notes: string | null;
+    sex: string | null;
+    marketing_opt_in: boolean;
+  };
+
+  const payloads: Payload[] = [];
+  const rowErrors: CsvImportRowError[] = [];
+  const seenEmails = new Set<string>();
+  const seenPhones = new Set<string>();
+  let skipped = 0;
+
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i]!;
+    const lineNum = i + 2;
+
+    const name = (pick(row, "name", "full_name") ?? "").trim() || null;
+    const emailRaw = (pick(row, "email", "email_address") ?? "").trim();
+    const email = emailRaw ? emailRaw.toLowerCase() : null;
+    const phoneRaw = (pick(row, "phone", "mobile", "phone_number") ?? "").trim() || null;
+    const notes = (pick(row, "notes", "note") ?? "").trim() || null;
+    const sex = normalizeSex(pick(row, "sex", "gender"));
+    const marketing_opt_in = parseBoolCell(pick(row, "marketing_opt_in", "marketing", "opt_in"), true);
+
+    if (!name && !email && !phoneRaw) {
+      rowErrors.push({ line: lineNum, message: "Row must include name, email, or phone" });
+      continue;
+    }
+
+    if (email && !email.includes("@")) {
+      rowErrors.push({ line: lineNum, message: "Invalid email" });
+      continue;
+    }
+
+    const emailKey = normalizeEmailForCompare(email);
+    const phoneKey = normalizePhoneForCompare(phoneRaw);
+
+    if (emailKey && (existingEmails.has(emailKey) || seenEmails.has(emailKey))) {
+      skipped++;
+      continue;
+    }
+    if (phoneKey && (existingPhones.has(phoneKey) || seenPhones.has(phoneKey))) {
+      skipped++;
+      continue;
+    }
+
+    if (emailKey) seenEmails.add(emailKey);
+    if (phoneKey) seenPhones.add(phoneKey);
+
+    payloads.push({
+      salon_id: salonId,
+      name,
+      email,
+      phone: phoneRaw,
+      notes,
+      sex,
+      marketing_opt_in,
+    });
+  }
+
+  if (payloads.length === 0) {
+    return { error: null, added: 0, skipped, rowErrors };
+  }
+
+  // Insert in chunks to avoid oversized payloads.
+  const CHUNK = 500;
+  let added = 0;
+  for (let i = 0; i < payloads.length; i += CHUNK) {
+    const slice = payloads.slice(i, i + CHUNK);
+    const { error } = await supabase.from("clients").insert(slice);
+    if (error) {
+      return {
+        error: error.message,
+        added,
+        skipped,
+        rowErrors,
+      };
+    }
+    added += slice.length;
+  }
+
+  revalidatePath("/clients");
+  return { error: null, added, skipped, rowErrors };
 }
