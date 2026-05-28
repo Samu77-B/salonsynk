@@ -9,7 +9,8 @@ export function SettingsView(props: {
   salonSlug: string;
   stripeConnectAccountId: string | null;
   subscriptionStatus: string;
-  formatFlatFee: string;
+  planLabel: string;
+  planPriceLabel: string;
   branding: { logo_url: string; primary_color: string; company_name: string };
   showSalonTaxVault?: boolean;
   salonTaxVaultMinor?: number;
@@ -34,7 +35,8 @@ export function SettingsView(props: {
     salonSlug,
     stripeConnectAccountId,
     subscriptionStatus,
-    formatFlatFee,
+    planLabel,
+    planPriceLabel,
     branding,
     isOwner,
     adminFeePercent,
@@ -335,8 +337,9 @@ export function SettingsView(props: {
       <section>
         <h2 className="text-lg font-semibold mb-2">Subscription</h2>
         <p className="text-muted text-sm mb-2">
-          SalonSynk flat fee: {formatFlatFee}. Billed to SalonSynk (platform) — separate from Stripe Connect payouts
-          for your salon.
+          Your plan: <span className="font-medium text-foreground">{planLabel}</span> ({planPriceLabel}). Billed to
+          SalonSynk (platform) — separate from Stripe Connect payouts for your salon. Your tier is set by SalonSynk
+          admin; contact support to change plan.
         </p>
         <p className="text-sm mb-3">
           Status: <span className="capitalize">{subscriptionStatus}</span>
@@ -360,7 +363,10 @@ export function SettingsView(props: {
             </a>
           )}
         {isOwner && !subscriptionCheckoutAvailable && (
-          <p className="text-muted text-sm">Subscription checkout is not configured yet.</p>
+          <p className="text-muted text-sm">
+            Subscription checkout is not configured for the {planLabel} plan yet. Ask SalonSynk support to enable
+            billing for your tier.
+          </p>
         )}
         {isOwner &&
           subscriptionStatus === "active" &&

@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getStripe } from "@/lib/stripe/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  resolvePlanTierFromSubscription,
+  subscriptionStatusToSalonField,
+} from "@/config/plans";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -20,7 +24,13 @@ export async function POST(request: Request) {
   const stripe = getStripe();
   const TAX_RESERVE_PERCENT = 20;
 
-  type SubscriptionObject = { status?: string; metadata?: { salon_id?: string }; subscription?: string; customer?: string };
+  type SubscriptionObject = {
+    status?: string;
+    metadata?: { salon_id?: string; plan_tier?: string };
+    subscription?: string;
+    customer?: string | { id?: string } | null;
+    items?: { data?: Array<{ price?: string | { id?: string } | null } | null> | null };
+  };
   type InvoiceObject = { subscription?: string; total_taxes?: Array<{ amount?: number }> };
   type PaymentIntentObject = {
     id: string;
@@ -46,6 +56,7 @@ export async function POST(request: Request) {
     currency?: string | null;
     metadata?: {
       salon_id?: string;
+      plan_tier?: string;
       stylist_id?: string;
       client_id?: string;
       employment_type?: string;
@@ -168,10 +179,30 @@ export async function POST(request: Request) {
     const salonId = session?.metadata?.salon_id;
     const customerId = typeof session?.customer === "string" ? session.customer : null;
     if (session?.mode === "subscription" && salonId && customerId) {
-      await supabase
-        .from("salons")
-        .update({ stripe_billing_customer_id: customerId })
-        .eq("id", salonId);
+      const sessionMeta = session.metadata ?? {};
+      const planTierFromSession = sessionMeta.plan_tier;
+      const customerUpdate: Record<string, unknown> = {
+        stripe_billing_customer_id: customerId,
+      };
+      if (planTierFromSession) {
+        customerUpdate.plan_tier = planTierFromSession;
+      }
+      await supabase.from("salons").update(customerUpdate).eq("id", salonId);
+
+      const subscriptionId =
+        typeof session.subscription === "string" ? session.subscription : null;
+      if (subscriptionId) {
+        try {
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const tier = resolvePlanTierFromSubscription(subscription);
+          const status = subscriptionStatusToSalonField(subscription.status);
+          const subUpdate: Record<string, unknown> = { subscription_status: status };
+          if (tier) subUpdate.plan_tier = tier;
+          await supabase.from("salons").update(subUpdate).eq("id", salonId);
+        } catch (err) {
+          console.error("checkout.session.completed: subscription retrieve failed", err);
+        }
+      }
     }
     // In-salon / one-off Checkout only — never treat platform subscription as retail sales.
     if (session?.mode !== "subscription") {
@@ -196,10 +227,16 @@ export async function POST(request: Request) {
 
   if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated") {
     const sub = event.data?.object as SubscriptionObject | undefined;
-    const status = sub?.status === "active" ? "active" : sub?.status === "past_due" ? "past_due" : "inactive";
     const salonId = sub?.metadata?.salon_id;
-    if (salonId) {
-      await supabase.from("salons").update({ subscription_status: status }).eq("id", salonId);
+    if (salonId && sub) {
+      const payload: Record<string, unknown> = {
+        subscription_status: subscriptionStatusToSalonField(sub.status),
+      };
+      const tier = resolvePlanTierFromSubscription(sub);
+      if (tier) payload.plan_tier = tier;
+      const customerId = typeof sub.customer === "string" ? sub.customer : null;
+      if (customerId) payload.stripe_billing_customer_id = customerId;
+      await supabase.from("salons").update(payload).eq("id", salonId);
     }
   }
 

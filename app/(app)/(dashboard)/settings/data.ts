@@ -1,7 +1,13 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
-import { FLAT_FEE } from "@/config/subscription";
+import {
+  getStripePriceIdForTier,
+  isPlanTierId,
+  PLAN_TIERS,
+  formatPlanPrice,
+  type PlanTierId,
+} from "@/config/plans";
 import { redirect } from "next/navigation";
 
 export async function getSettingsData() {
@@ -38,7 +44,7 @@ export async function getSettingsData() {
     supabase
       .from("salons")
       .select(
-        "id, name, slug, stripe_connect_account_id, stripe_billing_customer_id, subscription_status, settings, tax_vault_minor"
+        "id, name, slug, stripe_connect_account_id, stripe_billing_customer_id, subscription_status, plan_tier, settings, tax_vault_minor"
       )
       .eq("id", context.salon.id)
       .single(),
@@ -70,7 +76,11 @@ export async function getSettingsData() {
   const showSalonTaxVault = isOwner;
   const showRenterTaxVault = !isOwner && employmentType === "RENTER";
 
-  const subscriptionCheckoutAvailable = Boolean(FLAT_FEE.STRIPE_PRICE_ID?.trim());
+  const rawPlanTier = (salon as { plan_tier?: string } | null)?.plan_tier ?? "professional";
+  const planTier: PlanTierId = isPlanTierId(rawPlanTier) ? rawPlanTier : "professional";
+  const planLabel = PLAN_TIERS[planTier].label;
+  const planPriceLabel = formatPlanPrice(planTier);
+  const subscriptionCheckoutAvailable = Boolean(getStripePriceIdForTier(planTier));
   const hasBillingCustomer = Boolean(salon?.stripe_billing_customer_id?.trim());
 
   return {
@@ -119,5 +129,8 @@ export async function getSettingsData() {
     renterTaxVaultMinor: showRenterTaxVault ? Number(member?.tax_vault_minor ?? 0) : 0,
     subscriptionCheckoutAvailable,
     hasBillingCustomer,
+    planTier,
+    planLabel,
+    planPriceLabel,
   };
 }

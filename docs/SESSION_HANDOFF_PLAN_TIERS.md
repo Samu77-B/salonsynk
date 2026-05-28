@@ -52,12 +52,13 @@ Existing salons backfill to **Professional** (closest to today’s £50 flat fee
 
 ---
 
-## Not done yet (from full plan)
+## Stripe billing (implemented in code)
 
-1. **Stripe billing** — checkout + webhook use tier price IDs; sync `plan_tier` from subscription  
-   - Env: `STRIPE_PRICE_ESSENTIALS`, `STRIPE_PRICE_PROFESSIONAL`, `STRIPE_PRICE_COMPLETE`  
-   - Keep `STRIPE_FLAT_FEE_PRICE_ID` → maps to Professional for legacy  
-   - Files: `app/api/stripe/create-subscription-checkout/route.ts`, `app/api/webhooks/stripe/route.ts`
+- Checkout + webhook use tier price IDs; sync `plan_tier` from subscription  
+- Setup guide: [`docs/STRIPE_SUBSCRIPTION_SETUP.md`](STRIPE_SUBSCRIPTION_SETUP.md)  
+- Env: `STRIPE_PRICE_ESSENTIALS`, `STRIPE_PRICE_PROFESSIONAL`, `STRIPE_PRICE_COMPLETE` (+ legacy `STRIPE_FLAT_FEE_PRICE_ID`)
+
+## Not done yet (from full plan)
 
 2. **Feature enforcement** — hide nav/routes, block server actions, skip crons, gate `/book` and `/shop` by `salonHasFeature()`  
    - Needs `lib/salon-features.ts` + layout/header wiring

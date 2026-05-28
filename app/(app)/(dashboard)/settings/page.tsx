@@ -1,4 +1,3 @@
-import { formatFlatFee } from "@/config/subscription";
 import { SettingsView } from "./settings-view";
 import { SettingsNav } from "./settings-nav";
 import { getSettingsData } from "./data";
@@ -21,7 +20,8 @@ export default async function SettingsPage() {
         salonSlug={data.context.salon.slug}
         stripeConnectAccountId={data.salon?.stripe_connect_account_id ?? null}
         subscriptionStatus={data.salon?.subscription_status ?? "inactive"}
-        formatFlatFee={formatFlatFee()}
+        planLabel={data.planLabel}
+        planPriceLabel={data.planPriceLabel}
         branding={data.branding}
         showSalonTaxVault={data.showSalonTaxVault}
         salonTaxVaultMinor={data.salonTaxVaultMinor}

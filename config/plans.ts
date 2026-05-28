@@ -200,3 +200,37 @@ export function tierFromStripePriceId(priceId: string): PlanTierId | null {
   }
   return null;
 }
+
+export function isStripePriceConfiguredForTier(tier: PlanTierId): boolean {
+  return Boolean(getStripePriceIdForTier(tier));
+}
+
+/** First price ID on a Stripe subscription object (Checkout webhook payload). */
+export function priceIdFromStripeSubscription(sub: {
+  items?: { data?: Array<{ price?: string | { id?: string } | null } | null> | null };
+}): string | null {
+  const price = sub.items?.data?.[0]?.price;
+  if (!price) return null;
+  if (typeof price === "string") return price;
+  return price.id?.trim() ?? null;
+}
+
+export function resolvePlanTierFromSubscription(sub: {
+  metadata?: { plan_tier?: string; salon_id?: string } | null;
+  items?: { data?: Array<{ price?: string | { id?: string } | null } | null> | null };
+}): PlanTierId | null {
+  const metaTier = sub.metadata?.plan_tier?.trim();
+  if (metaTier && isPlanTierId(metaTier)) return metaTier;
+  const priceId = priceIdFromStripeSubscription(sub);
+  if (priceId) return tierFromStripePriceId(priceId);
+  return null;
+}
+
+export function subscriptionStatusToSalonField(
+  stripeStatus: string | undefined
+): "active" | "past_due" | "inactive" | "canceled" {
+  if (stripeStatus === "active" || stripeStatus === "trialing") return "active";
+  if (stripeStatus === "past_due" || stripeStatus === "unpaid") return "past_due";
+  if (stripeStatus === "canceled") return "canceled";
+  return "inactive";
+}
