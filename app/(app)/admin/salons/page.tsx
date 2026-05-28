@@ -1,11 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
+import { PLAN_TIERS, formatPlanPrice, isPlanTierId, type PlanTierId } from "@/config/plans";
 
 export default async function AdminSalonsPage() {
   const supabase = createAdminClient();
   const { data: salons } = await supabase
     .from("salons")
-    .select("id, name, slug, subscription_status, created_at, settings")
+    .select("id, name, slug, subscription_status, plan_tier, created_at, settings")
     .order("created_at", { ascending: false });
 
   return (
@@ -31,12 +32,16 @@ export default async function AdminSalonsPage() {
               <th className="text-left px-4 py-2 font-medium">Name</th>
               <th className="text-left px-4 py-2 font-medium">Slug</th>
               <th className="text-left px-4 py-2 font-medium">Public URLs</th>
-              <th className="text-left px-4 py-2 font-medium">Status</th>
+              <th className="text-left px-4 py-2 font-medium">Plan</th>
+              <th className="text-left px-4 py-2 font-medium">Billing</th>
               <th className="text-left px-4 py-2 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {(salons ?? []).map((s) => (
+            {(salons ?? []).map((s) => {
+              const rawTier = (s as { plan_tier?: string }).plan_tier ?? "professional";
+              const tier: PlanTierId = isPlanTierId(rawTier) ? rawTier : "professional";
+              return (
               <tr key={s.id} className="border-t border-border">
                 <td className="px-4 py-2">{s.name}</td>
                 <td className="px-4 py-2 font-mono text-muted">{s.slug}</td>
@@ -60,6 +65,10 @@ export default async function AdminSalonsPage() {
                     </a>
                   </div>
                 </td>
+                <td className="px-4 py-2">
+                  <span className="font-medium">{PLAN_TIERS[tier].label}</span>
+                  <span className="block text-xs text-muted">{formatPlanPrice(tier)}</span>
+                </td>
                 <td className="px-4 py-2 capitalize">{s.subscription_status}</td>
                 <td className="px-4 py-2">
                   <Link
@@ -76,7 +85,8 @@ export default async function AdminSalonsPage() {
                   </Link>
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>

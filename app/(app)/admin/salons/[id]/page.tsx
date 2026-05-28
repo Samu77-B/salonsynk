@@ -2,6 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AdminEditSalonForm } from "./admin-edit-salon-form";
+import { AdminSalonPlanSection } from "./admin-salon-plan-section";
+import { isPlanTierId, type PlanTierId } from "@/config/plans";
 
 export default async function AdminEditSalonPage({
   params,
@@ -12,7 +14,7 @@ export default async function AdminEditSalonPage({
   const supabase = createAdminClient();
   const { data: salon } = await supabase
     .from("salons")
-    .select("id, name, slug, settings")
+    .select("id, name, slug, settings, plan_tier, feature_overrides, subscription_status")
     .eq("id", id)
     .single();
   if (!salon) notFound();
@@ -37,6 +39,14 @@ export default async function AdminEditSalonPage({
 
   const settings = (salon.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | undefined>) ?? {};
+  const rawTier = (salon as { plan_tier?: string }).plan_tier ?? "professional";
+  const planTier: PlanTierId = isPlanTierId(rawTier) ? rawTier : "professional";
+  const featureOverrides =
+    ((salon as { feature_overrides?: Record<string, boolean> }).feature_overrides as
+      | Record<string, boolean>
+      | null) ?? {};
+  const subscriptionStatus =
+    (salon as { subscription_status?: string }).subscription_status ?? "inactive";
 
   const brandingDone = Boolean(
     branding.logo_url?.trim() || branding.primary_color?.trim() || branding.company_name?.trim()
@@ -136,6 +146,12 @@ export default async function AdminEditSalonPage({
           display_name: m.display_name,
           email: profilesMap[m.user_id] ?? null,
         }))}
+      />
+      <AdminSalonPlanSection
+        salonId={salon.id}
+        initialPlanTier={planTier}
+        initialFeatureOverrides={featureOverrides}
+        subscriptionStatus={subscriptionStatus}
       />
     </div>
   );

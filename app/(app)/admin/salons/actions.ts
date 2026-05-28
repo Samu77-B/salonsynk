@@ -5,6 +5,7 @@ import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
 import { sendOwnerInviteLink } from "@/lib/email";
 import { isMissingShowOnDiaryColumnError } from "@/lib/show-on-diary";
+import { isPlanTierId, type PlanTierId } from "@/config/plans";
 
 /**
  * Staff logins added by SalonSynk admin (front desk / reception) are login-only by default —
@@ -192,6 +193,43 @@ export async function adminUpdateSalon(
     revalidatePath(`/${payload.slug}/shop`);
   }
   return {};
+}
+
+export async function adminUpdateSalonPlan(
+  salonId: string,
+  input: {
+    planTier: string;
+    featureOverrides?: Record<string, boolean>;
+  }
+): Promise<{ error: string | null }> {
+  await requireAdmin();
+  if (!isPlanTierId(input.planTier)) {
+    return { error: "Invalid plan tier" };
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("salons")
+    .update({
+      plan_tier: input.planTier as PlanTierId,
+      feature_overrides: input.featureOverrides ?? {},
+    })
+    .eq("id", salonId);
+
+  if (error) {
+    if (error.message?.includes("plan_tier") || error.code === "42703") {
+      return {
+        error:
+          "Plan columns are missing. Run migration 039_salon_plan_tier.sql in Supabase.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/salons");
+  revalidatePath(`/admin/salons/${salonId}`);
+  return { error: null };
 }
 
 export async function adminAssignOwner(salonId: string, email: string) {
