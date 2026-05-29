@@ -113,6 +113,9 @@ export async function sendAccountRequest(params: {
   salonName: string;
   phone?: string;
   message?: string;
+  planTier?: string;
+  planLabel?: string;
+  planPrice?: string;
 }): Promise<{ error?: string }> {
   if (!resend) return { error: "Resend not configured" };
   const to = "hello@salonsynk.com";
@@ -122,11 +125,16 @@ export async function sendAccountRequest(params: {
   const msgBlock = params.message?.trim()
     ? `<hr /><p><strong>Message:</strong></p><p>${params.message.trim().replace(/\n/g, "<br />")}</p>`
     : "";
+  const planLine =
+    params.planLabel && params.planPrice
+      ? `<p><strong>Requested plan:</strong> ${params.planLabel} (${params.planPrice})${params.planTier ? ` — <code>${params.planTier}</code>` : ""}</p>`
+      : "";
   const html = `
     <p><strong>New account request</strong> (SalonSynk)</p>
     <p><strong>Name:</strong> ${params.fullName.trim()}</p>
     <p><strong>Email:</strong> ${params.email.trim()}</p>
     <p><strong>Salon / business:</strong> ${params.salonName.trim()}</p>
+    ${planLine}
     ${phoneLine}
     ${msgBlock}
   `;

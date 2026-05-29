@@ -164,6 +164,12 @@ export function isPlanTierId(value: string): value is PlanTierId {
   return PLAN_TIER_IDS.includes(value as PlanTierId);
 }
 
+/** Pre-select tier from URL e.g. /signup?plan=professional */
+export function planTierFromQuery(value: string | undefined): PlanTierId {
+  if (value && isPlanTierId(value)) return value;
+  return "professional";
+}
+
 export function formatPlanPrice(tier: PlanTierId): string {
   return `£${PLAN_TIERS[tier].amountGbp}/mo`;
 }

@@ -86,7 +86,7 @@ function PlanCard({ tierId, highlighted }: { tierId: PlanTierId; highlighted?: b
         ))}
       </ul>
       <Link
-        href="/signup"
+        href={`/signup?plan=${tierId}`}
         className={`mt-6 inline-flex w-full items-center justify-center rounded-xl px-5 py-3 text-sm font-semibold transition-colors ${
           highlighted
             ? "bg-black text-white hover:bg-zinc-800"

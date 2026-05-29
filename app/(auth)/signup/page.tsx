@@ -4,9 +4,16 @@ import Link from "next/link";
 import Image from "next/image";
 import { Reveal } from "@/components/reveal";
 import { RequestAccountForm } from "./request-account-form";
+import { planTierFromQuery } from "@/config/plans";
 import siteLogo from "../../../salonsynk_logo.png";
 
-export default async function SignupPage() {
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ plan?: string }>;
+}) {
+  const { plan } = await searchParams;
+  const initialPlanTier = planTierFromQuery(plan);
   const supabase = await createClient();
   const {
     data: { user },
@@ -15,7 +22,7 @@ export default async function SignupPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6">
-      <Reveal className="w-full max-w-sm space-y-8">
+      <Reveal className="w-full max-w-lg space-y-8">
         <div className="text-center">
           <Link href="/" className="inline-block mb-6">
             <Image
@@ -34,7 +41,7 @@ export default async function SignupPage() {
             Tell us about your salon — we’ll set you up and email you when you can sign in.
           </p>
         </div>
-        <RequestAccountForm />
+        <RequestAccountForm initialPlanTier={initialPlanTier} />
         <p className="text-center text-sm text-muted">
           Already have an account?{" "}
           <Link href="/login" className="text-accent hover:underline">

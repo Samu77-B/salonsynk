@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendAccountRequest } from "@/lib/email";
+import { isPlanTierId, PLAN_TIERS, formatPlanPrice, type PlanTierId } from "@/config/plans";
 
 const MAX_LEN = { name: 200, email: 320, salon: 200, phone: 40, message: 4000 };
 
@@ -16,6 +17,8 @@ export async function POST(req: Request) {
     const salonName = trimStr(body.salonName, MAX_LEN.salon);
     const phone = trimStr(body.phone, MAX_LEN.phone) || undefined;
     const message = trimStr(body.message, MAX_LEN.message) || undefined;
+    const rawPlan = trimStr(body.planTier, 32);
+    const planTier: PlanTierId = isPlanTierId(rawPlan) ? rawPlan : "professional";
 
     if (!fullName) {
       return NextResponse.json({ error: "Name is required." }, { status: 400 });
@@ -27,7 +30,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Salon or business name is required." }, { status: 400 });
     }
 
-    const result = await sendAccountRequest({ fullName, email, salonName, phone, message });
+    const result = await sendAccountRequest({
+      fullName,
+      email,
+      salonName,
+      phone,
+      message,
+      planTier,
+      planLabel: PLAN_TIERS[planTier].label,
+      planPrice: formatPlanPrice(planTier),
+    });
     if (result.error) {
       return NextResponse.json({ error: result.error }, { status: 500 });
     }

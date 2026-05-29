@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { PlanTierPicker } from "@/components/marketing/plan-tier-picker";
+import { type PlanTierId } from "@/config/plans";
 
-export function RequestAccountForm() {
+export function RequestAccountForm({ initialPlanTier = "professional" }: { initialPlanTier?: PlanTierId }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [salonName, setSalonName] = useState("");
   const [phone, setPhone] = useState("");
+  const [planTier, setPlanTier] = useState<PlanTierId>(initialPlanTier);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
@@ -24,6 +27,7 @@ export function RequestAccountForm() {
           email,
           salonName,
           phone: phone || undefined,
+          planTier,
           message: message || undefined,
         }),
       });
@@ -40,6 +44,7 @@ export function RequestAccountForm() {
       setEmail("");
       setSalonName("");
       setPhone("");
+      setPlanTier(initialPlanTier);
       setMessage("");
     } catch {
       setFormMessage({ type: "error", text: "Could not send your request. Check your connection and try again." });
@@ -50,6 +55,8 @@ export function RequestAccountForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <PlanTierPicker value={planTier} onChange={setPlanTier} />
+
       <div>
         <label htmlFor="fullName" className="block text-sm font-medium mb-1">
           Your name
