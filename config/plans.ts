@@ -121,6 +121,45 @@ export const PLAN_TIERS: Record<
 
 export const PLAN_TIER_IDS = Object.keys(PLAN_TIERS) as PlanTierId[];
 
+/** Display order for marketing (low → high). */
+export const PLAN_TIER_ORDER: PlanTierId[] = ["essentials", "professional", "complete"];
+
+/** Homepage / pricing page bullets per tier. */
+export const PLAN_MARKETING_BULLETS: Record<PlanTierId, string[]> = {
+  essentials: [
+    "Whole-team diary (day & week views)",
+    "Team, clients & service menu",
+    "Branded online booking page",
+    "Front-desk staff logins",
+    "Unlimited team members & clients",
+    "No per-booking commissions",
+  ],
+  professional: [
+    "Everything in Essentials",
+    "In-salon checkout & Stripe Connect",
+    "Reports & PDF exports",
+    "Email reminders & review requests",
+    "Deposits & no-show tools",
+    "No per-booking commissions",
+  ],
+  complete: [
+    "Everything in Professional",
+    "Marketing email campaigns",
+    "We Miss You & aftercare messaging",
+    "Staff targets & client loyalty",
+    "Retail products & public shop",
+    "Chair renter split payments",
+  ],
+};
+
+/** On every plan (shown below tier cards). */
+export const ALL_PLANS_INCLUDE = [
+  "Unlimited team members",
+  "Unlimited clients",
+  "No per-booking commissions",
+  "UK-built; pricing in GBP",
+] as const;
+
 export function isPlanTierId(value: string): value is PlanTierId {
   return PLAN_TIER_IDS.includes(value as PlanTierId);
 }

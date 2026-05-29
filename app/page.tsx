@@ -2,10 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { HomeOutcomesSection } from "@/components/marketing/home-outcomes-section";
+import { PricingPlansSection } from "@/components/marketing/pricing-plans-section";
 import { MarketingSiteFooter } from "@/components/marketing/marketing-site-footer";
 import { MarketingSiteHeader } from "@/components/marketing/marketing-site-header";
 import { SITE } from "@/config/site";
-import { formatFlatFee, FLAT_FEE } from "@/config/subscription";
+import { formatPlanPrice } from "@/config/plans";
 // Bundled so the hero image and logo are always available in the build
 import heroImage from "../imgs/hero01.png";
 import plansImage from "../imgs/plans_img_01.jpg";
@@ -35,7 +36,7 @@ const FEATURES = [
   },
   {
     title: "No commissions",
-    description: "One flat fee per month. No per-booking cuts — you keep what you earn.",
+    description: "Plans from £29/mo. No per-booking cuts — you keep what you earn.",
     image: featureCom,
     alt: "No commissions - flat fee",
   },
@@ -44,7 +45,7 @@ const FEATURES = [
 const FAQ_ITEMS = [
   {
     q: "How much does SalonSynk cost?",
-    a: `SalonSynk is a flat £${FLAT_FEE.AMOUNT_GBP} per month per salon. There are no per-booking commissions — you keep 100% of what you take.`,
+    a: `We offer three plans per salon: Essentials (${formatPlanPrice("essentials")}), Professional (${formatPlanPrice("professional")}), and Complete (${formatPlanPrice("complete")}). There are no per-booking commissions — you keep 100% of what you take. Your plan is chosen to match the features you need.`,
   },
   {
     q: "Can clients book online?",
@@ -84,8 +85,8 @@ export default function HomePage() {
               <span className="text-[#F5F5F5]">Just Synk.</span>
             </h1>
             <p className="mt-4 text-lg text-white/95 max-w-xl drop-shadow-md">
-              Flat-fee salon management for salons and barbers. One diary,
-              your team, your clients — without the cut.
+              Salon management from {formatPlanPrice("essentials")}. One diary, your team, your clients — no
+              per-booking commissions.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
               <Link
@@ -145,57 +146,13 @@ export default function HomePage() {
         {/* Pricing */}
         <Reveal>
           <section className="bg-[#E0E0E0] py-16 sm:py-20">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <h2 className="text-2xl font-bold text-zinc-900 text-center sm:text-3xl">
-              Simple, transparent pricing
-            </h2>
-            <p className="mt-3 text-center text-zinc-600 max-w-xl mx-auto">
-              One flat fee. No per-booking commissions. Cancel anytime.
-            </p>
-            <div className="mt-12 flex flex-col lg:flex-row items-stretch justify-center gap-8 lg:gap-12 max-w-4xl mx-auto">
-              <div className="relative w-full max-w-md min-h-[280px] rounded-2xl overflow-hidden border border-zinc-200 shadow-md shrink-0 self-stretch">
-                <Image
-                  src={plansImage}
-                  alt="Professional barber attending to a client in a modern barbershop"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 448px"
-                />
-              </div>
-              <div className="rounded-2xl border-2 border-[#C0C0C0] bg-[#F5F5F5] px-8 py-8 sm:px-12 sm:py-10 text-center max-w-md w-full">
-                <p className="text-4xl font-bold text-zinc-900 sm:text-5xl">
-                  {formatFlatFee()}
-                </p>
-                <p className="mt-2 text-zinc-600">per salon, per month</p>
-                <ul className="mt-6 space-y-2 text-left text-sm text-zinc-700">
-                  <li className="flex items-center gap-2">
-                    <span className="text-[#808080]">✓</span> Unlimited team
-                    members
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-[#808080]">✓</span> Unlimited clients
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-[#808080]">✓</span> Branded booking
-                    page
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-[#808080]">✓</span> No commissions
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-[#808080]">✓</span> Reports &amp; PDF exports
-                  </li>
-                </ul>
-                <Link
-                  href="/signup"
-                  className="mt-8 inline-flex w-full items-center justify-center rounded-xl bg-black px-6 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
-                >
-                  Request access
-                </Link>
-              </div>
+            <div className="mx-auto max-w-6xl px-4 sm:px-6">
+              <PricingPlansSection
+                image={plansImage}
+                imageAlt="Professional barber attending to a client in a modern barbershop"
+              />
             </div>
-          </div>
-        </section>
+          </section>
         </Reveal>
 
         {/* FAQ */}

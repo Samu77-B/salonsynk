@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
-import { formatFlatFee } from "@/config/subscription";
-import { OUTCOME_GROUPS, INCLUDED_IN_PLAN, UK_REASSURANCE_LEAD } from "@/config/features-marketing";
+import { ALL_PLANS_INCLUDE } from "@/config/plans";
+import { OUTCOME_GROUPS, UK_REASSURANCE_LEAD } from "@/config/features-marketing";
 
 export function HomeOutcomesSection() {
-  const flat = formatFlatFee();
   return (
     <Reveal>
       <section className="border-t border-zinc-200 bg-white py-16 sm:py-20">
@@ -37,10 +36,10 @@ export function HomeOutcomesSection() {
 
           <div className="mt-12 max-w-xl mx-auto rounded-2xl border-2 border-[#C0C0C0] bg-[#F5F5F5] px-6 py-6 sm:px-8 sm:py-8">
             <h3 className="text-center font-semibold text-zinc-900">
-              What&apos;s included in {flat}
+              On every plan
             </h3>
             <ul className="mt-4 space-y-2 text-sm text-zinc-700">
-              {INCLUDED_IN_PLAN.map((item) => (
+              {ALL_PLANS_INCLUDE.map((item) => (
                 <li key={item} className="flex items-start gap-2">
                   <span className="text-[#808080] shrink-0">✓</span>
                   <span>{item}</span>
