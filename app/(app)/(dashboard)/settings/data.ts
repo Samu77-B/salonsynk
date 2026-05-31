@@ -9,7 +9,7 @@ import {
   getEnabledFeatures,
   type PlanTierId,
 } from "@/config/plans";
-import { fetchSalonPlanState } from "@/lib/salon-features";
+import { fetchSalonPlanState } from "@/lib/salon-features.server";
 import { redirect } from "next/navigation";
 
 export async function getSettingsData() {

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireSalonFeature } from "@/lib/salon-features";
+import { requireSalonFeature } from "@/lib/salon-features.server";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { canViewReports } from "@/lib/dashboard-roles";

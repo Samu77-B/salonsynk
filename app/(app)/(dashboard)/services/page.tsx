@@ -1,6 +1,6 @@
 import { SettingsNav } from "../settings/settings-nav";
 import { ServicesView } from "../settings/services-view";
-import { requireSalonFeature } from "@/lib/salon-features";
+import { requireSalonFeature } from "@/lib/salon-features.server";
 import { getSettingsData } from "../settings/data";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { isManagerRole } from "@/lib/dashboard-roles";

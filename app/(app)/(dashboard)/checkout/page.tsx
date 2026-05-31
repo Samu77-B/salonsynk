@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { requireSalonFeature } from "@/lib/salon-features";
+import { requireSalonFeature } from "@/lib/salon-features.server";
 import { createClient } from "@/lib/supabase/server";
 import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 import { CheckoutView } from "./checkout-view";

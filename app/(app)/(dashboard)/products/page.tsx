@@ -1,4 +1,4 @@
-import { requireSalonFeature } from "@/lib/salon-features";
+import { requireSalonFeature } from "@/lib/salon-features.server";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { isManagerRole } from "@/lib/dashboard-roles";

@@ -4,7 +4,7 @@ import { LoggedInAppShell } from "./logged-in-app-shell";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { isManagerRole } from "@/lib/dashboard-roles";
-import { getEnabledFeaturesForSalon } from "@/lib/salon-features";
+import { getEnabledFeaturesForSalon } from "@/lib/salon-features.server";
 import type { PlatformFeatureId } from "@/config/plans";
 
 export default async function AppLayout({
