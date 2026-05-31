@@ -1,4 +1,4 @@
-import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { requireSalonFeature } from "@/lib/salon-features";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { isManagerRole } from "@/lib/dashboard-roles";
@@ -8,8 +8,7 @@ import { ProductsView, type ProductRow } from "./products-view";
 export const dynamic = "force-dynamic";
 
 export default async function ProductsPage() {
-  const context = await getCurrentUserSalon();
-  if (!context) redirect("/onboarding");
+  const { context } = await requireSalonFeature("products_shop");
 
   const supabase = await createClient();
   const isSuperAdmin = await getIsSuperAdmin();

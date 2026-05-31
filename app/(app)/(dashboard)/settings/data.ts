@@ -6,8 +6,10 @@ import {
   isPlanTierId,
   PLAN_TIERS,
   formatPlanPrice,
+  getEnabledFeatures,
   type PlanTierId,
 } from "@/config/plans";
+import { fetchSalonPlanState } from "@/lib/salon-features";
 import { redirect } from "next/navigation";
 
 export async function getSettingsData() {
@@ -82,6 +84,8 @@ export async function getSettingsData() {
   const planPriceLabel = formatPlanPrice(planTier);
   const subscriptionCheckoutAvailable = Boolean(getStripePriceIdForTier(planTier));
   const hasBillingCustomer = Boolean(salon?.stripe_billing_customer_id?.trim());
+  const planState = await fetchSalonPlanState(context.salon.id);
+  const enabledFeatures = getEnabledFeatures(planState);
 
   return {
     context,
@@ -132,5 +136,6 @@ export async function getSettingsData() {
     planTier,
     planLabel,
     planPriceLabel,
+    enabledFeatures,
   };
 }

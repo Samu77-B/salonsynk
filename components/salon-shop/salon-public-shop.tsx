@@ -4,6 +4,7 @@ import { formatProductPriceMinor } from "@/lib/product-currency";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductBuyButton } from "./product-buy-button";
+import { salonRowHasFeature } from "@/lib/salon-features";
 
 /** Public retail shop for a salon (same slug as booking). */
 export async function SalonPublicShop({ slug }: { slug: string }) {
@@ -16,11 +17,12 @@ export async function SalonPublicShop({ slug }: { slug: string }) {
 
   const { data: salon } = await supabase
     .from("salons")
-    .select("id, name, slug, settings")
+    .select("id, name, slug, settings, plan_tier, feature_overrides")
     .eq("slug", slug)
     .single();
 
   if (!salon) notFound();
+  if (!salonRowHasFeature(salon, "products_shop")) notFound();
 
   const { data: productRows } = await supabase
     .from("products")

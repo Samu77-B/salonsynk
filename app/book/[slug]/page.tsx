@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GuestBookingForm } from "./guest-booking-form";
 import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
+import { salonRowHasFeature } from "@/lib/salon-features";
 
 export default async function BookPage({
   params,
@@ -19,7 +20,7 @@ export default async function BookPage({
   }
   const { data: salon } = await supabase
     .from("salons")
-    .select("id, name, slug, settings")
+    .select("id, name, slug, settings, plan_tier, feature_overrides")
     .eq("slug", slug)
     .single();
 
@@ -64,6 +65,7 @@ export default async function BookPage({
   const displayName = (branding.company_name?.trim() || salon.name) as string;
   const primaryColor = branding.primary_color?.trim();
   const logoUrl = branding.logo_url?.trim();
+  const showShopLink = salonRowHasFeature(salon, "products_shop");
 
   return (
     <main
@@ -75,14 +77,16 @@ export default async function BookPage({
       }
     >
       <Reveal className="w-full min-w-0 max-w-md space-y-6">
-        <div className="flex justify-center">
-          <Link
-            href={`/shop/${slug}`}
-            className="text-sm font-medium text-accent underline hover:opacity-90"
-          >
-            Shop products
-          </Link>
-        </div>
+        {showShopLink ? (
+          <div className="flex justify-center">
+            <Link
+              href={`/shop/${slug}`}
+              className="text-sm font-medium text-accent underline hover:opacity-90"
+            >
+              Shop products
+            </Link>
+          </div>
+        ) : null}
         {logoUrl ? (
           <div className="flex justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}

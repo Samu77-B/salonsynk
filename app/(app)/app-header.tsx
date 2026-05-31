@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { switchAdminSalon } from "./admin/actions";
+import { DASHBOARD_NAV_FEATURES } from "@/lib/salon-features";
+import type { PlatformFeatureId } from "@/config/plans";
 import dashboardLogo from "../../salonsynk-light.png";
 import dashboardLogoWhite from "../../salonsynk_logo-wht.png";
 import type { DashboardTheme } from "./dashboard-theme";
@@ -65,6 +67,23 @@ const NAV_LINKS = [
 
 const STAFF_ALLOWED_LINKS = new Set(["/dashboard", "/clients", "/checkout", "/help"]);
 
+function navLinksForPlan(
+  enabledFeatures: PlatformFeatureId[],
+  isManager: boolean,
+  isSuperAdmin: boolean
+) {
+  const enabled = new Set(enabledFeatures);
+  const roleFiltered =
+    isManager || isSuperAdmin
+      ? NAV_LINKS
+      : NAV_LINKS.filter((l) => STAFF_ALLOWED_LINKS.has(l.href));
+  return roleFiltered.filter(({ href }) => {
+    const feature = DASHBOARD_NAV_FEATURES[href];
+    if (!feature) return true;
+    return enabled.has(feature);
+  });
+}
+
 export function AppHeader({
   userEmail,
   isSuperAdmin = false,
@@ -72,6 +91,7 @@ export function AppHeader({
   memberRole = null,
   currentSalon,
   adminSalons = [],
+  enabledFeatures = [],
   theme = "dark",
   onToggleTheme,
 }: {
@@ -81,6 +101,7 @@ export function AppHeader({
   memberRole?: string | null;
   currentSalon?: { id: string; name: string; slug: string };
   adminSalons?: { id: string; name: string }[];
+  enabledFeatures?: PlatformFeatureId[];
   theme?: DashboardTheme;
   onToggleTheme?: () => void;
 }) {
@@ -95,9 +116,11 @@ export function AppHeader({
 
   const metaTextClass = theme === "light" ? "text-zinc-400" : "text-muted";
 
-  const visibleLinks = isManager || isSuperAdmin
-    ? NAV_LINKS
-    : NAV_LINKS.filter((l) => STAFF_ALLOWED_LINKS.has(l.href));
+  const visibleLinks = navLinksForPlan(
+    enabledFeatures,
+    Boolean(isManager),
+    Boolean(isSuperAdmin)
+  );
 
   return (
     <header

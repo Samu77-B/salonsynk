@@ -1,13 +1,11 @@
 import { Suspense } from "react";
-import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { requireSalonFeature } from "@/lib/salon-features";
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 import { CheckoutView } from "./checkout-view";
 
 export default async function CheckoutPage() {
-  const context = await getCurrentUserSalon();
-  if (!context) redirect("/onboarding");
+  const { context } = await requireSalonFeature("checkout");
 
   const supabase = await createClient();
   const productsQuery = async () => {

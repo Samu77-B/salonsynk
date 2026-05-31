@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppHeader } from "./app-header";
 import { HelpAgentWidget } from "./help-agent-widget";
+import type { PlatformFeatureId } from "@/config/plans";
 import type { DashboardTheme } from "./dashboard-theme";
 
 const STORAGE_KEY = "salonsynk-dashboard-theme";
@@ -18,6 +19,7 @@ export function LoggedInAppShell({
   memberRole,
   currentSalon,
   adminSalons,
+  enabledFeatures = [],
 }: {
   children: React.ReactNode;
   userEmail: string | undefined;
@@ -26,6 +28,7 @@ export function LoggedInAppShell({
   memberRole: string | null;
   currentSalon?: { id: string; name: string; slug: string };
   adminSalons?: { id: string; name: string }[];
+  enabledFeatures?: PlatformFeatureId[];
 }) {
   const [theme, setThemeState] = useState<DashboardTheme>("dark");
 
@@ -64,6 +67,7 @@ export function LoggedInAppShell({
         memberRole={memberRole}
         currentSalon={currentSalon}
         adminSalons={adminSalons}
+        enabledFeatures={enabledFeatures}
         theme={theme}
         onToggleTheme={toggleTheme}
       />

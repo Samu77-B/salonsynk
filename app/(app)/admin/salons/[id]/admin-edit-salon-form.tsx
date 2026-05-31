@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
 import {
   adminUpdateSalon,
   adminUploadSalonLogo,
@@ -12,7 +11,6 @@ import {
   adminAssignStaff,
   adminInviteStaff,
   adminCreateStaffWithPassword,
-  adminDeleteSalon,
   type BrandingInput,
 } from "../actions";
 
@@ -46,8 +44,6 @@ export function AdminEditSalonForm({
   const [assignMsg, setAssignMsg] = useState<"saved" | "error" | null>(null);
   const [loading, setLoading] = useState(false);
   const [assignLoading, setAssignLoading] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [inviteMsg, setInviteMsg] = useState<"saved" | "error" | null>(null);
@@ -82,7 +78,6 @@ export function AdminEditSalonForm({
   const [staffAssignLoading, setStaffAssignLoading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -141,7 +136,7 @@ export function AdminEditSalonForm({
   }
 
   return (
-    <div className="space-y-10">
+    <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
       <form onSubmit={handleSubmit} className="space-y-4">
         <h2 className="text-lg font-semibold">Details</h2>
         <div>
@@ -240,6 +235,7 @@ export function AdminEditSalonForm({
         </button>
       </form>
 
+      <div className="space-y-8">
       <section>
         <h2 className="text-lg font-semibold mb-2">Owners</h2>
         {owners.length > 0 && (
@@ -447,7 +443,7 @@ export function AdminEditSalonForm({
         </div>
       </section>
 
-      <section className="pt-8 border-t border-border">
+      <section className="pt-8 border-t border-border lg:pt-0 lg:border-t-0">
         <h2 className="text-lg font-semibold mb-2">Staff logins (general salon)</h2>
         <p className="text-xs text-muted mb-4">
           Create the shared front-desk/general login here as <strong>staff</strong> (non-manager). Staff will only see Diary, Clients,
@@ -626,33 +622,7 @@ export function AdminEditSalonForm({
           </div>
         </div>
       </section>
-
-      <section className="pt-8 border-t border-border">
-        <h2 className="text-lg font-semibold mb-2 text-red-400">Danger zone</h2>
-        <p className="text-sm text-muted mb-2">
-          Permanently delete this salon and all its data (appointments, clients, team, services). This cannot be undone.
-        </p>
-        {deleteError && <p className="text-sm text-red-400 mb-2">Failed to delete salon.</p>}
-        <button
-          type="button"
-          onClick={async () => {
-            if (!confirm(`Delete "${initialName}"? This will remove all appointments, clients, team members, and services.`)) return;
-            setDeleteError(false);
-            setDeleteLoading(true);
-            const result = await adminDeleteSalon(salonId);
-            setDeleteLoading(false);
-            if (result.error) {
-              setDeleteError(true);
-            } else {
-              router.push("/admin/salons");
-            }
-          }}
-          disabled={deleteLoading}
-          className="rounded-lg border border-red-400/50 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 disabled:opacity-50"
-        >
-          {deleteLoading ? "Deleting…" : "Delete salon"}
-        </button>
-      </section>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, updateDepositSettings, updateReminderSettings, updateSalonMarketingSettings } from "./actions";
+import type { PlatformFeatureId } from "@/config/plans";
 
 export function SettingsView(props: {
   salonId: string;
@@ -28,6 +29,7 @@ export function SettingsView(props: {
   weMissYouDiscountCode?: string;
   subscriptionCheckoutAvailable?: boolean;
   hasBillingCustomer?: boolean;
+  enabledFeatures?: PlatformFeatureId[];
 }) {
   const {
     salonId,
@@ -50,7 +52,16 @@ export function SettingsView(props: {
     weMissYouDiscountCode = "",
     subscriptionCheckoutAvailable = false,
     hasBillingCustomer = false,
+    enabledFeatures = [],
   } = props;
+  const features = new Set(enabledFeatures);
+  const hasProductsShop = features.has("products_shop");
+  const hasStripeConnect = features.has("stripe_connect");
+  const hasDeposits = features.has("deposits_no_show");
+  const hasReminders = features.has("email_reminders");
+  const hasReviewRequests = features.has("review_requests");
+  const hasWeMissYou = features.has("we_miss_you");
+  const hasChairRenterSplits = features.has("chair_renter_splits");
   const connectUrl = `/api/stripe/connect?salonId=${encodeURIComponent(salonId)}`;
   const subscribeUrl = `/api/stripe/create-subscription-checkout?salonId=${encodeURIComponent(salonId)}`;
   const billingPortalUrl = `/api/stripe/billing-portal?salonId=${encodeURIComponent(salonId)}`;
@@ -122,19 +133,21 @@ export function SettingsView(props: {
             /book/{salonSlug}
           </a>
         </p>
-        <p className="text-muted text-xs mt-1">
-          Shop page (retail products):{" "}
-          <a href={`/shop/${salonSlug}`} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-            /shop/{salonSlug}
-          </a>
-        </p>
+        {hasProductsShop ? (
+          <p className="text-muted text-xs mt-1">
+            Shop page (retail products):{" "}
+            <a href={`/shop/${salonSlug}`} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+              /shop/{salonSlug}
+            </a>
+          </p>
+        ) : null}
       </section>
 
       <section>
         <h2 className="text-lg font-semibold mb-2">Branding</h2>
         <p className="text-muted text-sm mb-4">
-          Customise your public booking and shop pages so they match your salon. Clients see this when they book online or
-          browse products.
+          Customise your public booking{hasProductsShop ? " and shop" : ""} pages so they match your salon. Clients see this when they book online
+          {hasProductsShop ? " or browse products" : ""}.
         </p>
         <form onSubmit={handleBrandingSubmit} className="space-y-3">
           <div>
@@ -202,7 +215,7 @@ export function SettingsView(props: {
         </form>
       </section>
 
-      {isOwner && (
+      {isOwner && hasChairRenterSplits && (
         <section>
           <h2 className="text-lg font-semibold mb-2">Renter admin fee</h2>
           <p className="text-muted text-sm mb-2">
@@ -244,7 +257,7 @@ export function SettingsView(props: {
         </section>
       )}
 
-      {isOwner && (
+      {isOwner && hasDeposits && (
         <section>
           <h2 className="text-lg font-semibold mb-2">No-Show & Deposit</h2>
           <p className="text-muted text-sm mb-4">
@@ -317,6 +330,7 @@ export function SettingsView(props: {
         </section>
       )}
 
+      {hasStripeConnect ? (
       <section>
         <h2 className="text-lg font-semibold mb-2">Payments (Stripe Connect)</h2>
         <p className="text-muted text-sm mb-4">
@@ -333,6 +347,7 @@ export function SettingsView(props: {
           </a>
         )}
       </section>
+      ) : null}
 
       <section>
         <h2 className="text-lg font-semibold mb-2">Subscription</h2>
@@ -379,7 +394,7 @@ export function SettingsView(props: {
           )}
       </section>
 
-      {isOwner && (
+      {isOwner && hasReminders && (
         <section>
           <h2 className="text-lg font-semibold mb-2">Appointment Reminders</h2>
           <p className="text-muted text-sm mb-4">
@@ -432,7 +447,7 @@ export function SettingsView(props: {
         </section>
       )}
 
-      {isOwner && (
+      {isOwner && (hasReviewRequests || hasWeMissYou) && (
         <section>
           <h2 className="text-lg font-semibold mb-2">Marketing &amp; Reviews</h2>
           <p className="text-muted text-sm mb-4">

@@ -39,6 +39,7 @@ export default async function SettingsPage() {
         weMissYouDiscountCode={data.weMissYouDiscountCode}
         subscriptionCheckoutAvailable={data.subscriptionCheckoutAvailable}
         hasBillingCustomer={data.hasBillingCustomer}
+        enabledFeatures={data.enabledFeatures}
       />
     </main>
   );

@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AdminEditSalonForm } from "./admin-edit-salon-form";
+import { AdminSalonDangerZone } from "./admin-salon-danger-zone";
 import { AdminSalonPlanSection } from "./admin-salon-plan-section";
 import { isPlanTierId, type PlanTierId } from "@/config/plans";
 
@@ -64,7 +65,7 @@ export default async function AdminEditSalonPage({
   ];
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-6xl space-y-8">
       <div className="flex items-center gap-4 mb-6">
         <Link href="/admin/salons" className="text-muted hover:text-foreground text-sm">
           ← Salons
@@ -153,6 +154,7 @@ export default async function AdminEditSalonPage({
         initialFeatureOverrides={featureOverrides}
         subscriptionStatus={subscriptionStatus}
       />
+      <AdminSalonDangerZone salonId={salon.id} salonName={salon.name} />
     </div>
   );
 }

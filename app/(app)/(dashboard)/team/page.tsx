@@ -1,4 +1,4 @@
-import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { requireSalonFeature } from "@/lib/salon-features";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { isManagerRole } from "@/lib/dashboard-roles";
@@ -9,8 +9,7 @@ import { TeamView, type Member } from "./team-view";
 export const dynamic = "force-dynamic";
 
 export default async function TeamPage() {
-  const context = await getCurrentUserSalon();
-  if (!context) redirect("/onboarding");
+  const { context } = await requireSalonFeature("team");
 
   const isSuperAdmin = await getIsSuperAdmin();
   if (!isManagerRole(isSuperAdmin, context.member.role ?? "")) redirect("/dashboard");

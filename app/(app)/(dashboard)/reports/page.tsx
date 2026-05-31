@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Reveal } from "@/components/reveal";
-import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { requireSalonFeature } from "@/lib/salon-features";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { canViewReports } from "@/lib/dashboard-roles";
@@ -184,8 +184,7 @@ type ReportsPageProps = {
 };
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
-  const context = await getCurrentUserSalon();
-  if (!context) redirect("/onboarding");
+  const { context } = await requireSalonFeature("reports");
 
   const isSuperAdmin = await getIsSuperAdmin();
   const role = context.member.role ?? "";

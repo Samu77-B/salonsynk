@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Reveal } from "@/components/reveal";
-import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { requireSalonFeature } from "@/lib/salon-features";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { canViewReports } from "@/lib/dashboard-roles";
@@ -9,8 +9,7 @@ import { TargetsView } from "./targets-view";
 export const dynamic = "force-dynamic";
 
 export default async function TargetsPage() {
-  const context = await getCurrentUserSalon();
-  if (!context) redirect("/onboarding");
+  const { context } = await requireSalonFeature("targets_loyalty");
 
   const isSuperAdmin = await getIsSuperAdmin();
   const role = context.member.role ?? "";

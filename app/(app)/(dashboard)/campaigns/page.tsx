@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { requireSalonFeature } from "@/lib/salon-features";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { canViewReports } from "@/lib/dashboard-roles";
@@ -9,8 +9,7 @@ import { CampaignComposer } from "./campaign-composer";
 export const dynamic = "force-dynamic";
 
 export default async function CampaignsPage() {
-  const context = await getCurrentUserSalon();
-  if (!context) redirect("/onboarding");
+  const { context } = await requireSalonFeature("campaigns");
 
   const isSuperAdmin = await getIsSuperAdmin();
   if (!canViewReports(isSuperAdmin, context.member.role ?? "")) {

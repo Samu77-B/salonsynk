@@ -4,6 +4,8 @@ import { LoggedInAppShell } from "./logged-in-app-shell";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { isManagerRole } from "@/lib/dashboard-roles";
+import { getEnabledFeaturesForSalon } from "@/lib/salon-features";
+import type { PlatformFeatureId } from "@/config/plans";
 
 export default async function AppLayout({
   children,
@@ -31,6 +33,11 @@ export default async function AppLayout({
     adminSalons = (data ?? []).map((s) => ({ id: s.id, name: s.name }));
   }
 
+  let enabledFeatures: PlatformFeatureId[] = [];
+  if (salonContext?.salon.id) {
+    enabledFeatures = await getEnabledFeaturesForSalon(salonContext.salon.id);
+  }
+
   return (
     <LoggedInAppShell
       userEmail={user.email}
@@ -39,6 +46,7 @@ export default async function AppLayout({
       memberRole={memberRole}
       currentSalon={salonContext?.salon}
       adminSalons={adminSalons}
+      enabledFeatures={enabledFeatures}
     >
       {children}
     </LoggedInAppShell>
