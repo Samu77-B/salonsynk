@@ -19,6 +19,7 @@ export type BrandingInput = {
   logo_url?: string;
   primary_color?: string;
   company_name?: string;
+  booking_heading?: string;
 };
 
 async function assertCanManageServices(salonId: string): Promise<{ ok: true } | { error: string }> {

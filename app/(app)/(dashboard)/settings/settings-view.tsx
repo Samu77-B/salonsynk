@@ -12,7 +12,7 @@ export function SettingsView(props: {
   subscriptionStatus: string;
   planLabel: string;
   planPriceLabel: string;
-  branding: { logo_url: string; primary_color: string; company_name: string };
+  branding: { logo_url: string; primary_color: string; company_name: string; booking_heading: string };
   showSalonTaxVault?: boolean;
   salonTaxVaultMinor?: number;
   showRenterTaxVault?: boolean;
@@ -30,6 +30,9 @@ export function SettingsView(props: {
   subscriptionCheckoutAvailable?: boolean;
   hasBillingCustomer?: boolean;
   enabledFeatures?: PlatformFeatureId[];
+  paymentGateway?: string;
+  paymentGatewayLabel?: string;
+  usesStripeCheckout?: boolean;
 }) {
   const {
     salonId,
@@ -53,10 +56,12 @@ export function SettingsView(props: {
     subscriptionCheckoutAvailable = false,
     hasBillingCustomer = false,
     enabledFeatures = [],
+    paymentGatewayLabel = "Stripe",
+    usesStripeCheckout = true,
   } = props;
   const features = new Set(enabledFeatures);
   const hasProductsShop = features.has("products_shop");
-  const hasStripeConnect = features.has("stripe_connect");
+  const hasStripeConnect = features.has("stripe_connect") && usesStripeCheckout;
   const hasDeposits = features.has("deposits_no_show");
   const hasReminders = features.has("email_reminders");
   const hasReviewRequests = features.has("review_requests");
@@ -71,6 +76,7 @@ export function SettingsView(props: {
   const [adminFeeLoading, setAdminFeeLoading] = useState(false);
   const [primaryColor, setPrimaryColor] = useState(branding.primary_color);
   const [companyName, setCompanyName] = useState(branding.company_name);
+  const [bookingHeading, setBookingHeading] = useState(branding.booking_heading);
   const [brandingMsg, setBrandingMsg] = useState<"saved" | "error" | null>(null);
   const [brandingLoading, setBrandingLoading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -100,6 +106,7 @@ export function SettingsView(props: {
       logo_url: logoUrl.trim() || undefined,
       primary_color: primaryColor.trim() || undefined,
       company_name: companyName.trim() || undefined,
+      booking_heading: bookingHeading.trim() || undefined,
     });
     setBrandingLoading(false);
     setBrandingMsg(result.error ? "error" : "saved");
@@ -202,6 +209,19 @@ export function SettingsView(props: {
               placeholder="Defaults to business name"
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Booking page heading (optional)</label>
+            <input
+              type="text"
+              value={bookingHeading}
+              onChange={(e) => setBookingHeading(e.target.value)}
+              placeholder={`Book at ${companyName || salonName}`}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+            <p className="text-xs text-muted mt-1">
+              Custom heading shown on your booking page. Leave blank to hide it entirely.
+            </p>
           </div>
           {brandingMsg === "saved" && <p className="text-sm text-green-400">Branding saved.</p>}
           {brandingMsg === "error" && <p className="text-sm text-red-400">Failed to save.</p>}
@@ -333,8 +353,12 @@ export function SettingsView(props: {
       {hasStripeConnect ? (
       <section>
         <h2 className="text-lg font-semibold mb-2">Payments (Stripe Connect)</h2>
+        <p className="text-muted text-sm mb-2">
+          Your salon uses <span className="font-medium text-foreground">{paymentGatewayLabel}</span> for
+          in-salon card payments.
+        </p>
         <p className="text-muted text-sm mb-4">
-          Connect your Stripe account to receive in-salon payments and deposits.
+          Connect your Stripe account to receive in-salon payments and deposits through SalonSynk checkout.
         </p>
         {stripeConnectAccountId ? (
           <p className="text-green-400 text-sm">Connected</p>
@@ -347,7 +371,20 @@ export function SettingsView(props: {
           </a>
         )}
       </section>
-      ) : null}
+      ) : (
+      <section>
+        <h2 className="text-lg font-semibold mb-2">Card payments</h2>
+        <p className="text-muted text-sm">
+          Your salon uses <span className="font-medium text-foreground">{paymentGatewayLabel}</span> on
+          your existing terminal. Use <strong>Checkout</strong> to record sales after payment — no Stripe
+          Connect needed. Contact{" "}
+          <a href="mailto:hello@salonsynk.com" className="text-accent hover:underline">
+            hello@salonsynk.com
+          </a>{" "}
+          to switch to SalonSynk Stripe checkout.
+        </p>
+      </section>
+      )}
 
       <section>
         <h2 className="text-lg font-semibold mb-2">Subscription</h2>
@@ -370,12 +407,22 @@ export function SettingsView(props: {
         {isOwner &&
           hasBillingCustomer &&
           (subscriptionStatus === "active" || subscriptionStatus === "past_due") && (
+            <>
             <a
               href={billingPortalUrl}
               className="inline-flex rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground"
             >
               Manage billing
             </a>
+            {subscriptionStatus === "active" && (
+              <a
+                href="/setup-help"
+                className="inline-flex ml-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground"
+              >
+                Request setup help
+              </a>
+            )}
+            </>
           )}
         {isOwner && !subscriptionCheckoutAvailable && (
           <p className="text-muted text-sm">

@@ -10,6 +10,7 @@ import {
   type PlanTierId,
 } from "@/config/plans";
 import { fetchSalonPlanState } from "@/lib/salon-features.server";
+import { isPaymentGatewayId, PAYMENT_GATEWAYS, salonUsesStripeCheckout } from "@/config/payment-gateways";
 import { redirect } from "next/navigation";
 
 export async function getSettingsData() {
@@ -46,7 +47,7 @@ export async function getSettingsData() {
     supabase
       .from("salons")
       .select(
-        "id, name, slug, stripe_connect_account_id, stripe_billing_customer_id, subscription_status, plan_tier, settings, tax_vault_minor"
+        "id, name, slug, stripe_connect_account_id, stripe_billing_customer_id, subscription_status, plan_tier, settings, tax_vault_minor, payment_gateway"
       )
       .eq("id", context.salon.id)
       .single(),
@@ -87,6 +88,11 @@ export async function getSettingsData() {
   const planState = await fetchSalonPlanState(context.salon.id);
   const enabledFeatures = getEnabledFeatures(planState);
 
+  const rawPaymentGateway = (salon as { payment_gateway?: string } | null)?.payment_gateway ?? "stripe";
+  const paymentGateway = isPaymentGatewayId(rawPaymentGateway) ? rawPaymentGateway : "stripe";
+  const paymentGatewayLabel = PAYMENT_GATEWAYS[paymentGateway].label;
+  const usesStripeCheckout = salonUsesStripeCheckout(paymentGateway);
+
   return {
     context,
     salon,
@@ -115,6 +121,7 @@ export async function getSettingsData() {
       logo_url: branding.logo_url ?? "",
       primary_color: branding.primary_color ?? "",
       company_name: branding.company_name ?? "",
+      booking_heading: branding.booking_heading ?? "",
     },
     adminFeePercent,
     depositRequired,
@@ -137,5 +144,8 @@ export async function getSettingsData() {
     planLabel,
     planPriceLabel,
     enabledFeatures,
+    paymentGateway,
+    paymentGatewayLabel,
+    usesStripeCheckout,
   };
 }

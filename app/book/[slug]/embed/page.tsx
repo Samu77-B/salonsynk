@@ -69,6 +69,7 @@ export default async function BookEmbedPage({
   const settings = (salon.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | undefined>) ?? {};
   const displayName = (branding.company_name?.trim() || salon.name) as string;
+  const bookingHeading = branding.booking_heading?.trim() ?? "";
   const brandingColor = branding.primary_color?.trim();
   // Allow host page to override accent via ?primary=hex (e.g. ?primary=000 or ?primary=%23000)
   const hex = primaryOverride?.trim();
@@ -97,9 +98,11 @@ export default async function BookEmbedPage({
             />
           </div>
         ) : null}
-        <h1 className="text-xl font-bold text-center">
-          Book at {displayName}
-        </h1>
+        {bookingHeading ? (
+          <h1 className="text-xl font-bold text-center">
+            {bookingHeading}
+          </h1>
+        ) : null}
         <GuestBookingForm
           salonId={salon.id}
           salonName={displayName}
