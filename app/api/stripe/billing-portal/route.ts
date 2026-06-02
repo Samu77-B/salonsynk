@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/server";
 
 /**
@@ -22,8 +22,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const supabase = await createClient();
-  const { data: salon } = await supabase
+  const admin = createAdminClient();
+  const { data: salon } = await admin
     .from("salons")
     .select("stripe_billing_customer_id")
     .eq("id", salonId)

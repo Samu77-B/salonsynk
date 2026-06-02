@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/server";
+import { fetchSalonPlanState } from "@/lib/salon-features.server";
 import {
   getStripePriceIdForTier,
   isPlanTierId,
@@ -36,18 +38,48 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Account email required for billing" }, { status: 400 });
   }
 
-  const { data: salonRow, error: salonError } = await supabase
+  // Service role: user JWT + RLS can block billing columns (e.g. super admin salon switch).
+  const admin = createAdminClient();
+  const { data: salonRow, error: salonError } = await admin
     .from("salons")
     .select("stripe_billing_customer_id, plan_tier")
     .eq("id", salonId)
     .single();
 
-  if (salonError) {
-    return NextResponse.json({ error: "Salon not found" }, { status: 404 });
-  }
+  let existingCustomerId: string | null = null;
+  let planTier: PlanTierId = "professional";
 
-  const rawTier = (salonRow as { plan_tier?: string } | null)?.plan_tier ?? "professional";
-  const planTier: PlanTierId = isPlanTierId(rawTier) ? rawTier : "professional";
+  if (salonRow) {
+    existingCustomerId = salonRow.stripe_billing_customer_id?.trim() || null;
+    const rawTier = salonRow.plan_tier ?? "professional";
+    planTier = isPlanTierId(rawTier) ? rawTier : "professional";
+  } else {
+    const missingColumn =
+      salonError?.code === "42703" || salonError?.message?.includes("plan_tier");
+    if (missingColumn) {
+      const { data: fallback, error: fallbackError } = await admin
+        .from("salons")
+        .select("stripe_billing_customer_id")
+        .eq("id", salonId)
+        .single();
+      if (fallbackError || !fallback) {
+        console.error("create-subscription-checkout salon lookup", salonError, fallbackError);
+        return NextResponse.json(
+          {
+            error:
+              "Database migration required. Run supabase/migrations/039_salon_plan_tier.sql in Supabase SQL Editor.",
+          },
+          { status: 503 }
+        );
+      }
+      existingCustomerId = fallback.stripe_billing_customer_id?.trim() || null;
+      const planState = await fetchSalonPlanState(salonId);
+      planTier = isPlanTierId(planState.plan_tier) ? planState.plan_tier : "professional";
+    } else {
+      console.error("create-subscription-checkout salon lookup", salonError);
+      return NextResponse.json({ error: "Salon not found" }, { status: 404 });
+    }
+  }
 
   const priceId = getStripePriceIdForTier(planTier);
   if (!isStripePriceConfiguredForTier(planTier)) {
@@ -58,10 +90,6 @@ export async function GET(request: Request) {
       { status: 503 }
     );
   }
-
-  const existingCustomerId =
-    (salonRow as { stripe_billing_customer_id?: string } | null)?.stripe_billing_customer_id?.trim() ||
-    null;
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? url.origin).replace(/\/$/, "");
 
