@@ -2,23 +2,21 @@ import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { MarketingSiteFooter } from "@/components/marketing/marketing-site-footer";
 import { MarketingSiteHeader } from "@/components/marketing/marketing-site-header";
+import { PricingPlansSection } from "@/components/marketing/pricing-plans-section";
 import {
   OUTCOME_GROUPS,
-  INCLUDED_IN_PLAN,
   ROADMAP_HIGHLIGHTS,
   UK_REASSURANCE_LEAD,
 } from "@/config/features-marketing";
 import { SITE } from "@/config/site";
-import { formatFlatFee, FLAT_FEE } from "@/config/subscription";
+import { PLAN_TIERS, formatPlanPrice } from "@/config/plans";
 
 export const metadata = {
   title: `Features — ${SITE.name}`,
-  description: `Salon diary, team, clients, branded online booking, optional Stripe payments — flat £${FLAT_FEE.AMOUNT_GBP}/mo per salon, no commissions.`,
+  description: `Salon diary, team, clients, branded online booking, optional Stripe payments — plans from £${PLAN_TIERS.essentials.amountGbp}/mo per salon, no commissions.`,
 };
 
 export default function FeaturesPage() {
-  const flat = formatFlatFee();
-
   return (
     <div className="min-h-screen bg-white text-zinc-900">
       <MarketingSiteHeader variant="static" activeNav="features" />
@@ -31,7 +29,8 @@ export default function FeaturesPage() {
             </h1>
             <p className="mt-4 text-lg text-zinc-600 leading-relaxed">
               Flat-fee software for running the diary, your team, client records, and online booking — with optional
-              Stripe for deposits and in-salon payments. No per-booking commission: {flat} per salon.
+              Stripe for deposits and in-salon payments. No per-booking commissions: plans
+              from {formatPlanPrice("essentials")} per salon.
             </p>
           </Reveal>
         </div>
@@ -54,21 +53,17 @@ export default function FeaturesPage() {
               </section>
             </Reveal>
           ))}
+        </div>
 
-          <Reveal>
-            <section className="rounded-2xl border-2 border-[#C0C0C0] bg-[#F5F5F5] px-6 py-8 sm:px-10 sm:py-10">
-              <h2 className="text-xl font-bold text-zinc-900 sm:text-2xl">Included in {flat}</h2>
-              <ul className="mt-5 space-y-2.5 text-zinc-700">
-                {INCLUDED_IN_PLAN.map((item) => (
-                  <li key={item} className="flex gap-2">
-                    <span className="text-[#808080] shrink-0">✓</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </Reveal>
+        <Reveal>
+          <section className="bg-[#E0E0E0] py-16 sm:py-20 mt-12 sm:mt-16">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6">
+              <PricingPlansSection />
+            </div>
+          </section>
+        </Reveal>
 
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 space-y-12 sm:space-y-16 py-12 sm:py-16">
           <Reveal>
             <section className="rounded-2xl border border-zinc-200 bg-zinc-50/80 px-6 py-8 sm:px-8">
               <h2 className="text-lg font-semibold text-zinc-900">On the roadmap / not our focus yet</h2>
