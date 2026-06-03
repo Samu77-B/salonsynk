@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { fetchSalonOnboardingState, salonRequiresPayment } from "@/lib/onboarding";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -12,7 +14,19 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       const isSuperAdmin = await getIsSuperAdmin();
-      const redirectTo = isSuperAdmin ? "/admin" : next;
+      if (isSuperAdmin) {
+        return NextResponse.redirect(`${origin}/admin`);
+      }
+
+      let redirectTo = next.startsWith("/") ? next : "/dashboard";
+      const context = await getCurrentUserSalon();
+      if (context?.salon.id) {
+        const state = await fetchSalonOnboardingState(context.salon.id);
+        if (state && salonRequiresPayment(state)) {
+          redirectTo = "/billing";
+        }
+      }
+
       return NextResponse.redirect(`${origin}${redirectTo}`);
     }
   }

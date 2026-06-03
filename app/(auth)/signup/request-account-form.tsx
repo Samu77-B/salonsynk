@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { PlanTierPicker } from "@/components/marketing/plan-tier-picker";
+import { PaymentGatewayPicker } from "@/components/marketing/payment-gateway-picker";
 import { type PlanTierId } from "@/config/plans";
+import { type PaymentGatewayId } from "@/config/payment-gateways";
 
 export function RequestAccountForm({ initialPlanTier = "professional" }: { initialPlanTier?: PlanTierId }) {
   const [fullName, setFullName] = useState("");
@@ -10,6 +12,7 @@ export function RequestAccountForm({ initialPlanTier = "professional" }: { initi
   const [salonName, setSalonName] = useState("");
   const [phone, setPhone] = useState("");
   const [planTier, setPlanTier] = useState<PlanTierId>(initialPlanTier);
+  const [paymentGateway, setPaymentGateway] = useState<PaymentGatewayId>("stripe");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
@@ -28,6 +31,7 @@ export function RequestAccountForm({ initialPlanTier = "professional" }: { initi
           salonName,
           phone: phone || undefined,
           planTier,
+          paymentGateway,
           message: message || undefined,
         }),
       });
@@ -45,6 +49,7 @@ export function RequestAccountForm({ initialPlanTier = "professional" }: { initi
       setSalonName("");
       setPhone("");
       setPlanTier(initialPlanTier);
+      setPaymentGateway("stripe");
       setMessage("");
     } catch {
       setFormMessage({ type: "error", text: "Could not send your request. Check your connection and try again." });
@@ -56,6 +61,8 @@ export function RequestAccountForm({ initialPlanTier = "professional" }: { initi
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <PlanTierPicker value={planTier} onChange={setPlanTier} />
+
+      <PaymentGatewayPicker value={paymentGateway} onChange={setPaymentGateway} />
 
       <div>
         <label htmlFor="fullName" className="block text-sm font-medium mb-1">

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { verifyPinSessionToken } from "@/lib/passcode";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { isGeneralSalonStaffRole, isManagerRole } from "@/lib/dashboard-roles";
+import { enforceSalonSubscriptionIfRequired } from "@/lib/subscription-gate.server";
 
 export default async function DashboardGroupLayout({
   children,
@@ -13,6 +14,8 @@ export default async function DashboardGroupLayout({
 }) {
   const salonContext = await getCurrentUserSalon();
   if (!salonContext) redirect("/onboarding");
+
+  await enforceSalonSubscriptionIfRequired();
 
   const isSuperAdmin = await getIsSuperAdmin();
   const memberRole = salonContext.member.role ?? "";

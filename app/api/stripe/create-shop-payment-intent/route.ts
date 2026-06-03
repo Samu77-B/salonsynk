@@ -31,11 +31,23 @@ export async function POST(request: Request) {
 
   const { data: salon } = await admin
     .from("salons")
-    .select("id, stripe_connect_account_id")
+    .select("id, stripe_connect_account_id, payment_gateway")
     .eq("slug", slug)
     .single();
 
-  if (!salon?.stripe_connect_account_id) {
+  if (!salon) {
+    return NextResponse.json({ error: "Salon not found" }, { status: 404 });
+  }
+
+  const gateway = (salon.payment_gateway as string) ?? "stripe";
+  if (gateway !== "stripe") {
+    return NextResponse.json(
+      { error: "Online shop card payments are only available for Stripe salons. Contact the salon to order in person." },
+      { status: 400 }
+    );
+  }
+
+  if (!salon.stripe_connect_account_id) {
     return NextResponse.json({ error: "This salon is not ready for online payments" }, { status: 400 });
   }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sendAccountRequest } from "@/lib/email";
 import { isPlanTierId, PLAN_TIERS, formatPlanPrice, type PlanTierId } from "@/config/plans";
+import { isPaymentGatewayId, PAYMENT_GATEWAYS, type PaymentGatewayId } from "@/config/payment-gateways";
 
 const MAX_LEN = { name: 200, email: 320, salon: 200, phone: 40, message: 4000 };
 
@@ -19,6 +20,9 @@ export async function POST(req: Request) {
     const message = trimStr(body.message, MAX_LEN.message) || undefined;
     const rawPlan = trimStr(body.planTier, 32);
     const planTier: PlanTierId = isPlanTierId(rawPlan) ? rawPlan : "professional";
+
+    const rawGateway = trimStr(body.paymentGateway, 32);
+    const paymentGateway = isPaymentGatewayId(rawGateway) ? rawGateway : "stripe";
 
     if (!fullName) {
       return NextResponse.json({ error: "Name is required." }, { status: 400 });
@@ -39,6 +43,8 @@ export async function POST(req: Request) {
       planTier,
       planLabel: PLAN_TIERS[planTier].label,
       planPrice: formatPlanPrice(planTier),
+      paymentGateway,
+      paymentGatewayLabel: PAYMENT_GATEWAYS[paymentGateway].label,
     });
     if (result.error) {
       return NextResponse.json({ error: result.error }, { status: 500 });

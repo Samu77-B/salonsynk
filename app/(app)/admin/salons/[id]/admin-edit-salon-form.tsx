@@ -41,6 +41,7 @@ export function AdminEditSalonForm({
   const [companyName, setCompanyName] = useState(initialBranding.company_name);
   const [ownerEmail, setOwnerEmail] = useState("");
   const [saveMsg, setSaveMsg] = useState<"saved" | "error" | null>(null);
+  const [saveErrorText, setSaveErrorText] = useState("");
   const [assignMsg, setAssignMsg] = useState<"saved" | "error" | null>(null);
   const [loading, setLoading] = useState(false);
   const [assignLoading, setAssignLoading] = useState(false);
@@ -101,16 +102,24 @@ export function AdminEditSalonForm({
     if (!file) return;
     setSaveMsg(null);
     setLogoUploading(true);
-    const formData = new FormData();
-    formData.append("logo", file);
-    const result = await adminUploadSalonLogo(salonId, formData);
-    setLogoUploading(false);
-    if (result.error) setSaveMsg("error");
-    else if (result.url) {
-      setLogoUrl(result.url);
-      setSaveMsg("saved");
+    try {
+      const formData = new FormData();
+      formData.append("logo", file);
+      const result = await adminUploadSalonLogo(salonId, formData);
+      if (result.error) {
+        setSaveErrorText(result.error);
+        setSaveMsg("error");
+      } else if (result.url) {
+        setLogoUrl(result.url);
+        setSaveMsg("saved");
+      }
+    } catch (err) {
+      setSaveErrorText(err instanceof Error ? err.message : "Upload failed unexpectedly");
+      setSaveMsg("error");
+    } finally {
+      setLogoUploading(false);
+      e.target.value = "";
     }
-    e.target.value = "";
   }
 
   async function handleAssignOwner(e: React.FormEvent) {
@@ -224,7 +233,7 @@ export function AdminEditSalonForm({
           <p className="text-sm text-green-400">Settings saved.</p>
         )}
         {saveMsg === "error" && (
-          <p className="text-sm text-red-400">Failed to save.</p>
+          <p className="text-sm text-red-400">{saveErrorText || "Failed to save."}</p>
         )}
         <button
           type="submit"

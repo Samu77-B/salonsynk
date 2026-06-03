@@ -4,7 +4,7 @@ const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
 
 const fromAddress =
-  process.env.RESEND_FROM_ADDRESS || "SalonSynk <noreply@salonsynk.com>";
+  process.env.RESEND_FROM_ADDRESS || "SalonSynk <hello@salonsynk.com>";
 
 function normalizeResendError(error: unknown): string | undefined {
   if (!error) return undefined;
@@ -116,6 +116,8 @@ export async function sendAccountRequest(params: {
   planTier?: string;
   planLabel?: string;
   planPrice?: string;
+  paymentGateway?: string;
+  paymentGatewayLabel?: string;
 }): Promise<{ error?: string }> {
   if (!resend) return { error: "Resend not configured" };
   const to = "hello@salonsynk.com";
@@ -129,12 +131,16 @@ export async function sendAccountRequest(params: {
     params.planLabel && params.planPrice
       ? `<p><strong>Requested plan:</strong> ${params.planLabel} (${params.planPrice})${params.planTier ? ` — <code>${params.planTier}</code>` : ""}</p>`
       : "";
+  const gatewayLine = params.paymentGatewayLabel
+    ? `<p><strong>Card payments:</strong> ${params.paymentGatewayLabel}${params.paymentGateway ? ` — <code>${params.paymentGateway}</code>` : ""}</p>`
+    : "";
   const html = `
     <p><strong>New account request</strong> (SalonSynk)</p>
     <p><strong>Name:</strong> ${params.fullName.trim()}</p>
     <p><strong>Email:</strong> ${params.email.trim()}</p>
     <p><strong>Salon / business:</strong> ${params.salonName.trim()}</p>
     ${planLine}
+    ${gatewayLine}
     ${phoneLine}
     ${msgBlock}
   `;
@@ -237,6 +243,121 @@ export async function sendWeMissYouEmail(
     from: fromAddress,
     to: [to],
     subject: `We miss you at ${details.salonName}`,
+    html,
+  });
+  return { error: normalizeResendError(error) };
+}
+
+function onboardingEmailButton(href: string, label: string): string {
+  return `<p style="margin:20px 0"><a href="${href}" style="display:inline-block;background:#16a34a;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:600;">${label}</a></p>`;
+}
+
+/** Welcome email when master admin completes onboarding setup — login + pay links. */
+export async function sendSalonWelcomeEmail(params: {
+  to: string;
+  ownerName: string;
+  salonName: string;
+  planLabel: string;
+  planPrice: string;
+  loginLink: string;
+  paymentLink: string;
+}): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured" };
+  const html = `
+    <p>Hi ${escapeHtmlPlainText(params.ownerName)},</p>
+    <p>Welcome to <strong>SalonSynk</strong> — your account for <strong>${escapeHtmlPlainText(params.salonName)}</strong> is ready.</p>
+    <p>You chose the <strong>${escapeHtmlPlainText(params.planLabel)}</strong> plan (${escapeHtmlPlainText(params.planPrice)}). Complete these two steps to get started:</p>
+    <ol>
+      <li><strong>Set your password</strong> and create your login</li>
+      <li><strong>Pay for your first month</strong> — your subscription renews monthly after that</li>
+    </ol>
+    ${onboardingEmailButton(params.loginLink, "Set password & log in")}
+    ${onboardingEmailButton(params.paymentLink, `Pay ${params.planPrice} — first month`)}
+    <p style="color:#666;font-size:14px;">You can pay before or after setting your password. Dashboard access opens once payment is complete.</p>
+    <p style="color:#666;font-size:14px;">Questions? Reply to this email or contact <a href="mailto:hello@salonsynk.com">hello@salonsynk.com</a>.</p>
+  `;
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [params.to],
+    replyTo: "hello@salonsynk.com",
+    subject: `Welcome to SalonSynk — ${params.salonName}`,
+    html,
+  });
+  return { error: normalizeResendError(error) };
+}
+
+/** Sent after first successful subscription payment. */
+export async function sendSalonSetupGuideEmail(params: {
+  to: string;
+  ownerName: string;
+  salonName: string;
+  dashboardLink: string;
+  setupHelpLink: string;
+}): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured" };
+  const html = `
+    <p>Hi ${escapeHtmlPlainText(params.ownerName)},</p>
+    <p><strong>Congratulations!</strong> Your payment for <strong>${escapeHtmlPlainText(params.salonName)}</strong> is confirmed. Your SalonSynk dashboard is now open.</p>
+    ${onboardingEmailButton(params.dashboardLink, "Open your dashboard")}
+    <h2 style="font-size:18px;margin-top:28px;">Getting started — step by step</h2>
+    <ol>
+      <li><strong>Branding</strong> — upload your logo and set your brand colour in Settings</li>
+      <li><strong>Services</strong> — add your service menu and prices</li>
+      <li><strong>Team</strong> — invite stylists or create front-desk logins</li>
+      <li><strong>Stripe Connect</strong> — connect payouts for in-salon payments (Professional & Complete plans)</li>
+      <li><strong>Go live</strong> — share your booking link with clients</li>
+    </ol>
+    <h2 style="font-size:18px;margin-top:28px;">Want us to set it up for you?</h2>
+    <p>Our team can configure staff, services, products, and price lists for you.</p>
+    <ul>
+      <li><strong>From £60</strong> when you have price lists and details ready</li>
+      <li><strong>From £120</strong> if we need to help gather or format your menus</li>
+    </ul>
+    ${onboardingEmailButton(params.setupHelpLink, "Request setup help")}
+    <p style="color:#666;font-size:14px;">We’ll confirm the exact price before any work begins.</p>
+  `;
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [params.to],
+    replyTo: "hello@salonsynk.com",
+    subject: `You're in! Set up ${params.salonName} on SalonSynk`,
+    html,
+  });
+  return { error: normalizeResendError(error) };
+}
+
+/** Owner requests concierge setup after subscribing. */
+export async function sendSetupConciergeRequest(params: {
+  ownerName: string;
+  ownerEmail: string;
+  salonName: string;
+  hasPriceLists: boolean;
+  helpAreas: string[];
+  notes?: string;
+}): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured" };
+  const to = "hello@salonsynk.com";
+  const areas = params.helpAreas.length ? params.helpAreas.join(", ") : "General setup";
+  const priceHint = params.hasPriceLists
+    ? "Client indicated they have price lists ready — quote from £60"
+    : "Client may need help preparing menus — quote from £120";
+  const notesBlock = params.notes?.trim()
+    ? `<p><strong>Notes:</strong></p><p>${params.notes.trim().replace(/\n/g, "<br />")}</p>`
+    : "";
+  const html = `
+    <p><strong>Salon setup concierge request</strong></p>
+    <p><strong>Salon:</strong> ${escapeHtmlPlainText(params.salonName)}</p>
+    <p><strong>Owner:</strong> ${escapeHtmlPlainText(params.ownerName)} (${escapeHtmlPlainText(params.ownerEmail)})</p>
+    <p><strong>Help needed with:</strong> ${escapeHtmlPlainText(areas)}</p>
+    <p><strong>Price lists prepared:</strong> ${params.hasPriceLists ? "Yes" : "No / not sure"}</p>
+    <p><strong>Pricing guide:</strong> ${priceHint}</p>
+    ${notesBlock}
+  `;
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [to],
+    replyTo: params.ownerEmail,
+    subject: `[SalonSynk] Setup help request: ${params.salonName.slice(0, 80)}`,
     html,
   });
   return { error: normalizeResendError(error) };

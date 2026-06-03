@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AdminEditSalonForm } from "./admin-edit-salon-form";
 import { AdminSalonDangerZone } from "./admin-salon-danger-zone";
+import { AdminSalonOnboardingPanel } from "./admin-salon-onboarding-panel";
+import { AdminSalonPaymentGateway } from "./admin-salon-payment-gateway";
 import { AdminSalonPlanSection } from "./admin-salon-plan-section";
 import { isPlanTierId, type PlanTierId } from "@/config/plans";
 
@@ -15,7 +17,9 @@ export default async function AdminEditSalonPage({
   const supabase = createAdminClient();
   const { data: salon } = await supabase
     .from("salons")
-    .select("id, name, slug, settings, plan_tier, feature_overrides, subscription_status")
+    .select(
+      "id, name, slug, settings, plan_tier, feature_overrides, subscription_status, subscription_required, onboarding_welcome_sent_at, payment_gateway"
+    )
     .eq("id", id)
     .single();
   if (!salon) notFound();
@@ -48,20 +52,34 @@ export default async function AdminEditSalonPage({
       | null) ?? {};
   const subscriptionStatus =
     (salon as { subscription_status?: string }).subscription_status ?? "inactive";
+  const welcomeSentAt =
+    (salon as { onboarding_welcome_sent_at?: string | null }).onboarding_welcome_sent_at ?? null;
+  const subscriptionRequired = Boolean(
+    (salon as { subscription_required?: boolean }).subscription_required
+  );
+  const paymentActive = subscriptionStatus === "active" || subscriptionStatus === "trialing";
+
+  const paymentGateway =
+    (salon as { payment_gateway?: string }).payment_gateway ?? "stripe";
 
   const brandingDone = Boolean(
     branding.logo_url?.trim() || branding.primary_color?.trim() || branding.company_name?.trim()
   );
   const memberRows = members ?? [];
+  const ownerEmails = memberRows
+    .filter((m) => (m.role ?? "").toLowerCase() === "owner")
+    .map((m) => profilesMap[m.user_id])
+    .filter((e): e is string => Boolean(e));
   const ownerCount = memberRows.filter((m) => (m.role ?? "").toLowerCase() === "owner").length;
   const staffCount = memberRows.length - ownerCount;
   const ownerDone = ownerCount > 0;
   const frontDeskDone = staffCount > 0;
   const checklist: { label: string; done: boolean; hint: string }[] = [
+    { label: "Platform plan", done: true, hint: "Save Essentials / Professional / Complete below" },
     { label: "Branding", done: brandingDone, hint: "Set company name, logo, primary colour" },
-    { label: "Owner / salon manager", done: ownerDone, hint: "Create or invite the manager login" },
-    { label: "Front desk login", done: frontDeskDone, hint: "Shared staff login (auto-hidden from diary)" },
-    { label: "Hand over", done: ownerDone && frontDeskDone, hint: "Owner sets up team, services, products, Stripe" },
+    { label: "Welcome email sent", done: Boolean(welcomeSentAt), hint: "Owner gets login + payment link" },
+    { label: "Subscription paid", done: paymentActive, hint: "Owner pays via link — unlocks dashboard" },
+    { label: "Front desk login (optional)", done: frontDeskDone, hint: "Shared staff login after owner is live" },
   ];
 
   return (
@@ -152,6 +170,14 @@ export default async function AdminEditSalonPage({
         salonId={salon.id}
         initialPlanTier={planTier}
         initialFeatureOverrides={featureOverrides}
+        subscriptionStatus={subscriptionStatus}
+      />
+      <AdminSalonPaymentGateway salonId={salon.id} initialGateway={paymentGateway} />
+      <AdminSalonOnboardingPanel
+        salonId={salon.id}
+        ownerEmails={ownerEmails}
+        welcomeSentAt={welcomeSentAt}
+        subscriptionRequired={subscriptionRequired}
         subscriptionStatus={subscriptionStatus}
       />
       <AdminSalonDangerZone salonId={salon.id} salonName={salon.name} />

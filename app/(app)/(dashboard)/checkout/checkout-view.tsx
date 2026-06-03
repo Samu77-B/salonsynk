@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { StaffElevationModal } from "@/app/(app)/staff-elevation-modal";
+import type { PaymentGatewayId } from "@/config/payment-gateways";
 
 type Client = { id: string; name: string | null; email: string | null };
 type Service = { id: string; name: string; duration_minutes: number; price_minor: number };
@@ -29,6 +30,9 @@ export function CheckoutView({
   products,
   stylists,
   defaultStylistId,
+  paymentGateway,
+  paymentGatewayLabel,
+  usesStripeCheckout,
 }: {
   salonId: string;
   clients: Client[];
@@ -36,6 +40,9 @@ export function CheckoutView({
   products: Product[];
   stylists: Stylist[];
   defaultStylistId: string;
+  paymentGateway: PaymentGatewayId;
+  paymentGatewayLabel: string;
+  usesStripeCheckout: boolean;
 }) {
   const searchParams = useSearchParams();
   const appliedFromUrlRef = useRef(false);
@@ -58,6 +65,7 @@ export function CheckoutView({
   const [extraSearch, setExtraSearch] = useState("");
   const [extraOpen, setExtraOpen] = useState(false);
   const extraBlurTimer = useRef<number | null>(null);
+  const [terminalReference, setTerminalReference] = useState("");
 
   /** Diary "Make Sale" passes ?clientId=&serviceId=&serviceIds=&stylistId=&walkInName= for walk-ins */
   useEffect(() => {
@@ -168,32 +176,58 @@ export function CheckoutView({
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/stripe/create-payment-intent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          salonId,
-          clientId: clientId || undefined,
-          stylistId: stylistId || undefined,
-          silentAppointment: silentAppointment || undefined,
-          serviceIds: selectedServiceIds,
-          productIds: selectedProductIds,
-          customAmountMinor: customAmountMinor != null ? customAmountMinor : null,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (data?.error === "PIN_REQUIRED") {
-          setPendingPay(true);
-          setElevateOpen(true);
+      const payload = {
+        salonId,
+        clientId: clientId || undefined,
+        stylistId: stylistId || undefined,
+        silentAppointment: silentAppointment || undefined,
+        serviceIds: selectedServiceIds,
+        productIds: selectedProductIds,
+        customAmountMinor: customAmountMinor != null ? customAmountMinor : null,
+      };
+
+      if (usesStripeCheckout) {
+        const res = await fetch("/api/stripe/create-payment-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (data?.error === "PIN_REQUIRED") {
+            setPendingPay(true);
+            setElevateOpen(true);
+            setLoading(false);
+            return;
+          }
+          setError(data.error ?? "Failed");
           setLoading(false);
           return;
         }
-        setError(data.error ?? "Failed");
-        setLoading(false);
-        return;
+        setDone(true);
+      } else {
+        const res = await fetch("/api/checkout/record-external-sale", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...payload,
+            terminalReference: terminalReference.trim() || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (data?.error === "PIN_REQUIRED") {
+            setPendingPay(true);
+            setElevateOpen(true);
+            setLoading(false);
+            return;
+          }
+          setError(data.error ?? "Failed");
+          setLoading(false);
+          return;
+        }
+        setDone(true);
       }
-      setDone(true);
     } catch {
       setError("Network error");
     }
@@ -202,14 +236,29 @@ export function CheckoutView({
 
   if (done) {
     return (
-      <p className="text-green-400">
-        Payment intent created. In production you would embed Stripe Elements here and confirm with clientSecret.
-      </p>
+      <div className="space-y-3">
+        <p className="text-green-400">
+          {usesStripeCheckout
+            ? "Payment intent created. In production you would embed Stripe Elements here and confirm with clientSecret."
+            : `Sale recorded. Payment was taken on your ${paymentGatewayLabel} terminal.`}
+        </p>
+        {bookNextHref && (
+          <Link href={bookNextHref} className="text-sm text-accent hover:underline">
+            Book next appointment
+          </Link>
+        )}
+      </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {!usesStripeCheckout && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+          <strong>{paymentGatewayLabel}</strong> — take payment on your existing card terminal, then record
+          the sale here for reporting.
+        </div>
+      )}
       <StaffElevationModal
         open={elevateOpen}
         onClose={() => { setElevateOpen(false); setPendingPay(false); }}
@@ -478,6 +527,20 @@ export function CheckoutView({
       <p className="text-xs text-muted-foreground -mt-2">
         Check this for a quiet session with no small talk.
       </p>
+      {!usesStripeCheckout && (
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Terminal reference <span className="text-muted font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={terminalReference}
+            onChange={(e) => setTerminalReference(e.target.value)}
+            placeholder="e.g. last 4 digits or receipt #"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          />
+        </div>
+      )}
       {error && <p className="text-sm text-red-400">{error}</p>}
       <button
         type="button"
@@ -485,7 +548,11 @@ export function CheckoutView({
         disabled={loading}
         className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
       >
-        {loading ? "Processing…" : "Pay"}
+        {loading
+          ? "Processing…"
+          : usesStripeCheckout
+            ? "Pay with card (Stripe)"
+            : `Record sale (${paymentGatewayLabel})`}
       </button>
     </div>
   );

@@ -40,6 +40,9 @@ export default async function SettingsPage() {
         subscriptionCheckoutAvailable={data.subscriptionCheckoutAvailable}
         hasBillingCustomer={data.hasBillingCustomer}
         enabledFeatures={data.enabledFeatures}
+        paymentGateway={data.paymentGateway}
+        paymentGatewayLabel={data.paymentGatewayLabel}
+        usesStripeCheckout={data.usesStripeCheckout}
       />
     </main>
   );

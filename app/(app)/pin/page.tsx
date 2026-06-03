@@ -5,11 +5,14 @@ import { verifyPinSessionToken } from "@/lib/passcode";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { isGeneralSalonStaffRole, isManagerRole } from "@/lib/dashboard-roles";
+import { enforceSalonSubscriptionIfRequired } from "@/lib/subscription-gate.server";
 import PinEntryView from "./pin-entry-view";
 
 export default async function PinPage() {
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");
+
+  await enforceSalonSubscriptionIfRequired();
 
   const isSuperAdmin = await getIsSuperAdmin();
   const role = context.member.role ?? "";

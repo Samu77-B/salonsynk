@@ -51,9 +51,19 @@ export async function POST(request: Request) {
 
   const { data: salon } = await supabase
     .from("salons")
-    .select("stripe_connect_account_id, settings")
+    .select("stripe_connect_account_id, settings, payment_gateway")
     .eq("id", salonId)
     .single();
+
+  const gateway = (salon?.payment_gateway as string) ?? "stripe";
+  if (gateway !== "stripe") {
+    return NextResponse.json(
+      {
+        error: `This salon uses ${gateway} for card payments. Record the sale in checkout after taking payment on your terminal.`,
+      },
+      { status: 400 }
+    );
+  }
 
   if (!salon?.stripe_connect_account_id) {
     return NextResponse.json({ error: "Connect your Stripe account in Settings first" }, { status: 400 });

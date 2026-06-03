@@ -1,11 +1,26 @@
 import { Suspense } from "react";
 import { requireSalonFeature } from "@/lib/salon-features.server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
+import { isPaymentGatewayId, salonUsesStripeCheckout, type PaymentGatewayId } from "@/config/payment-gateways";
+import { PAYMENT_GATEWAYS } from "@/config/payment-gateways";
 import { CheckoutView } from "./checkout-view";
 
 export default async function CheckoutPage() {
   const { context } = await requireSalonFeature("checkout");
+
+  const admin = createAdminClient();
+  const { data: salonRow } = await admin
+    .from("salons")
+    .select("payment_gateway")
+    .eq("id", context.salon.id)
+    .single();
+
+  const rawGateway = (salonRow?.payment_gateway as string) ?? "stripe";
+  const paymentGateway: PaymentGatewayId = isPaymentGatewayId(rawGateway) ? rawGateway : "stripe";
+  const usesStripeCheckout = salonUsesStripeCheckout(paymentGateway);
+  const gatewayMeta = PAYMENT_GATEWAYS[paymentGateway];
 
   const supabase = await createClient();
   const productsQuery = async () => {
@@ -80,6 +95,9 @@ export default async function CheckoutPage() {
           products={products}
           stylists={stylists}
           defaultStylistId={defaultStylistId}
+          paymentGateway={paymentGateway}
+          paymentGatewayLabel={gatewayMeta.shortLabel}
+          usesStripeCheckout={usesStripeCheckout}
         />
       </Suspense>
     </main>

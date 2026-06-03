@@ -3,9 +3,15 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
-import { sendOwnerInviteLink } from "@/lib/email";
+import { sendOwnerInviteLink, sendSalonWelcomeEmail } from "@/lib/email";
 import { isMissingShowOnDiaryColumnError } from "@/lib/show-on-diary";
-import { isPlanTierId, type PlanTierId } from "@/config/plans";
+import { isPlanTierId, PLAN_TIERS, formatPlanPrice, type PlanTierId } from "@/config/plans";
+import {
+  generatePaymentInviteToken,
+  getAppBaseUrl,
+  paymentInviteUrl,
+} from "@/lib/onboarding";
+import { isPaymentGatewayId, type PaymentGatewayId } from "@/config/payment-gateways";
 
 /**
  * Staff logins added by SalonSynk admin (front desk / reception) are login-only by default —
@@ -52,16 +58,20 @@ function slugFromName(name: string): string {
 export async function adminCreateSalon(
   name: string,
   slug: string,
-  ownerEmail?: string
+  ownerEmail?: string,
+  paymentGateway?: string
 ) {
   await requireAdmin();
   const supabase = createAdminClient();
   const finalSlug = (slug || slugFromName(name)).trim();
   if (!finalSlug) return { error: "Slug is required" };
 
+  const gateway: PaymentGatewayId =
+    paymentGateway && isPaymentGatewayId(paymentGateway) ? paymentGateway : "stripe";
+
   const { data: salon, error: salonError } = await supabase
     .from("salons")
-    .insert({ name: name.trim(), slug: finalSlug })
+    .insert({ name: name.trim(), slug: finalSlug, payment_gateway: gateway })
     .select("id")
     .single();
 
@@ -101,52 +111,58 @@ export async function adminUploadSalonLogo(
   salonId: string,
   formData: FormData
 ): Promise<{ error: string | null; url?: string }> {
-  await requireAdmin();
-  const admin = createAdminClient();
+  try {
+    await requireAdmin();
+    const admin = createAdminClient();
 
-  const raw = formData.get("logo");
-  if (!raw || typeof raw !== "object" || !("size" in raw) || !("type" in raw)) return { error: "No file provided" };
-  const size = Number((raw as { size?: number }).size) || 0;
-  const type = String((raw as { type?: string }).type || "").toLowerCase();
-  if (size === 0) return { error: "No file provided" };
-  if (size > MAX_LOGO_BYTES) return { error: "Image must be under 2MB" };
-  if (!ALLOWED_LOGO_TYPES.includes(type)) return { error: "Allowed types: JPEG, PNG, GIF, WebP, SVG" };
+    const raw = formData.get("logo");
+    if (!raw || typeof raw !== "object" || !("size" in raw) || !("type" in raw)) return { error: "No file provided" };
+    const size = Number((raw as { size?: number }).size) || 0;
+    const type = String((raw as { type?: string }).type || "").toLowerCase();
+    if (size === 0) return { error: "No file provided" };
+    if (size > MAX_LOGO_BYTES) return { error: "Image must be under 2MB" };
+    if (!ALLOWED_LOGO_TYPES.includes(type)) return { error: `File type "${type}" not allowed. Use JPEG, PNG, GIF, WebP, or SVG.` };
 
-  const name = (raw as { name?: string }).name || "logo.png";
-  const ext = name.split(".").pop()?.toLowerCase() || "png";
-  const path = `salon-logos/${salonId}.${ext}`;
+    const name = (raw as { name?: string }).name || "logo.png";
+    const ext = name.split(".").pop()?.toLowerCase() || "png";
+    const path = `salon-logos/${salonId}.${ext}`;
 
-  const arrayBuffer = await (raw as Blob).arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const { error: uploadError } = await admin.storage
-    .from(LOGO_BUCKET)
-    .upload(path, buffer, { upsert: true, contentType: type });
+    const arrayBuffer = await (raw as Blob).arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const { error: uploadError } = await admin.storage
+      .from(LOGO_BUCKET)
+      .upload(path, buffer, { upsert: true, contentType: type });
 
-  if (uploadError) return { error: uploadError.message };
+    if (uploadError) return { error: `Upload failed: ${uploadError.message}` };
 
-  const { data: urlData } = admin.storage.from(LOGO_BUCKET).getPublicUrl(path);
-  const url = urlData.publicUrl;
+    const { data: urlData } = admin.storage.from(LOGO_BUCKET).getPublicUrl(path);
+    const url = urlData.publicUrl;
 
-  const { data: existing } = await admin
-    .from("salons")
-    .select("settings")
-    .eq("id", salonId)
-    .single();
-  if (!existing) return { error: "Salon not found" };
+    const { data: existing } = await admin
+      .from("salons")
+      .select("settings")
+      .eq("id", salonId)
+      .single();
+    if (!existing) return { error: "Salon not found" };
 
-  const current = (existing.settings as Record<string, unknown>) ?? {};
-  const branding = (current.branding as Record<string, unknown>) ?? {};
-  const nextBranding = { ...branding, logo_url: url };
-  const { error: updateError } = await admin
-    .from("salons")
-    .update({ settings: { ...current, branding: nextBranding } })
-    .eq("id", salonId);
-  if (updateError) return { error: updateError.message };
+    const current = (existing.settings as Record<string, unknown>) ?? {};
+    const branding = (current.branding as Record<string, unknown>) ?? {};
+    const nextBranding = { ...branding, logo_url: url };
+    const { error: updateError } = await admin
+      .from("salons")
+      .update({ settings: { ...current, branding: nextBranding } })
+      .eq("id", salonId);
+    if (updateError) return { error: updateError.message };
 
-  revalidatePath("/admin");
-  revalidatePath("/admin/salons");
-  revalidatePath(`/admin/salons/${salonId}`);
-  return { error: null, url };
+    revalidatePath("/admin");
+    revalidatePath("/admin/salons");
+    revalidatePath(`/admin/salons/${salonId}`);
+    return { error: null, url };
+  } catch (err) {
+    console.error("[adminUploadSalonLogo]", err);
+    const msg = err instanceof Error ? err.message : "Unknown upload error";
+    return { error: msg };
+  }
 }
 
 export async function adminUpdateSalon(
@@ -313,7 +329,7 @@ export async function adminCreateOwnerWithPassword(
   return {};
 }
 
-/** Invite a new user by email and add them as salon owner. Sends a signup email. */
+/** Invite a new user by email and add them as salon owner. Sends invite via Resend. */
 export async function adminInviteOwner(
   salonId: string,
   email: string,
@@ -326,26 +342,40 @@ export async function adminInviteOwner(
 
   const name = (displayName?.trim() || trimmed.split("@")[0]) || "Owner";
 
+  const { data: salon } = await supabase
+    .from("salons")
+    .select("name")
+    .eq("id", salonId)
+    .single();
+  const salonName = (salon?.name as string) || "the salon";
+
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
     "https://salonsynk.vercel.app";
   const redirectTo = `${baseUrl}/auth/callback`;
 
-  const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
-    trimmed,
-    { data: { full_name: name }, redirectTo }
-  );
+  const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+    type: "invite",
+    email: trimmed,
+    options: { data: { full_name: name }, redirectTo },
+  });
 
-  if (inviteError) {
-    if (inviteError.message?.includes("already been registered")) {
+  if (linkError) {
+    if (linkError.message?.includes("already been registered")) {
       return { error: "That email is already registered. Use Add owner instead." };
     }
-    return { error: inviteError.message };
+    return { error: linkError.message };
   }
 
-  const userId = inviteData?.user?.id;
-  if (!userId) return { error: "Invite sent but could not add as owner. Add them manually after they sign up." };
+  const userId = linkData?.user?.id;
+  if (!userId) return { error: "Could not create user. Try again or use Create owner instead." };
+
+  const actionLink = getAuthActionLink(linkData);
+  if (!actionLink) return { error: "User created but could not generate invite link." };
+
+  const emailResult = await sendOwnerInviteLink(trimmed, actionLink, salonName);
+  if (emailResult.error) return { error: `User created but email failed: ${emailResult.error}` };
 
   const { error: memberError } = await supabase.from("salon_members").upsert(
     {
@@ -457,7 +487,7 @@ export async function adminCreateStaffWithPassword(
   return {};
 }
 
-/** Invite a new user by email and add them as staff. Sends a signup email. */
+/** Invite a new user by email and add them as staff. Sends invite via Resend. */
 export async function adminInviteStaff(
   salonId: string,
   email: string,
@@ -474,26 +504,40 @@ export async function adminInviteStaff(
 
   const name = (displayName?.trim() || trimmed.split("@")[0]) || "Staff";
 
+  const { data: salon } = await supabase
+    .from("salons")
+    .select("name")
+    .eq("id", salonId)
+    .single();
+  const salonName = (salon?.name as string) || "the salon";
+
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
     "https://salonsynk.vercel.app";
   const redirectTo = `${baseUrl}/auth/callback`;
 
-  const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
-    trimmed,
-    { data: { full_name: name }, redirectTo }
-  );
+  const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+    type: "invite",
+    email: trimmed,
+    options: { data: { full_name: name }, redirectTo },
+  });
 
-  if (inviteError) {
-    if (inviteError.message?.includes("already been registered")) {
+  if (linkError) {
+    if (linkError.message?.includes("already been registered")) {
       return { error: "That email is already registered. Use Add existing staff instead." };
     }
-    return { error: inviteError.message };
+    return { error: linkError.message };
   }
 
-  const userId = inviteData?.user?.id;
-  if (!userId) return { error: "Invite sent but could not add as staff. Add them manually after they sign up." };
+  const userId = linkData?.user?.id;
+  if (!userId) return { error: "Could not create user. Try again or use Create staff instead." };
+
+  const actionLink = getAuthActionLink(linkData);
+  if (!actionLink) return { error: "User created but could not generate invite link." };
+
+  const emailResult = await sendOwnerInviteLink(trimmed, actionLink, salonName);
+  if (emailResult.error) return { error: `User created but email failed: ${emailResult.error}` };
 
   const upsert = await upsertSalonMemberLoginOnly(supabase, {
     salon_id: salonId,
@@ -575,6 +619,151 @@ export async function adminResendOwnerInvite(
   if (err.error) return err;
   revalidatePath(`/admin/salons/${salonId}`);
   return {};
+}
+
+function getAuthActionLink(d: unknown): string | null {
+  if (!d || typeof d !== "object") return null;
+  const o = d as Record<string, unknown>;
+  const direct = o.action_link;
+  if (typeof direct === "string") return direct;
+  const props = o.properties as Record<string, unknown> | undefined;
+  const fromProps = props?.action_link;
+  if (typeof fromProps === "string") return fromProps;
+  const user = o.user as Record<string, unknown> | undefined;
+  const fromUser = user?.action_link;
+  if (typeof fromUser === "string") return fromUser;
+  return null;
+}
+
+/**
+ * Invite/create owner, enable pay-before-access, and email welcome + payment link.
+ */
+export async function adminSendSalonWelcomeEmail(
+  salonId: string,
+  email: string,
+  displayName?: string
+): Promise<{ error?: string }> {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) return { error: "Owner email is required" };
+
+  const { data: salon } = await supabase
+    .from("salons")
+    .select("id, name, plan_tier")
+    .eq("id", salonId)
+    .single();
+  if (!salon) return { error: "Salon not found" };
+
+  const rawTier = (salon as { plan_tier?: string }).plan_tier ?? "professional";
+  const planTier: PlanTierId = isPlanTierId(rawTier) ? rawTier : "professional";
+  const planMeta = PLAN_TIERS[planTier];
+  const ownerName = (displayName?.trim() || trimmed.split("@")[0]) || "there";
+  const salonName = (salon.name as string) || "your salon";
+
+  const baseUrl = getAppBaseUrl();
+  const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent("/billing")}`;
+
+  const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+    type: "invite",
+    email: trimmed,
+    options: { redirectTo, data: { full_name: ownerName } },
+  });
+
+  let loginLink: string | null = getAuthActionLink(linkData);
+
+  if (linkError) {
+    const { data: recoveryData, error: recoveryError } = await supabase.auth.admin.generateLink({
+      type: "recovery",
+      email: trimmed,
+      options: { redirectTo },
+    });
+    if (recoveryError) return { error: linkError.message };
+    loginLink = getAuthActionLink(recoveryData);
+  }
+
+  if (!loginLink) return { error: "Could not generate login link for this email." };
+
+  const invitedUserId =
+    (linkData as { user?: { id?: string } } | null)?.user?.id ??
+    (await supabase.from("profiles").select("id").eq("email", trimmed).single()).data?.id;
+
+  if (invitedUserId) {
+    const { error: memberError } = await supabase.from("salon_members").upsert(
+      {
+        salon_id: salonId,
+        user_id: invitedUserId,
+        role: "owner",
+        display_name: ownerName,
+        is_active: true,
+      },
+      { onConflict: "salon_id,user_id" }
+    );
+    if (memberError) return { error: memberError.message };
+  }
+
+  const paymentToken = generatePaymentInviteToken();
+  const { error: updateError } = await supabase
+    .from("salons")
+    .update({
+      payment_invite_token: paymentToken,
+      subscription_required: true,
+      onboarding_welcome_sent_at: new Date().toISOString(),
+    })
+    .eq("id", salonId);
+
+  if (updateError) {
+    if (updateError.message?.includes("payment_invite_token") || updateError.code === "42703") {
+      return {
+        error: "Onboarding columns are missing. Run migration 040_salon_onboarding.sql in Supabase.",
+      };
+    }
+    return { error: updateError.message };
+  }
+
+  const emailResult = await sendSalonWelcomeEmail({
+    to: trimmed,
+    ownerName,
+    salonName,
+    planLabel: planMeta.label,
+    planPrice: formatPlanPrice(planTier),
+    loginLink,
+    paymentLink: paymentInviteUrl(paymentToken),
+  });
+  if (emailResult.error) return { error: emailResult.error };
+
+  revalidatePath("/admin/salons");
+  revalidatePath(`/admin/salons/${salonId}`);
+  return {};
+}
+
+export async function adminUpdateSalonPaymentGateway(
+  salonId: string,
+  paymentGateway: string
+): Promise<{ error: string | null }> {
+  await requireAdmin();
+  if (!isPaymentGatewayId(paymentGateway)) {
+    return { error: "Invalid payment gateway" };
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("salons")
+    .update({ payment_gateway: paymentGateway })
+    .eq("id", salonId);
+
+  if (error) {
+    if (error.message?.includes("payment_gateway") || error.code === "42703") {
+      return {
+        error: "Payment gateway column missing. Run migration 041_salon_payment_gateway.sql in Supabase.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/salons");
+  revalidatePath(`/admin/salons/${salonId}`);
+  return { error: null };
 }
 
 export async function adminAddServices(

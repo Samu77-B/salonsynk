@@ -6,6 +6,7 @@ import {
   resolvePlanTierFromSubscription,
   subscriptionStatusToSalonField,
 } from "@/config/plans";
+import { sendPostPaymentSetupEmailIfNeeded } from "@/lib/onboarding-email.server";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -199,6 +200,9 @@ export async function POST(request: Request) {
           const subUpdate: Record<string, unknown> = { subscription_status: status };
           if (tier) subUpdate.plan_tier = tier;
           await supabase.from("salons").update(subUpdate).eq("id", salonId);
+          if (status === "active") {
+            await sendPostPaymentSetupEmailIfNeeded(salonId);
+          }
         } catch (err) {
           console.error("checkout.session.completed: subscription retrieve failed", err);
         }
@@ -237,6 +241,10 @@ export async function POST(request: Request) {
       const customerId = typeof sub.customer === "string" ? sub.customer : null;
       if (customerId) payload.stripe_billing_customer_id = customerId;
       await supabase.from("salons").update(payload).eq("id", salonId);
+      const status = subscriptionStatusToSalonField(sub.status);
+      if (status === "active") {
+        await sendPostPaymentSetupEmailIfNeeded(salonId);
+      }
     }
   }
 
