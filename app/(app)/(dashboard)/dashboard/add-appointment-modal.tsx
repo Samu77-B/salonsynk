@@ -23,6 +23,7 @@ export function AddAppointmentModal({
   members,
   services,
   clients,
+  categories = [],
   currentDate,
   initialStylistId,
   initialTimeHHmm,
@@ -37,6 +38,7 @@ export function AddAppointmentModal({
   members: Member[];
   services: Service[];
   clients: Client[];
+  categories?: { id: string; name: string }[];
   currentDate: string;
   /** When opening from a diary slot click, pre-select this stylist */
   initialStylistId?: string | null;
@@ -462,6 +464,7 @@ export function AddAppointmentModal({
                 stylistOverrides={stylistOverrides}
                 selectedIds={selectedServiceIds}
                 onSelectedIdsChange={setSelectedServiceIds}
+                categories={categories}
                 hint={`Type to add one or more; durations are combined for this appointment (${durationMinutes} min total).`}
               />
               {serviceSummariesForNotes.some((s) => (s.processing_time_minutes ?? 0) > 0) && (

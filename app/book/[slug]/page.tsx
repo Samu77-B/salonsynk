@@ -26,12 +26,37 @@ export default async function BookPage({
 
   if (!salon) notFound();
 
-  const [servicesRes, membersLoad] = await Promise.all([
-    supabase.from("services").select("id, name, duration_minutes").eq("salon_id", salon.id),
+  const categoriesQuery = async () => {
+    try {
+      return await supabase
+        .from("service_categories")
+        .select("id, name, sort_order")
+        .eq("salon_id", salon.id)
+        .order("sort_order")
+        .order("name");
+    } catch {
+      return { data: [] as { id: string; name: string; sort_order: number }[], error: null };
+    }
+  };
+
+  const servicesQuery = async () => {
+    const withCat = await supabase
+      .from("services")
+      .select("id, name, duration_minutes, category_id")
+      .eq("salon_id", salon.id)
+      .order("sort_order")
+      .order("name");
+    if (!withCat.error) return withCat;
+    return supabase.from("services").select("id, name, duration_minutes").eq("salon_id", salon.id).order("name");
+  };
+
+  const [servicesRes, membersLoad, categoriesRes] = await Promise.all([
+    servicesQuery(),
     fetchSalonMembersAdaptiveSelect(supabase, salon.id as string, [
       "id, display_name, show_on_diary",
       "id, display_name",
     ]),
+    categoriesQuery(),
   ]);
 
   const stylistRows = membersLoad.data as { id: string; display_name?: string | null; show_on_diary?: boolean | null }[];
@@ -106,9 +131,16 @@ export default async function BookPage({
         <GuestBookingForm
           salonId={salon.id}
           salonName={displayName}
-          services={servicesRes.data ?? []}
+          services={(servicesRes.data ?? []).map((s) => {
+            const row = s as { id: string; name: string; duration_minutes: number; category_id?: string | null };
+            return { id: row.id, name: row.name, duration_minutes: row.duration_minutes, category_id: row.category_id ?? null };
+          })}
           stylists={bookableStylists}
           stylistOverrides={stylistOverrides}
+          categories={((categoriesRes as { data?: { id: string; name: string; sort_order: number }[] | null }).data ?? []).map((c) => ({
+            id: c.id,
+            name: c.name,
+          }))}
         />
       </Reveal>
     </main>

@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 
-type Service = { id: string; name: string; duration_minutes: number };
+type Service = { id: string; name: string; duration_minutes: number; category_id?: string | null };
+type Category = { id: string; name: string };
 
 function durationForService(
   s: Service,
@@ -20,9 +21,26 @@ type ServicePickerFieldProps = {
   stylistOverrides?: Record<string, Record<string, number>>;
   selectedIds: string[];
   onSelectedIdsChange: (ids: string[]) => void;
+  categories?: Category[];
   /** Shown under the label — e.g. combined duration */
   hint?: string;
 };
+
+function groupByCategory(services: Service[], categories: Category[]) {
+  if (categories.length === 0) return null;
+  const byCat = new Map<string, Service[]>();
+  const uncategorised: Service[] = [];
+  for (const s of services) {
+    if (s.category_id) {
+      const list = byCat.get(s.category_id) ?? [];
+      list.push(s);
+      byCat.set(s.category_id, list);
+    } else {
+      uncategorised.push(s);
+    }
+  }
+  return { categories, byCat, uncategorised };
+}
 
 export function ServicePickerField({
   id,
@@ -31,6 +49,7 @@ export function ServicePickerField({
   stylistOverrides = {},
   selectedIds,
   onSelectedIdsChange,
+  categories = [],
   hint,
 }: ServicePickerFieldProps) {
   const [serviceSearch, setServiceSearch] = useState("");
@@ -47,6 +66,11 @@ export function ServicePickerField({
     return availableServices.filter((s) => (s.name ?? "").toLowerCase().includes(raw)).slice(0, 30);
   }, [availableServices, serviceSearch]);
 
+  const grouped = useMemo(
+    () => groupByCategory(filteredServices, categories),
+    [filteredServices, categories],
+  );
+
   const addService = (svc: Service) => {
     onSelectedIdsChange([...selectedIds, svc.id]);
     setServiceSearch("");
@@ -55,6 +79,31 @@ export function ServicePickerField({
   const removeService = (serviceId: string) => {
     onSelectedIdsChange(selectedIds.filter((x) => x !== serviceId));
   };
+
+  function renderServiceItem(s: Service) {
+    const dur = durationForService(s, stylistId, stylistOverrides);
+    const ov = stylistId ? stylistOverrides[stylistId]?.[s.id] : undefined;
+    return (
+      <li key={s.id} role="presentation">
+        <button
+          type="button"
+          role="option"
+          aria-selected={false}
+          className="w-full px-3 py-2 text-left text-sm hover:bg-muted/40"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            addService(s);
+          }}
+        >
+          <span className="font-medium">{s.name}</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            {dur} min
+            {ov !== undefined ? " · custom timing" : ""}
+          </span>
+        </button>
+      </li>
+    );
+  }
 
   return (
     <div className="relative z-50 space-y-2">
@@ -115,30 +164,34 @@ export function ServicePickerField({
             aria-label="Matching services"
             className="absolute left-0 right-0 z-[60] mt-1 max-h-52 overflow-y-auto rounded-lg border border-border bg-background py-1 shadow-lg"
           >
-            {filteredServices.map((s) => {
-              const dur = durationForService(s, stylistId, stylistOverrides);
-              const ov = stylistId ? stylistOverrides[stylistId]?.[s.id] : undefined;
-              return (
-                <li key={s.id} role="presentation">
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={false}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted/40"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      addService(s);
-                    }}
-                  >
-                    <span className="font-medium">{s.name}</span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      {dur} min
-                      {ov !== undefined ? " · custom timing" : ""}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
+            {grouped ? (
+              <>
+                {grouped.categories.map((cat) => {
+                  const items = grouped.byCat.get(cat.id) ?? [];
+                  if (items.length === 0) return null;
+                  return (
+                    <li key={cat.id} role="presentation">
+                      <span className="block px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {cat.name}
+                      </span>
+                      <ul>{items.map(renderServiceItem)}</ul>
+                    </li>
+                  );
+                })}
+                {grouped.uncategorised.length > 0 && (
+                  <li role="presentation">
+                    {grouped.categories.some((c) => (grouped.byCat.get(c.id) ?? []).length > 0) && (
+                      <span className="block px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Other
+                      </span>
+                    )}
+                    <ul>{grouped.uncategorised.map(renderServiceItem)}</ul>
+                  </li>
+                )}
+              </>
+            ) : (
+              filteredServices.map(renderServiceItem)
+            )}
           </ul>
         ) : null}
 

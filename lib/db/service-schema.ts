@@ -15,3 +15,15 @@ export function isMissingColorColumnError(error: { message?: string } | null | u
   const msg = (error?.message ?? "").toLowerCase();
   return msg.includes("color") && (msg.includes("does not exist") || msg.includes("schema cache"));
 }
+
+/** True when services.category_id column is not present yet. */
+export function isMissingCategoryColumnError(error: { message?: string } | null | undefined) {
+  const msg = (error?.message ?? "").toLowerCase();
+  return msg.includes("category_id") && (msg.includes("does not exist") || msg.includes("schema cache"));
+}
+
+/** True when services.sort_order column is not present yet. */
+export function isMissingSortOrderColumnError(error: { message?: string } | null | undefined) {
+  const msg = (error?.message ?? "").toLowerCase();
+  return msg.includes("sort_order") && (msg.includes("does not exist") || msg.includes("schema cache"));
+}

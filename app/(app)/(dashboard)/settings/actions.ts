@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
-import { isMissingDescriptionColumnError, isMissingProcessingColumnError, isMissingColorColumnError } from "@/lib/db/service-schema";
+import { isMissingDescriptionColumnError, isMissingProcessingColumnError, isMissingColorColumnError, isMissingCategoryColumnError, isMissingSortOrderColumnError } from "@/lib/db/service-schema";
 
 const SERVICE_DESCRIPTION_MAX_LEN = 2000;
 
@@ -233,6 +233,7 @@ export async function addService(
     processing_time_minutes?: number;
     description?: string;
     color?: string;
+    category_id?: string | null;
   }
 ): Promise<ServiceMutationResult> {
   try {
@@ -248,6 +249,7 @@ export async function addService(
     const admin = getOptionalAdminClient();
     const db = admin ?? supabase;
     const color = data.color?.trim() || null;
+    const categoryId = data.category_id?.trim() || null;
     let insertPayload: Record<string, unknown> = {
       salon_id: salonId,
       name,
@@ -256,6 +258,7 @@ export async function addService(
       processing_time_minutes: processing,
       description,
       color,
+      category_id: categoryId,
     };
     const attemptInsert = async (payload: Record<string, unknown>) => {
       let { error } = await db.from("services").insert(payload);
@@ -266,6 +269,11 @@ export async function addService(
       return error;
     };
     let insertError = await attemptInsert(insertPayload);
+    if (insertError && isMissingCategoryColumnError(insertError)) {
+      const { category_id: _cat, ...next } = insertPayload;
+      insertPayload = next;
+      insertError = await attemptInsert(insertPayload);
+    }
     if (insertError && isMissingDescriptionColumnError(insertError)) {
       const { description: _d, ...next } = insertPayload;
       insertPayload = next;
@@ -306,6 +314,7 @@ export async function updateService(
     processing_time_minutes?: number;
     description?: string;
     color?: string;
+    category_id?: string | null;
   }
 ): Promise<ServiceMutationResult> {
   try {
@@ -326,6 +335,7 @@ export async function updateService(
     }
     if (data.description !== undefined) payload.description = normalizeServiceDescription(data.description);
     if (data.color !== undefined) payload.color = data.color?.trim() || null;
+    if (data.category_id !== undefined) payload.category_id = data.category_id?.trim() || null;
     if (Object.keys(payload).length === 0) return {};
     const supabase = await createClient();
     const admin = getOptionalAdminClient();
@@ -340,6 +350,12 @@ export async function updateService(
     };
     let updatePayload: Record<string, unknown> = { ...payload };
     let error = await attemptUpdate(updatePayload);
+    if (error && isMissingCategoryColumnError(error)) {
+      const { category_id: _cat, ...next } = updatePayload;
+      updatePayload = next;
+      if (Object.keys(updatePayload).length === 0) return { error: formatDbError(error) };
+      error = await attemptUpdate(updatePayload);
+    }
     if (error && isMissingDescriptionColumnError(error)) {
       const { description: _d, ...next } = updatePayload;
       updatePayload = next;
@@ -401,5 +417,95 @@ export async function deleteService(salonId: string, serviceId: string): Promise
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to delete service" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Service categories
+// ---------------------------------------------------------------------------
+
+export async function addCategory(
+  salonId: string,
+  data: { name: string }
+): Promise<ServiceMutationResult & { id?: string }> {
+  try {
+    const auth = await assertCanManageServices(salonId);
+    if ("error" in auth) return { error: auth.error };
+    const name = data.name?.trim();
+    if (!name) return { error: "Category name is required" };
+    const admin = getOptionalAdminClient();
+    const supabase = await createClient();
+    const db = admin ?? supabase;
+    const { data: row, error } = await db
+      .from("service_categories")
+      .insert({ salon_id: salonId, name })
+      .select("id")
+      .single();
+    if (error) return { error: formatDbError(error) };
+    revalidatePath("/settings");
+    revalidatePath("/services");
+    revalidatePath("/dashboard");
+    return { id: row?.id };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to add category" };
+  }
+}
+
+export async function updateCategory(
+  salonId: string,
+  categoryId: string,
+  data: { name?: string; sort_order?: number }
+): Promise<ServiceMutationResult> {
+  try {
+    const auth = await assertCanManageServices(salonId);
+    if ("error" in auth) return { error: auth.error };
+    const payload: Record<string, unknown> = {};
+    if (data.name !== undefined) {
+      const n = data.name.trim();
+      if (!n) return { error: "Category name is required" };
+      payload.name = n;
+    }
+    if (data.sort_order !== undefined) payload.sort_order = Math.max(0, Math.round(data.sort_order));
+    if (Object.keys(payload).length === 0) return {};
+    const admin = getOptionalAdminClient();
+    const supabase = await createClient();
+    const db = admin ?? supabase;
+    const { error } = await db
+      .from("service_categories")
+      .update(payload)
+      .eq("id", categoryId)
+      .eq("salon_id", salonId);
+    if (error) return { error: formatDbError(error) };
+    revalidatePath("/settings");
+    revalidatePath("/services");
+    revalidatePath("/dashboard");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update category" };
+  }
+}
+
+export async function deleteCategory(
+  salonId: string,
+  categoryId: string
+): Promise<ServiceMutationResult> {
+  try {
+    const auth = await assertCanManageServices(salonId);
+    if ("error" in auth) return { error: auth.error };
+    const admin = getOptionalAdminClient();
+    const supabase = await createClient();
+    const db = admin ?? supabase;
+    const { error } = await db
+      .from("service_categories")
+      .delete()
+      .eq("id", categoryId)
+      .eq("salon_id", salonId);
+    if (error) return { error: formatDbError(error) };
+    revalidatePath("/settings");
+    revalidatePath("/services");
+    revalidatePath("/dashboard");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to delete category" };
   }
 }

@@ -1,10 +1,77 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createGuestBooking } from "./actions";
 
-type Service = { id: string; name: string; duration_minutes: number };
+type Service = { id: string; name: string; duration_minutes: number; category_id?: string | null };
+type Category = { id: string; name: string };
 type Stylist = { id: string; display_name: string | null };
+
+function ServiceSelect({
+  services,
+  categories,
+  value,
+  onChange,
+}: {
+  services: Service[];
+  categories: Category[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const grouped = useMemo(() => {
+    if (categories.length === 0) return null;
+    const uncategorised = services.filter((s) => !s.category_id);
+    const byCat = new Map<string, Service[]>();
+    for (const s of services) {
+      if (s.category_id) {
+        const list = byCat.get(s.category_id) ?? [];
+        list.push(s);
+        byCat.set(s.category_id, list);
+      }
+    }
+    return { categories, byCat, uncategorised };
+  }, [services, categories]);
+
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1">Service</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required
+        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+      >
+        <option value="">Select</option>
+        {grouped ? (
+          <>
+            {grouped.categories.map((cat) => {
+              const items = grouped.byCat.get(cat.id) ?? [];
+              if (items.length === 0) return null;
+              return (
+                <optgroup key={cat.id} label={cat.name}>
+                  {items.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </optgroup>
+              );
+            })}
+            {grouped.uncategorised.length > 0 && (
+              <optgroup label="Other">
+                {grouped.uncategorised.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </optgroup>
+            )}
+          </>
+        ) : (
+          services.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))
+        )}
+      </select>
+    </div>
+  );
+}
 
 export function GuestBookingForm({
   salonId,
@@ -12,12 +79,14 @@ export function GuestBookingForm({
   services,
   stylists,
   stylistOverrides = {},
+  categories = [],
 }: {
   salonId: string;
   salonName: string;
   services: Service[];
   stylists: Stylist[];
   stylistOverrides?: Record<string, Record<string, number>>;
+  categories?: Category[];
 }) {
   const [serviceId, setServiceId] = useState("");
   const [stylistId, setStylistId] = useState(stylists[0]?.id ?? "");
@@ -81,20 +150,12 @@ export function GuestBookingForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium mb-1">Service</label>
-        <select
-          value={serviceId}
-          onChange={(e) => setServiceId(e.target.value)}
-          required
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-        >
-          <option value="">Select</option>
-          {services.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-      </div>
+      <ServiceSelect
+        services={services}
+        categories={categories}
+        value={serviceId}
+        onChange={setServiceId}
+      />
       <div>
         <label className="block text-sm font-medium mb-1">Preferred stylist</label>
         <select

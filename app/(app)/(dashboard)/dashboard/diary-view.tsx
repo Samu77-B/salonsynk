@@ -478,6 +478,7 @@ export function DiaryView({
   clientPhotoMap = {},
   stylistOverrides = {},
   clientPromptData = {},
+  categories = [],
 }: {
   salonId: string;
   salonName: string;
@@ -488,6 +489,7 @@ export function DiaryView({
   clientPhotoMap?: Record<string, string>;
   stylistOverrides?: Record<string, Record<string, number>>;
   clientPromptData?: Record<string, { lastVisit?: string; lastFormula?: string; alertNotes?: string[] }>;
+  categories?: { id: string; name: string }[];
 }) {
   const [view, setView] = useState<"day" | "week">("day");
   const [currentDate, setCurrentDate] = useState(() => formatDate(new Date()));
@@ -1665,6 +1667,7 @@ export function DiaryView({
           members={members}
           services={services}
           clients={clients}
+          categories={categories}
           currentDate={currentDate}
           initialStylistId={addPrefill?.stylistId ?? undefined}
           initialTimeHHmm={addPrefill?.timeHHmm ?? undefined}
@@ -1702,6 +1705,7 @@ export function DiaryView({
             members={members}
             services={services}
             clients={clients}
+            categories={categories}
             stylistOverrides={stylistOverrides}
             entryAnchor={editEntryAnchor}
             onUpdate={async (id, data) => {

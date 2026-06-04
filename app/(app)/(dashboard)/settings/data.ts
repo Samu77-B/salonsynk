@@ -22,6 +22,7 @@ export async function getSettingsData() {
 
   const servicesPromise = (async () => {
     const attempts = [
+      "id, name, duration_minutes, price_minor, processing_time_minutes, description, color, category_id, sort_order",
       "id, name, duration_minutes, price_minor, processing_time_minutes, description, color",
       "id, name, duration_minutes, price_minor, processing_time_minutes, description",
       "id, name, duration_minutes, price_minor, processing_time_minutes",
@@ -33,6 +34,7 @@ export async function getSettingsData() {
         .from("services")
         .select(cols)
         .eq("salon_id", context.salon.id)
+        .order("sort_order")
         .order("name");
       if (!res.error) return res;
     }
@@ -43,7 +45,14 @@ export async function getSettingsData() {
       .order("name");
   })();
 
-  const [{ data: salon }, { data: member }, { data: services }] = await Promise.all([
+  const categoriesPromise = supabase
+    .from("service_categories")
+    .select("id, name, sort_order")
+    .eq("salon_id", context.salon.id)
+    .order("sort_order")
+    .order("name");
+
+  const [{ data: salon }, { data: member }, { data: services }, { data: categories }] = await Promise.all([
     supabase
       .from("salons")
       .select(
@@ -58,6 +67,7 @@ export async function getSettingsData() {
       .eq("salon_id", context.salon.id)
       .single(),
     servicesPromise,
+    categoriesPromise,
   ]);
 
   const settings = (salon?.settings as Record<string, unknown>) ?? {};
@@ -97,6 +107,10 @@ export async function getSettingsData() {
     context,
     salon,
     member,
+    categories: (categories ?? []).map((c) => {
+      const row = c as { id: string; name: string; sort_order: number };
+      return { id: row.id, name: row.name, sort_order: row.sort_order ?? 0 };
+    }),
     services: (services ?? []).map((s) => {
       const row = s as {
         id: string;
@@ -106,6 +120,8 @@ export async function getSettingsData() {
         processing_time_minutes?: number | null;
         description?: string | null;
         color?: string | null;
+        category_id?: string | null;
+        sort_order?: number | null;
       };
       return {
         id: row.id,
@@ -115,6 +131,8 @@ export async function getSettingsData() {
         processing_time_minutes: row.processing_time_minutes ?? 0,
         description: row.description ?? "",
         color: row.color ?? "",
+        category_id: row.category_id ?? null,
+        sort_order: row.sort_order ?? 0,
       };
     }),
     branding: {

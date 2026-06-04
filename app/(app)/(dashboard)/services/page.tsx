@@ -20,6 +20,7 @@ export default async function ServicesPage() {
         salonId={data.context.salon.id}
         canManageServices={data.canManageServices}
         services={data.services}
+        categories={data.categories}
       />
     </main>
   );

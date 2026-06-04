@@ -66,6 +66,13 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
   rangeEnd.setHours(0, 0, 0, 0);
 
   const servicesPromise = (async () => {
+    const withCatColor = await supabase
+      .from("services")
+      .select("id, name, duration_minutes, processing_time_minutes, color, category_id")
+      .eq("salon_id", context.salon.id)
+      .order("sort_order")
+      .order("name");
+    if (!withCatColor.error) return withCatColor;
     const withColor = await supabase
       .from("services")
       .select("id, name, duration_minutes, processing_time_minutes, color")
@@ -86,7 +93,20 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
       .order("name");
   })();
 
-  const [servicesRes, clientsRes, appointmentsRes] = await Promise.all([
+  const categoriesPromise = (async () => {
+    try {
+      return await supabase
+        .from("service_categories")
+        .select("id, name, sort_order")
+        .eq("salon_id", context.salon.id)
+        .order("sort_order")
+        .order("name");
+    } catch {
+      return { data: [] as { id: string; name: string; sort_order: number }[], error: null };
+    }
+  })();
+
+  const [servicesRes, clientsRes, appointmentsRes, categoriesRes] = await Promise.all([
     servicesPromise,
     (async () => {
       const withSkinTest = await supabase
@@ -133,6 +153,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
       if (!full.error) return full;
       return query(minimalSelect);
     })(),
+    categoriesPromise,
   ]);
 
   const membersLoad = await fetchSalonMembersAdaptiveSelect(supabase, context.salon.id, [
@@ -157,6 +178,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
       duration_minutes: number;
       processing_time_minutes?: number | null;
       color?: string | null;
+      category_id?: string | null;
     };
     return {
       id: row.id,
@@ -164,8 +186,13 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
       duration_minutes: row.duration_minutes,
       processing_time_minutes: row.processing_time_minutes ?? 0,
       color: row.color ?? null,
+      category_id: row.category_id ?? null,
     };
   });
+  const serviceCategories = ((categoriesRes as { data?: { id: string; name: string; sort_order: number }[] | null }).data ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+  }));
   const clients = clientsRes.data ?? [];
 
   // Load stylist timing overrides (graceful if table doesn't exist yet)
@@ -464,6 +491,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
             clientPhotoMap={jsonClone(clientPhotoMap)}
             stylistOverrides={jsonClone(stylistOverrides)}
             clientPromptData={jsonClone(clientPromptData)}
+            categories={jsonClone(serviceCategories)}
           />
         </Suspense>
       </Reveal>

@@ -200,6 +200,7 @@ export function EditAppointmentModal({
   members,
   services,
   clients,
+  categories = [],
   stylistOverrides = {},
   entryAnchor = null,
   onUpdate,
@@ -211,6 +212,7 @@ export function EditAppointmentModal({
   members: Member[];
   services: Service[];
   clients: Client[];
+  categories?: { id: string; name: string }[];
   stylistOverrides?: Record<string, Record<string, number>>;
   entryAnchor?: EditModalEntryAnchor | null;
   onUpdate: (id: string, data: UpdateAppointmentInput) => Promise<{ error?: string | null }>;
@@ -639,6 +641,7 @@ export function EditAppointmentModal({
             stylistOverrides={stylistOverrides}
             selectedIds={selectedServiceIds}
             onSelectedIdsChange={setSelectedServiceIds}
+            categories={categories}
             hint={`Type to add one or more; combined duration for this appointment: ${durationMinutes} min.`}
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
