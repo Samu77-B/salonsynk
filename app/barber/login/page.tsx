@@ -24,7 +24,7 @@ export default async function BarberLoginPage() {
         <div className="text-center">
           <Link href="/barber" className="inline-block mb-6">
             <img
-              src="/imgs/barber/logo.png"
+              src="/imgs/barber/logo-blk.png"
               alt="BarberSynk"
               className="mx-auto h-16 w-auto sm:h-20"
             />
