@@ -5,6 +5,7 @@ import { getCurrentUserShop } from "@modules/barber/lib/shop";
 
 export type QueueEntry = {
   id: string;
+  shop_id: string;
   guest_name: string | null;
   service_id: string | null;
   preferred_barber_id: string | null;

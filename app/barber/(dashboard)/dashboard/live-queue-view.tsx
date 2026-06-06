@@ -1,6 +1,7 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useTransition, useState, useEffect, useCallback, useRef } from "react";
+import { createClient } from "@core/supabase/client";
 import { startService, completeService, removeFromQueue, addToQueue } from "./actions";
 import type { QueueEntry, BarberMember, BarberService } from "./data";
 
@@ -8,6 +9,7 @@ import type { QueueEntry, BarberMember, BarberService } from "./data";
 /*  Props                                                             */
 /* ------------------------------------------------------------------ */
 type Props = {
+  shopId: string;
   queue: QueueEntry[];
   members: BarberMember[];
   services: BarberService[];
@@ -30,11 +32,86 @@ function formatPrice(minor: number): string {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Realtime hook                                                     */
+/* ------------------------------------------------------------------ */
+const ACTIVE_STATUSES = ["waiting", "in_chair"];
+
+function useRealtimeQueue(shopId: string, serverQueue: QueueEntry[]) {
+  const [liveQueue, setLiveQueue] = useState<QueueEntry[]>(serverQueue);
+
+  // Sync when the server re-renders with fresh data (e.g. after a server action)
+  const serverRef = useRef(serverQueue);
+  useEffect(() => {
+    if (serverRef.current !== serverQueue) {
+      serverRef.current = serverQueue;
+      setLiveQueue(serverQueue);
+    }
+  }, [serverQueue]);
+
+  const applyInsert = useCallback((row: QueueEntry) => {
+    if (row.shop_id !== shopId) return;
+    if (!ACTIVE_STATUSES.includes(row.status)) return;
+    setLiveQueue((prev) => {
+      if (prev.some((e) => e.id === row.id)) return prev;
+      return [...prev, row].sort((a, b) => a.position - b.position);
+    });
+  }, [shopId]);
+
+  const applyUpdate = useCallback((row: QueueEntry) => {
+    if (row.shop_id !== shopId) return;
+    setLiveQueue((prev) => {
+      if (!ACTIVE_STATUSES.includes(row.status)) {
+        return prev.filter((e) => e.id !== row.id);
+      }
+      const idx = prev.findIndex((e) => e.id === row.id);
+      if (idx === -1) return [...prev, row].sort((a, b) => a.position - b.position);
+      const next = [...prev];
+      next[idx] = row;
+      return next.sort((a, b) => a.position - b.position);
+    });
+  }, [shopId]);
+
+  const applyDelete = useCallback((old: { id: string }) => {
+    setLiveQueue((prev) => prev.filter((e) => e.id !== old.id));
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`barber_queue:${shopId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "barber_queue", filter: `shop_id=eq.${shopId}` },
+        (payload) => applyInsert(payload.new as QueueEntry)
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "barber_queue", filter: `shop_id=eq.${shopId}` },
+        (payload) => applyUpdate(payload.new as QueueEntry)
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "barber_queue", filter: `shop_id=eq.${shopId}` },
+        (payload) => applyDelete(payload.old as { id: string })
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [shopId, applyInsert, applyUpdate, applyDelete]);
+
+  return liveQueue;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main component                                                    */
 /* ------------------------------------------------------------------ */
-export function LiveQueueView({ queue, members, services, currentMemberId, stats }: Props) {
-  const waiting = queue.filter((e) => e.status === "waiting");
-  const inChair = queue.filter((e) => e.status === "in_chair");
+export function LiveQueueView({ shopId, queue, members, services, currentMemberId, stats }: Props) {
+  const liveQueue = useRealtimeQueue(shopId, queue);
+
+  const waiting = liveQueue.filter((e) => e.status === "waiting");
+  const inChair = liveQueue.filter((e) => e.status === "in_chair");
 
   return (
     <div className="space-y-6">

@@ -22,6 +22,7 @@ export default async function BarberDashboardPage() {
       </div>
 
       <LiveQueueView
+        shopId={data.shop.id}
         queue={JSON.parse(JSON.stringify(data.queue))}
         members={JSON.parse(JSON.stringify(data.members))}
         services={JSON.parse(JSON.stringify(data.services))}
