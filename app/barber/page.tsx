@@ -1,93 +1,88 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { BARBER_SITE } from "@core/config/barber-site";
+import heroImage from "../../imgs/barber/hero.png";
+import logoImage from "../../imgs/barber/logo.png";
 
 const FEATURES = [
   {
-    icon: "⚡",
-    title: "Live Queue",
+    title: "Real-time Queue Management",
     description:
-      "Customers join via QR code or walk in. Your team sees the queue update in real time — no clipboards, no chaos.",
+      "Walk-ins are added to a live queue that updates instantly across every screen in your shop. No clipboards, no confusion — just a clean list your whole team can see.",
   },
   {
-    icon: "✂",
-    title: "Chair Management",
+    title: "Hybrid Booking Model",
     description:
-      "Assign barbers to chairs, track who's cutting, and see at a glance who's free for the next walk-in.",
+      "Manage walk-ins and pre-booked appointments in one system. Booked slots sit alongside the queue so nothing clashes and no client gets forgotten.",
   },
   {
-    icon: "💳",
-    title: "Cash or Card",
+    title: "Performance Analytics",
     description:
-      "Toggle between cash and card at the end of every cut. Revenue tracked automatically — no end-of-day maths.",
+      "Track daily revenue, services completed, and cash vs card split in real time. Know exactly how your shop is performing without end-of-day maths.",
   },
   {
-    icon: "📅",
-    title: "Pre-Bookings Too",
+    title: "Customer Self-Check-in",
     description:
-      "Some clients want to book ahead. Pre-booked slots sit alongside walk-ins so nothing clashes.",
-  },
-  {
-    icon: "📊",
-    title: "Daily Stats",
-    description:
-      "See how many you've served, revenue by barber, cash vs card split — all in real time on the dashboard.",
-  },
-  {
-    icon: "📱",
-    title: "Customer Queue Page",
-    description:
-      "Give customers a link or QR code. They join from their phone and see their position — no waiting inside.",
+      "Print a QR code for your door. Customers scan it, enter their name, and join the queue from their phone — no app download required.",
   },
 ];
 
 const FAQ_ITEMS = [
   {
     q: "How much does BarberSynk cost?",
-    a: "Simple flat-fee plans from £29/mo per shop. No per-cut commissions — you keep 100% of what you take.",
+    a: "£25 per calendar month, per shop. No per-cut commissions, no hidden fees — you keep 100% of what you take.",
   },
   {
-    q: "Do customers need an app?",
-    a: "No. They visit your shop's queue page in their browser (via QR code or link). No download needed.",
+    q: "Do my customers need to download an app?",
+    a: "No. They scan a QR code and join the queue in their browser. Works on any phone, no download needed.",
   },
   {
-    q: "Can I still take walk-ins without the queue page?",
-    a: "Absolutely. Your team can add walk-ins directly from the dashboard. The public queue page is optional.",
+    q: "Can I still take walk-ins without the QR code?",
+    a: "Absolutely. Your team can add walk-ins directly from the dashboard. The public queue page is an optional extra.",
   },
   {
-    q: "Do I need a card machine?",
-    a: "No. BarberSynk tracks cash and card sales, but you use your own card machine. We don't process payments for you (unless you connect Stripe).",
+    q: "Do I need a specific card machine?",
+    a: "No. BarberSynk tracks whether each client paid by cash or card, but you use your own card terminal. We don't process payments for you unless you choose to connect Stripe.",
   },
   {
     q: "Is it just for UK barbers?",
-    a: "Built with UK barber shops in mind, but it works anywhere. Pricing is in GBP.",
+    a: "Built with UK barber shops in mind, but the platform works anywhere. Pricing is in GBP.",
   },
 ];
 
 export default function BarberHomePage() {
   return (
-    <div className="barber-marketing min-h-screen bg-[#0a0a0a] text-[#f5f5f5]">
+    <div className="barber-marketing min-h-screen" style={{ backgroundColor: "#36454F", color: "#F5F1E8" }}>
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0a0a]/90 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-white/10" style={{ backgroundColor: "rgba(54,69,79,0.95)", backdropFilter: "blur(12px)" }}>
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <span className="text-xl font-black tracking-tight">
-            Barber<span className="text-amber-500">Synk</span>
-          </span>
+          <div className="relative h-10 w-40">
+            <Image
+              src={logoImage}
+              alt="BarberSynk"
+              fill
+              className="object-contain object-left"
+              sizes="160px"
+              priority
+            />
+          </div>
           <nav className="hidden sm:flex items-center gap-6 text-sm">
-            <a href="#features" className="text-white/70 hover:text-white transition-colors">Features</a>
-            <a href="#pricing" className="text-white/70 hover:text-white transition-colors">Pricing</a>
-            <a href="#faq" className="text-white/70 hover:text-white transition-colors">FAQ</a>
+            <a href="#features" className="opacity-70 hover:opacity-100 transition-opacity">Features</a>
+            <a href="#pricing" className="opacity-70 hover:opacity-100 transition-opacity">Pricing</a>
+            <a href="#faq" className="opacity-70 hover:opacity-100 transition-opacity">FAQ</a>
           </nav>
           <div className="flex items-center gap-3">
             <Link
               href="/login"
-              className="text-sm text-white/70 hover:text-white transition-colors"
+              className="text-sm opacity-70 hover:opacity-100 transition-opacity"
             >
               Log in
             </Link>
             <Link
               href="/signup"
-              className="rounded bg-amber-600 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-500 transition-colors"
+              className="rounded px-5 py-2 text-sm font-semibold text-white transition-colors"
+              style={{ backgroundColor: "#A0522D" }}
             >
               Get Started
             </Link>
@@ -97,54 +92,69 @@ export default function BarberHomePage() {
 
       <main>
         {/* Hero */}
-        <section className="relative overflow-hidden border-b border-white/5">
-          <div className="absolute inset-0 bg-gradient-to-b from-amber-900/10 via-transparent to-transparent" />
-          <div className="relative mx-auto max-w-4xl px-4 py-24 sm:py-32 lg:py-40 text-center">
-            <h1 className="text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
-              Your chair.{" "}
-              <span className="text-amber-500">Your queue.</span>
-              <br />
-              Your rules.
-            </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-white/70 leading-relaxed">
-              {BARBER_SITE.description} Flat-fee plans from £29/mo — no commissions, no per-cut charges.
-            </p>
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/signup"
-                className="inline-flex items-center justify-center rounded bg-amber-600 px-8 py-4 text-base font-bold text-white hover:bg-amber-500 transition-colors shadow-lg shadow-amber-600/20"
-              >
-                Start Free Trial
-              </Link>
-              <a
-                href="#features"
-                className="inline-flex items-center justify-center rounded border border-white/20 px-8 py-4 text-base font-semibold text-white hover:border-white/40 hover:bg-white/5 transition-colors"
-              >
-                See How It Works
-              </a>
+        <section className="relative w-full min-h-[600px] lg:min-h-[700px] overflow-hidden">
+          <Image
+            src={heroImage}
+            alt="Professional barber cutting a client's hair in a modern barbershop"
+            fill
+            className="object-cover"
+            priority
+            unoptimized
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent flex items-center">
+            <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+              <div className="max-w-xl">
+                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl" style={{ color: "#F5F1E8" }}>
+                  Your shop.
+                  <br />
+                  Your queue.
+                  <br />
+                  <span style={{ color: "#A0522D" }}>Your way.</span>
+                </h1>
+                <p className="mt-5 text-lg leading-relaxed" style={{ color: "rgba(245,241,232,0.85)" }}>
+                  Queue management built for barber shops. Walk-ins, bookings, cash or card — all from one screen. From just £25/mo.
+                </p>
+                <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                  <Link
+                    href="/signup"
+                    className="inline-flex items-center justify-center rounded px-8 py-4 text-base font-bold text-white transition-colors shadow-lg"
+                    style={{ backgroundColor: "#A0522D" }}
+                  >
+                    Start Free Trial
+                  </Link>
+                  <a
+                    href="#features"
+                    className="inline-flex items-center justify-center rounded border px-8 py-4 text-base font-semibold transition-colors"
+                    style={{ borderColor: "rgba(245,241,232,0.3)", color: "#F5F1E8" }}
+                  >
+                    See How It Works
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Features */}
         <Reveal>
-          <section id="features" className="border-b border-white/5 py-20 sm:py-24">
+          <section id="features" className="py-20 sm:py-24" style={{ backgroundColor: "#F5F1E8", color: "#36454F" }}>
             <div className="mx-auto max-w-6xl px-4 sm:px-6">
-              <h2 className="text-center text-2xl font-bold sm:text-3xl">
-                Built for the way barber shops actually work
+              <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: "#36454F" }}>
+                Everything your shop needs. Nothing it doesn&apos;t.
               </h2>
-              <p className="mx-auto mt-3 max-w-2xl text-center text-white/60">
-                Walk-ins, queues, cash, card — all tracked from a single screen.
+              <p className="mx-auto mt-3 max-w-2xl text-center" style={{ color: "#5a6a74" }}>
+                Built around walk-ins, queues, and getting people in and out of the chair.
               </p>
-              <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-14 grid gap-6 sm:grid-cols-2">
                 {FEATURES.map((f) => (
                   <div
                     key={f.title}
-                    className="rounded border border-white/10 bg-white/[0.03] p-6 hover:border-amber-500/30 hover:bg-white/[0.05] transition-all"
+                    className="rounded border p-8 transition-all hover:shadow-md"
+                    style={{ borderColor: "#d6d0c4", backgroundColor: "#ffffff" }}
                   >
-                    <span className="text-2xl">{f.icon}</span>
-                    <h3 className="mt-3 font-semibold text-white">{f.title}</h3>
-                    <p className="mt-2 text-sm text-white/60 leading-relaxed">
+                    <h3 className="text-lg font-semibold" style={{ color: "#36454F" }}>{f.title}</h3>
+                    <p className="mt-3 text-sm leading-relaxed" style={{ color: "#5a6a74" }}>
                       {f.description}
                     </p>
                   </div>
@@ -156,23 +166,26 @@ export default function BarberHomePage() {
 
         {/* How it works */}
         <Reveal>
-          <section className="border-b border-white/5 bg-white/[0.02] py-20 sm:py-24">
+          <section className="py-20 sm:py-24" style={{ backgroundColor: "#36454F" }}>
             <div className="mx-auto max-w-4xl px-4 sm:px-6">
-              <h2 className="text-center text-2xl font-bold sm:text-3xl">
+              <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: "#F5F1E8" }}>
                 Three steps. Zero hassle.
               </h2>
-              <div className="mt-14 grid gap-8 sm:grid-cols-3">
+              <div className="mt-14 grid gap-10 sm:grid-cols-3">
                 {[
                   { step: "1", title: "Customer joins", desc: "They scan the QR code on your door or give their name at the desk." },
-                  { step: "2", title: "You cut", desc: "Tap 'Start' when they sit down. The queue updates for everyone." },
-                  { step: "3", title: "Cash or card", desc: "Tap the payment method and hit 'Complete'. Done. Next customer." },
+                  { step: "2", title: "You cut", desc: "Tap 'Start' when they sit down. The queue updates for everyone in real time." },
+                  { step: "3", title: "Cash or card", desc: "Toggle the payment method and hit 'Complete'. Revenue tracked. Next customer." },
                 ].map((s) => (
                   <div key={s.step} className="text-center">
-                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-amber-600/20 text-amber-500 text-lg font-bold">
+                    <span
+                      className="inline-flex h-14 w-14 items-center justify-center rounded-full text-xl font-bold text-white"
+                      style={{ backgroundColor: "#A0522D" }}
+                    >
                       {s.step}
                     </span>
-                    <h3 className="mt-4 font-semibold">{s.title}</h3>
-                    <p className="mt-2 text-sm text-white/60">{s.desc}</p>
+                    <h3 className="mt-4 font-semibold" style={{ color: "#F5F1E8" }}>{s.title}</h3>
+                    <p className="mt-2 text-sm" style={{ color: "rgba(245,241,232,0.7)" }}>{s.desc}</p>
                   </div>
                 ))}
               </div>
@@ -182,55 +195,50 @@ export default function BarberHomePage() {
 
         {/* Pricing */}
         <Reveal>
-          <section id="pricing" className="border-b border-white/5 py-20 sm:py-24">
+          <section id="pricing" className="py-20 sm:py-24" style={{ backgroundColor: "#F5F1E8", color: "#36454F" }}>
             <div className="mx-auto max-w-4xl px-4 sm:px-6 text-center">
-              <h2 className="text-2xl font-bold sm:text-3xl">
+              <h2 className="text-2xl font-bold sm:text-3xl" style={{ color: "#36454F" }}>
                 Simple pricing. No surprises.
               </h2>
-              <p className="mt-3 text-white/60">
-                One flat fee per shop. No commissions, no per-cut charges.
+              <p className="mt-3" style={{ color: "#5a6a74" }}>
+                One flat fee per shop. No commissions, no per-cut charges, no contracts.
               </p>
-              <div className="mx-auto mt-12 max-w-sm rounded border border-amber-500/30 bg-white/[0.03] p-8">
-                <p className="text-sm font-semibold text-amber-500 uppercase tracking-wider">Per shop</p>
-                <p className="mt-2 text-5xl font-black">
-                  £29<span className="text-lg font-normal text-white/50">/mo</span>
+              <div
+                className="mx-auto mt-12 max-w-md rounded border p-10"
+                style={{ borderColor: "#A0522D", backgroundColor: "#ffffff" }}
+              >
+                <p className="text-sm font-semibold uppercase tracking-wider" style={{ color: "#A0522D" }}>
+                  Per shop / per month
                 </p>
-                <ul className="mt-6 space-y-3 text-sm text-white/70 text-left">
-                  <li className="flex items-start gap-2">
-                    <span className="text-amber-500 mt-0.5">✓</span>
-                    Unlimited walk-ins and queue entries
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-amber-500 mt-0.5">✓</span>
-                    Unlimited barbers and chairs
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-amber-500 mt-0.5">✓</span>
-                    Public queue page with QR code
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-amber-500 mt-0.5">✓</span>
-                    Real-time dashboard across all devices
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-amber-500 mt-0.5">✓</span>
-                    Cash and card tracking
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-amber-500 mt-0.5">✓</span>
-                    Pre-booked appointments
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-amber-500 mt-0.5">✓</span>
-                    Daily revenue reports
-                  </li>
+                <p className="mt-3 text-6xl font-black" style={{ color: "#36454F" }}>
+                  £25<span className="text-xl font-normal" style={{ color: "#5a6a74" }}> pcm</span>
+                </p>
+                <ul className="mt-8 space-y-4 text-sm text-left" style={{ color: "#5a6a74" }}>
+                  {[
+                    "Real-time queue management",
+                    "Walk-in and pre-booked appointments",
+                    "Unlimited barbers and chairs",
+                    "Customer self-check-in via QR code",
+                    "Cash and card tracking",
+                    "Daily revenue and performance stats",
+                    "Works on any device — tablet, phone, laptop",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <span className="mt-0.5 text-base" style={{ color: "#A0522D" }}>✓</span>
+                      {item}
+                    </li>
+                  ))}
                 </ul>
                 <Link
                   href="/signup"
-                  className="mt-8 block w-full rounded bg-amber-600 py-3 text-center text-sm font-bold text-white hover:bg-amber-500 transition-colors"
+                  className="mt-10 block w-full rounded py-4 text-center text-base font-bold text-white transition-colors"
+                  style={{ backgroundColor: "#A0522D" }}
                 >
                   Start Free Trial
                 </Link>
+                <p className="mt-3 text-xs" style={{ color: "#8a8278" }}>
+                  No card required. Cancel anytime.
+                </p>
               </div>
             </div>
           </section>
@@ -238,19 +246,20 @@ export default function BarberHomePage() {
 
         {/* FAQ */}
         <Reveal>
-          <section id="faq" className="border-b border-white/5 bg-white/[0.02] py-20 sm:py-24">
+          <section id="faq" className="py-20 sm:py-24" style={{ backgroundColor: "#36454F" }}>
             <div className="mx-auto max-w-3xl px-4 sm:px-6">
-              <h2 className="text-center text-2xl font-bold sm:text-3xl">
+              <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: "#F5F1E8" }}>
                 Frequently asked questions
               </h2>
               <dl className="mt-10 space-y-4">
                 {FAQ_ITEMS.map((item) => (
                   <div
                     key={item.q}
-                    className="rounded border border-white/10 bg-white/[0.03] p-5 sm:p-6"
+                    className="rounded border p-6"
+                    style={{ borderColor: "rgba(245,241,232,0.15)", backgroundColor: "rgba(245,241,232,0.05)" }}
                   >
-                    <dt className="font-semibold text-white">{item.q}</dt>
-                    <dd className="mt-2 text-sm text-white/60 leading-relaxed">
+                    <dt className="font-semibold" style={{ color: "#F5F1E8" }}>{item.q}</dt>
+                    <dd className="mt-2 text-sm leading-relaxed" style={{ color: "rgba(245,241,232,0.7)" }}>
                       {item.a}
                     </dd>
                   </div>
@@ -262,24 +271,26 @@ export default function BarberHomePage() {
 
         {/* CTA */}
         <Reveal>
-          <section className="py-20 sm:py-24">
+          <section className="py-20 sm:py-24" style={{ backgroundColor: "#F5F1E8", color: "#36454F" }}>
             <div className="mx-auto max-w-3xl px-4 sm:px-6 text-center">
-              <h2 className="text-2xl font-bold sm:text-3xl">
+              <h2 className="text-2xl font-bold sm:text-3xl" style={{ color: "#36454F" }}>
                 Ready to ditch the clipboard?
               </h2>
-              <p className="mt-3 text-white/60">
+              <p className="mt-3" style={{ color: "#5a6a74" }}>
                 Set up in minutes. Start managing your queue today.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   href="/signup"
-                  className="inline-flex items-center justify-center rounded bg-amber-600 px-8 py-4 text-base font-bold text-white hover:bg-amber-500 transition-colors shadow-lg shadow-amber-600/20"
+                  className="inline-flex items-center justify-center rounded px-8 py-4 text-base font-bold text-white transition-colors shadow-lg"
+                  style={{ backgroundColor: "#A0522D" }}
                 >
                   Start Free Trial
                 </Link>
                 <a
                   href={`mailto:${BARBER_SITE.email}?subject=Demo%20request`}
-                  className="inline-flex items-center justify-center rounded border border-white/20 px-8 py-4 text-base font-semibold text-white hover:border-white/40 hover:bg-white/5 transition-colors"
+                  className="inline-flex items-center justify-center rounded border px-8 py-4 text-base font-semibold transition-colors"
+                  style={{ borderColor: "#36454F", color: "#36454F" }}
                 >
                   Book a Demo
                 </a>
@@ -289,17 +300,24 @@ export default function BarberHomePage() {
         </Reveal>
 
         {/* Footer */}
-        <footer className="border-t border-white/10 py-10">
+        <footer className="border-t py-10" style={{ borderColor: "rgba(245,241,232,0.1)", backgroundColor: "#2b373f" }}>
           <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-sm font-bold">
-              Barber<span className="text-amber-500">Synk</span>
-            </span>
-            <p className="text-xs text-white/40">
+            <div className="relative h-8 w-32">
+              <Image
+                src={logoImage}
+                alt="BarberSynk"
+                fill
+                className="object-contain object-left"
+                sizes="128px"
+              />
+            </div>
+            <p className="text-xs" style={{ color: "rgba(245,241,232,0.4)" }}>
               © {new Date().getFullYear()} {BARBER_SITE.studio}. All rights reserved.
             </p>
             <a
               href={`mailto:${BARBER_SITE.email}`}
-              className="text-xs text-white/40 hover:text-white/70 transition-colors"
+              className="text-xs transition-opacity hover:opacity-100"
+              style={{ color: "rgba(245,241,232,0.4)" }}
             >
               {BARBER_SITE.email}
             </a>

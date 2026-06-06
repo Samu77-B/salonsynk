@@ -38,19 +38,15 @@
   --border-grid: #4a4a4a; /* diary grid lines */
 }
 
-/* BarberSynk: bold, dark, masculine palette */
+/* BarberSynk: charcoal + cream + terracotta palette */
 .barber-marketing {
-  --background: #0a0a0a;
-  --canvas: #0a0a0a;
-  --foreground: #f5f5f5;
-  --muted: #a3a3a3;
-  --accent: #d97706; /* amber-600 — warm gold for CTAs */
-  --border: #2a2a2a;
-  --border-grid: #3a3a3a;
-}
-
-.barber-marketing-surface {
-  --surface: #141414;
+  --background: #2b373f; /* charcoal deepened for bg */
+  --canvas: #2b373f;
+  --foreground: #F5F1E8; /* cream/ivory */
+  --muted: #b8b0a3; /* warm muted on charcoal */
+  --accent: #A0522D; /* terracotta / burnt sienna */
+  --border: #4a5660; /* lighter charcoal */
+  --border-grid: #56636d;
 }
 
 /*

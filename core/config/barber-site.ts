@@ -4,7 +4,7 @@
 
 export const BARBER_SITE = {
   name: "BarberSynk",
-  tagline: "No queues. No fuss. Just cuts.",
+  tagline: "Your shop. Your queue. Your way.",
   description:
     "Walk-in queue management for barber shops. Live queue, instant check-in, cash or card.",
   url: "https://barbersynk.com",
