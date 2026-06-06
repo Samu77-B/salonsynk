@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { Reveal } from "@/components/reveal";
 import { BarberRequestForm } from "./barber-request-form";
-import logoImage from "../../../imgs/barber/logo.png";
+/* eslint-disable @next/next/no-img-element */
 
 export const metadata: Metadata = {
   title: "Sign up — BarberSynk",
@@ -24,14 +23,10 @@ export default async function BarberSignupPage() {
       <Reveal className="w-full max-w-lg space-y-8">
         <div className="text-center">
           <Link href="/barber" className="inline-block mb-6">
-            <Image
-              src={logoImage}
+            <img
+              src="/imgs/barber/logo.png"
               alt="BarberSynk"
-              width={560}
-              height={160}
               className="mx-auto h-16 w-auto sm:h-20"
-              unoptimized
-              priority
             />
           </Link>
           <h1 className="text-2xl font-bold" style={{ color: "#36454F" }}>

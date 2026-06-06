@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { BARBER_SITE } from "@core/config/barber-site";
 import heroImage from "../../imgs/barber/hero.png";
-import logoImage from "../../imgs/barber/logo.png";
+/* eslint-disable @next/next/no-img-element */
 
 export const metadata: Metadata = {
   title: "BarberSynk — Your shop. Your queue. Your way.",
@@ -64,14 +64,10 @@ export default function BarberHomePage() {
       <header className="sticky top-0 z-50 border-b border-zinc-200/80 bg-white">
         <div className="flex h-20 w-full items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/" className="flex items-center shrink-0 min-w-0">
-            <Image
-              src={logoImage}
+            <img
+              src="/imgs/barber/logo.png"
               alt="BarberSynk"
-              width={560}
-              height={160}
               className="h-14 w-auto sm:h-16"
-              unoptimized
-              priority
             />
           </Link>
           <nav className="flex items-center gap-3 sm:gap-5 shrink-0">
