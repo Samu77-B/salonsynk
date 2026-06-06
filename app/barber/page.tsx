@@ -64,8 +64,7 @@ export default function BarberHomePage() {
               width={560}
               height={160}
               className="h-14 w-auto sm:h-16"
-              sizes="(min-width: 640px) 128px, 112px"
-              quality={95}
+              unoptimized
               priority
             />
           </Link>
@@ -303,8 +302,8 @@ export default function BarberHomePage() {
                 src={logoImage}
                 alt="BarberSynk"
                 fill
-                className="object-contain object-left"
-                sizes="128px"
+                className="object-contain object-left invert brightness-200"
+                unoptimized
               />
             </div>
             <p className="text-xs" style={{ color: "rgba(245,241,232,0.4)" }}>
