@@ -82,7 +82,7 @@ export default function BarberHomePage() {
               Pricing
             </a>
             <Link
-              href="/login"
+              href="/barber/login"
               className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 sm:px-5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-400 transition-colors"
             >
               Sign in
@@ -303,15 +303,9 @@ export default function BarberHomePage() {
         {/* Footer */}
         <footer className="border-t py-10" style={{ borderColor: "rgba(245,241,232,0.1)", backgroundColor: "#2b373f" }}>
           <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="relative h-8 w-32">
-              <Image
-                src={logoImage}
-                alt="BarberSynk"
-                fill
-                className="object-contain object-left invert brightness-200"
-                unoptimized
-              />
-            </div>
+            <span className="text-lg font-bold tracking-tight" style={{ color: "#F5F1E8" }}>
+              Barber<span style={{ color: "#A0522D" }}>Synk</span>
+            </span>
             <p className="text-xs" style={{ color: "rgba(245,241,232,0.4)" }}>
               © {new Date().getFullYear()} {BARBER_SITE.studio}. All rights reserved.
             </p>
