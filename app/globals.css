@@ -38,6 +38,21 @@
   --border-grid: #4a4a4a; /* diary grid lines */
 }
 
+/* BarberSynk: bold, dark, masculine palette */
+.barber-marketing {
+  --background: #0a0a0a;
+  --canvas: #0a0a0a;
+  --foreground: #f5f5f5;
+  --muted: #a3a3a3;
+  --accent: #d97706; /* amber-600 — warm gold for CTAs */
+  --border: #2a2a2a;
+  --border-grid: #3a3a3a;
+}
+
+.barber-marketing-surface {
+  --surface: #141414;
+}
+
 /*
   Native inputs/selects often get a white background from the UA while inheriting light
   --foreground, which makes typed text invisible. Force readable light fields with dark text.
