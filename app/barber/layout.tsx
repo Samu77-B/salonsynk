@@ -1,0 +1,45 @@
+import { createClient } from "@core/supabase/server";
+import { redirect } from "next/navigation";
+import { getIsSuperAdmin } from "@core/supabase/admin-auth";
+import { getCurrentUserShop } from "@modules/barber/lib/shop";
+import { isManagerRole } from "@core/auth/dashboard-roles";
+
+export default async function BarberAppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const isSuperAdmin = await getIsSuperAdmin();
+  const shopContext = await getCurrentUserShop();
+  const memberRole = shopContext?.member.role ?? null;
+  const isManager = isManagerRole(isSuperAdmin, memberRole ?? "");
+
+  return (
+    <div className="app-shell-dark min-h-screen flex flex-col overflow-x-hidden bg-canvas text-foreground">
+      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-surface px-4 sm:px-6">
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-bold tracking-tight">Barber Synk</span>
+          {shopContext && (
+            <span className="text-xs text-muted ml-2">{shopContext.shop.name}</span>
+          )}
+        </div>
+        <div className="ml-auto flex items-center gap-3 text-sm text-muted">
+          {isManager && <span className="text-xs opacity-60">Manager</span>}
+          <span className="text-xs">{user.email}</span>
+        </div>
+      </header>
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col text-foreground">
+        <div className="mx-auto w-full min-w-0 max-w-[1600px] px-3 py-5 sm:px-6 sm:py-6 lg:px-8">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}
