@@ -13,6 +13,9 @@ export async function middleware(request: NextRequest) {
     if (pathname === "/") {
       return NextResponse.rewrite(new URL("/barber", request.url));
     }
+    if (pathname === "/signup") {
+      return NextResponse.rewrite(new URL("/barber/signup", request.url));
+    }
     // Allow /barber/*, /login, /onboarding, /api/*, and auth callback routes
     const allowed =
       pathname.startsWith("/barber") ||

@@ -118,7 +118,7 @@ export default function BarberHomePage() {
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row gap-4">
                   <Link
-                    href="/signup"
+                    href="/barber/signup"
                     className="inline-flex items-center justify-center rounded px-8 py-4 text-base font-bold text-white transition-colors shadow-lg"
                     style={{ backgroundColor: "#A0522D" }}
                   >
@@ -231,7 +231,7 @@ export default function BarberHomePage() {
                   ))}
                 </ul>
                 <Link
-                  href="/signup"
+                  href="/barber/signup"
                   className="mt-10 block w-full rounded py-4 text-center text-base font-bold text-white transition-colors"
                   style={{ backgroundColor: "#A0522D" }}
                 >
@@ -282,7 +282,7 @@ export default function BarberHomePage() {
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
-                  href="/signup"
+                  href="/barber/signup"
                   className="inline-flex items-center justify-center rounded px-8 py-4 text-base font-bold text-white transition-colors shadow-lg"
                   style={{ backgroundColor: "#A0522D" }}
                 >
