@@ -1,9 +1,15 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { BARBER_SITE } from "@core/config/barber-site";
 import heroImage from "../../imgs/barber/hero.png";
 import logoImage from "../../imgs/barber/logo.png";
+
+export const metadata: Metadata = {
+  title: "BarberSynk — Your shop. Your queue. Your way.",
+  description: BARBER_SITE.description,
+};
 
 const FEATURES = [
   {
