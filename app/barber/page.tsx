@@ -54,39 +54,35 @@ const FAQ_ITEMS = [
 export default function BarberHomePage() {
   return (
     <div className="barber-marketing min-h-screen" style={{ backgroundColor: "#36454F", color: "#F5F1E8" }}>
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-white/10" style={{ backgroundColor: "rgba(54,69,79,0.95)", backdropFilter: "blur(12px)" }}>
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <div className="relative h-10 w-40">
+      {/* Header — matches SalonSynk marketing header */}
+      <header className="sticky top-0 z-50 border-b border-zinc-200/80 bg-white">
+        <div className="flex h-20 w-full items-center justify-between gap-4 px-4 sm:px-6">
+          <Link href="/" className="flex items-center shrink-0 min-w-0">
             <Image
               src={logoImage}
               alt="BarberSynk"
-              fill
-              className="object-contain object-left"
-              sizes="160px"
+              width={560}
+              height={160}
+              className="h-14 w-auto sm:h-16"
+              sizes="(min-width: 640px) 128px, 112px"
+              quality={95}
               priority
             />
-          </div>
-          <nav className="hidden sm:flex items-center gap-6 text-sm">
-            <a href="#features" className="opacity-70 hover:opacity-100 transition-opacity">Features</a>
-            <a href="#pricing" className="opacity-70 hover:opacity-100 transition-opacity">Pricing</a>
-            <a href="#faq" className="opacity-70 hover:opacity-100 transition-opacity">FAQ</a>
-          </nav>
-          <div className="flex items-center gap-3">
+          </Link>
+          <nav className="flex items-center gap-3 sm:gap-5 shrink-0">
+            <a href="#features" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors">
+              Features
+            </a>
+            <a href="#pricing" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors">
+              Pricing
+            </a>
             <Link
               href="/login"
-              className="text-sm opacity-70 hover:opacity-100 transition-opacity"
+              className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 sm:px-5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-400 transition-colors"
             >
-              Log in
+              Sign in
             </Link>
-            <Link
-              href="/signup"
-              className="rounded px-5 py-2 text-sm font-semibold text-white transition-colors"
-              style={{ backgroundColor: "#A0522D" }}
-            >
-              Get Started
-            </Link>
-          </div>
+          </nav>
         </div>
       </header>
 
