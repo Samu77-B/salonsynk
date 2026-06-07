@@ -65,9 +65,9 @@ export default function BarberHomePage() {
         <div className="flex h-20 w-full items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/" className="flex items-center shrink-0 min-w-0">
             <img
-              src="/imgs/barber/logo-blk.png"
+              src="/imgs/barber/barbersynk_logo_blk.png"
               alt="BarberSynk"
-              className="h-14 w-auto sm:h-16"
+              className="h-10 w-auto sm:h-12"
             />
           </Link>
           <nav className="flex items-center gap-3 sm:gap-5 shrink-0">
