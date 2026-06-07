@@ -128,7 +128,7 @@ export function AdminNewBarberShopForm() {
         disabled={loading}
         className="w-full rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
       >
-        {loading ? "Creating…" : "Create barber shop"}
+        {loading ? "Creating…" : "Add barber"}
       </button>
     </form>
   );

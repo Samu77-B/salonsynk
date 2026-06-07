@@ -18,13 +18,13 @@ export default async function AdminBarberShopsPage() {
           <Link href="/admin" className="text-muted hover:text-foreground text-sm">
             ← Dashboard
           </Link>
-          <h1 className="text-2xl font-bold">Barber shops</h1>
+          <h1 className="text-2xl font-bold">Barbers</h1>
         </div>
         <Link
           href="/admin/barber-shops/new"
           className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background"
         >
-          Add barber shop
+          Add barber
         </Link>
       </div>
 

@@ -111,16 +111,16 @@ export default async function AdminDashboardPage() {
       {/* Barber shops */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Barber shops</h2>
+          <h2 className="text-lg font-semibold">Barbers</h2>
           <Link
             href="/admin/barber-shops/new"
             className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90"
           >
-            Add barber shop
+            Add barber
           </Link>
         </div>
         {barberShops.length === 0 ? (
-          <p className="text-muted text-sm">No barber shops yet. Add one to get started.</p>
+          <p className="text-muted text-sm">No barber shops yet. Click Add barber to get started.</p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {barberShops.map((s) => (

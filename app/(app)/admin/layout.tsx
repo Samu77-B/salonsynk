@@ -28,11 +28,17 @@ export default async function AdminLayout({
               Salons
             </Link>
             <Link href="/admin/barber-shops" className="hover:text-foreground">
-              Barber shops
+              Barbers
             </Link>
           </nav>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3 text-xs sm:text-sm">
+          <Link
+            href="/admin/barber-shops/new"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90"
+          >
+            Add barber
+          </Link>
           <Link href="/dashboard" className="text-muted hover:text-foreground">
             Back to app
           </Link>

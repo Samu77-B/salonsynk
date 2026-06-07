@@ -8,7 +8,7 @@ export default function AdminNewBarberShopPage() {
         <Link href="/admin/barber-shops" className="text-muted hover:text-foreground text-sm">
           ← Barber shops
         </Link>
-        <h1 className="text-2xl font-bold">Add barber shop</h1>
+        <h1 className="text-2xl font-bold">Add barber</h1>
       </div>
       <AdminNewBarberShopForm />
     </div>
