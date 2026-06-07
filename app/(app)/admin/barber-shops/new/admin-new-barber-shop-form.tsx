@@ -1,0 +1,135 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { adminCreateBarberShop } from "../actions";
+import { BARBER_SITE } from "@core/config/barber-site";
+
+function slugFromName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export function AdminNewBarberShopForm() {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const joinQueueUrl = `${BARBER_SITE.url}/barber/join/${slug || "my-shop"}`;
+
+  useEffect(() => {
+    if (!warning) return;
+    const t = setTimeout(() => setWarning(null), 8000);
+    return () => clearTimeout(t);
+  }, [warning]);
+
+  function handleCopyJoinUrl() {
+    if (typeof navigator?.clipboard?.writeText === "function") {
+      navigator.clipboard.writeText(joinQueueUrl).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setWarning(null);
+    setLoading(true);
+    const result = await adminCreateBarberShop(name, slug || slugFromName(name), ownerEmail || undefined);
+    setLoading(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    if (result.ownerWarning) setWarning(result.ownerWarning);
+    if (result.shopId) {
+      router.push(`/admin/barber-shops/${result.shopId}`);
+      router.refresh();
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label htmlFor="name" className="block text-sm font-medium mb-1">
+          Shop name
+        </label>
+        <input
+          id="name"
+          type="text"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            if (!slug) setSlug(slugFromName(e.target.value));
+          }}
+          required
+          placeholder="e.g. Joe's Barbers"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        />
+      </div>
+      <div>
+        <label htmlFor="slug" className="block text-sm font-medium mb-1">
+          URL slug (join queue page)
+        </label>
+        <input
+          id="slug"
+          type="text"
+          value={slug}
+          onChange={(e) => setSlug(e.target.value)}
+          placeholder={slugFromName(name) || "my-shop"}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        />
+        <div className="mt-2 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+          <input
+            type="text"
+            readOnly
+            value={joinQueueUrl}
+            className="flex-1 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground font-mono"
+            aria-label="Join queue URL"
+          />
+          <button
+            type="button"
+            onClick={handleCopyJoinUrl}
+            className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm font-medium"
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+      </div>
+      <div>
+        <label htmlFor="ownerEmail" className="block text-sm font-medium mb-1">
+          Owner email (optional)
+        </label>
+        <input
+          id="ownerEmail"
+          type="email"
+          value={ownerEmail}
+          onChange={(e) => setOwnerEmail(e.target.value)}
+          placeholder="owner@barbershop.com"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        />
+        <p className="text-xs text-muted mt-1">
+          The user must already exist in Authentication. They will be added as shop owner.
+        </p>
+      </div>
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      {warning && <p className="text-sm text-amber-400">{warning}</p>}
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+      >
+        {loading ? "Creating…" : "Create barber shop"}
+      </button>
+    </form>
+  );
+}
