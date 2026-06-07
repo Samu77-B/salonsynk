@@ -300,9 +300,9 @@ export default function BarberHomePage() {
         <footer className="border-t py-10" style={{ borderColor: "rgba(245,241,232,0.1)", backgroundColor: "#2b373f" }}>
           <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <img
-              src="/imgs/barber/logo-wht.png"
+              src="/imgs/barber/salonsynk_blk.svg"
               alt="BarberSynk"
-              className="h-8 w-auto"
+              className="h-8 w-auto brightness-0 invert"
             />
             <p className="text-xs" style={{ color: "rgba(245,241,232,0.4)" }}>
               © {new Date().getFullYear()} {BARBER_SITE.studio}. All rights reserved.
