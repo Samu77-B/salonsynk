@@ -7,9 +7,10 @@ import { MarketingSiteFooter } from "@/components/marketing/marketing-site-foote
 import { MarketingSiteHeader } from "@/components/marketing/marketing-site-header";
 import { SITE } from "@/config/site";
 import { formatPlanPrice } from "@/config/plans";
+import { BARBER_SITE } from "@core/config/barber-site";
 // Bundled so the hero image and logo are always available in the build
 import heroImage from "../imgs/hero01.png";
-import plansImage from "../imgs/plans_img_01.jpg";
+import barbersPromoImage from "../imgs/barber/barbers-promo.png";
 import featureDiary from "../imgs/one_dairy.png";
 import featureTeam from "../imgs/team.png";
 import featureOnline from "../imgs/online.png";
@@ -143,14 +144,57 @@ export default function HomePage() {
 
         <HomeOutcomesSection />
 
+        {/* Barbers */}
+        <Reveal>
+          <section className="border-t border-zinc-200 bg-white py-16 sm:py-20">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6">
+              <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+                <div className="relative aspect-[4/5] w-full max-w-md mx-auto lg:mx-0 rounded-2xl overflow-hidden border border-zinc-200 shadow-md">
+                  <Image
+                    src={barbersPromoImage}
+                    alt="Professional barber with client in a modern barbershop"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 448px"
+                  />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Barbers</h2>
+                  <p className="mt-4 text-zinc-600 leading-relaxed">
+                    Running a barber shop? {BARBER_SITE.name} is built for walk-ins, live queues, and hybrid
+                    booking — £25 per month with no per-cut commissions.
+                  </p>
+                  <ul className="mt-6 space-y-2 text-sm text-zinc-600">
+                    <li className="flex gap-2">
+                      <span className="text-[#808080] shrink-0">✓</span>
+                      Real-time queue management
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-[#808080] shrink-0">✓</span>
+                      Customer self-check-in via QR code
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-[#808080] shrink-0">✓</span>
+                      Cash and card tracking built in
+                    </li>
+                  </ul>
+                  <a
+                    href={BARBER_SITE.url}
+                    className="mt-8 inline-flex items-center justify-center rounded-xl bg-zinc-900 px-8 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
+                  >
+                    Visit {BARBER_SITE.name}
+                  </a>
+                </div>
+              </div>
+            </div>
+          </section>
+        </Reveal>
+
         {/* Pricing */}
         <Reveal>
           <section className="bg-[#E0E0E0] py-16 sm:py-20">
             <div className="mx-auto max-w-6xl px-4 sm:px-6">
-              <PricingPlansSection
-                image={plansImage}
-                imageAlt="Professional barber attending to a client in a modern barbershop"
-              />
+              <PricingPlansSection />
             </div>
           </section>
         </Reveal>
