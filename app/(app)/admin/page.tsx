@@ -174,9 +174,9 @@ export default async function AdminDashboardPage() {
                   <span className="text-muted">·</span>
                   <Link
                     href={`/admin/barber-shops/${s.id}`}
-                    className="text-sm text-accent hover:underline"
+                    className="text-sm text-accent hover:underline font-medium"
                   >
-                    View
+                    Edit
                   </Link>
                 </div>
               </div>

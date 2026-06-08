@@ -67,8 +67,8 @@ export default async function AdminBarberShopsPage() {
                     >
                       Manage
                     </a>
-                    <Link href={`/admin/barber-shops/${s.id}`} className="text-accent hover:underline">
-                      View
+                    <Link href={`/admin/barber-shops/${s.id}`} className="text-accent hover:underline font-medium">
+                      Edit
                     </Link>
                   </td>
                 </tr>
