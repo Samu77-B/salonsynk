@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { compressImageForUpload } from "@core/storage/compress-image-client";
 import { adminAddBarberMember, adminUploadBarberMemberAvatar } from "../actions";
 
 export function AdminAddBarberForm({ shopId }: { shopId: string }) {
@@ -37,8 +38,9 @@ export function AdminAddBarberForm({ shopId }: { shopId: string }) {
 
       const file = fileRef.current?.files?.[0];
       if (file && result.memberId) {
+        const prepared = await compressImageForUpload(file);
         const fd = new FormData();
-        fd.set("avatar", file);
+        fd.set("avatar", prepared);
         const upload = await adminUploadBarberMemberAvatar(shopId, result.memberId, fd);
         if (upload.error) {
           setError(`Barber added but photo upload failed: ${upload.error}`);

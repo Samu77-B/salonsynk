@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { compressImageForUpload } from "@core/storage/compress-image-client";
 import {
   adminUpdateBarberMember,
   adminUploadBarberMemberAvatar,
@@ -55,8 +56,9 @@ export function AdminBarberMemberRow({ shopId, member }: { shopId: string; membe
     setLoading(true);
     setError(null);
     try {
+      const prepared = await compressImageForUpload(file);
       const fd = new FormData();
-      fd.set("avatar", file);
+      fd.set("avatar", prepared);
       const result = await adminUploadBarberMemberAvatar(shopId, member.id, fd);
       if (result.error) {
         setError(result.error);
@@ -65,7 +67,7 @@ export function AdminBarberMemberRow({ shopId, member }: { shopId: string; membe
       if (result.url) setAvatarUrl(result.url);
       router.refresh();
     } catch {
-      setError("Photo upload failed. Please try again.");
+      setError("Photo upload failed — the image may be too large. Try again or use a smaller photo.");
     } finally {
       setLoading(false);
       e.target.value = "";

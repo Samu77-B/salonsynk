@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { compressImageForUpload } from "@core/storage/compress-image-client";
 import {
   addBarberTeamMember,
   updateBarberTeamMember,
@@ -60,8 +61,9 @@ function MemberRow({ member }: { member: Member }) {
     setLoading(true);
     setError(null);
     try {
+      const prepared = await compressImageForUpload(file);
       const fd = new FormData();
-      fd.set("avatar", file);
+      fd.set("avatar", prepared);
       const result = await uploadBarberTeamMemberAvatar(member.id, fd);
       if (result.error) {
         setError(result.error);
@@ -70,7 +72,7 @@ function MemberRow({ member }: { member: Member }) {
       if (result.url) setAvatarUrl(result.url);
       router.refresh();
     } catch {
-      setError("Photo upload failed. Please try again.");
+      setError("Photo upload failed — the image may be too large. Try again or use a smaller photo.");
     } finally {
       setLoading(false);
       e.target.value = "";
@@ -215,7 +217,10 @@ export function BarberTeamView({ members }: { members: Member[] }) {
       fd.set("email", email.trim());
       fd.set("chair_number", chairNumber.trim());
       const file = fileRef.current?.files?.[0];
-      if (file) fd.set("avatar", file);
+      if (file) {
+        const prepared = await compressImageForUpload(file);
+        fd.set("avatar", prepared);
+      }
 
       const result = await addBarberTeamMember(fd);
 
