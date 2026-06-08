@@ -3,6 +3,9 @@ import { BARBER_SITE } from "@core/config/barber-site";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AdminAddBarberOwnerForm } from "./admin-add-owner-form";
+import { AdminAddBarberForm } from "./admin-add-barber-form";
+import { AdminBarberMemberRow } from "./admin-barber-member-row";
+import { AdminEditBarberShopForm } from "./admin-edit-barber-shop-form";
 
 export default async function AdminBarberShopDetailPage({
   params,
@@ -14,7 +17,7 @@ export default async function AdminBarberShopDetailPage({
 
   const { data: shop } = await supabase
     .from("barber_shops")
-    .select("id, name, slug, subscription_status, created_at")
+    .select("id, name, slug, subscription_status, created_at, settings")
     .eq("id", id)
     .single();
 
@@ -22,9 +25,13 @@ export default async function AdminBarberShopDetailPage({
 
   const { data: members } = await supabase
     .from("barber_members")
-    .select("id, role, display_name, user_id")
+    .select(
+      "id, role, display_name, user_id, avatar_url, chair_number, is_accepting_walk_ins"
+    )
     .eq("shop_id", id)
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .order("role")
+    .order("display_name");
 
   const userIds = (members ?? []).map((m) => m.user_id).filter(Boolean);
   const profilesMap: Record<string, string> = {};
@@ -40,6 +47,8 @@ export default async function AdminBarberShopDetailPage({
 
   const joinUrl = `${BARBER_SITE.url}/barber/join/${shop.slug}`;
   const dashboardUrl = `${BARBER_SITE.url}/barber/dashboard`;
+  const settings = (shop.settings as Record<string, unknown>) ?? {};
+  const branding = (settings.branding as Record<string, string | undefined>) ?? {};
 
   return (
     <div className="max-w-2xl space-y-8">
@@ -98,21 +107,48 @@ export default async function AdminBarberShopDetailPage({
       </section>
 
       <section className="rounded-lg border border-border p-4 space-y-4">
-        <h2 className="font-semibold">Owners &amp; staff</h2>
+        <h2 className="font-semibold">Branding &amp; queue page</h2>
+        <p className="text-sm text-muted">
+          Logo and brand colour appear on the public walk-in queue page customers use to join the line.
+        </p>
+        <AdminEditBarberShopForm
+          shopId={shop.id}
+          initialName={shop.name}
+          initialSlug={shop.slug}
+          initialBranding={{
+            logo_url: branding.logo_url ?? "",
+            primary_color: branding.primary_color ?? "",
+            company_name: branding.company_name ?? shop.name,
+          }}
+        />
+      </section>
+
+      <section className="rounded-lg border border-border p-4 space-y-4">
+        <h2 className="font-semibold">Team</h2>
+        <p className="text-sm text-muted">
+          Add barbers with a name and photo so walk-in clients can choose who they want on the
+          public queue page — or pick next available.
+        </p>
         {(members ?? []).length === 0 ? (
-          <p className="text-sm text-muted">No members linked yet.</p>
+          <p className="text-sm text-muted">No team members yet.</p>
         ) : (
-          <ul className="space-y-2 text-sm">
+          <ul className="space-y-2">
             {(members ?? []).map((m) => (
-              <li key={m.id} className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">{m.display_name ?? "—"}</span>
-                <span className="text-muted capitalize">({m.role})</span>
-                <span className="text-muted">{profilesMap[m.user_id] ?? m.user_id}</span>
-              </li>
+              <AdminBarberMemberRow
+                key={m.id}
+                shopId={shop.id}
+                member={{
+                  ...m,
+                  email: m.user_id ? profilesMap[m.user_id] ?? null : null,
+                }}
+              />
             ))}
           </ul>
         )}
-        <AdminAddBarberOwnerForm shopId={shop.id} />
+        <AdminAddBarberForm shopId={shop.id} />
+        <div className="border-t border-border pt-4">
+          <AdminAddBarberOwnerForm shopId={shop.id} />
+        </div>
       </section>
     </div>
   );

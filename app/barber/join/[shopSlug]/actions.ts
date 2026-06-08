@@ -23,7 +23,8 @@ export async function publicJoinQueue(
   const guestName = (formData.get("guest_name") as string)?.trim();
   const guestPhone = (formData.get("guest_phone") as string)?.trim() || null;
   const serviceId = (formData.get("service_id") as string) || null;
-  const preferredBarberId = (formData.get("preferred_barber_id") as string) || null;
+  const preferredRaw = (formData.get("preferred_barber_id") as string)?.trim();
+  const preferredBarberId = preferredRaw || null;
 
   if (!guestName) {
     return { success: false, error: "Please enter your name." };

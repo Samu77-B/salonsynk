@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@core/supabase/server";
 import { redirect } from "next/navigation";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
@@ -22,14 +23,25 @@ export default async function BarberDashboardLayout({
 
   const memberRole = shopContext.member.role ?? null;
   const isManager = isManagerRole(isSuperAdmin, memberRole ?? "");
+  const isOwner = memberRole === "owner" || shopContext.member.id === "admin";
 
   return (
     <div className="app-shell-dark min-h-screen flex flex-col overflow-x-hidden bg-canvas text-foreground">
       <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-surface px-4 sm:px-6">
         <div className="flex items-center gap-2">
           <span className="text-lg font-bold tracking-tight">Barber Synk</span>
-          <span className="text-xs text-muted ml-2">{shopContext.shop.name}</span>
+          <span className="text-xs text-muted ml-2 hidden sm:inline">{shopContext.shop.name}</span>
         </div>
+        <nav className="flex items-center gap-4 text-sm ml-4">
+          <Link href="/barber/dashboard" className="text-muted hover:text-foreground">
+            Queue
+          </Link>
+          {isOwner && (
+            <Link href="/barber/team" className="text-muted hover:text-foreground">
+              Team
+            </Link>
+          )}
+        </nav>
         <div className="ml-auto flex items-center gap-3 text-sm text-muted">
           {isManager && <span className="text-xs opacity-60">Manager</span>}
           <span className="text-xs">{user.email}</span>

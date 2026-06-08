@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { adminCreateBarberShop } from "../actions";
+import { adminCreateBarberShop, adminUploadBarberShopLogo } from "../actions";
 import { BARBER_SITE } from "@core/config/barber-site";
 
 function slugFromName(name: string): string {
@@ -17,6 +17,9 @@ export function AdminNewBarberShopForm() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
+  const [primaryColor, setPrimaryColor] = useState("#A0522D");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -44,12 +47,33 @@ export function AdminNewBarberShopForm() {
     setError(null);
     setWarning(null);
     setLoading(true);
-    const result = await adminCreateBarberShop(name, slug || slugFromName(name), ownerEmail || undefined);
-    setLoading(false);
+    const result = await adminCreateBarberShop(
+      name,
+      slug || slugFromName(name),
+      ownerEmail || undefined,
+      {
+        primary_color: primaryColor.trim() || undefined,
+        company_name: name.trim(),
+      }
+    );
     if (result.error) {
+      setLoading(false);
       setError(result.error);
       return;
     }
+    if (result.shopId && logoFile) {
+      const formData = new FormData();
+      formData.append("logo", logoFile);
+      const uploadResult = await adminUploadBarberShopLogo(result.shopId, formData);
+      if (uploadResult.error) {
+        setLoading(false);
+        setWarning(uploadResult.error);
+        router.push(`/admin/barber-shops/${result.shopId}`);
+        router.refresh();
+        return;
+      }
+    }
+    setLoading(false);
     if (result.ownerWarning) setWarning(result.ownerWarning);
     if (result.shopId) {
       router.push(`/admin/barber-shops/${result.shopId}`);
@@ -104,6 +128,57 @@ export function AdminNewBarberShopForm() {
             {copied ? "Copied!" : "Copy"}
           </button>
         </div>
+      </div>
+      <div>
+        <label htmlFor="primaryColor" className="block text-sm font-medium mb-1">
+          Brand colour
+        </label>
+        <div className="flex items-center gap-3">
+          <input
+            id="primaryColor"
+            type="color"
+            value={primaryColor}
+            onChange={(e) => setPrimaryColor(e.target.value)}
+            className="h-10 w-14 cursor-pointer rounded border border-border bg-background"
+          />
+          <input
+            type="text"
+            value={primaryColor}
+            onChange={(e) => setPrimaryColor(e.target.value)}
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+          />
+        </div>
+        <p className="text-xs text-muted mt-1">Colours the public walk-in queue page.</p>
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Logo (optional)</label>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={() => logoFileInputRef.current?.click()}
+            className="rounded-lg border border-border px-3 py-2 text-sm font-medium w-fit"
+          >
+            {logoFile ? logoFile.name : "Choose logo image"}
+          </button>
+          {logoFile && (
+            <button
+              type="button"
+              onClick={() => setLogoFile(null)}
+              className="text-sm text-muted hover:text-foreground w-fit"
+            >
+              Remove
+            </button>
+          )}
+          <input
+            ref={logoFileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+            className="hidden"
+            aria-label="Upload shop logo"
+          />
+        </div>
+        <p className="text-xs text-muted mt-1">Shown on the walk-in queue page. PNG, JPEG, GIF, WebP, or SVG up to 2MB.</p>
       </div>
       <div>
         <label htmlFor="ownerEmail" className="block text-sm font-medium mb-1">

@@ -20,11 +20,17 @@ export default async function PublicJoinQueuePage({
 
   const { data: shop } = await supabase
     .from("barber_shops")
-    .select("id, name, slug, estimated_wait_visible")
+    .select("id, name, slug, estimated_wait_visible, settings")
     .eq("slug", shopSlug)
     .single();
 
   if (!shop) notFound();
+
+  const settings = (shop.settings as Record<string, unknown>) ?? {};
+  const branding = (settings.branding as Record<string, string | undefined>) ?? {};
+  const displayName = branding.company_name?.trim() || shop.name;
+  const primaryColor = branding.primary_color?.trim();
+  const logoUrl = branding.logo_url?.trim();
 
   const [servicesResult, barbersResult, queueCountResult] = await Promise.all([
     supabase
@@ -37,7 +43,7 @@ export default async function PublicJoinQueuePage({
 
     supabase
       .from("barber_members")
-      .select("id, display_name, chair_number")
+      .select("id, display_name, chair_number, avatar_url")
       .eq("shop_id", shop.id)
       .eq("is_active", true)
       .eq("is_accepting_walk_ins", true)
@@ -54,21 +60,48 @@ export default async function PublicJoinQueuePage({
     id: string; name: string; duration_minutes: number; price_minor: number;
   }[];
   const barbers = (barbersResult.data ?? []) as {
-    id: string; display_name: string | null; chair_number: number | null;
+    id: string;
+    display_name: string | null;
+    chair_number: number | null;
+    avatar_url: string | null;
   }[];
   const queueLength = queueCountResult.count ?? 0;
 
   return (
-    <div className="app-shell-dark min-h-screen bg-canvas text-foreground">
+    <div
+      className="app-shell-dark min-h-screen bg-canvas text-foreground"
+      style={
+        primaryColor
+          ? ({ ["--accent"]: primaryColor } as React.CSSProperties)
+          : undefined
+      }
+    >
+      {primaryColor ? (
+        <div
+          className="h-1.5 w-full"
+          style={{ backgroundColor: primaryColor }}
+          aria-hidden
+        />
+      ) : null}
       <div className="mx-auto max-w-lg px-4 py-8 sm:py-12">
         <header className="text-center mb-8">
-          <h1 className="text-2xl font-bold">{shop.name}</h1>
+          {logoUrl ? (
+            <div className="flex justify-center mb-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUrl}
+                alt={displayName}
+                className="h-16 w-auto max-w-[240px] object-contain"
+              />
+            </div>
+          ) : null}
+          <h1 className="text-2xl font-bold">{displayName}</h1>
           <p className="text-sm text-muted mt-1">Walk-in Queue</p>
         </header>
 
         <JoinQueueForm
           shopId={shop.id}
-          shopName={shop.name}
+          shopName={displayName}
           queueLength={queueLength}
           barbers={JSON.parse(JSON.stringify(barbers))}
           services={JSON.parse(JSON.stringify(services))}
