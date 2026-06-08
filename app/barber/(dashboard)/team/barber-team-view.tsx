@@ -33,20 +33,25 @@ function MemberRow({ member }: { member: Member }) {
   async function handleSave() {
     setLoading(true);
     setError(null);
-    const chair =
-      chairNumber.trim() === "" ? null : Number.parseInt(chairNumber, 10);
-    const result = await updateBarberTeamMember(member.id, {
-      display_name: displayName,
-      chair_number: chair != null && !Number.isNaN(chair) ? chair : null,
-      is_accepting_walk_ins: accepting,
-    });
-    setLoading(false);
-    if (result.error) {
-      setError(result.error);
-      return;
+    try {
+      const chair =
+        chairNumber.trim() === "" ? null : Number.parseInt(chairNumber, 10);
+      const result = await updateBarberTeamMember(member.id, {
+        display_name: displayName,
+        chair_number: chair != null && !Number.isNaN(chair) ? chair : null,
+        is_accepting_walk_ins: accepting,
+      });
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setEditing(false);
+      router.refresh();
+    } catch {
+      setError("Could not save changes. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setEditing(false);
-    router.refresh();
   }
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -54,16 +59,21 @@ function MemberRow({ member }: { member: Member }) {
     if (!file) return;
     setLoading(true);
     setError(null);
-    const fd = new FormData();
-    fd.set("avatar", file);
-    const result = await uploadBarberTeamMemberAvatar(member.id, fd);
-    setLoading(false);
-    if (result.error) {
-      setError(result.error);
-      return;
+    try {
+      const fd = new FormData();
+      fd.set("avatar", file);
+      const result = await uploadBarberTeamMemberAvatar(member.id, fd);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      if (result.url) setAvatarUrl(result.url);
+      router.refresh();
+    } catch {
+      setError("Photo upload failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    if (result.url) setAvatarUrl(result.url);
-    router.refresh();
   }
 
   if (member.role === "owner") {
@@ -198,41 +208,33 @@ export function BarberTeamView({ members }: { members: Member[] }) {
     setSuccess(false);
     setLoading(true);
 
-    const chair =
-      chairNumber.trim() === "" ? null : Number.parseInt(chairNumber, 10);
-
-    const result = await addBarberTeamMember({
-      display_name: displayName,
-      email: email.trim() || undefined,
-      chair_number: chair != null && !Number.isNaN(chair) ? chair : null,
-    });
-
-    if (result.error) {
-      setLoading(false);
-      setError(result.error);
-      return;
-    }
-
-    const file = fileRef.current?.files?.[0];
-    if (file && result.memberId) {
+    try {
       const fd = new FormData();
-      fd.set("avatar", file);
-      const upload = await uploadBarberTeamMemberAvatar(result.memberId, fd);
-      if (upload.error) {
-        setLoading(false);
-        setError(`Barber added but photo failed: ${upload.error}`);
-        router.refresh();
+      fd.set("display_name", displayName);
+      fd.set("email", email.trim());
+      fd.set("chair_number", chairNumber.trim());
+      const file = fileRef.current?.files?.[0];
+      if (file) fd.set("avatar", file);
+
+      const result = await addBarberTeamMember(fd);
+
+      if (result.error) {
+        setError(result.error);
+        if (result.memberId) router.refresh();
         return;
       }
-    }
 
-    setLoading(false);
-    setDisplayName("");
-    setEmail("");
-    setChairNumber("");
-    if (fileRef.current) fileRef.current.value = "";
-    setSuccess(true);
-    router.refresh();
+      setDisplayName("");
+      setEmail("");
+      setChairNumber("");
+      if (fileRef.current) fileRef.current.value = "";
+      setSuccess(true);
+      router.refresh();
+    } catch {
+      setError("Could not add barber. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

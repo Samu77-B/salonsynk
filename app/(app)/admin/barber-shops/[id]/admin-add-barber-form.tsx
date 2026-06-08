@@ -20,41 +20,44 @@ export function AdminAddBarberForm({ shopId }: { shopId: string }) {
     setSuccess(false);
     setLoading(true);
 
-    const chair =
-      chairNumber.trim() === "" ? null : Number.parseInt(chairNumber, 10);
+    try {
+      const chair =
+        chairNumber.trim() === "" ? null : Number.parseInt(chairNumber, 10);
 
-    const result = await adminAddBarberMember(shopId, {
-      display_name: displayName,
-      email: email.trim() || undefined,
-      chair_number: chair != null && !Number.isNaN(chair) ? chair : null,
-    });
+      const result = await adminAddBarberMember(shopId, {
+        display_name: displayName,
+        email: email.trim() || undefined,
+        chair_number: chair != null && !Number.isNaN(chair) ? chair : null,
+      });
 
-    if (result.error) {
-      setLoading(false);
-      setError(result.error);
-      return;
-    }
-
-    const file = fileRef.current?.files?.[0];
-    if (file && result.memberId) {
-      const fd = new FormData();
-      fd.set("avatar", file);
-      const upload = await adminUploadBarberMemberAvatar(shopId, result.memberId, fd);
-      if (upload.error) {
-        setLoading(false);
-        setError(`Barber added but photo upload failed: ${upload.error}`);
-        router.refresh();
+      if (result.error) {
+        setError(result.error);
         return;
       }
-    }
 
-    setLoading(false);
-    setDisplayName("");
-    setEmail("");
-    setChairNumber("");
-    if (fileRef.current) fileRef.current.value = "";
-    setSuccess(true);
-    router.refresh();
+      const file = fileRef.current?.files?.[0];
+      if (file && result.memberId) {
+        const fd = new FormData();
+        fd.set("avatar", file);
+        const upload = await adminUploadBarberMemberAvatar(shopId, result.memberId, fd);
+        if (upload.error) {
+          setError(`Barber added but photo upload failed: ${upload.error}`);
+          router.refresh();
+          return;
+        }
+      }
+
+      setDisplayName("");
+      setEmail("");
+      setChairNumber("");
+      if (fileRef.current) fileRef.current.value = "";
+      setSuccess(true);
+      router.refresh();
+    } catch {
+      setError("Could not add barber. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

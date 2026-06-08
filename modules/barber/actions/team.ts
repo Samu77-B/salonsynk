@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@core/supabase/server";
 import { createAdminClient } from "@core/supabase/admin";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
 
@@ -18,36 +17,86 @@ async function requireShopOwner() {
   return { error: null, context };
 }
 
+function getAdmin() {
+  try {
+    return { admin: createAdminClient(), error: null as string | null };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Admin client unavailable";
+    return { admin: null, error: msg };
+  }
+}
+
 function revalidateTeamPaths(slug?: string) {
   revalidatePath("/barber/team");
   revalidatePath("/barber/dashboard");
   if (slug) revalidatePath(`/barber/join/${slug}`);
 }
 
-export async function addBarberTeamMember(data: {
-  display_name: string;
-  email?: string;
-  chair_number?: number | null;
-}): Promise<{ error?: string; memberId?: string }> {
+async function uploadAvatarForMember(
+  shopId: string,
+  memberId: string,
+  raw: Blob & { name?: string; type?: string; size?: number }
+): Promise<{ error: string | null; url?: string }> {
+  const { admin, error: adminError } = getAdmin();
+  if (adminError || !admin) return { error: adminError ?? "Admin client unavailable" };
+
+  const size = Number(raw.size) || 0;
+  const type = String(raw.type || "").toLowerCase();
+  if (size === 0) return { error: "No file provided" };
+  if (size > MAX_AVATAR_BYTES) return { error: "Image must be under 2MB" };
+  if (!ALLOWED_TYPES.includes(type)) return { error: "Use JPEG, PNG, GIF, or WebP" };
+
+  const name = raw.name || "avatar.jpg";
+  const ext = name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `barber-avatars/${shopId}/${memberId}.${ext}`;
+
+  const arrayBuffer = await raw.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const { error: uploadError } = await admin.storage
+    .from(AVATAR_BUCKET)
+    .upload(path, buffer, { upsert: true, contentType: type });
+
+  if (uploadError) return { error: uploadError.message };
+
+  const { data: urlData } = admin.storage.from(AVATAR_BUCKET).getPublicUrl(path);
+  const url = urlData.publicUrl;
+
+  const { error: updateError } = await admin
+    .from("barber_members")
+    .update({ avatar_url: url })
+    .eq("id", memberId)
+    .eq("shop_id", shopId);
+
+  if (updateError) return { error: updateError.message };
+  return { error: null, url };
+}
+
+export async function addBarberTeamMember(
+  formData: FormData
+): Promise<{ error?: string; memberId?: string }> {
   const { error, context } = await requireShopOwner();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
-  const admin = createAdminClient();
-  const shopId = context.shop.id;
-  const displayName = data.display_name?.trim();
+  const { admin, error: adminError } = getAdmin();
+  if (adminError || !admin) return { error: adminError ?? "Admin client unavailable" };
+
+  const displayName = (formData.get("display_name") as string)?.trim();
+  const email = (formData.get("email") as string)?.trim();
+  const chairRaw = (formData.get("chair_number") as string)?.trim();
+  const chair =
+    chairRaw === "" ? null : Number.parseInt(chairRaw, 10);
+
   if (!displayName) return { error: "Display name is required" };
 
-  const chairNumber =
-    data.chair_number != null && !Number.isNaN(data.chair_number)
-      ? Number(data.chair_number)
-      : null;
+  const shopId = context.shop.id;
+  let memberId: string | undefined;
 
-  if (data.email?.trim()) {
-    const email = data.email.trim().toLowerCase();
+  if (email) {
+    const normalized = email.toLowerCase();
     const { data: profile } = await admin
       .from("profiles")
       .select("id, full_name, email")
-      .eq("email", email)
+      .eq("email", normalized)
       .maybeSingle();
 
     if (!profile) {
@@ -71,7 +120,7 @@ export async function addBarberTeamMember(data: {
           user_id: profile.id,
           role: "barber",
           display_name: name,
-          chair_number: chairNumber,
+          chair_number: chair != null && !Number.isNaN(chair) ? chair : null,
           is_active: true,
           is_accepting_walk_ins: true,
         },
@@ -81,27 +130,52 @@ export async function addBarberTeamMember(data: {
       .single();
 
     if (upsertError) return { error: upsertError.message };
-    revalidateTeamPaths(context.shop.slug);
-    return { memberId: member?.id };
+    memberId = member?.id;
+  } else {
+    const { data: member, error: insertError } = await admin
+      .from("barber_members")
+      .insert({
+        shop_id: shopId,
+        user_id: null,
+        role: "barber",
+        display_name: displayName,
+        chair_number: chair != null && !Number.isNaN(chair) ? chair : null,
+        is_active: true,
+        is_accepting_walk_ins: true,
+      })
+      .select("id")
+      .single();
+
+    if (insertError) {
+      if (insertError.message.includes("user_id") && insertError.message.includes("null")) {
+        return {
+          error:
+            "Database migration required: run migration 044_barber_member_without_user.sql in Supabase.",
+        };
+      }
+      return { error: insertError.message };
+    }
+    memberId = member?.id;
   }
 
-  const { data: member, error: insertError } = await admin
-    .from("barber_members")
-    .insert({
-      shop_id: shopId,
-      user_id: null,
-      role: "barber",
-      display_name: displayName,
-      chair_number: chairNumber,
-      is_active: true,
-      is_accepting_walk_ins: true,
-    })
-    .select("id")
-    .single();
+  const avatarRaw = formData.get("avatar");
+  if (memberId && avatarRaw && typeof avatarRaw === "object" && "size" in avatarRaw) {
+    const upload = await uploadAvatarForMember(
+      shopId,
+      memberId,
+      avatarRaw as Blob & { name?: string; type?: string; size?: number }
+    );
+    if (upload.error) {
+      revalidateTeamPaths(context.shop.slug);
+      return {
+        error: `Barber added but photo upload failed: ${upload.error}`,
+        memberId,
+      };
+    }
+  }
 
-  if (insertError) return { error: insertError.message };
   revalidateTeamPaths(context.shop.slug);
-  return { memberId: member?.id };
+  return { memberId };
 }
 
 export async function updateBarberTeamMember(
@@ -115,7 +189,9 @@ export async function updateBarberTeamMember(
   const { error, context } = await requireShopOwner();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
-  const supabase = await createClient();
+  const { admin, error: adminError } = getAdmin();
+  if (adminError || !admin) return { error: adminError ?? "Admin client unavailable" };
+
   const payload: Record<string, unknown> = {};
   if (updates.display_name !== undefined) payload.display_name = updates.display_name.trim();
   if (updates.chair_number !== undefined) {
@@ -128,7 +204,7 @@ export async function updateBarberTeamMember(
     payload.is_accepting_walk_ins = updates.is_accepting_walk_ins;
   }
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await admin
     .from("barber_members")
     .update(payload)
     .eq("id", memberId)
@@ -147,48 +223,15 @@ export async function uploadBarberTeamMemberAvatar(
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const raw = formData.get("avatar");
-  if (!raw || typeof raw !== "object" || !("size" in raw) || !("type" in raw)) {
+  if (!raw || typeof raw !== "object" || !("size" in raw)) {
     return { error: "No file provided" };
   }
-  const size = Number((raw as { size?: number }).size) || 0;
-  const type = String((raw as { type?: string }).type || "").toLowerCase();
-  if (size === 0) return { error: "No file provided" };
-  if (size > MAX_AVATAR_BYTES) return { error: "Image must be under 2MB" };
-  if (!ALLOWED_TYPES.includes(type)) return { error: "Use JPEG, PNG, GIF, or WebP" };
 
-  const admin = createAdminClient();
-  const { data: member } = await admin
-    .from("barber_members")
-    .select("id")
-    .eq("id", memberId)
-    .eq("shop_id", context.shop.id)
-    .single();
-  if (!member) return { error: "Barber not found" };
-
-  const name = (raw as { name?: string }).name || "avatar.jpg";
-  const ext = name.split(".").pop()?.toLowerCase() || "jpg";
-  const path = `barber-avatars/${context.shop.id}/${memberId}.${ext}`;
-
-  const arrayBuffer = await (raw as Blob).arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const { error: uploadError } = await admin.storage
-    .from(AVATAR_BUCKET)
-    .upload(path, buffer, { upsert: true, contentType: type });
-
-  if (uploadError) return { error: uploadError.message };
-
-  const { data: urlData } = admin.storage.from(AVATAR_BUCKET).getPublicUrl(path);
-  const url = urlData.publicUrl;
-
-  const supabase = await createClient();
-  const { error: updateError } = await supabase
-    .from("barber_members")
-    .update({ avatar_url: url })
-    .eq("id", memberId)
-    .eq("shop_id", context.shop.id);
-
-  if (updateError) return { error: updateError.message };
-
-  revalidateTeamPaths(context.shop.slug);
-  return { error: null, url };
+  const result = await uploadAvatarForMember(
+    context.shop.id,
+    memberId,
+    raw as Blob & { name?: string; type?: string; size?: number }
+  );
+  if (!result.error) revalidateTeamPaths(context.shop.slug);
+  return result;
 }
