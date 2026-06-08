@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@core/supabase/admin";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
+import { uploadTeamAvatarImage } from "@core/storage/team-avatar";
 import { revalidatePath } from "next/cache";
 
 export type BarberBrandingInput = {
@@ -369,10 +370,6 @@ export async function adminUpdateBarberMember(
   return {};
 }
 
-const AVATAR_BUCKET = LOGO_BUCKET;
-const MAX_AVATAR_BYTES = MAX_LOGO_BYTES;
-const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-
 export async function adminUploadBarberMemberAvatar(
   shopId: string,
   memberId: string,
@@ -391,42 +388,35 @@ export async function adminUploadBarberMemberAvatar(
     if (!member) return { error: "Barber not found" };
 
     const raw = formData.get("avatar");
-    if (!raw || typeof raw !== "object" || !("size" in raw) || !("type" in raw)) {
+    if (!raw || typeof raw !== "object" || !("size" in raw)) {
       return { error: "No file provided" };
-    }
-    const size = Number((raw as { size?: number }).size) || 0;
-    const type = String((raw as { type?: string }).type || "").toLowerCase();
-    if (size === 0) return { error: "No file provided" };
-    if (size > MAX_AVATAR_BYTES) return { error: "Image must be under 2MB" };
-    if (!ALLOWED_AVATAR_TYPES.includes(type)) {
-      return { error: "Use JPEG, PNG, GIF, or WebP" };
     }
 
     const name = (raw as { name?: string }).name || "avatar.jpg";
     const ext = name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `barber-avatars/${shopId}/${memberId}.${ext}`;
 
-    const arrayBuffer = await (raw as Blob).arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const { error: uploadError } = await admin.storage
-      .from(AVATAR_BUCKET)
-      .upload(path, buffer, { upsert: true, contentType: type });
+    const upload = await uploadTeamAvatarImage(
+      path,
+      raw as Blob & { name?: string; type?: string; size?: number }
+    );
+    if (upload.error || !upload.url) return { error: upload.error ?? "Upload failed" };
 
-    if (uploadError) return { error: uploadError.message };
-
-    const { data: urlData } = admin.storage.from(AVATAR_BUCKET).getPublicUrl(path);
-    const url = urlData.publicUrl;
-
-    const { error: updateError } = await admin
+    const { data: updated, error: updateError } = await admin
       .from("barber_members")
-      .update({ avatar_url: url })
+      .update({ avatar_url: upload.url })
       .eq("id", memberId)
-      .eq("shop_id", shopId);
+      .eq("shop_id", shopId)
+      .select("avatar_url")
+      .single();
 
     if (updateError) return { error: updateError.message };
+    if (!updated?.avatar_url) {
+      return { error: "Photo saved to storage but could not update profile" };
+    }
 
     await revalidateBarberShop(shopId);
-    return { error: null, url };
+    return { error: null, url: updated.avatar_url };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown upload error";
     return { error: msg };

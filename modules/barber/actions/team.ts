@@ -2,11 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@core/supabase/admin";
+import { uploadTeamAvatarImage } from "@core/storage/team-avatar";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
-
-const AVATAR_BUCKET = "team-avatars";
-const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
 async function requireShopOwner() {
   const context = await getCurrentUserShop();
@@ -40,35 +37,24 @@ async function uploadAvatarForMember(
   const { admin, error: adminError } = getAdmin();
   if (adminError || !admin) return { error: adminError ?? "Admin client unavailable" };
 
-  const size = Number(raw.size) || 0;
-  const type = String(raw.type || "").toLowerCase();
-  if (size === 0) return { error: "No file provided" };
-  if (size > MAX_AVATAR_BYTES) return { error: "Image must be under 2MB" };
-  if (!ALLOWED_TYPES.includes(type)) return { error: "Use JPEG, PNG, GIF, or WebP" };
-
   const name = raw.name || "avatar.jpg";
   const ext = name.split(".").pop()?.toLowerCase() || "jpg";
   const path = `barber-avatars/${shopId}/${memberId}.${ext}`;
 
-  const arrayBuffer = await raw.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const { error: uploadError } = await admin.storage
-    .from(AVATAR_BUCKET)
-    .upload(path, buffer, { upsert: true, contentType: type });
+  const upload = await uploadTeamAvatarImage(path, raw);
+  if (upload.error || !upload.url) return { error: upload.error ?? "Upload failed" };
 
-  if (uploadError) return { error: uploadError.message };
-
-  const { data: urlData } = admin.storage.from(AVATAR_BUCKET).getPublicUrl(path);
-  const url = urlData.publicUrl;
-
-  const { error: updateError } = await admin
+  const { data: updated, error: updateError } = await admin
     .from("barber_members")
-    .update({ avatar_url: url })
+    .update({ avatar_url: upload.url })
     .eq("id", memberId)
-    .eq("shop_id", shopId);
+    .eq("shop_id", shopId)
+    .select("avatar_url")
+    .single();
 
   if (updateError) return { error: updateError.message };
-  return { error: null, url };
+  if (!updated?.avatar_url) return { error: "Photo saved to storage but could not update profile" };
+  return { error: null, url: updated.avatar_url };
 }
 
 export async function addBarberTeamMember(

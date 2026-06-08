@@ -73,6 +73,7 @@ function MemberRow({ member }: { member: Member }) {
       setError("Photo upload failed. Please try again.");
     } finally {
       setLoading(false);
+      e.target.value = "";
     }
   }
 

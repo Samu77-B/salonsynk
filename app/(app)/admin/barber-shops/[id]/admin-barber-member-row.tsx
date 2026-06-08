@@ -54,16 +54,22 @@ export function AdminBarberMemberRow({ shopId, member }: { shopId: string; membe
     if (!file) return;
     setLoading(true);
     setError(null);
-    const fd = new FormData();
-    fd.set("avatar", file);
-    const result = await adminUploadBarberMemberAvatar(shopId, member.id, fd);
-    setLoading(false);
-    if (result.error) {
-      setError(result.error);
-      return;
+    try {
+      const fd = new FormData();
+      fd.set("avatar", file);
+      const result = await adminUploadBarberMemberAvatar(shopId, member.id, fd);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      if (result.url) setAvatarUrl(result.url);
+      router.refresh();
+    } catch {
+      setError("Photo upload failed. Please try again.");
+    } finally {
+      setLoading(false);
+      e.target.value = "";
     }
-    if (result.url) setAvatarUrl(result.url);
-    router.refresh();
   }
 
   return (
