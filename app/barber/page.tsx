@@ -4,6 +4,9 @@ import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { BARBER_SITE } from "@core/config/barber-site";
 import heroImage from "../../imgs/barber/hero.png";
+import scanIcon from "../../imgs/barber/scan.png";
+import chairIcon from "../../imgs/barber/chair.png";
+import cardIcon from "../../imgs/barber/card.png";
 /* eslint-disable @next/next/no-img-element */
 
 export const metadata: Metadata = {
@@ -175,17 +178,19 @@ export default function BarberHomePage() {
               </h2>
               <div className="mt-14 grid gap-10 sm:grid-cols-3">
                 {[
-                  { step: "1", title: "Customer joins", desc: "They scan the QR code on your door or give their name at the desk." },
-                  { step: "2", title: "You cut", desc: "Tap 'Start' when they sit down. The queue updates for everyone in real time." },
-                  { step: "3", title: "Cash or card", desc: "Toggle the payment method and hit 'Complete'. Revenue tracked. Next customer." },
+                  { icon: scanIcon, title: "Customer joins", desc: "They scan the QR code on your door or give their name at the desk." },
+                  { icon: chairIcon, title: "You cut", desc: "Tap 'Start' when they sit down. The queue updates for everyone in real time." },
+                  { icon: cardIcon, title: "Cash or card", desc: "Toggle the payment method and hit 'Complete'. Revenue tracked. Next customer." },
                 ].map((s) => (
-                  <div key={s.step} className="text-center">
-                    <span
-                      className="inline-flex h-14 w-14 items-center justify-center rounded-full text-xl font-bold text-white"
-                      style={{ backgroundColor: "#A0522D" }}
-                    >
-                      {s.step}
-                    </span>
+                  <div key={s.title} className="text-center">
+                    <Image
+                      src={s.icon}
+                      alt=""
+                      width={64}
+                      height={64}
+                      className="mx-auto h-16 w-16 object-contain"
+                      unoptimized
+                    />
                     <h3 className="mt-4 font-semibold" style={{ color: "#F5F1E8" }}>{s.title}</h3>
                     <p className="mt-2 text-sm" style={{ color: "rgba(245,241,232,0.7)" }}>{s.desc}</p>
                   </div>
