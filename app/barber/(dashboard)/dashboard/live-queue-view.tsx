@@ -313,7 +313,10 @@ function AddWalkInForm({
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(formData: FormData) {
-    startTransition(() => addToQueue(formData));
+    startTransition(async () => {
+      const result = await addToQueue(formData);
+      if (result.error) alert(result.error);
+    });
   }
 
   return (
@@ -400,19 +403,28 @@ function WaitingCard({
   shopName: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
   const service = services.find((s) => s.id === entry.service_id);
   const preferred = members.find((m) => m.id === entry.preferred_barber_id);
 
   function handleStart() {
-    startTransition(() => startService(entry.id, currentMemberId));
+    setActionError(null);
+    startTransition(async () => {
+      const result = await startService(entry.id, currentMemberId);
+      if (result.error) setActionError(result.error);
+    });
   }
 
   function handleRemove() {
-    startTransition(() => removeFromQueue(entry.id, "left"));
+    setActionError(null);
+    startTransition(async () => {
+      const result = await removeFromQueue(entry.id, "left");
+      if (result.error) setActionError(result.error);
+    });
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3">
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3">
       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600/20 text-blue-400 text-sm font-bold">
         {position}
       </span>
@@ -452,6 +464,9 @@ function WaitingCard({
           Remove
         </button>
       </div>
+      {actionError && (
+        <p className="w-full text-xs text-red-400 basis-full">{actionError}</p>
+      )}
     </div>
   );
 }
@@ -471,17 +486,26 @@ function InChairCard({
   shopName: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">("card");
   const barber = members.find((m) => m.id === entry.assigned_barber_id);
   const service = services.find((s) => s.id === entry.service_id);
   const price = service?.price_minor ?? 0;
 
   function handleComplete() {
-    startTransition(() => completeService(entry.id, paymentMethod, price));
+    setActionError(null);
+    startTransition(async () => {
+      const result = await completeService(entry.id, paymentMethod, price);
+      if (result.error) setActionError(result.error);
+    });
   }
 
   function handleNoShow() {
-    startTransition(() => removeFromQueue(entry.id, "no_show"));
+    setActionError(null);
+    startTransition(async () => {
+      const result = await removeFromQueue(entry.id, "no_show");
+      if (result.error) setActionError(result.error);
+    });
   }
 
   const elapsed = entry.started_at
@@ -558,6 +582,7 @@ function InChairCard({
           No-show
         </button>
       </div>
+      {actionError && <p className="text-xs text-red-400">{actionError}</p>}
     </div>
   );
 }

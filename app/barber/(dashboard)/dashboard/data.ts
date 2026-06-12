@@ -2,6 +2,7 @@ import { createClient } from "@core/supabase/server";
 import { createAdminClient } from "@core/supabase/admin";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
+import { resolveActingBarberId } from "@modules/barber/lib/resolve-barber-id";
 
 export type QueueEntry = {
   id: string;
@@ -95,9 +96,15 @@ export async function getBarberDashboardData() {
     0
   );
 
+  let actingMemberId = context.member.id;
+  if (actingMemberId === "admin") {
+    const resolved = await resolveActingBarberId(supabase, shopId, actingMemberId);
+    if (resolved.barberId) actingMemberId = resolved.barberId;
+  }
+
   return {
     shop: context.shop,
-    member: context.member,
+    member: { ...context.member, id: actingMemberId },
     queue,
     members,
     services,
