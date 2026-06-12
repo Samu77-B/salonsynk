@@ -9,6 +9,8 @@ export type BarberBrandingInput = {
   logo_url?: string;
   primary_color?: string;
   company_name?: string;
+  /** When false, hide the shop title on the public join queue page (logo only). */
+  show_title_on_queue?: boolean;
 };
 
 const LOGO_BUCKET = "team-avatars";

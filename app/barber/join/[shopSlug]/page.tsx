@@ -27,10 +27,15 @@ export default async function PublicJoinQueuePage({
   if (!shop) notFound();
 
   const settings = (shop.settings as Record<string, unknown>) ?? {};
-  const branding = (settings.branding as Record<string, string | undefined>) ?? {};
-  const displayName = branding.company_name?.trim() || shop.name;
-  const primaryColor = branding.primary_color?.trim();
-  const logoUrl = branding.logo_url?.trim();
+  const branding = (settings.branding as Record<string, string | boolean | undefined>) ?? {};
+  const brandingStr = (key: string) => {
+    const v = branding[key];
+    return typeof v === "string" ? v : "";
+  };
+  const displayName = brandingStr("company_name").trim() || shop.name;
+  const primaryColor = brandingStr("primary_color").trim();
+  const logoUrl = brandingStr("logo_url").trim();
+  const showTitle = branding.show_title_on_queue !== false;
 
   const [servicesResult, barbersResult, queueCountResult] = await Promise.all([
     supabase
@@ -95,8 +100,8 @@ export default async function PublicJoinQueuePage({
               />
             </div>
           ) : null}
-          <h1 className="text-2xl font-bold">{displayName}</h1>
-          <p className="text-sm text-muted mt-1">Walk-in Queue</p>
+          {showTitle ? <h1 className="text-2xl font-bold">{displayName}</h1> : null}
+          <p className={`text-sm text-muted ${showTitle ? "mt-1" : "mt-4"}`}>Walk-in Queue</p>
         </header>
 
         <JoinQueueForm

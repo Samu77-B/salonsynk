@@ -16,13 +16,19 @@ export function AdminEditBarberShopForm({
   shopId: string;
   initialName: string;
   initialSlug: string;
-  initialBranding: { logo_url: string; primary_color: string; company_name: string };
+  initialBranding: {
+    logo_url: string;
+    primary_color: string;
+    company_name: string;
+    show_title_on_queue: boolean;
+  };
 }) {
   const [name, setName] = useState(initialName);
   const [slug, setSlug] = useState(initialSlug);
   const [logoUrl, setLogoUrl] = useState(initialBranding.logo_url);
   const [primaryColor, setPrimaryColor] = useState(initialBranding.primary_color);
   const [companyName, setCompanyName] = useState(initialBranding.company_name);
+  const [showTitleOnQueue, setShowTitleOnQueue] = useState(initialBranding.show_title_on_queue);
   const [saveMsg, setSaveMsg] = useState<"saved" | "error" | null>(null);
   const [saveErrorText, setSaveErrorText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,14 +39,16 @@ export function AdminEditBarberShopForm({
     e.preventDefault();
     setSaveMsg(null);
     setLoading(true);
-    const branding: BarberBrandingInput = {};
+    const branding: BarberBrandingInput = {
+      show_title_on_queue: showTitleOnQueue,
+    };
     if (logoUrl.trim()) branding.logo_url = logoUrl.trim();
     if (primaryColor.trim()) branding.primary_color = primaryColor.trim();
     if (companyName.trim()) branding.company_name = companyName.trim();
     const result = await adminUpdateBarberShop(shopId, {
       name: name.trim(),
       slug: slug.trim(),
-      branding: Object.keys(branding).length ? branding : undefined,
+      branding,
     });
     setLoading(false);
     if (result.error) {
@@ -116,7 +124,20 @@ export function AdminEditBarberShopForm({
           placeholder={name}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
         />
+        <p className="text-xs text-muted mt-1">Shown as the main heading on the walk-in queue page.</p>
       </div>
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={showTitleOnQueue}
+          onChange={(e) => setShowTitleOnQueue(e.target.checked)}
+          className="rounded border-border"
+        />
+        Show shop title on public queue page
+      </label>
+      <p className="text-xs text-muted -mt-2">
+        Turn off to show only your logo (useful if the logo already includes the shop name).
+      </p>
       <div>
         <label htmlFor="primaryColor" className="block text-sm font-medium mb-1">
           Brand colour

@@ -48,7 +48,11 @@ export default async function AdminBarberShopDetailPage({
   const joinUrl = `${BARBER_SITE.url}/barber/join/${shop.slug}`;
   const dashboardUrl = `${BARBER_SITE.url}/barber/dashboard`;
   const settings = (shop.settings as Record<string, unknown>) ?? {};
-  const branding = (settings.branding as Record<string, string | undefined>) ?? {};
+  const branding = (settings.branding as Record<string, string | boolean | undefined>) ?? {};
+  const brandingStr = (key: string) => {
+    const v = branding[key];
+    return typeof v === "string" ? v : "";
+  };
 
   return (
     <div className="max-w-2xl space-y-8">
@@ -100,9 +104,25 @@ export default async function AdminBarberShopDetailPage({
             Open barber dashboard
           </a>
         </div>
-        <p className="text-xs text-muted font-mono break-all">{joinUrl}</p>
         <p className="text-xs text-muted">
-          Dashboard: <span className="font-mono">{dashboardUrl}</span>
+          Join queue:{" "}
+          <a
+            href={joinUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent font-mono break-all hover:underline"
+          >
+            {joinUrl}
+          </a>
+        </p>
+        <p className="text-xs text-muted">
+          Dashboard:{" "}
+          <a
+            href={`${BARBER_SITE.url}/api/admin/switch-barber-shop?shopId=${shop.id}`}
+            className="text-accent font-mono break-all hover:underline"
+          >
+            {dashboardUrl}
+          </a>
         </p>
       </section>
 
@@ -116,9 +136,10 @@ export default async function AdminBarberShopDetailPage({
           initialName={shop.name}
           initialSlug={shop.slug}
           initialBranding={{
-            logo_url: branding.logo_url ?? "",
-            primary_color: branding.primary_color ?? "",
-            company_name: branding.company_name ?? shop.name,
+            logo_url: brandingStr("logo_url"),
+            primary_color: brandingStr("primary_color"),
+            company_name: brandingStr("company_name") || shop.name,
+            show_title_on_queue: branding.show_title_on_queue !== false,
           }}
         />
       </section>
