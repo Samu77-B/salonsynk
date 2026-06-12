@@ -7,6 +7,7 @@ import {
   addBarberTeamMember,
   updateBarberTeamMember,
   uploadBarberTeamMemberAvatar,
+  removeBarberTeamMember,
 } from "@modules/barber/actions/team";
 
 type Member = {
@@ -76,6 +77,31 @@ function MemberRow({ member }: { member: Member }) {
     } finally {
       setLoading(false);
       e.target.value = "";
+    }
+  }
+
+  async function handleRemove() {
+    const label = member.display_name ?? "this barber";
+    if (
+      !confirm(
+        `Remove ${label} from the team? They will no longer appear on the queue page.`
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await removeBarberTeamMember(member.id);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Could not remove team member. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -180,13 +206,23 @@ function MemberRow({ member }: { member: Member }) {
               )}
             </div>
             {member.email && <p className="text-xs text-muted">{member.email}</p>}
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="text-xs text-blue-400 hover:underline"
-            >
-              Edit
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="text-xs text-blue-400 hover:underline"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={handleRemove}
+                disabled={loading}
+                className="text-xs text-red-400 hover:underline disabled:opacity-50"
+              >
+                Remove
+              </button>
+            </div>
           </>
         )}
         {error && <p className="text-xs text-red-400">{error}</p>}

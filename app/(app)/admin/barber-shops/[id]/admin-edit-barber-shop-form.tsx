@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   adminUpdateBarberShop,
   adminUploadBarberShopLogo,
@@ -23,6 +24,7 @@ export function AdminEditBarberShopForm({
     show_title_on_queue: boolean;
   };
 }) {
+  const router = useRouter();
   const [name, setName] = useState(initialName);
   const [slug, setSlug] = useState(initialSlug);
   const [logoUrl, setLogoUrl] = useState(initialBranding.logo_url);
@@ -57,6 +59,7 @@ export function AdminEditBarberShopForm({
       return;
     }
     setSaveMsg("saved");
+    router.refresh();
   }
 
   async function handleLogoFileChange(e: React.ChangeEvent<HTMLInputElement>) {

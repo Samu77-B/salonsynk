@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createAdminClient } from "@core/supabase/admin";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
 import { BarberTeamView } from "./barber-team-view";
+import { BarberShopBrandingForm } from "./barber-shop-branding-form";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,19 @@ export default async function BarberTeamPage() {
   if (!isOwner) redirect("/barber/dashboard");
 
   const admin = createAdminClient();
+  const { data: shopRow } = await admin
+    .from("barber_shops")
+    .select("settings")
+    .eq("id", context.shop.id)
+    .single();
+
+  const settings = (shopRow?.settings as Record<string, unknown>) ?? {};
+  const branding = (settings.branding as Record<string, string | boolean | undefined>) ?? {};
+  const brandingStr = (key: string) => {
+    const v = branding[key];
+    return typeof v === "string" ? v : "";
+  };
+
   const { data: members } = await admin
     .from("barber_members")
     .select(
@@ -55,6 +69,12 @@ export default async function BarberTeamPage() {
           </p>
         </div>
       </div>
+
+      <BarberShopBrandingForm
+        shopName={context.shop.name}
+        initialCompanyName={brandingStr("company_name").trim() || context.shop.name}
+        initialShowTitle={branding.show_title_on_queue !== false}
+      />
 
       <BarberTeamView
         members={JSON.parse(

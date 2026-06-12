@@ -6,6 +6,7 @@ import { compressImageForUpload } from "@core/storage/compress-image-client";
 import {
   adminUpdateBarberMember,
   adminUploadBarberMemberAvatar,
+  adminRemoveBarberMember,
 } from "../actions";
 
 type Member = {
@@ -72,6 +73,26 @@ export function AdminBarberMemberRow({ shopId, member }: { shopId: string; membe
       setLoading(false);
       e.target.value = "";
     }
+  }
+
+  async function handleRemove() {
+    const label = member.display_name ?? "this barber";
+    if (
+      !confirm(
+        `Remove ${label} from the team? They will no longer appear on the queue page.`
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const result = await adminRemoveBarberMember(shopId, member.id);
+    setLoading(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    router.refresh();
   }
 
   return (
@@ -159,13 +180,23 @@ export function AdminBarberMemberRow({ shopId, member }: { shopId: string; membe
             </div>
             {member.email && <p className="text-xs text-muted truncate">{member.email}</p>}
             {member.role === "barber" && (
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="text-xs text-accent hover:underline"
-              >
-                Edit
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="text-xs text-accent hover:underline"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  disabled={loading}
+                  className="text-xs text-red-400 hover:underline disabled:opacity-50"
+                >
+                  Remove
+                </button>
+              </div>
             )}
           </>
         )}

@@ -372,6 +372,50 @@ export async function adminUpdateBarberMember(
   return {};
 }
 
+export async function adminRemoveBarberMember(
+  shopId: string,
+  memberId: string
+): Promise<{ error?: string }> {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: member } = await admin
+    .from("barber_members")
+    .select("id, role")
+    .eq("id", memberId)
+    .eq("shop_id", shopId)
+    .single();
+
+  if (!member) return { error: "Team member not found" };
+  if (member.role === "owner") return { error: "Cannot remove the shop owner" };
+
+  const { count: appointmentCount } = await admin
+    .from("barber_appointments")
+    .select("id", { count: "exact", head: true })
+    .eq("barber_id", memberId);
+
+  if ((appointmentCount ?? 0) > 0) {
+    const { error } = await admin
+      .from("barber_members")
+      .update({ is_active: false, is_accepting_walk_ins: false })
+      .eq("id", memberId)
+      .eq("shop_id", shopId);
+    if (error) return { error: error.message };
+    await revalidateBarberShop(shopId);
+    return {};
+  }
+
+  const { error } = await admin
+    .from("barber_members")
+    .delete()
+    .eq("id", memberId)
+    .eq("shop_id", shopId);
+
+  if (error) return { error: error.message };
+  await revalidateBarberShop(shopId);
+  return {};
+}
+
 export async function adminUploadBarberMemberAvatar(
   shopId: string,
   memberId: string,

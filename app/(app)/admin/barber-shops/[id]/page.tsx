@@ -110,7 +110,7 @@ export default async function AdminBarberShopDetailPage({
             href={joinUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-accent font-mono break-all hover:underline"
+            className="text-accent font-mono break-all underline hover:opacity-80"
           >
             {joinUrl}
           </a>
@@ -119,7 +119,7 @@ export default async function AdminBarberShopDetailPage({
           Dashboard:{" "}
           <a
             href={`${BARBER_SITE.url}/api/admin/switch-barber-shop?shopId=${shop.id}`}
-            className="text-accent font-mono break-all hover:underline"
+            className="text-accent font-mono break-all underline hover:opacity-80"
           >
             {dashboardUrl}
           </a>

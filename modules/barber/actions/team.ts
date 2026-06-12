@@ -201,6 +201,83 @@ export async function updateBarberTeamMember(
   return {};
 }
 
+export async function updateBarberShopBranding(updates: {
+  show_title_on_queue?: boolean;
+  company_name?: string;
+}): Promise<{ error?: string }> {
+  const { error, context } = await requireShopOwner();
+  if (error || !context) return { error: error ?? "Unauthorized" };
+
+  const { admin, error: adminError } = getAdmin();
+  if (adminError || !admin) return { error: adminError ?? "Admin client unavailable" };
+
+  const { data: existing } = await admin
+    .from("barber_shops")
+    .select("settings")
+    .eq("id", context.shop.id)
+    .single();
+  if (!existing) return { error: "Shop not found" };
+
+  const current = (existing.settings as Record<string, unknown>) ?? {};
+  const branding = { ...(current.branding as object), ...updates };
+  if (updates.company_name !== undefined) {
+    branding.company_name = updates.company_name.trim();
+  }
+
+  const { error: updateError } = await admin
+    .from("barber_shops")
+    .update({ settings: { ...current, branding } })
+    .eq("id", context.shop.id);
+
+  if (updateError) return { error: updateError.message };
+  revalidateTeamPaths(context.shop.slug);
+  return {};
+}
+
+export async function removeBarberTeamMember(memberId: string): Promise<{ error?: string }> {
+  const { error, context } = await requireShopOwner();
+  if (error || !context) return { error: error ?? "Unauthorized" };
+
+  const { admin, error: adminError } = getAdmin();
+  if (adminError || !admin) return { error: adminError ?? "Admin client unavailable" };
+
+  const { data: member } = await admin
+    .from("barber_members")
+    .select("id, role")
+    .eq("id", memberId)
+    .eq("shop_id", context.shop.id)
+    .single();
+
+  if (!member) return { error: "Team member not found" };
+  if (member.role === "owner") return { error: "Cannot remove the shop owner" };
+
+  const { count: appointmentCount } = await admin
+    .from("barber_appointments")
+    .select("id", { count: "exact", head: true })
+    .eq("barber_id", memberId);
+
+  if ((appointmentCount ?? 0) > 0) {
+    const { error: deactivateError } = await admin
+      .from("barber_members")
+      .update({ is_active: false, is_accepting_walk_ins: false })
+      .eq("id", memberId)
+      .eq("shop_id", context.shop.id);
+    if (deactivateError) return { error: deactivateError.message };
+    revalidateTeamPaths(context.shop.slug);
+    return {};
+  }
+
+  const { error: deleteError } = await admin
+    .from("barber_members")
+    .delete()
+    .eq("id", memberId)
+    .eq("shop_id", context.shop.id);
+
+  if (deleteError) return { error: deleteError.message };
+  revalidateTeamPaths(context.shop.slug);
+  return {};
+}
+
 export async function uploadBarberTeamMemberAvatar(
   memberId: string,
   formData: FormData
