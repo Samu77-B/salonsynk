@@ -472,7 +472,7 @@ function WaitingCard({
 }
 
 /* ------------------------------------------------------------------ */
-/*  In-chair card (with Cash/Card payment toggle)                     */
+/*  In-chair card                                                     */
 /* ------------------------------------------------------------------ */
 function InChairCard({
   entry,
@@ -487,7 +487,6 @@ function InChairCard({
 }) {
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">("card");
   const barber = members.find((m) => m.id === entry.assigned_barber_id);
   const service = services.find((s) => s.id === entry.service_id);
   const price = service?.price_minor ?? 0;
@@ -495,7 +494,7 @@ function InChairCard({
   function handleComplete() {
     setActionError(null);
     startTransition(async () => {
-      const result = await completeService(entry.id, paymentMethod, price);
+      const result = await completeService(entry.id, "card", price);
       if (result.error) setActionError(result.error);
     });
   }
@@ -541,32 +540,6 @@ function InChairCard({
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
-        {/* Cash/Card toggle */}
-        <div className="flex rounded-lg border border-border overflow-hidden text-sm">
-          <button
-            type="button"
-            onClick={() => setPaymentMethod("card")}
-            className={`px-4 py-1.5 font-medium transition-colors ${
-              paymentMethod === "card"
-                ? "bg-blue-600 text-white"
-                : "bg-surface text-muted hover:text-foreground"
-            }`}
-          >
-            Card
-          </button>
-          <button
-            type="button"
-            onClick={() => setPaymentMethod("cash")}
-            className={`px-4 py-1.5 font-medium transition-colors ${
-              paymentMethod === "cash"
-                ? "bg-emerald-600 text-white"
-                : "bg-surface text-muted hover:text-foreground"
-            }`}
-          >
-            Cash
-          </button>
-        </div>
-
         <button
           onClick={handleComplete}
           disabled={isPending}
