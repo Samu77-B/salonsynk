@@ -5,6 +5,11 @@ import { createClient } from "@core/supabase/server";
 import { createAdminClient } from "@core/supabase/admin";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
+import {
+  queueSmsBody,
+  sendBarberQueueSms,
+  type QueueSmsTemplate,
+} from "@modules/barber/lib/queue-sms";
 
 async function getShopScopedClient() {
   const context = await getCurrentUserShop();
@@ -14,8 +19,9 @@ async function getShopScopedClient() {
     ? (() => { try { return createAdminClient(); } catch { return null; } })()
     : null;
   return {
-    supabase: supabase ?? await createClient(),
+    supabase: supabase ?? (await createClient()),
     shopId: context.shop.id,
+    shopName: context.shop.name,
   };
 }
 
@@ -23,13 +29,71 @@ function revalidateQueue() {
   revalidatePath("/barber/dashboard", "page");
 }
 
-/* ------------------------------------------------------------------ */
-/*  Add walk-in to queue                                              */
-/* ------------------------------------------------------------------ */
+async function fetchQueueEntry(supabase: Awaited<ReturnType<typeof getShopScopedClient>>["supabase"], shopId: string, queueEntryId: string) {
+  const { data, error } = await supabase
+    .from("barber_queue")
+    .select("id, guest_name, guest_phone, called_at, next_sms_sent_at, status")
+    .eq("id", queueEntryId)
+    .eq("shop_id", shopId)
+    .single();
+  if (error || !data) return null;
+  return data;
+}
+
+export async function notifyQueueCustomer(
+  queueEntryId: string,
+  template: QueueSmsTemplate = "next"
+): Promise<{ error?: string; sent?: boolean }> {
+  const { supabase, shopId, shopName } = await getShopScopedClient();
+  const entry = await fetchQueueEntry(supabase, shopId, queueEntryId);
+  if (!entry) return { error: "Queue entry not found" };
+  if (!entry.guest_phone?.trim()) return { error: "No phone number for this customer" };
+
+  const body = queueSmsBody(template, {
+    clientName: entry.guest_name ?? "there",
+    shopName,
+  });
+  const sms = await sendBarberQueueSms(entry.guest_phone, body);
+  if (sms.error) return { error: sms.error, sent: false };
+
+  const now = new Date().toISOString();
+  await supabase
+    .from("barber_queue")
+    .update({
+      called_at: entry.called_at ?? now,
+      ...(template === "next" && sms.sent ? { next_sms_sent_at: now } : {}),
+    })
+    .eq("id", queueEntryId)
+    .eq("shop_id", shopId);
+
+  revalidateQueue();
+  return { sent: sms.sent };
+}
+
+export async function sendQueueCustomMessage(
+  queueEntryId: string,
+  message: string
+): Promise<{ error?: string; sent?: boolean }> {
+  const { supabase, shopId } = await getShopScopedClient();
+  const entry = await fetchQueueEntry(supabase, shopId, queueEntryId);
+  if (!entry) return { error: "Queue entry not found" };
+  if (!entry.guest_phone?.trim()) return { error: "No phone number for this customer" };
+
+  const trimmed = message.trim();
+  if (!trimmed) return { error: "Message is empty" };
+
+  const sms = await sendBarberQueueSms(entry.guest_phone, trimmed);
+  if (sms.error) return { error: sms.error, sent: false };
+
+  revalidateQueue();
+  return { sent: sms.sent };
+}
+
 export async function addToQueue(formData: FormData) {
   const { supabase, shopId } = await getShopScopedClient();
 
   const guestName = (formData.get("guest_name") as string)?.trim() || "Walk-in";
+  const guestPhone = (formData.get("guest_phone") as string)?.trim() || null;
   const serviceId = (formData.get("service_id") as string) || null;
   const preferredBarberId = (formData.get("preferred_barber_id") as string) || null;
 
@@ -47,6 +111,7 @@ export async function addToQueue(formData: FormData) {
   const { error } = await supabase.from("barber_queue").insert({
     shop_id: shopId,
     guest_name: guestName,
+    guest_phone: guestPhone,
     service_id: serviceId,
     preferred_barber_id: preferredBarberId,
     position: nextPosition,
@@ -58,11 +123,10 @@ export async function addToQueue(formData: FormData) {
   revalidateQueue();
 }
 
-/* ------------------------------------------------------------------ */
-/*  Start service — move from 'waiting' to 'in_chair'                */
-/* ------------------------------------------------------------------ */
 export async function startService(queueEntryId: string, barberId: string) {
-  const { supabase, shopId } = await getShopScopedClient();
+  const { supabase, shopId, shopName } = await getShopScopedClient();
+
+  const entry = await fetchQueueEntry(supabase, shopId, queueEntryId);
 
   const { error } = await supabase
     .from("barber_queue")
@@ -77,12 +141,23 @@ export async function startService(queueEntryId: string, barberId: string) {
     .eq("status", "waiting");
 
   if (error) throw new Error(error.message);
+
+  if (entry?.guest_phone?.trim() && !entry.next_sms_sent_at) {
+    const body = queueSmsBody("ready", {
+      clientName: entry.guest_name ?? "there",
+      shopName,
+    });
+    await sendBarberQueueSms(entry.guest_phone, body);
+    await supabase
+      .from("barber_queue")
+      .update({ next_sms_sent_at: new Date().toISOString() })
+      .eq("id", queueEntryId)
+      .eq("shop_id", shopId);
+  }
+
   revalidateQueue();
 }
 
-/* ------------------------------------------------------------------ */
-/*  Complete service — mark done and record payment method            */
-/* ------------------------------------------------------------------ */
 export async function completeService(
   queueEntryId: string,
   paymentMethod: "card" | "cash" | "other",
@@ -128,9 +203,6 @@ export async function completeService(
   revalidateQueue();
 }
 
-/* ------------------------------------------------------------------ */
-/*  Mark as no-show / left                                            */
-/* ------------------------------------------------------------------ */
 export async function removeFromQueue(
   queueEntryId: string,
   reason: "no_show" | "left" = "left"

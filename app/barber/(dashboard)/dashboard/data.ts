@@ -7,6 +7,7 @@ export type QueueEntry = {
   id: string;
   shop_id: string;
   guest_name: string | null;
+  guest_phone: string | null;
   service_id: string | null;
   preferred_barber_id: string | null;
   assigned_barber_id: string | null;
@@ -16,6 +17,7 @@ export type QueueEntry = {
   amount_paid_minor: number | null;
   joined_at: string;
   called_at: string | null;
+  next_sms_sent_at: string | null;
   started_at: string | null;
   completed_at: string | null;
   estimated_wait_minutes: number | null;

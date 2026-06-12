@@ -2,7 +2,15 @@
 
 import { useTransition, useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@core/supabase/client";
-import { startService, completeService, removeFromQueue, addToQueue } from "./actions";
+import { phoneHref, queueSmsBody } from "@modules/barber/lib/queue-sms-messages";
+import {
+  startService,
+  completeService,
+  removeFromQueue,
+  addToQueue,
+  notifyQueueCustomer,
+  sendQueueCustomMessage,
+} from "./actions";
 import type { QueueEntry, BarberMember, BarberService } from "./data";
 
 /* ------------------------------------------------------------------ */
@@ -10,6 +18,7 @@ import type { QueueEntry, BarberMember, BarberService } from "./data";
 /* ------------------------------------------------------------------ */
 type Props = {
   shopId: string;
+  shopName: string;
   queue: QueueEntry[];
   members: BarberMember[];
   services: BarberService[];
@@ -107,7 +116,7 @@ function useRealtimeQueue(shopId: string, serverQueue: QueueEntry[]) {
 /* ------------------------------------------------------------------ */
 /*  Main component                                                    */
 /* ------------------------------------------------------------------ */
-export function LiveQueueView({ shopId, queue, members, services, currentMemberId, stats }: Props) {
+export function LiveQueueView({ shopId, shopName, queue, members, services, currentMemberId, stats }: Props) {
   const liveQueue = useRealtimeQueue(shopId, queue);
 
   const waiting = liveQueue.filter((e) => e.status === "waiting");
@@ -139,6 +148,7 @@ export function LiveQueueView({ shopId, queue, members, services, currentMemberI
                 entry={entry}
                 members={members}
                 services={services}
+                shopName={shopName}
               />
             ))}
           </div>
@@ -162,6 +172,7 @@ export function LiveQueueView({ shopId, queue, members, services, currentMemberI
                 members={members}
                 services={services}
                 currentMemberId={currentMemberId}
+                shopName={shopName}
               />
             ))}
           </div>
@@ -190,6 +201,106 @@ function StatCard({ label, value, accent }: { label: string; value: string | num
 }
 
 /* ------------------------------------------------------------------ */
+/*  Phone + SMS actions                                               */
+/* ------------------------------------------------------------------ */
+function QueuePhoneActions({
+  phone,
+  guestName,
+  shopName,
+  entryId,
+  notified,
+}: {
+  phone: string;
+  guestName: string;
+  shopName: string;
+  entryId: string;
+  notified?: boolean;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [showMessage, setShowMessage] = useState(false);
+  const [customMessage, setCustomMessage] = useState("");
+
+  const smsPreview = queueSmsBody("next", { clientName: guestName, shopName });
+  const { tel, sms } = phoneHref(phone, smsPreview);
+
+  function handleNotify() {
+    setError(null);
+    startTransition(async () => {
+      const result = await notifyQueueCustomer(entryId, "next");
+      if (result.error) setError(result.error);
+    });
+  }
+
+  function handleSendCustom() {
+    setError(null);
+    startTransition(async () => {
+      const result = await sendQueueCustomMessage(entryId, customMessage);
+      if (result.error) setError(result.error);
+      else {
+        setShowMessage(false);
+        setCustomMessage("");
+      }
+    });
+  }
+
+  return (
+    <div className="mt-1 space-y-1">
+      <p className="text-xs text-muted font-mono">{phone}</p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <a
+          href={tel}
+          className="rounded border border-border px-2 py-0.5 text-[11px] font-medium text-foreground hover:bg-canvas"
+        >
+          Call
+        </a>
+        <a
+          href={sms}
+          className="rounded border border-border px-2 py-0.5 text-[11px] font-medium text-foreground hover:bg-canvas"
+        >
+          SMS app
+        </a>
+        <button
+          type="button"
+          onClick={handleNotify}
+          disabled={isPending}
+          className="rounded bg-violet-600 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+        >
+          {isPending ? "Sending…" : notified ? "Re-notify" : "Notify next"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowMessage((v) => !v)}
+          className="rounded border border-border px-2 py-0.5 text-[11px] font-medium text-muted hover:text-foreground"
+        >
+          Message
+        </button>
+      </div>
+      {showMessage && (
+        <div className="flex gap-2 pt-1">
+          <input
+            type="text"
+            value={customMessage}
+            onChange={(e) => setCustomMessage(e.target.value)}
+            placeholder="Custom SMS message…"
+            className="flex-1 rounded border border-border bg-canvas px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            onClick={handleSendCustom}
+            disabled={isPending || !customMessage.trim()}
+            className="rounded bg-blue-600 px-2 py-1 text-xs text-white disabled:opacity-50"
+          >
+            Send
+          </button>
+        </div>
+      )}
+      {error && <p className="text-[11px] text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Add walk-in form                                                  */
 /* ------------------------------------------------------------------ */
 function AddWalkInForm({
@@ -207,13 +318,23 @@ function AddWalkInForm({
 
   return (
     <form action={handleSubmit} className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4">
-      <div className="flex-1 min-w-[140px]">
+      <div className="flex-1 min-w-[120px]">
         <label htmlFor="guest_name" className="block text-xs text-muted mb-1">Name</label>
         <input
           id="guest_name"
           name="guest_name"
           type="text"
           placeholder="Walk-in"
+          className="w-full rounded border border-border bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+      </div>
+      <div className="min-w-[120px]">
+        <label htmlFor="guest_phone" className="block text-xs text-muted mb-1">Phone</label>
+        <input
+          id="guest_phone"
+          name="guest_phone"
+          type="tel"
+          placeholder="07..."
           className="w-full rounded border border-border bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
@@ -269,12 +390,14 @@ function WaitingCard({
   members,
   services,
   currentMemberId,
+  shopName,
 }: {
   entry: QueueEntry;
   position: number;
   members: BarberMember[];
   services: BarberService[];
   currentMemberId: string;
+  shopName: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const service = services.find((s) => s.id === entry.service_id);
@@ -299,9 +422,21 @@ function WaitingCard({
           {service ? service.name : "Any service"}
           {preferred ? ` · Prefers ${preferred.display_name ?? "—"}` : ""}
           {" · "}{waitTime(entry.joined_at)}
+          {entry.next_sms_sent_at ? " · Notified" : ""}
         </p>
+        {entry.guest_phone ? (
+          <QueuePhoneActions
+            phone={entry.guest_phone}
+            guestName={entry.guest_name ?? "there"}
+            shopName={shopName}
+            entryId={entry.id}
+            notified={!!entry.next_sms_sent_at}
+          />
+        ) : (
+          <p className="text-[11px] text-muted/70 mt-0.5">No phone — can&apos;t SMS</p>
+        )}
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
         <button
           onClick={handleStart}
           disabled={isPending}
@@ -328,10 +463,12 @@ function InChairCard({
   entry,
   members,
   services,
+  shopName,
 }: {
   entry: QueueEntry;
   members: BarberMember[];
   services: BarberService[];
+  shopName: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">("card");
@@ -364,6 +501,15 @@ function InChairCard({
             {service ? ` · ${service.name}` : ""}
             {elapsed > 0 ? ` · ${elapsed} min${elapsed !== 1 ? "s" : ""} elapsed` : ""}
           </p>
+          {entry.guest_phone && (
+            <QueuePhoneActions
+              phone={entry.guest_phone}
+              guestName={entry.guest_name ?? "there"}
+              shopName={shopName}
+              entryId={entry.id}
+              notified={!!entry.next_sms_sent_at}
+            />
+          )}
         </div>
         {price > 0 && (
           <span className="text-sm font-semibold tabular-nums">{formatPrice(price)}</span>

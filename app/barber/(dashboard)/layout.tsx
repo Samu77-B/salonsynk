@@ -36,6 +36,9 @@ export default async function BarberDashboardLayout({
           <Link href="/barber/dashboard" className="text-muted hover:text-foreground">
             Queue
           </Link>
+          <Link href="/barber/appointments" className="text-muted hover:text-foreground">
+            Bookings
+          </Link>
           {isOwner && (
             <Link href="/barber/team" className="text-muted hover:text-foreground">
               Team
