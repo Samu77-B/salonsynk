@@ -60,6 +60,7 @@ async function linkOwnerByEmail(
       role: "owner",
       display_name: displayName,
       is_active: true,
+      is_accepting_walk_ins: false,
     },
     { onConflict: "shop_id,user_id" }
   );

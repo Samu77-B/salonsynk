@@ -95,6 +95,77 @@ export function AdminBarberMemberRow({ shopId, member }: { shopId: string; membe
     router.refresh();
   }
 
+  async function handleOwnerQueueToggle(checked: boolean) {
+    setAccepting(checked);
+    setLoading(true);
+    setError(null);
+    const result = await adminUpdateBarberMember(shopId, member.id, {
+      is_accepting_walk_ins: checked,
+    });
+    setLoading(false);
+    if (result.error) {
+      setError(result.error);
+      setAccepting(!checked);
+      return;
+    }
+    router.refresh();
+  }
+
+  if (member.role === "owner") {
+    return (
+      <li className="flex flex-wrap items-start gap-3 rounded-lg border border-border p-3">
+        <div className="relative shrink-0">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              className="h-14 w-14 rounded-full object-cover border border-border"
+            />
+          ) : (
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/20 text-lg font-semibold text-muted border border-border">
+              {(member.display_name ?? "?").charAt(0).toUpperCase()}
+            </div>
+          )}
+          <label className="absolute -bottom-1 -right-1 cursor-pointer rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium text-background">
+            Photo
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              className="sr-only"
+              onChange={handlePhotoChange}
+              disabled={loading}
+            />
+          </label>
+        </div>
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{member.display_name ?? "Owner"}</span>
+            <span className="text-muted capitalize text-xs">(owner)</span>
+            {!accepting && (
+              <span className="text-xs text-amber-400">Hidden from queue</span>
+            )}
+          </div>
+          {member.email && <p className="text-xs text-muted truncate">{member.email}</p>}
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={accepting}
+              onChange={(e) => handleOwnerQueueToggle(e.target.checked)}
+              disabled={loading}
+            />
+            Show on choose your barber page
+          </label>
+          <p className="text-xs text-muted">
+            Turn on if the owner also takes walk-in clients and should appear in the picker.
+          </p>
+          {error && <p className="text-xs text-red-400">{error}</p>}
+        </div>
+      </li>
+    );
+  }
+
   return (
     <li className="flex flex-wrap items-start gap-3 rounded-lg border border-border p-3">
       <div className="relative shrink-0">
