@@ -95,7 +95,7 @@ export function AdminBarberMemberRow({ shopId, member }: { shopId: string; membe
     router.refresh();
   }
 
-  async function handleOwnerQueueToggle(checked: boolean) {
+  async function handleQueueVisibilityToggle(checked: boolean) {
     setAccepting(checked);
     setLoading(true);
     setError(null);
@@ -110,6 +110,21 @@ export function AdminBarberMemberRow({ shopId, member }: { shopId: string; membe
     }
     router.refresh();
   }
+
+  const queueVisibilityControl = (
+    <label className="flex items-center gap-2 text-sm cursor-pointer">
+      <input
+        type="checkbox"
+        checked={accepting}
+        onChange={(e) => handleQueueVisibilityToggle(e.target.checked)}
+        disabled={loading}
+        className="rounded border-border"
+      />
+      <span>
+        Show on <span className="font-medium">Choose your barber</span> page
+      </span>
+    </label>
+  );
 
   if (member.role === "owner") {
     return (
@@ -148,17 +163,9 @@ export function AdminBarberMemberRow({ shopId, member }: { shopId: string; membe
             )}
           </div>
           {member.email && <p className="text-xs text-muted truncate">{member.email}</p>}
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              checked={accepting}
-              onChange={(e) => handleOwnerQueueToggle(e.target.checked)}
-              disabled={loading}
-            />
-            Show on choose your barber page
-          </label>
+          {queueVisibilityControl}
           <p className="text-xs text-muted">
-            Turn on if the owner also takes walk-in clients and should appear in the picker.
+            Uncheck to hide the owner from the public barber picker (they can still manage the shop).
           </p>
           {error && <p className="text-xs text-red-400">{error}</p>}
         </div>
@@ -216,8 +223,9 @@ export function AdminBarberMemberRow({ shopId, member }: { shopId: string; membe
                 type="checkbox"
                 checked={accepting}
                 onChange={(e) => setAccepting(e.target.checked)}
+                className="rounded border-border"
               />
-              Accepting walk-ins (shown on queue page)
+              Show on Choose your barber page
             </label>
             <div className="flex gap-2 sm:col-span-2">
               <button
@@ -245,29 +253,32 @@ export function AdminBarberMemberRow({ shopId, member }: { shopId: string; membe
               {member.chair_number != null && (
                 <span className="text-xs text-muted">Chair {member.chair_number}</span>
               )}
-              {!member.is_accepting_walk_ins && (
-                <span className="text-xs text-amber-400">Not on queue</span>
+              {!accepting && (
+                <span className="text-xs text-amber-400">Hidden from queue</span>
               )}
             </div>
             {member.email && <p className="text-xs text-muted truncate">{member.email}</p>}
             {member.role === "barber" && (
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => setEditing(true)}
-                  className="text-xs text-accent hover:underline"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRemove}
-                  disabled={loading}
-                  className="text-xs text-red-400 hover:underline disabled:opacity-50"
-                >
-                  Remove
-                </button>
-              </div>
+              <>
+                {queueVisibilityControl}
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    className="text-xs text-accent hover:underline"
+                  >
+                    Edit name &amp; chair
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemove}
+                    disabled={loading}
+                    className="text-xs text-red-400 hover:underline disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </>
             )}
           </>
         )}

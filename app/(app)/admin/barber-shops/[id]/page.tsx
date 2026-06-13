@@ -147,8 +147,10 @@ export default async function AdminBarberShopDetailPage({
       <section className="rounded-lg border border-border p-4 space-y-4">
         <h2 className="font-semibold">Team</h2>
         <p className="text-sm text-muted">
-          Add barbers with a name and photo so walk-in clients can choose who they want on the
-          public queue page — or pick next available.
+          Use the checkbox on each person to show or hide them on the public{" "}
+          <span className="font-medium text-foreground">Choose your barber</span> page. Click{" "}
+          <span className="font-medium text-foreground">Edit name &amp; chair</span> to change their
+          display name or chair number.
         </p>
         {(members ?? []).length === 0 ? (
           <p className="text-sm text-muted">No team members yet.</p>

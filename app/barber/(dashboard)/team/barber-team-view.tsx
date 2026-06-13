@@ -105,29 +105,43 @@ function MemberRow({ member }: { member: Member }) {
     }
   }
 
-  if (member.role === "owner") {
-    async function handleOwnerQueueToggle(checked: boolean) {
-      setAccepting(checked);
-      setLoading(true);
-      setError(null);
-      try {
-        const result = await updateBarberTeamMember(member.id, {
-          is_accepting_walk_ins: checked,
-        });
-        if (result.error) {
-          setError(result.error);
-          setAccepting(!checked);
-          return;
-        }
-        router.refresh();
-      } catch {
-        setError("Could not update. Please try again.");
+  async function handleQueueVisibilityToggle(checked: boolean) {
+    setAccepting(checked);
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await updateBarberTeamMember(member.id, {
+        is_accepting_walk_ins: checked,
+      });
+      if (result.error) {
+        setError(result.error);
         setAccepting(!checked);
-      } finally {
-        setLoading(false);
+        return;
       }
+      router.refresh();
+    } catch {
+      setError("Could not update. Please try again.");
+      setAccepting(!checked);
+    } finally {
+      setLoading(false);
     }
+  }
 
+  const queueVisibilityControl = (
+    <label className="flex items-center gap-2 text-sm cursor-pointer">
+      <input
+        type="checkbox"
+        checked={accepting}
+        onChange={(e) => handleQueueVisibilityToggle(e.target.checked)}
+        disabled={loading}
+      />
+      <span>
+        Show on <span className="font-medium">Choose your barber</span> page
+      </span>
+    </label>
+  );
+
+  if (member.role === "owner") {
     return (
       <li className="flex flex-wrap items-start gap-3 rounded-lg border border-border p-3">
         <div className="relative shrink-0">
@@ -163,17 +177,9 @@ function MemberRow({ member }: { member: Member }) {
             )}
           </div>
           {member.email && <p className="text-xs text-muted">{member.email}</p>}
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              checked={accepting}
-              onChange={(e) => handleOwnerQueueToggle(e.target.checked)}
-              disabled={loading}
-            />
-            Show on choose your barber page
-          </label>
+          {queueVisibilityControl}
           <p className="text-xs text-muted">
-            Turn on if you also take walk-in clients and want customers to pick you.
+            Uncheck to hide yourself from the public barber picker.
           </p>
           {error && <p className="text-xs text-red-400">{error}</p>}
         </div>
@@ -230,7 +236,7 @@ function MemberRow({ member }: { member: Member }) {
                 checked={accepting}
                 onChange={(e) => setAccepting(e.target.checked)}
               />
-              Show on walk-in queue page
+              Show on Choose your barber page
             </label>
             <div className="flex gap-2 sm:col-span-2">
               <button
@@ -257,18 +263,19 @@ function MemberRow({ member }: { member: Member }) {
               {member.chair_number != null && (
                 <span className="text-xs text-muted">Chair {member.chair_number}</span>
               )}
-              {!member.is_accepting_walk_ins && (
+              {!accepting && (
                 <span className="text-xs text-amber-400">Hidden from queue</span>
               )}
             </div>
             {member.email && <p className="text-xs text-muted">{member.email}</p>}
+            {queueVisibilityControl}
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={() => setEditing(true)}
                 className="text-xs text-blue-400 hover:underline"
               >
-                Edit
+                Edit name &amp; chair
               </button>
               <button
                 type="button"

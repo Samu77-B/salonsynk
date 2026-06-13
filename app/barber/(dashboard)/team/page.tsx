@@ -61,11 +61,8 @@ export default async function BarberTeamPage() {
           </Link>
           <h1 className="text-xl font-bold mt-1">Team</h1>
           <p className="text-sm text-muted mt-1">
-            Barbers shown on your{" "}
-            <a href={joinUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-              public queue page
-            </a>
-            .
+            Use the checkbox on each person to show or hide them on the public{" "}
+            <span className="font-medium text-foreground">Choose your barber</span> page.
           </p>
         </div>
       </div>
