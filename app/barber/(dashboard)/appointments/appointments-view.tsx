@@ -199,7 +199,9 @@ export function AppointmentsView({ date, appointments, members, services }: Prop
                   <p className="text-xs text-muted mt-1">
                     {barber?.display_name ?? "Barber"}
                     {service ? ` · ${service.name}` : ""}
-                    {service ? ` · ${formatPrice(service.price_minor)}` : ""}
+                    {service && service.price_minor > 0
+                      ? ` · ${formatPrice(service.price_minor)}`
+                      : ""}
                   </p>
                   {phone && links && (
                     <div className="flex gap-2 mt-2">

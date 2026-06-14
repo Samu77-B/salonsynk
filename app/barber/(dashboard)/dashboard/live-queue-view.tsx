@@ -41,6 +41,10 @@ function formatPrice(minor: number): string {
   return `£${(minor / 100).toFixed(2)}`;
 }
 
+function serviceOptionLabel(name: string, priceMinor: number): string {
+  return priceMinor > 0 ? `${name} — ${formatPrice(priceMinor)}` : name;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Realtime hook                                                     */
 /* ------------------------------------------------------------------ */
@@ -369,7 +373,7 @@ function AddWalkInForm({
           <option value="">Any</option>
           {services.map((s) => (
             <option key={s.id} value={s.id}>
-              {s.name} — {formatPrice(s.price_minor)}
+              {serviceOptionLabel(s.name, s.price_minor)}
             </option>
           ))}
         </select>

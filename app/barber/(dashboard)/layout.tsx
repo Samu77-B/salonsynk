@@ -40,9 +40,14 @@ export default async function BarberDashboardLayout({
             Bookings
           </Link>
           {isOwner && (
-            <Link href="/barber/team" className="text-muted hover:text-foreground">
-              Team
-            </Link>
+            <>
+              <Link href="/barber/services" className="text-muted hover:text-foreground">
+                Services
+              </Link>
+              <Link href="/barber/team" className="text-muted hover:text-foreground">
+                Team
+              </Link>
+            </>
           )}
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm text-muted">
