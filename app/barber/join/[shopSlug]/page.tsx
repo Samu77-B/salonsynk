@@ -48,7 +48,7 @@ export default async function PublicJoinQueuePage({
 
     supabase
       .from("barber_members")
-      .select("id, display_name, chair_number, avatar_url")
+      .select("id, display_name, chair_number, avatar_url, role")
       .eq("shop_id", shop.id)
       .eq("is_active", true)
       .eq("is_accepting_walk_ins", true)
@@ -69,6 +69,7 @@ export default async function PublicJoinQueuePage({
     display_name: string | null;
     chair_number: number | null;
     avatar_url: string | null;
+    role: string;
   }[];
   const queueLength = queueCountResult.count ?? 0;
 

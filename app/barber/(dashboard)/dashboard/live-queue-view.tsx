@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@core/supabase/client";
 import { phoneHref, queueSmsBody } from "@modules/barber/lib/queue-sms-messages";
 import {
@@ -117,13 +118,30 @@ function useRealtimeQueue(shopId: string, serverQueue: QueueEntry[]) {
 /*  Main component                                                    */
 /* ------------------------------------------------------------------ */
 export function LiveQueueView({ shopId, shopName, queue, members, services, currentMemberId, stats }: Props) {
+  const router = useRouter();
   const liveQueue = useRealtimeQueue(shopId, queue);
+
+  // Fallback when Realtime is not enabled or RLS blocks websocket updates.
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), 12_000);
+    return () => clearInterval(id);
+  }, [router]);
 
   const waiting = liveQueue.filter((e) => e.status === "waiting");
   const inChair = liveQueue.filter((e) => e.status === "in_chair");
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-muted">Auto-refreshes every 12 seconds</p>
+        <button
+          type="button"
+          onClick={() => router.refresh()}
+          className="text-xs text-muted hover:text-foreground border border-border rounded px-2 py-1"
+        >
+          Refresh now
+        </button>
+      </div>
       {/* Stats bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="In Queue" value={waiting.length} accent="blue" />

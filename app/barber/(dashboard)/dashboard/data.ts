@@ -1,6 +1,5 @@
 import { createClient } from "@core/supabase/server";
 import { createAdminClient } from "@core/supabase/admin";
-import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
 import { resolveActingBarberId } from "@modules/barber/lib/resolve-barber-id";
 
@@ -45,13 +44,15 @@ export async function getBarberDashboardData() {
   const context = await getCurrentUserShop();
   if (!context) return null;
 
-  const isSuperAdmin = await getIsSuperAdmin();
-  const userSb = await createClient();
-  const supabase = isSuperAdmin
-    ? (() => { try { return createAdminClient(); } catch { return userSb; } })()
-    : userSb;
-
   const shopId = context.shop.id;
+
+  // Use admin client for reliable reads (public joins bypass RLS; members still need to see them).
+  let supabase;
+  try {
+    supabase = createAdminClient();
+  } catch {
+    supabase = await createClient();
+  }
 
   const [queueResult, membersResult, servicesResult, todayStatsResult] =
     await Promise.all([

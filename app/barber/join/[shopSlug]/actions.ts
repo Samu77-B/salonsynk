@@ -61,7 +61,7 @@ export async function publicJoinQueue(
     .eq("status", "waiting")
     .order("position", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   const nextPosition = (maxPos?.position ?? 0) + 1;
 
