@@ -11,6 +11,10 @@ export type BarberBrandingInput = {
   company_name?: string;
   /** When false, hide the shop title on the public join queue page (logo only). */
   show_title_on_queue?: boolean;
+  /** When true, customers only see "Next available" — no named barber choice. */
+  next_available_only?: boolean;
+  /** When false, hide the service dropdown on the public join queue page. */
+  show_services_on_queue?: boolean;
 };
 
 const LOGO_BUCKET = "team-avatars";
@@ -230,6 +234,56 @@ export async function adminAddBarberShopOwner(
   const linkResult = await linkOwnerByEmail(admin, shopId, ownerEmail);
   if (linkResult.error) return { error: linkResult.error };
 
+  revalidateBarberShop(shopId);
+  return {};
+}
+
+/** Create owner with email + password directly. No email verification. */
+export async function adminCreateBarberOwnerWithPassword(
+  shopId: string,
+  email: string,
+  password: string,
+  displayName?: string
+): Promise<{ error?: string }> {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) return { error: "Email is required" };
+  if (!password || password.length < 6) return { error: "Password must be at least 6 characters" };
+
+  const name = displayName?.trim() || trimmed.split("@")[0] || "Owner";
+
+  const { data: userData, error: createError } = await admin.auth.admin.createUser({
+    email: trimmed,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: name },
+  });
+
+  if (createError) {
+    const msg = createError.message?.toLowerCase() ?? "";
+    if (msg.includes("already") || msg.includes("registered")) {
+      return { error: "That email is already registered. Use Add owner instead." };
+    }
+    return { error: createError.message };
+  }
+
+  const userId = userData?.user?.id;
+  if (!userId) return { error: "User created but could not add as owner." };
+
+  const { error: memberError } = await admin.from("barber_members").upsert(
+    {
+      shop_id: shopId,
+      user_id: userId,
+      role: "owner",
+      display_name: name,
+      is_active: true,
+      is_accepting_walk_ins: false,
+    },
+    { onConflict: "shop_id,user_id" }
+  );
+
+  if (memberError) return { error: memberError.message };
   revalidateBarberShop(shopId);
   return {};
 }

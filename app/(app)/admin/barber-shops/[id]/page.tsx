@@ -140,6 +140,8 @@ export default async function AdminBarberShopDetailPage({
             primary_color: brandingStr("primary_color"),
             company_name: brandingStr("company_name") || shop.name,
             show_title_on_queue: branding.show_title_on_queue !== false,
+            next_available_only: branding.next_available_only === true,
+            show_services_on_queue: branding.show_services_on_queue !== false,
           }}
         />
       </section>

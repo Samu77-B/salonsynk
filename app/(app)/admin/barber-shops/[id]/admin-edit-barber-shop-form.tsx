@@ -22,6 +22,8 @@ export function AdminEditBarberShopForm({
     primary_color: string;
     company_name: string;
     show_title_on_queue: boolean;
+    next_available_only: boolean;
+    show_services_on_queue: boolean;
   };
 }) {
   const router = useRouter();
@@ -31,6 +33,8 @@ export function AdminEditBarberShopForm({
   const [primaryColor, setPrimaryColor] = useState(initialBranding.primary_color);
   const [companyName, setCompanyName] = useState(initialBranding.company_name);
   const [showTitleOnQueue, setShowTitleOnQueue] = useState(initialBranding.show_title_on_queue);
+  const [nextAvailableOnly, setNextAvailableOnly] = useState(initialBranding.next_available_only);
+  const [showServicesOnQueue, setShowServicesOnQueue] = useState(initialBranding.show_services_on_queue);
   const [saveMsg, setSaveMsg] = useState<"saved" | "error" | null>(null);
   const [saveErrorText, setSaveErrorText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,6 +47,8 @@ export function AdminEditBarberShopForm({
     setLoading(true);
     const branding: BarberBrandingInput = {
       show_title_on_queue: showTitleOnQueue,
+      next_available_only: nextAvailableOnly,
+      show_services_on_queue: showServicesOnQueue,
     };
     if (logoUrl.trim()) branding.logo_url = logoUrl.trim();
     if (primaryColor.trim()) branding.primary_color = primaryColor.trim();
@@ -140,6 +146,30 @@ export function AdminEditBarberShopForm({
       </label>
       <p className="text-xs text-muted -mt-2">
         Turn off to show only your logo (useful if the logo already includes the shop name).
+      </p>
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={nextAvailableOnly}
+          onChange={(e) => setNextAvailableOnly(e.target.checked)}
+          className="rounded border-border"
+        />
+        Next available barber only on join queue
+      </label>
+      <p className="text-xs text-muted -mt-2">
+        Customers won&apos;t pick a named barber — they&apos;ll only see &quot;Next available barber&quot;.
+      </p>
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={showServicesOnQueue}
+          onChange={(e) => setShowServicesOnQueue(e.target.checked)}
+          className="rounded border-border"
+        />
+        Show service dropdown on join queue
+      </label>
+      <p className="text-xs text-muted -mt-2">
+        Turn off if customers should only enter their name and phone (no service selection).
       </p>
       <div>
         <label htmlFor="primaryColor" className="block text-sm font-medium mb-1">

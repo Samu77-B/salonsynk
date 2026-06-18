@@ -17,6 +17,10 @@ type Props = {
   queueLength: number;
   barbers: BarberOption[];
   services: ServiceOption[];
+  /** When true, show only "Next available" — no individual barber tiles. */
+  nextAvailableOnly?: boolean;
+  /** When false, hide the service dropdown on the join form. */
+  showServicesOnQueue?: boolean;
 };
 
 function formatPrice(minor: number): string {
@@ -45,7 +49,15 @@ function BarberAvatar({ barber, size = "md" }: { barber: BarberOption; size?: "s
   );
 }
 
-export function JoinQueueForm({ shopId, shopName, queueLength, barbers, services }: Props) {
+export function JoinQueueForm({
+  shopId,
+  shopName,
+  queueLength,
+  barbers,
+  services,
+  nextAvailableOnly = false,
+  showServicesOnQueue = true,
+}: Props) {
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<JoinQueueResult | null>(null);
   const [preferredBarberId, setPreferredBarberId] = useState("");
@@ -145,7 +157,7 @@ export function JoinQueueForm({ shopId, shopName, queueLength, barbers, services
           />
         </div>
 
-        {services.length > 0 && (
+        {showServicesOnQueue && services.length > 0 && (
           <div>
             <label htmlFor="service_id" className="block text-sm font-medium mb-1">Service</label>
             <select
@@ -163,47 +175,66 @@ export function JoinQueueForm({ shopId, shopName, queueLength, barbers, services
           </div>
         )}
 
-        {barbers.length > 0 && (
+        {(nextAvailableOnly || barbers.length > 0) && (
           <fieldset>
-            <legend className="block text-sm font-medium mb-2">Choose your barber</legend>
-            <input type="hidden" name="preferred_barber_id" value={preferredBarberId} />
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <button
-                type="button"
-                onClick={() => setPreferredBarberId("")}
-                className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors ${
-                  preferredBarberId === ""
-                    ? "border-accent bg-accent/10 ring-2 ring-accent"
-                    : "border-border hover:border-accent/50"
-                }`}
-              >
+            <legend className="block text-sm font-medium mb-2">
+              {nextAvailableOnly ? "Barber" : "Choose your barber"}
+            </legend>
+            {nextAvailableOnly ? (
+              <>
+                <input type="hidden" name="preferred_barber_id" value="" />
+              <div className="flex flex-col items-center gap-2 rounded-xl border border-accent bg-accent/10 ring-2 ring-accent p-4 text-center">
                 <span className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/20 text-2xl border border-border">
                   ✦
                 </span>
-                <span className="text-xs font-medium leading-tight">Next available</span>
-              </button>
-              {barbers.map((b) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => setPreferredBarberId(b.id)}
-                  className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors ${
-                    preferredBarberId === b.id
-                      ? "border-accent bg-accent/10 ring-2 ring-accent"
-                      : "border-border hover:border-accent/50"
-                  }`}
-                >
-                  <BarberAvatar barber={b} />
-                  <span className="text-xs font-medium leading-tight line-clamp-2">
-                    {b.display_name ?? "Barber"}
-                    {b.chair_number ? ` · Ch.${b.chair_number}` : ""}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted mt-2">
-              Pick someone you know, or tap their photo. Otherwise we&apos;ll assign the next available barber.
-            </p>
+                <span className="text-sm font-medium">Next available barber</span>
+                <p className="text-xs text-muted">
+                  We&apos;ll assign whoever is free first.
+                </p>
+              </div>
+              </>
+            ) : (
+              <>
+                <input type="hidden" name="preferred_barber_id" value={preferredBarberId} />
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <button
+                    type="button"
+                    onClick={() => setPreferredBarberId("")}
+                    className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors ${
+                      preferredBarberId === ""
+                        ? "border-accent bg-accent/10 ring-2 ring-accent"
+                        : "border-border hover:border-accent/50"
+                    }`}
+                  >
+                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/20 text-2xl border border-border">
+                      ✦
+                    </span>
+                    <span className="text-xs font-medium leading-tight">Next available</span>
+                  </button>
+                  {barbers.map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setPreferredBarberId(b.id)}
+                      className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors ${
+                        preferredBarberId === b.id
+                          ? "border-accent bg-accent/10 ring-2 ring-accent"
+                          : "border-border hover:border-accent/50"
+                      }`}
+                    >
+                      <BarberAvatar barber={b} />
+                      <span className="text-xs font-medium leading-tight line-clamp-2">
+                        {b.display_name ?? "Barber"}
+                        {b.chair_number ? ` · Ch.${b.chair_number}` : ""}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted mt-2">
+                  Pick someone you know, or tap their photo. Otherwise we&apos;ll assign the next available barber.
+                </p>
+              </>
+            )}
           </fieldset>
         )}
 

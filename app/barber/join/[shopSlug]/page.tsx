@@ -36,6 +36,8 @@ export default async function PublicJoinQueuePage({
   const primaryColor = brandingStr("primary_color").trim();
   const logoUrl = brandingStr("logo_url").trim();
   const showTitle = branding.show_title_on_queue !== false;
+  const nextAvailableOnly = branding.next_available_only === true;
+  const showServicesOnQueue = branding.show_services_on_queue !== false;
 
   const [servicesResult, barbersResult, queueCountResult] = await Promise.all([
     supabase
@@ -111,6 +113,8 @@ export default async function PublicJoinQueuePage({
           queueLength={queueLength}
           barbers={JSON.parse(JSON.stringify(barbers))}
           services={JSON.parse(JSON.stringify(services))}
+          nextAvailableOnly={nextAvailableOnly}
+          showServicesOnQueue={showServicesOnQueue}
         />
       </div>
     </div>
