@@ -100,6 +100,16 @@ export function JoinQueueForm({
             Please stay nearby. We&apos;ll call your name when it&apos;s your turn.
           </p>
         )}
+        {result.smsQueued && result.position !== 1 && (
+          <p className="text-sm text-muted">
+            We&apos;ll text you when you&apos;re next in line.
+          </p>
+        )}
+        {result.smsQueued && result.position === 1 && (
+          <p className="text-sm text-muted">
+            Check your phone — we&apos;ve texted you that you&apos;re up next.
+          </p>
+        )}
         <button
           onClick={() => {
             setResult(null);
@@ -147,14 +157,25 @@ export function JoinQueueForm({
         </div>
 
         <div>
-          <label htmlFor="guest_phone" className="block text-sm font-medium mb-1">Phone (optional)</label>
+          <label htmlFor="guest_phone" className="block text-sm font-medium mb-1">
+            Mobile number
+          </label>
+          <p className="text-xs text-muted mb-2">
+            Add your mobile so we can text you when it&apos;s your turn.
+          </p>
           <input
             id="guest_phone"
             name="guest_phone"
             type="tel"
+            inputMode="tel"
+            autoComplete="tel"
             placeholder="07..."
             className="w-full rounded-lg border border-border bg-canvas px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
           />
+          <p className="text-xs text-muted mt-2">
+            We only use your number for queue text alerts. We don&apos;t share it with anyone
+            else or use it for marketing.
+          </p>
         </div>
 
         {showServicesOnQueue && services.length > 0 && (

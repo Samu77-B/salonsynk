@@ -1,11 +1,14 @@
 "use server";
 
 import { createAdminClient } from "@core/supabase/admin";
+import { autoNotifyIfQueueFront } from "@modules/barber/lib/queue-auto-notify";
 
 export type JoinQueueResult = {
   success: boolean;
   position?: number;
   estimatedWait?: number;
+  /** True when the customer entered a mobile (may receive queue SMS). */
+  smsQueued?: boolean;
   error?: string;
 };
 
@@ -33,7 +36,7 @@ export async function publicJoinQueue(
   // Verify shop exists
   const { data: shop } = await supabase
     .from("barber_shops")
-    .select("id, max_queue_size")
+    .select("id, name, max_queue_size")
     .eq("id", shopId)
     .single();
 
@@ -69,25 +72,35 @@ export async function publicJoinQueue(
   const avgServiceMinutes = 20;
   const estimatedWait = currentSize * avgServiceMinutes;
 
-  const { error } = await supabase.from("barber_queue").insert({
-    shop_id: shopId,
-    guest_name: guestName,
-    guest_phone: guestPhone,
-    service_id: serviceId,
-    preferred_barber_id: preferredBarberId,
-    position: nextPosition,
-    status: "waiting",
-    estimated_wait_minutes: estimatedWait,
-    joined_at: new Date().toISOString(),
-  });
+  const { data: inserted, error } = await supabase
+    .from("barber_queue")
+    .insert({
+      shop_id: shopId,
+      guest_name: guestName,
+      guest_phone: guestPhone,
+      service_id: serviceId,
+      preferred_barber_id: preferredBarberId,
+      position: nextPosition,
+      status: "waiting",
+      estimated_wait_minutes: estimatedWait,
+      joined_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
 
   if (error) {
     return { success: false, error: "Could not join the queue. Please try again." };
+  }
+
+  if (inserted?.id && guestPhone) {
+    const displayName = shop.name?.trim() || "the barber shop";
+    await autoNotifyIfQueueFront(supabase, shopId, displayName, inserted.id);
   }
 
   return {
     success: true,
     position: nextPosition,
     estimatedWait,
+    smsQueued: !!guestPhone,
   };
 }
