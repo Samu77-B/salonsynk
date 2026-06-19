@@ -6,7 +6,7 @@ import { createAdminClient } from "@core/supabase/admin";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
 import { resolveActingBarberId } from "@modules/barber/lib/resolve-barber-id";
-import { autoNotifyQueueFront } from "@modules/barber/lib/queue-auto-notify";
+import { autoNotifyQueueAfterAdvance } from "@modules/barber/lib/queue-auto-notify";
 import {
   queueSmsBody,
   sendBarberQueueSms,
@@ -190,7 +190,7 @@ export async function startService(
       }
     }
 
-    await autoNotifyQueueFront(supabase, shopId, shopName);
+    await autoNotifyQueueAfterAdvance(supabase, shopId, shopName);
 
     revalidateQueue();
     return {};
@@ -242,7 +242,7 @@ export async function completeService(
       });
     }
 
-    await autoNotifyQueueFront(supabase, shopId, shopName);
+    await autoNotifyQueueAfterAdvance(supabase, shopId, shopName);
 
     revalidateQueue();
     return {};
@@ -266,7 +266,7 @@ export async function removeFromQueue(
 
     if (error) return { error: error.message };
 
-    await autoNotifyQueueFront(supabase, shopId, shopName);
+    await autoNotifyQueueAfterAdvance(supabase, shopId, shopName);
     revalidateQueue();
     return {};
   } catch (err) {

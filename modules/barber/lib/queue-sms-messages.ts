@@ -1,4 +1,32 @@
-export type QueueSmsTemplate = "next" | "ready" | "running_late";
+export const AVG_SERVICE_MINUTES = 20;
+
+export type QueueSmsTemplate = "next" | "almost_next" | "ready" | "running_late";
+
+export function estimatedWaitMinutes(position: number): number {
+  return Math.max(0, (position - 1) * AVG_SERVICE_MINUTES);
+}
+
+/** SMS sent immediately when a customer joins the queue. */
+export function queueJoinedSmsBody(opts: {
+  clientName: string;
+  shopName: string;
+  position: number;
+}): string {
+  const name = opts.clientName.trim() || "there";
+  const shop = opts.shopName.trim() || "the barber shop";
+  const position = opts.position;
+
+  if (position <= 1) {
+    return `Hi ${name}, you're #1 in the queue at ${shop}. You'll be up next — please stay nearby.`;
+  }
+
+  if (position === 2) {
+    return `Hi ${name}, you're #2 in the queue at ${shop}. Around 20 minutes until it's your turn.`;
+  }
+
+  const wait = estimatedWaitMinutes(position);
+  return `Hi ${name}, you're #${position} in the queue at ${shop}. Around ${wait} minutes until it's your turn.`;
+}
 
 export function queueSmsBody(
   template: QueueSmsTemplate,
@@ -9,7 +37,9 @@ export function queueSmsBody(
 
   switch (template) {
     case "next":
-      return `Hi ${name}, you're next at ${shop}. Please head over — we'll call you when your chair is ready.`;
+      return `Hi ${name}, you'll be up next at ${shop}. Please head over — we'll call you when your chair is ready.`;
+    case "almost_next":
+      return `Hi ${name}, you're now 2nd in the queue at ${shop}. Around 20 minutes until it's your turn — please stay nearby.`;
     case "ready":
       return `Hi ${name}, your barber is ready for you at ${shop}. Please take a seat now.`;
     case "running_late":

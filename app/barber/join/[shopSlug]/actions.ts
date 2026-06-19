@@ -1,7 +1,8 @@
 "use server";
 
 import { createAdminClient } from "@core/supabase/admin";
-import { autoNotifyIfQueueFront } from "@modules/barber/lib/queue-auto-notify";
+import { sendJoinQueueSms } from "@modules/barber/lib/queue-auto-notify";
+import { AVG_SERVICE_MINUTES } from "@modules/barber/lib/queue-sms-messages";
 
 export type JoinQueueResult = {
   success: boolean;
@@ -69,8 +70,7 @@ export async function publicJoinQueue(
   const nextPosition = (maxPos?.position ?? 0) + 1;
 
   // Estimate wait based on average service duration of those ahead
-  const avgServiceMinutes = 20;
-  const estimatedWait = currentSize * avgServiceMinutes;
+  const estimatedWait = currentSize * AVG_SERVICE_MINUTES;
 
   const { data: inserted, error } = await supabase
     .from("barber_queue")
@@ -94,7 +94,15 @@ export async function publicJoinQueue(
 
   if (inserted?.id && guestPhone) {
     const displayName = shop.name?.trim() || "the barber shop";
-    await autoNotifyIfQueueFront(supabase, shopId, displayName, inserted.id);
+    await sendJoinQueueSms(
+      supabase,
+      shopId,
+      displayName,
+      inserted.id,
+      nextPosition,
+      guestPhone,
+      guestName
+    );
   }
 
   return {

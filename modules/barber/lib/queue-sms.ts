@@ -1,7 +1,7 @@
 import { canSendSms, sendSms } from "@core/utils/sms";
 import { queueSmsBody, type QueueSmsTemplate } from "./queue-sms-messages";
 
-export { queueSmsBody, phoneHref, type QueueSmsTemplate } from "./queue-sms-messages";
+export { queueSmsBody, phoneHref, queueJoinedSmsBody, estimatedWaitMinutes, AVG_SERVICE_MINUTES, type QueueSmsTemplate } from "./queue-sms-messages";
 
 export async function sendBarberQueueSms(
   phone: string,

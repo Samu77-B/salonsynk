@@ -100,14 +100,13 @@ export function JoinQueueForm({
             Please stay nearby. We&apos;ll call your name when it&apos;s your turn.
           </p>
         )}
-        {result.smsQueued && result.position !== 1 && (
+        {result.smsQueued && (
           <p className="text-sm text-muted">
-            We&apos;ll text you when you&apos;re next in line.
-          </p>
-        )}
-        {result.smsQueued && result.position === 1 && (
-          <p className="text-sm text-muted">
-            Check your phone — we&apos;ve texted you that you&apos;re up next.
+            {result.position === 1
+              ? "Check your phone — we&apos;ve texted you that you&apos;ll be up next shortly."
+              : result.position === 2
+                ? "Check your phone — we&apos;ve texted you that you&apos;re #2 in the queue, with around 20 minutes until your turn."
+                : "Check your phone — we&apos;ve texted you your queue number and estimated wait time."}
           </p>
         )}
         <button
