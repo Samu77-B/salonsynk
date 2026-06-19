@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@core/supabase/admin";
 import { sendJoinQueueSms } from "@modules/barber/lib/queue-auto-notify";
+import { getNextQueuePosition } from "@modules/barber/lib/queue-positions";
 import { AVG_SERVICE_MINUTES } from "@modules/barber/lib/queue-sms-messages";
 
 export type JoinQueueResult = {
@@ -57,17 +58,7 @@ export async function publicJoinQueue(
     return { success: false, error: "The queue is full right now. Please try again shortly." };
   }
 
-  // Get next position
-  const { data: maxPos } = await supabase
-    .from("barber_queue")
-    .select("position")
-    .eq("shop_id", shopId)
-    .eq("status", "waiting")
-    .order("position", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const nextPosition = (maxPos?.position ?? 0) + 1;
+  const nextPosition = await getNextQueuePosition(supabase, shopId);
 
   // Estimate wait based on average service duration of those ahead
   const estimatedWait = currentSize * AVG_SERVICE_MINUTES;

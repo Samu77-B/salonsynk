@@ -7,6 +7,7 @@ import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
 import { resolveActingBarberId } from "@modules/barber/lib/resolve-barber-id";
 import { autoNotifyQueueAfterAdvance } from "@modules/barber/lib/queue-auto-notify";
+import { compactQueuePositions, getNextQueuePosition } from "@modules/barber/lib/queue-positions";
 import {
   queueSmsBody,
   sendBarberQueueSms,
@@ -117,16 +118,7 @@ export async function addToQueue(formData: FormData): Promise<ActionResult> {
     const serviceId = (formData.get("service_id") as string) || null;
     const preferredBarberId = (formData.get("preferred_barber_id") as string) || null;
 
-    const { data: maxPos } = await supabase
-      .from("barber_queue")
-      .select("position")
-      .eq("shop_id", shopId)
-      .eq("status", "waiting")
-      .order("position", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const nextPosition = (maxPos?.position ?? 0) + 1;
+    const nextPosition = await getNextQueuePosition(supabase, shopId);
 
     const { error } = await supabase.from("barber_queue").insert({
       shop_id: shopId,
@@ -190,6 +182,7 @@ export async function startService(
       }
     }
 
+    await compactQueuePositions(supabase, shopId);
     await autoNotifyQueueAfterAdvance(supabase, shopId, shopName);
 
     revalidateQueue();
@@ -242,6 +235,7 @@ export async function completeService(
       });
     }
 
+    await compactQueuePositions(supabase, shopId);
     await autoNotifyQueueAfterAdvance(supabase, shopId, shopName);
 
     revalidateQueue();
@@ -266,6 +260,7 @@ export async function removeFromQueue(
 
     if (error) return { error: error.message };
 
+    await compactQueuePositions(supabase, shopId);
     await autoNotifyQueueAfterAdvance(supabase, shopId, shopName);
     revalidateQueue();
     return {};
