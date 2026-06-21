@@ -9,6 +9,7 @@ import { isMissingProcessingColumnError } from "@/lib/db/service-schema";
 import { Reveal } from "@/components/reveal";
 import { DiaryView } from "./diary-view";
 import { GapFillerSection } from "./gap-filler-section";
+import { DashboardModeShell } from "./modes/dashboard-mode-shell";
 import { TargetsWidget, type TargetWidgetItem } from "./targets-widget";
 import { isManagerRole } from "@/lib/dashboard-roles";
 
@@ -127,10 +128,11 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
         client_id, guest_name, guest_email, guest_phone,
         stylist_id, service_id, send_reminder_sms, send_review_request, send_aftercare,
         deposit_payment_intent_id, before_photo_url, after_photo_url, change_charge_minor,
+        bill_total_minor, deposit_amount_minor,
         clients(name, email, phone),
-        services(name, duration_minutes, processing_time_minutes),
+        services(name, duration_minutes, processing_time_minutes, price_minor),
         salon_members(display_name),
-        appointment_services(sort_order, service_id, services(name, duration_minutes, processing_time_minutes))
+        appointment_services(sort_order, service_id, price_override_minor, assigned_stylist_id, services(name, duration_minutes, processing_time_minutes, price_minor))
       `;
       const minimalSelect = `
         id, start_time, end_time, status, notes,
@@ -179,6 +181,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
       processing_time_minutes?: number | null;
       color?: string | null;
       category_id?: string | null;
+      price_minor?: number | null;
     };
     return {
       id: row.id,
@@ -187,6 +190,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
       processing_time_minutes: row.processing_time_minutes ?? 0,
       color: row.color ?? null,
       category_id: row.category_id ?? null,
+      price_minor: row.price_minor != null ? Number(row.price_minor) : null,
     };
   });
   const serviceCategories = ((categoriesRes as { data?: { id: string; name: string; sort_order: number }[] | null }).data ?? []).map((c) => ({
@@ -311,6 +315,9 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
     deposit_payment_intent_id?: string | null;
     before_photo_url?: string | null;
     after_photo_url?: string | null;
+    change_charge_minor?: number | null;
+    bill_total_minor?: number | null;
+    deposit_amount_minor?: number | null;
     send_reminder_sms?: boolean;
     send_review_request?: boolean;
     send_aftercare?: boolean;
@@ -320,7 +327,9 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
     appointment_services?: {
       sort_order: number;
       service_id: string;
-      services: { name: string; duration_minutes: number; processing_time_minutes?: number } | null;
+      price_override_minor?: number | null;
+      assigned_stylist_id?: string | null;
+      services: { name: string; duration_minutes: number; processing_time_minutes?: number; price_minor?: number | null } | null;
     }[] | null;
   };
 
@@ -355,8 +364,14 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
       };
     }
 
+    const service_line_bill = lines.map((l) => ({
+      service_id: l.service_id,
+      price_override_minor: l.price_override_minor ?? null,
+      assigned_stylist_id: l.assigned_stylist_id ?? null,
+    }));
+
     const { appointment_services: _, ...rest } = a;
-    return { ...rest, services, service_line_ids };
+    return { ...rest, services, service_line_ids, service_line_bill };
   }) as {
     id: string;
     start_time: string;
@@ -370,9 +385,13 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
     stylist_id: string;
     service_id: string | null;
     service_line_ids: string[];
+    service_line_bill?: { service_id: string; price_override_minor: number | null; assigned_stylist_id: string | null }[];
     deposit_payment_intent_id?: string | null;
     before_photo_url?: string | null;
     after_photo_url?: string | null;
+    change_charge_minor?: number | null;
+    bill_total_minor?: number | null;
+    deposit_amount_minor?: number | null;
     send_reminder_sms?: boolean;
     send_review_request?: boolean;
     send_aftercare?: boolean;
@@ -477,32 +496,47 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
     }
   }
 
+  const clientCompletedCounts: Record<string, number> = {};
+  for (const a of appointments) {
+    if (a.client_id && a.status === "completed") {
+      clientCompletedCounts[a.client_id] = (clientCompletedCounts[a.client_id] ?? 0) + 1;
+    }
+  }
+
   return (
     <main className="p-4 md:p-6 min-w-0 space-y-6">
-      <Reveal>
-        <Suspense fallback={<p className="text-sm text-muted-foreground">Loading diary…</p>}>
-          <DiaryView
-            salonId={context.salon.id}
-            salonName={context.salon.name}
-            members={jsonClone(membersForDiary)}
-            services={jsonClone(services)}
-            clients={jsonClone(clients)}
-            appointments={jsonClone(appointments)}
-            clientPhotoMap={jsonClone(clientPhotoMap)}
-            stylistOverrides={jsonClone(stylistOverrides)}
-            clientPromptData={jsonClone(clientPromptData)}
-            categories={jsonClone(serviceCategories)}
-          />
-        </Suspense>
-      </Reveal>
-      {isManager && targetWidgetItems.length > 0 && (
-        <Reveal>
-          <TargetsWidget items={targetWidgetItems} />
-        </Reveal>
-      )}
-      <Reveal>
-        <GapFillerSection />
-      </Reveal>
+      <DashboardModeShell
+        salonName={context.salon.name}
+        classicContent={
+          <>
+            <Reveal>
+              <Suspense fallback={<p className="text-sm text-muted-foreground">Loading diary…</p>}>
+                <DiaryView
+                  salonId={context.salon.id}
+                  salonName={context.salon.name}
+                  members={jsonClone(membersForDiary)}
+                  services={jsonClone(services)}
+                  clients={jsonClone(clients)}
+                  appointments={jsonClone(appointments)}
+                  clientPhotoMap={jsonClone(clientPhotoMap)}
+                  stylistOverrides={jsonClone(stylistOverrides)}
+                  clientPromptData={jsonClone(clientPromptData)}
+                  clientCompletedCounts={jsonClone(clientCompletedCounts)}
+                  categories={jsonClone(serviceCategories)}
+                />
+              </Suspense>
+            </Reveal>
+            {isManager && targetWidgetItems.length > 0 && (
+              <Reveal>
+                <TargetsWidget items={targetWidgetItems} />
+              </Reveal>
+            )}
+            <Reveal>
+              <GapFillerSection />
+            </Reveal>
+          </>
+        }
+      />
     </main>
   );
 }

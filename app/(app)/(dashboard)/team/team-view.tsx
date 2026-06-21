@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { inviteOrAddTeamMember, updateTeamMember, deleteTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles, upsertStylistServiceOverride, deleteStylistServiceOverride, setMemberPasscode, clearMemberPasscode } from "./actions";
+import { StaffOnboardingWizard } from "./staff-onboarding-wizard";
 
 export type Member = {
   id: string;
@@ -16,6 +17,7 @@ export type Member = {
   has_passcode?: boolean;
   /** false = reception / login-only; omit from diary and bookable stylist lists */
   show_on_diary?: boolean | null;
+  onboarding_completed_at?: string | null;
 };
 type Invite = { id: string; email: string; role: string; display_name: string | null; created_at: string };
 type SalonService = { id: string; name: string; duration_minutes: number };
@@ -196,6 +198,8 @@ export function TeamView({
     }
   }
 
+  const pendingOnboarding = members.filter((m) => m.is_active && !m.onboarding_completed_at);
+
   return (
     <div className="space-y-6 min-w-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -211,6 +215,19 @@ export function TeamView({
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
+
+      {isOwner && pendingOnboarding.length > 0 && (
+        <div className="space-y-3">
+          {pendingOnboarding.slice(0, 2).map((m) => (
+            <StaffOnboardingWizard
+              key={m.id}
+              salonId={salonId}
+              member={m}
+              onComplete={() => window.location.reload()}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {members.map((m) => (

@@ -4,7 +4,8 @@ import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getMutateClient } from "@/lib/supabase/mutate-client";
 import { isGeneralSalonStaffRole } from "@/lib/dashboard-roles";
 import { requireStaffElevationOrError } from "@/lib/staff-elevation";
-import { dedupeOrderedServiceIds, syncAppointmentServices } from "./appointment-service-lines";
+import { dedupeOrderedServiceIds, syncAppointmentServices, syncAppointmentServiceBillLines, type AppointmentServiceBillLine } from "./appointment-service-lines";
+import { triggerAftercareOnComplete } from "@/lib/appointment-automation";
 import {
   hasBlockingOverlapWithExisting,
   rangeToMinutes,
@@ -42,6 +43,10 @@ export type UpdateAppointmentInput = {
   allowScheduleOverlap?: boolean;
   status?: AppointmentDbStatus | string;
   change_charge_minor?: number;
+  bill_total_minor?: number | null;
+  deposit_amount_minor?: number | null;
+  /** Full visit line-items with optional per-line price and stylist. */
+  serviceBillLines?: AppointmentServiceBillLine[];
 };
 
 /**
@@ -106,7 +111,8 @@ export async function executeAppointmentPatch(
     updates.end_time !== undefined ||
     updates.stylist_id !== undefined ||
     updates.service_id !== undefined ||
-    updates.serviceIds !== undefined
+    updates.serviceIds !== undefined ||
+    updates.serviceBillLines !== undefined
   ) {
     const { data: current } = await db
       .from("appointments")
@@ -139,6 +145,9 @@ export async function executeAppointmentPatch(
 
     async function resolveProcessingServiceIds(): Promise<string[]> {
       if (updates.serviceIds !== undefined) return dedupeOrderedServiceIds(updates.serviceIds);
+      if (updates.serviceBillLines !== undefined) {
+        return dedupeOrderedServiceIds(updates.serviceBillLines.map((l) => l.serviceId));
+      }
       if (updates.service_id !== undefined) return updates.service_id ? [updates.service_id] : [];
       const { data: lines } = await db
         .from("appointment_services")
@@ -205,6 +214,9 @@ export async function executeAppointmentPatch(
   if (updates.serviceIds !== undefined) {
     const o = dedupeOrderedServiceIds(updates.serviceIds);
     payload.service_id = o.length > 0 ? o[0] : null;
+  } else if (updates.serviceBillLines !== undefined) {
+    const o = dedupeOrderedServiceIds(updates.serviceBillLines.map((l) => l.serviceId));
+    payload.service_id = o.length > 0 ? o[0] : null;
   } else if (updates.service_id !== undefined) payload.service_id = updates.service_id;
   if (updates.guest_name !== undefined) payload.guest_name = updates.guest_name;
   if (updates.guest_email !== undefined) payload.guest_email = updates.guest_email;
@@ -223,12 +235,18 @@ export async function executeAppointmentPatch(
   if (updates.change_charge_minor !== undefined) {
     payload.change_charge_minor = updates.change_charge_minor;
   }
+  if (updates.bill_total_minor !== undefined) {
+    payload.bill_total_minor = updates.bill_total_minor;
+  }
+  if (updates.deposit_amount_minor !== undefined) {
+    payload.deposit_amount_minor = updates.deposit_amount_minor;
+  }
 
   if (updates.start_time !== undefined || updates.end_time !== undefined) {
     payload.reminder_sent_at = null;
   }
 
-  if (Object.keys(payload).length === 0 && updates.serviceIds === undefined) return { error: null };
+  if (Object.keys(payload).length === 0 && updates.serviceIds === undefined && updates.serviceBillLines === undefined) return { error: null };
 
   let { error } = await db
     .from("appointments")
@@ -256,6 +274,13 @@ export async function executeAppointmentPatch(
   if (updates.serviceIds !== undefined) {
     const syncRes = await syncAppointmentServices(db, id, dedupeOrderedServiceIds(updates.serviceIds));
     if (syncRes.error) return { error: syncRes.error };
+  } else if (updates.serviceBillLines !== undefined) {
+    const syncRes = await syncAppointmentServiceBillLines(db, id, updates.serviceBillLines);
+    if (syncRes.error) return { error: syncRes.error };
+  }
+
+  if (nextStatus === "completed") {
+    void triggerAftercareOnComplete(id);
   }
 
   let revalidateClientId: string | null = null;

@@ -15,6 +15,8 @@ import {
 } from "./report-window";
 import { ReportsCustomRangeForm } from "./reports-custom-range-form";
 import { BusinessSnapshot, type SnapshotGeneralData, type SnapshotStylistRow, type SnapshotGoneAwayRow } from "./business-snapshot";
+import { StaffAnalyticsPanel } from "./staff-analytics-panel";
+import { buildStaffAnalytics } from "@/lib/staff-analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,7 @@ type AppointmentRow = {
 type SalesTransactionRow = {
   amount_minor: number;
   paid_at: string;
+  stylist_id?: string | null;
   product_ids?: string[] | null;
   salon_members: { display_name: string | null } | null;
 };
@@ -222,13 +225,14 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         : customEntryHref;
 
   const supabase = await createClient();
-  const [appointmentsRes, salesRes] = await Promise.all([
+  const [appointmentsRes, salesRes, membersRes] = await Promise.all([
     supabase
       .from("appointments")
       .select(`
         id,
         status,
         start_time,
+        end_time,
         stylist_id,
         client_id,
         services(name, price_minor)
@@ -241,12 +245,18 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       .select(`
         amount_minor,
         paid_at,
+        stylist_id,
         product_ids,
         salon_members(display_name)
       `)
       .eq("salon_id", context.salon.id)
       .gte("paid_at", ctx.previousStart.toISOString())
       .lt("paid_at", ctx.currentEnd.toISOString()),
+    supabase
+      .from("salon_members")
+      .select("id, display_name, role")
+      .eq("salon_id", context.salon.id)
+      .eq("is_active", true),
   ]);
 
   const rows = (appointmentsRes.data as AppointmentRow[] | null) ?? [];
@@ -295,6 +305,24 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const currentProductAgg = buildProductAggregates(currentSalesRows, nameById);
   const previousProductAgg = buildProductAggregates(previousSalesRows, nameById);
 
+  const periodMs = ctx.currentEnd.getTime() - ctx.currentStart.getTime();
+  const periodWeeks = Math.max(1, periodMs / (7 * 24 * 60 * 60 * 1000));
+  const staffAnalytics = buildStaffAnalytics({
+    members: (membersRes.data ?? []) as { id: string; display_name: string | null; role: string }[],
+    appointments: currentRows.map((r) => ({
+      stylist_id: r.stylist_id,
+      start_time: r.start_time,
+      end_time: (r as { end_time?: string }).end_time ?? r.start_time,
+      status: r.status,
+    })),
+    sales: currentSalesRows.map((r) => ({
+      stylist_id: r.stylist_id ?? null,
+      amount_minor: Number(r.amount_minor ?? 0),
+      paid_at: r.paid_at,
+    })),
+    periodWeeks,
+  });
+
   // --- Snapshot: new clients ---
   const [newClientsCurrentRes, newClientsPrevRes] = await Promise.all([
     supabase
@@ -324,13 +352,13 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   }
 
   // --- Snapshot: per-stylist data ---
-  const membersRes = await supabase
+  const snapshotMembersRes = await supabase
     .from("salon_members")
     .select("id, display_name")
     .eq("salon_id", context.salon.id)
     .eq("is_active", true);
   const memberNameById = new Map<string, string>();
-  for (const m of membersRes.data ?? []) {
+  for (const m of snapshotMembersRes.data ?? []) {
     memberNameById.set(m.id, m.display_name || "Unnamed");
   }
 
@@ -687,6 +715,16 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             </ul>
           )}
         </div>
+      </section>
+      </Reveal>
+
+      <Reveal>
+      <section className="rounded-lg border border-border p-4">
+        <h2 className="text-lg font-semibold mb-2">Staff analytics</h2>
+        <p className="text-sm text-muted mb-3">
+          Average working hours per week (from completed appointments) and average service takings per day (from ledger sales).
+        </p>
+        <StaffAnalyticsPanel rows={staffAnalytics} periodLabel={ctx.rangeLabel} />
       </section>
       </Reveal>
 

@@ -3,6 +3,11 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import type { CreateAppointmentInput } from "./actions";
 import { ServicePickerField } from "./service-picker-field";
+import {
+  classifyClientIntake,
+  clientIntakeBadgeClass,
+  clientIntakeLabel,
+} from "@/lib/client-intake";
 
 type Member = { id: string; display_name: string | null; role: string };
 type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number };
@@ -30,6 +35,7 @@ export function AddAppointmentModal({
   initialClientId,
   stylistOverrides = {},
   clientPromptData = {},
+  clientCompletedCounts = {},
   entryAnimation = "from-top",
   onCreate,
   onClose,
@@ -48,6 +54,7 @@ export function AddAppointmentModal({
   initialClientId?: string | null;
   stylistOverrides?: Record<string, Record<string, number>>;
   clientPromptData?: Record<string, { lastVisit?: string; lastFormula?: string; alertNotes?: string[] }>;
+  clientCompletedCounts?: Record<string, number>;
   entryAnimation?: "from-top" | "none";
   onCreate: (data: CreateAppointmentInput) => Promise<{ error?: string | null }>;
   onClose: () => void;
@@ -144,6 +151,11 @@ export function AddAppointmentModal({
     }
     return Math.max(15, sum);
   }, [serviceSummariesForNotes, stylistId, stylistOverrides]);
+
+  const clientIntakeStatus = classifyClientIntake({
+    clientId: clientId || null,
+    priorCompletedAppointments: clientId ? clientCompletedCounts[clientId] ?? 0 : 0,
+  });
 
   const filteredClients = useMemo(() => {
     const raw = clientSearch.trim();
@@ -339,6 +351,13 @@ export function AddAppointmentModal({
                 </div>
               );
             })()}
+            <p className="mt-2">
+              <span
+                className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${clientIntakeBadgeClass(clientIntakeStatus)}`}
+              >
+                {clientIntakeLabel(clientIntakeStatus)}
+              </span>
+            </p>
           </div>
 
           {clientId ? (

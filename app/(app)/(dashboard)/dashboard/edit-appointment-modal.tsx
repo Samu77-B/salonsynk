@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import type { AppointmentDbStatus, UpdateAppointmentInput } from "./actions";
 import { uploadAppointmentPhoto } from "./actions";
 import { ServicePickerField } from "./service-picker-field";
+import {
+  AppointmentBillSummary,
+  billLinesToPatchPayload,
+  type BillLineState,
+} from "./appointment-bill-summary";
+import { parsePoundsToMinor } from "@/lib/appointment-billing";
 
 function isNextOpaqueServerErrorMessage(msg: string): boolean {
   return (
@@ -34,7 +40,7 @@ function mapSubmitCatchError(e: unknown, router: ReturnType<typeof useRouter>): 
 }
 
 type Member = { id: string; display_name: string | null; role: string };
-type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number };
+type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number; price_minor?: number | null };
 type Client = { id: string; name: string | null; email: string | null; phone: string | null; last_skin_test_at?: string | null };
 type Appointment = {
   id: string;
@@ -52,10 +58,14 @@ type Appointment = {
   service_id: string | null;
   /** From appointment_services junction (dashboard load). */
   service_line_ids?: string[];
+  service_line_bill?: { service_id: string; price_override_minor: number | null; assigned_stylist_id: string | null }[];
   notes: string | null;
   send_reminder_sms?: boolean;
   send_review_request?: boolean;
   send_aftercare?: boolean;
+  change_charge_minor?: number | null;
+  bill_total_minor?: number | null;
+  deposit_amount_minor?: number | null;
 };
 
 function svcIdsSignature(ids: string[]): string {
@@ -247,6 +257,26 @@ export function EditAppointmentModal({
     pendingData: UpdateAppointmentInput;
   } | null>(null);
   const [chargeAmount, setChargeAmount] = useState("");
+  const initialBillLines = (): BillLineState[] => {
+    const ids = initialAppointmentServiceIds(appointment);
+    return ids.map((serviceId) => {
+      const row = appointment.service_line_bill?.find((l) => l.service_id === serviceId);
+      const overrideMinor = row?.price_override_minor;
+      return {
+        serviceId,
+        priceOverridePounds:
+          overrideMinor != null && Number.isFinite(overrideMinor) ? (overrideMinor / 100).toFixed(2) : "",
+        assignedStylistId: row?.assigned_stylist_id ?? "",
+      };
+    });
+  };
+  const [billLines, setBillLines] = useState<BillLineState[]>(initialBillLines);
+  const [billTotalOverridePounds, setBillTotalOverridePounds] = useState(() =>
+    appointment.bill_total_minor != null ? (appointment.bill_total_minor / 100).toFixed(2) : ""
+  );
+  const [depositPounds, setDepositPounds] = useState(() =>
+    appointment.deposit_amount_minor != null ? (appointment.deposit_amount_minor / 100).toFixed(2) : ""
+  );
   const errorAndOverlapRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const currentStatus = appointment.status ?? "scheduled";
@@ -389,7 +419,18 @@ export function EditAppointmentModal({
       stylist_id: stylistId,
       client_id: clientId || null,
       service_id: selectedServiceIds[0] ?? null,
-      serviceIds: selectedServiceIds,
+      serviceBillLines: billLinesToPatchPayload(
+        selectedServiceIds.map((serviceId) => {
+          const existing = billLines.find((l) => l.serviceId === serviceId);
+          return (
+            existing ?? {
+              serviceId,
+              priceOverridePounds: "",
+              assignedStylistId: "",
+            }
+          );
+        })
+      ),
       guest_name: guestName || null,
       guest_email: email?.trim() || null,
       guest_phone: phone?.trim() || null,
@@ -402,6 +443,9 @@ export function EditAppointmentModal({
       before_photo_url: beforePhotoUrl?.trim() || null,
       after_photo_url: afterPhotoUrl?.trim() || null,
       allowScheduleOverlap,
+      bill_total_minor: billTotalOverridePounds.trim() ? parsePoundsToMinor(billTotalOverridePounds) : null,
+      deposit_amount_minor: depositPounds.trim() ? parsePoundsToMinor(depositPounds) : null,
+      change_charge_minor: appointment.change_charge_minor ?? undefined,
     };
   }
 
@@ -643,6 +687,18 @@ export function EditAppointmentModal({
             onSelectedIdsChange={setSelectedServiceIds}
             categories={categories}
             hint={`Type to add one or more; combined duration for this appointment: ${durationMinutes} min.`}
+          />
+          <AppointmentBillSummary
+            members={members}
+            services={services}
+            selectedServiceIds={selectedServiceIds}
+            billLines={billLines}
+            onBillLinesChange={setBillLines}
+            billTotalOverridePounds={billTotalOverridePounds}
+            onBillTotalOverrideChange={setBillTotalOverridePounds}
+            depositPounds={depositPounds}
+            onDepositChange={setDepositPounds}
+            changeChargeMinor={appointment.change_charge_minor ?? null}
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <PhotoUploadField
