@@ -5,7 +5,9 @@ import { canSendSms, canSendWhatsApp, sendSms, sendWhatsApp } from "./sms";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const DEFAULT_REMINDER_HOURS = [24];
+import { DEFAULT_REMINDER_HOURS } from "./appointment-automation";
+
+const DEFAULT_REMINDER_HOURS_FALLBACK: number[] = [...DEFAULT_REMINDER_HOURS];
 
 type AppointmentRow = {
   id: string;
@@ -42,12 +44,12 @@ export async function getUpcomingAppointmentsForReminder(hoursAhead: number) {
 }
 
 function getReminderHoursForSalon(settings: Record<string, unknown> | undefined | null): number[] {
-  if (!settings) return DEFAULT_REMINDER_HOURS;
+  if (!settings) return DEFAULT_REMINDER_HOURS_FALLBACK;
   const hours = settings.reminder_hours;
   if (Array.isArray(hours) && hours.length > 0) {
     return hours.filter((h): h is number => typeof h === "number" && [12, 24, 48].includes(h));
   }
-  return DEFAULT_REMINDER_HOURS;
+  return DEFAULT_REMINDER_HOURS_FALLBACK;
 }
 
 /**

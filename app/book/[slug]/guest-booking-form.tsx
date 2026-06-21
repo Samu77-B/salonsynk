@@ -80,6 +80,8 @@ export function GuestBookingForm({
   stylists,
   stylistOverrides = {},
   categories = [],
+  prefillStylistId,
+  prefillStartIso,
 }: {
   salonId: string;
   salonName: string;
@@ -87,11 +89,25 @@ export function GuestBookingForm({
   stylists: Stylist[];
   stylistOverrides?: Record<string, Record<string, number>>;
   categories?: Category[];
+  prefillStylistId?: string;
+  prefillStartIso?: string;
 }) {
+  const prefillStart = prefillStartIso ? new Date(prefillStartIso) : null;
+  const validPrefillStylist =
+    prefillStylistId && stylists.some((s) => s.id === prefillStylistId) ? prefillStylistId : undefined;
+
   const [serviceId, setServiceId] = useState("");
-  const [stylistId, setStylistId] = useState(stylists[0]?.id ?? "");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("09:00");
+  const [stylistId, setStylistId] = useState(validPrefillStylist ?? stylists[0]?.id ?? "");
+  const [date, setDate] = useState(
+    prefillStart && Number.isFinite(prefillStart.getTime())
+      ? prefillStart.toISOString().slice(0, 10)
+      : ""
+  );
+  const [time, setTime] = useState(
+    prefillStart && Number.isFinite(prefillStart.getTime())
+      ? prefillStart.toTimeString().slice(0, 5)
+      : "09:00"
+  );
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");

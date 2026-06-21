@@ -17,12 +17,13 @@ export default async function TeamPage() {
   const supabase = await createClient();
   const membersQuery = async () => {
     const BASE =
-      "id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url";
+      "id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url, onboarding_completed_at";
     const r = await fetchSalonMembersAdaptiveSelect(supabase, context!.salon.id, [
       `${BASE}, passcode_hash, show_on_diary`,
       `${BASE}, passcode_hash`,
       `${BASE}, show_on_diary`,
       BASE,
+      "id, user_id, display_name, role, is_active, holiday_ranges, employment_type, avatar_url, passcode_hash, show_on_diary",
     ], { activeOnly: false });
     return { data: r.data, error: r.error };
   };

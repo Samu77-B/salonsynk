@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Reveal } from "@/components/reveal";
 import { notFound } from "next/navigation";
 import { GuestBookingForm } from "../guest-booking-form";
+import { PublicBookingExperience } from "@/components/public/public-booking-experience";
 import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 
 /**
@@ -128,19 +129,25 @@ export default async function BookEmbedPage({
             {bookingHeading}
           </h1>
         ) : null}
-        <GuestBookingForm
-          salonId={salon.id}
+        <PublicBookingExperience
+          slug={slug}
           salonName={displayName}
-          services={(servicesRes.data ?? []).map((s) => {
-            const row = s as { id: string; name: string; duration_minutes: number; category_id?: string | null };
-            return { id: row.id, name: row.name, duration_minutes: row.duration_minutes, category_id: row.category_id ?? null };
-          })}
-          stylists={bookableStylistsEmbed}
-          stylistOverrides={stylistOverrides}
-          categories={((categoriesRes as { data?: { id: string; name: string; sort_order: number }[] | null }).data ?? []).map((c) => ({
-            id: c.id,
-            name: c.name,
-          }))}
+          form={
+            <GuestBookingForm
+              salonId={salon.id}
+              salonName={displayName}
+              services={(servicesRes.data ?? []).map((s) => {
+                const row = s as { id: string; name: string; duration_minutes: number; category_id?: string | null };
+                return { id: row.id, name: row.name, duration_minutes: row.duration_minutes, category_id: row.category_id ?? null };
+              })}
+              stylists={bookableStylistsEmbed}
+              stylistOverrides={stylistOverrides}
+              categories={((categoriesRes as { data?: { id: string; name: string; sort_order: number }[] | null }).data ?? []).map((c) => ({
+                id: c.id,
+                name: c.name,
+              }))}
+            />
+          }
         />
       </Reveal>
     </main>

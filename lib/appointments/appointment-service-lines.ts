@@ -13,9 +13,53 @@ export function dedupeOrderedServiceIds(ids: string[]): string[] {
   return out;
 }
 
+export type AppointmentServiceBillLine = {
+  serviceId: string;
+  priceOverrideMinor?: number | null;
+  assignedStylistId?: string | null;
+};
+
 /**
- * Replace junction rows for an appointment (empty list deletes all lines).
+ * Replace junction rows with optional per-line billing fields.
  */
+export async function syncAppointmentServiceBillLines(
+  db: SupabaseClient,
+  appointmentId: string,
+  lines: AppointmentServiceBillLine[]
+): Promise<{ error: string | null }> {
+  const ordered = dedupeOrderedServiceIds(lines.map((l) => l.serviceId));
+  const { error: delErr } = await db.from("appointment_services").delete().eq("appointment_id", appointmentId);
+  if (delErr) {
+    const msg = delErr.message ?? "";
+    if (/relation|does not exist|42P01/i.test(msg)) return { error: null };
+    return { error: delErr.message };
+  }
+  if (ordered.length === 0) return { error: null };
+
+  const lineByService = new Map(lines.map((l) => [l.serviceId, l]));
+  const rows = ordered.map((service_id, sort_order) => {
+    const line = lineByService.get(service_id);
+    const row: Record<string, unknown> = {
+      appointment_id: appointmentId,
+      service_id,
+      sort_order,
+    };
+    if (line?.priceOverrideMinor != null) row.price_override_minor = line.priceOverrideMinor;
+    if (line?.assignedStylistId) row.assigned_stylist_id = line.assignedStylistId;
+    return row;
+  });
+
+  const { error } = await db.from("appointment_services").insert(rows);
+  if (error) {
+    const msg = error.message ?? "";
+    if (/price_override_minor|assigned_stylist_id|does not exist|42703/i.test(msg)) {
+      return syncAppointmentServices(db, appointmentId, ordered);
+    }
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
 export async function syncAppointmentServices(
   db: SupabaseClient,
   appointmentId: string,

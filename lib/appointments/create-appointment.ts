@@ -13,6 +13,7 @@ import {
 } from "@/lib/diary-rules";
 import { revalidatePath } from "next/cache";
 import { sendClientBookingConfirmation } from "@/lib/booking-notifications";
+import { triggerBookingConfirmation } from "@/lib/appointment-automation";
 
 export type CreateAppointmentInput = {
   salonId: string;
@@ -171,6 +172,7 @@ export async function executeCreateAppointment(
     start,
     serviceName,
   });
+  void triggerBookingConfirmation(appointmentId);
 
   if (input.clientId && (input.guestEmail?.trim() || input.guestPhone?.trim())) {
     const clientUpdates: Record<string, unknown> = {};

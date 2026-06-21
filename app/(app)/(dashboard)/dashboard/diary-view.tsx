@@ -76,7 +76,7 @@ async function patchAppointmentViaApi(
 }
 
 type Member = { id: string; display_name: string | null; role: string; avatar_url?: string | null };
-type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number; color?: string | null };
+type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number; color?: string | null; price_minor?: number | null };
 type Client = { id: string; name: string | null; email: string | null; phone: string | null; last_skin_test_at?: string | null };
 type Appointment = {
   id: string;
@@ -92,13 +92,16 @@ type Appointment = {
   service_id: string | null;
   /** When loaded from `/dashboard`, junction order for checkout + edit. */
   service_line_ids?: string[];
+  service_line_bill?: { service_id: string; price_override_minor: number | null; assigned_stylist_id: string | null }[];
   deposit_payment_intent_id?: string | null;
   before_photo_url?: string | null;
   after_photo_url?: string | null;
   send_reminder_sms?: boolean;
   send_review_request?: boolean;
   send_aftercare?: boolean;
-  change_charge_minor?: number;
+  change_charge_minor?: number | null;
+  bill_total_minor?: number | null;
+  deposit_amount_minor?: number | null;
   clients: { name: string | null; email: string | null; phone: string | null } | { name: string | null; email: string | null; phone: string | null }[] | null;
   services:
     | { name: string; duration_minutes: number; processing_time_minutes?: number }
@@ -478,6 +481,7 @@ export function DiaryView({
   clientPhotoMap = {},
   stylistOverrides = {},
   clientPromptData = {},
+  clientCompletedCounts = {},
   categories = [],
 }: {
   salonId: string;
@@ -489,6 +493,7 @@ export function DiaryView({
   clientPhotoMap?: Record<string, string>;
   stylistOverrides?: Record<string, Record<string, number>>;
   clientPromptData?: Record<string, { lastVisit?: string; lastFormula?: string; alertNotes?: string[] }>;
+  clientCompletedCounts?: Record<string, number>;
   categories?: { id: string; name: string }[];
 }) {
   const [view, setView] = useState<"day" | "week">("day");
@@ -1674,6 +1679,7 @@ export function DiaryView({
           initialClientId={addPrefill?.clientId ?? undefined}
           stylistOverrides={stylistOverrides}
           clientPromptData={clientPromptData}
+          clientCompletedCounts={clientCompletedCounts}
           entryAnimation="from-top"
           onCreate={async (data) => {
             const result = await createAppointmentViaApi(data);

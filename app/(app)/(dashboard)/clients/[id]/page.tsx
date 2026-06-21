@@ -5,7 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { ClientForm } from "../client-form";
 import { ClientDetailView } from "../client-detail-view";
+import { ClientBillingSummary } from "../client-billing-summary";
 import { ClientPhotos } from "../client-photos";
+import { computeBalanceDueMinor } from "@/lib/appointment-billing";
 
 export default async function ClientDetailPage({
   params,
@@ -90,7 +92,7 @@ export default async function ClientDetailPage({
 
   const { data: appointments } = await supabase
     .from("appointments")
-    .select("id, start_time, end_time, status, services(name)")
+    .select("id, start_time, end_time, status, services(name), bill_total_minor, deposit_amount_minor, services(price_minor)")
     .eq("client_id", id)
     .order("start_time", { ascending: false })
     .limit(50);
@@ -102,6 +104,38 @@ export default async function ClientDetailPage({
     .eq("client_id", id)
     .order("paid_at", { ascending: false })
     .limit(100);
+
+  const { data: billingAppts } = await supabase
+    .from("appointments")
+    .select("id, status, bill_total_minor, deposit_amount_minor, services(price_minor)")
+    .eq("client_id", id)
+    .in("status", ["scheduled", "completed"]);
+
+  const totalDepositsMinor = (billingAppts ?? []).reduce(
+    (sum, row) => sum + Number((row as { deposit_amount_minor?: number | null }).deposit_amount_minor ?? 0),
+    0
+  );
+
+  const totalPaidMinor = (saleRows ?? []).reduce((sum, r) => sum + Number(r.amount_minor ?? 0), 0);
+
+  let expectedBillMinor = 0;
+  for (const row of billingAppts ?? []) {
+    const r = row as {
+      status: string;
+      bill_total_minor?: number | null;
+      services?: { price_minor?: number | null } | { price_minor?: number | null }[] | null;
+    };
+    if (r.status !== "scheduled") continue;
+    const svc = Array.isArray(r.services) ? r.services[0] : r.services;
+    const fallback = Number(svc?.price_minor ?? 0);
+    expectedBillMinor += Number(r.bill_total_minor ?? fallback);
+  }
+
+  const balanceDueMinor = computeBalanceDueMinor({
+    billTotalMinor: expectedBillMinor,
+    depositAmountMinor: totalDepositsMinor,
+    paidSalesMinor: totalPaidMinor,
+  });
 
   const allServiceIds = new Set<string>();
   const allProductIds = new Set<string>();
@@ -212,6 +246,12 @@ export default async function ClientDetailPage({
           </p>
         </div>
       )}
+
+      <ClientBillingSummary
+        totalDepositsMinor={totalDepositsMinor}
+        totalPaidMinor={totalPaidMinor}
+        balanceDueMinor={balanceDueMinor}
+      />
 
       <section className="mb-8">
         <ClientPhotos
