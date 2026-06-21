@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { formatDurationMinutes } from "@/lib/format-duration";
 
 type Service = { id: string; name: string; duration_minutes: number; category_id?: string | null };
 type Category = { id: string; name: string };
@@ -97,7 +98,7 @@ export function ServicePickerField({
         >
           <span className="font-medium">{s.name}</span>
           <span className="mt-0.5 block text-xs text-muted-foreground">
-            {dur} min
+            {formatDurationMinutes(dur)}
             {ov !== undefined ? " · custom timing" : ""}
           </span>
         </button>
@@ -126,7 +127,7 @@ export function ServicePickerField({
               >
                 <span className="min-w-0 truncate font-medium">{s.name}</span>
                 <span className="shrink-0 text-muted-foreground">
-                  ({dur} min){ov !== undefined ? " · custom" : ""}
+                  ({formatDurationMinutes(dur)}){ov !== undefined ? " · custom" : ""}
                 </span>
                 <button
                   type="button"

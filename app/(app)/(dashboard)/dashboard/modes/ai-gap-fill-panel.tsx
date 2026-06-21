@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { CalendarGap } from "@/lib/ai/calendar-gaps";
+import { formatDurationMinutes } from "@/lib/format-duration";
 
 type GapPromotion = {
   gap: CalendarGap;
@@ -88,7 +89,7 @@ export function AiGapFillPanel({ salonName }: { salonName: string }) {
                     {gap.dayLabel} · {gap.timeLabel}
                   </p>
                   <p className="text-sm text-muted">
-                    {gap.stylistName} · {gap.durationMinutes} min
+                    {gap.stylistName} · {formatDurationMinutes(gap.durationMinutes)}
                     {gap.source === "cancellation" ? " · from cancellation" : ""}
                   </p>
                   {gap.suggestedServiceNames.length > 0 && (

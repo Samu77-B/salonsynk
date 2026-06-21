@@ -10,6 +10,7 @@ import { findAvailableSlots, isSlotAvailable } from "./slot-finder";
 import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso } from "./salon-time";
 import type { PublicSalonContext } from "./load-public-salon-catalog";
 import type { SlotCandidate, TimePreference } from "./booking-types";
+import { formatDurationMinutes } from "@/lib/format-duration";
 
 function errorPayload(message: string, suggestions: string[] = []) {
   return { success: false as const, error: message, suggestions };
@@ -214,7 +215,7 @@ export function buildPublicConciergePrompt(catalog: PublicSalonContext): string 
   const today = todaySalonDateIso();
   const serviceLines = catalog.services
     .slice(0, 30)
-    .map((s) => `- ${s.name} (${s.durationMinutes} min, ${formatPriceMinor(s.priceMinor)})`)
+    .map((s) => `- ${s.name} (${formatDurationMinutes(s.durationMinutes)}, ${formatPriceMinor(s.priceMinor)})`)
     .join("\n");
 
   return `You are the AI Concierge for ${catalog.salonName} — a friendly public booking assistant for clients (not staff).
@@ -242,7 +243,7 @@ ${catalog.stylists.map((s) => `- ${s.name}`).join("\n") || "(any available)"}`;
 
 export function buildPublicQaPrompt(catalog: PublicSalonContext): string {
   const serviceLines = catalog.services
-    .map((s) => `- ${s.name}: ${s.durationMinutes} min, ${formatPriceMinor(s.priceMinor)}`)
+    .map((s) => `- ${s.name}: ${formatDurationMinutes(s.durationMinutes)}, ${formatPriceMinor(s.priceMinor)}`)
     .join("\n");
 
   return `You are the SalonSynk QA Assistant for ${catalog.salonName}. Answer client questions about services, pricing, policies, and how to book.

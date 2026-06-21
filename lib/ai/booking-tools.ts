@@ -12,6 +12,7 @@ import {
 import { findAvailableSlots, isSlotAvailable, parseDateIso } from "./slot-finder";
 import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso } from "./salon-time";
 import type { SalonBookingCatalog, SlotCandidate, TimePreference } from "./booking-types";
+import { formatDurationMinutes } from "@/lib/format-duration";
 
 function errorPayload(message: string, suggestions: string[] = []) {
   return { success: false as const, error: message, suggestions };
@@ -166,7 +167,7 @@ export function createBookingTools(catalog: SalonBookingCatalog) {
         if (requestedSlotAvailable === false) {
           return {
             success: false as const,
-            error: `${stylistResult.item.name} is not free at ${requestedTime} on ${dateIsoNorm} for a ${durationMinutes}-minute ${serviceResult.item.name}.`,
+            error: `${stylistResult.item.name} is not free at ${requestedTime} on ${dateIsoNorm} for a ${formatDurationMinutes(durationMinutes)} ${serviceResult.item.name}.`,
             requestedSlotAvailable: false,
             suggestions: slots.slice(0, 6).map((s) => `${s.dayLabel} at ${s.timeLabel}`),
             alternativeSlots: slots.slice(0, 6),
@@ -475,7 +476,7 @@ export function buildBookingSystemPrompt(catalog: SalonBookingCatalog): string {
 
   const serviceLines = catalog.services
     .slice(0, 40)
-    .map((s) => `- ${s.name} (${s.durationMinutes} min, ${formatPriceMinor(s.priceMinor)})`)
+    .map((s) => `- ${s.name} (${formatDurationMinutes(s.durationMinutes)}, ${formatPriceMinor(s.priceMinor)})`)
     .join("\n");
 
   const stylistLines = catalog.stylists.map((s) => `- ${s.name}`).join("\n");

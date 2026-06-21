@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { inviteOrAddTeamMember, updateTeamMember, deleteTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles, upsertStylistServiceOverride, deleteStylistServiceOverride, setMemberPasscode, clearMemberPasscode } from "./actions";
 import { StaffOnboardingWizard } from "./staff-onboarding-wizard";
+import { formatDurationMinutes } from "@/lib/format-duration";
 
 export type Member = {
   id: string;
@@ -487,7 +488,7 @@ export function TeamView({
                     <div key={svc.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">{svc.name}</p>
-                        <p className="text-xs text-muted">Default: {svc.duration_minutes} min</p>
+                        <p className="text-xs text-muted">Default: {formatDurationMinutes(svc.duration_minutes)}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <input

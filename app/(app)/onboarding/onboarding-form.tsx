@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSalonAndOwner, addOnboardingServices } from "./actions";
+import { formatDurationMinutes } from "@/lib/format-duration";
 
 function slugFromName(name: string): string {
   return name
@@ -58,7 +59,7 @@ export function OnboardingForm() {
       <form onSubmit={handleServicesSubmit} className="space-y-4">
         <p className="text-sm text-muted">Add 1–2 services (optional). You can add more later.</p>
         {services.map((s, i) => (
-          <div key={i} className="flex gap-2">
+          <div key={i} className="flex gap-2 items-center">
             <input
               type="text"
               value={s.name}
@@ -70,18 +71,22 @@ export function OnboardingForm() {
               placeholder="Service name"
               className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
             />
-            <input
-              type="number"
-              min={15}
-              step={15}
-              value={s.duration_minutes}
-              onChange={(e) => {
-                const next = [...services];
-                next[i] = { ...next[i], duration_minutes: Number(e.target.value) || 60 };
-                setServices(next);
-              }}
-              className="w-20 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
+            <div className="shrink-0">
+              <input
+                type="number"
+                min={15}
+                step={15}
+                value={s.duration_minutes}
+                onChange={(e) => {
+                  const next = [...services];
+                  next[i] = { ...next[i], duration_minutes: Number(e.target.value) || 60 };
+                  setServices(next);
+                }}
+                aria-label="Duration in minutes"
+                className="w-20 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <p className="mt-0.5 text-[10px] text-muted text-center">{formatDurationMinutes(s.duration_minutes)}</p>
+            </div>
           </div>
         ))}
         <button

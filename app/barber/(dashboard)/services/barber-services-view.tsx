@@ -7,6 +7,7 @@ import {
   updateBarberService,
   deleteBarberService,
 } from "@modules/barber/actions/services";
+import { formatDurationMinutes } from "@/lib/format-duration";
 
 export type BarberServiceRow = {
   id: string;
@@ -79,7 +80,7 @@ function ServiceRow({ service }: { service: BarberServiceRow }) {
             />
           </div>
           <div>
-            <label className="block text-xs text-muted mb-1">Duration (mins)</label>
+            <label className="block text-xs text-muted mb-1">Duration</label>
             <input
               type="number"
               min={5}
@@ -88,6 +89,7 @@ function ServiceRow({ service }: { service: BarberServiceRow }) {
               onChange={(e) => setDuration(e.target.value)}
               className="w-full rounded border border-border bg-canvas px-3 py-2 text-sm"
             />
+            <p className="mt-1 text-[10px] text-muted">{formatDurationMinutes(Number.parseInt(duration, 10) || 0)}</p>
           </div>
           <div>
             <label className="block text-xs text-muted mb-1">Price (£, optional)</label>
@@ -133,7 +135,7 @@ function ServiceRow({ service }: { service: BarberServiceRow }) {
       <div>
         <p className="font-medium">{service.name}</p>
         <p className="text-xs text-muted mt-0.5">
-          {service.duration_minutes} mins
+          {formatDurationMinutes(service.duration_minutes)}
           {service.price_minor > 0 ? ` · ${formatPrice(service.price_minor)}` : " · No fixed price"}
         </p>
       </div>
@@ -225,7 +227,7 @@ export function BarberServicesView({ services }: { services: BarberServiceRow[] 
           </div>
           <div>
             <label htmlFor="svc-duration" className="block text-xs text-muted mb-1">
-              Duration (mins) *
+              Duration *
             </label>
             <input
               id="svc-duration"
@@ -237,6 +239,7 @@ export function BarberServicesView({ services }: { services: BarberServiceRow[] 
               required
               className="w-full rounded border border-border bg-canvas px-3 py-2 text-sm"
             />
+            <p className="mt-1 text-[10px] text-muted">{formatDurationMinutes(Number.parseInt(duration, 10) || 0)}</p>
           </div>
           <div>
             <label htmlFor="svc-price" className="block text-xs text-muted mb-1">

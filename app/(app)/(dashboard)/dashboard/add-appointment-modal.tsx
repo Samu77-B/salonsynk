@@ -8,6 +8,7 @@ import {
   clientIntakeBadgeClass,
   clientIntakeLabel,
 } from "@/lib/client-intake";
+import { formatDurationMinutes } from "@/lib/format-duration";
 
 type Member = { id: string; display_name: string | null; role: string };
 type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number };
@@ -483,7 +484,7 @@ export function AddAppointmentModal({
                 selectedIds={selectedServiceIds}
                 onSelectedIdsChange={setSelectedServiceIds}
                 categories={categories}
-                hint={`Type to add one or more; durations are combined for this appointment (${durationMinutes} min total).`}
+                hint={`Type to add one or more; durations are combined for this appointment (${formatDurationMinutes(durationMinutes)} total).`}
               />
               {serviceSummariesForNotes.some((s) => (s.processing_time_minutes ?? 0) > 0) && (
                 <p className="text-xs text-muted-foreground">

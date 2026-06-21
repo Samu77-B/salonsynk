@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
+import { formatDurationMinutes } from "@/lib/format-duration";
 
 const DAY_START_HOUR = 6;
 const DAY_END_HOUR = 19;
@@ -191,9 +192,9 @@ export function buildLastMinutePromotion(gap: CalendarGap, salonName: string): {
     gap.suggestedServiceNames.length > 0
       ? gap.suggestedServiceNames.slice(0, 2).join(" or ")
       : "selected treatments";
-  const sms = `Last-minute opening at ${salonName}! ${gap.stylistName} has ${gap.durationMinutes} mins on ${gap.dayLabel} at ${gap.timeLabel} — perfect for ${serviceHint}. Reply to book or visit our online booking page.`;
+  const sms = `Last-minute opening at ${salonName}! ${gap.stylistName} has ${formatDurationMinutes(gap.durationMinutes)} on ${gap.dayLabel} at ${gap.timeLabel} — perfect for ${serviceHint}. Reply to book or visit our online booking page.`;
   const emailSubject = `Last-minute availability — ${gap.dayLabel} at ${gap.timeLabel}`;
-  const emailBody = `Hello,\n\nWe have a last-minute opening at ${salonName}:\n\n• ${gap.dayLabel} at ${gap.timeLabel}\n• With ${gap.stylistName}\n• ${gap.durationMinutes}-minute slot\n• Ideal for: ${serviceHint}\n\nBook online or reply to this email to secure your appointment.\n\nSee you soon,\n${salonName}`;
+  const emailBody = `Hello,\n\nWe have a last-minute opening at ${salonName}:\n\n• ${gap.dayLabel} at ${gap.timeLabel}\n• With ${gap.stylistName}\n• ${formatDurationMinutes(gap.durationMinutes)} slot\n• Ideal for: ${serviceHint}\n\nBook online or reply to this email to secure your appointment.\n\nSee you soon,\n${salonName}`;
 
   return { sms, emailSubject, emailBody };
 }

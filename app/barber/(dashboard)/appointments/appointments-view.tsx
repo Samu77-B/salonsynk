@@ -9,6 +9,7 @@ import {
   deleteBarberAppointment,
 } from "./actions";
 import type { BarberAppointment, BarberMember, BarberService } from "./data";
+import { formatDurationMinutes } from "@/lib/format-duration";
 
 type Props = {
   date: string;
@@ -141,7 +142,7 @@ export function AppointmentsView({ date, appointments, members, services }: Prop
                 <option value="">General cut (30 min)</option>
                 {services.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} — {s.duration_minutes} min
+                    {s.name} — {formatDurationMinutes(s.duration_minutes)}
                   </option>
                 ))}
               </select>

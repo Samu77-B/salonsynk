@@ -11,6 +11,7 @@ import {
   type BillLineState,
 } from "./appointment-bill-summary";
 import { parsePoundsToMinor } from "@/lib/appointment-billing";
+import { formatDurationMinutes } from "@/lib/format-duration";
 
 function isNextOpaqueServerErrorMessage(msg: string): boolean {
   return (
@@ -686,7 +687,7 @@ export function EditAppointmentModal({
             selectedIds={selectedServiceIds}
             onSelectedIdsChange={setSelectedServiceIds}
             categories={categories}
-            hint={`Type to add one or more; combined duration for this appointment: ${durationMinutes} min.`}
+            hint={`Type to add one or more; combined duration for this appointment: ${formatDurationMinutes(durationMinutes)}.`}
           />
           <AppointmentBillSummary
             members={members}

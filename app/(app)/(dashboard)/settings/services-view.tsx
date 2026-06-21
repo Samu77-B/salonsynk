@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addService, updateService, deleteService, addCategory, updateCategory, deleteCategory } from "./actions";
+import { formatDurationMinutes } from "@/lib/format-duration";
 
 const DESCRIPTION_MAX = 2000;
 
@@ -368,7 +369,7 @@ function ServiceCard({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor={`svc-dur-${service.id}`} className="mb-1 block text-sm font-medium">
-            Duration (min)
+            Duration
           </label>
           <input
             id={`svc-dur-${service.id}`}
@@ -384,6 +385,7 @@ function ServiceCard({
             autoComplete="off"
             className={inputClass}
           />
+          <p className="mt-1 text-xs text-muted-foreground">{formatDurationMinutes(duration)}</p>
         </div>
         <div>
           <label htmlFor={`svc-price-${service.id}`} className="mb-1 block text-sm font-medium">
@@ -663,7 +665,7 @@ export function ServicesView({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="new-service-duration" className="mb-1 block text-sm font-medium">
-                Duration (min)
+                Duration
               </label>
               <input
                 id="new-service-duration"
@@ -682,6 +684,7 @@ export function ServicesView({
                 autoComplete="off"
                 className={inputClass}
               />
+              <p className="mt-1 text-xs text-muted-foreground">{formatDurationMinutes(newServiceDuration)}</p>
             </div>
             <div>
               <label htmlFor="new-service-price" className="mb-1 block text-sm font-medium">
