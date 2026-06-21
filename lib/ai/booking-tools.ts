@@ -9,8 +9,9 @@ import {
   resolveStylist,
   serviceDurationForStylist,
 } from "./booking-resolvers";
-import { findAvailableSlots, parseDateIso } from "./slot-finder";
-import type { SalonBookingCatalog, TimePreference } from "./booking-types";
+import { findAvailableSlots, isSlotAvailable, parseDateIso } from "./slot-finder";
+import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso } from "./salon-time";
+import type { SalonBookingCatalog, SlotCandidate, TimePreference } from "./booking-types";
 
 function errorPayload(message: string, suggestions: string[] = []) {
   return { success: false as const, error: message, suggestions };
@@ -79,6 +80,7 @@ export function createBookingTools(catalog: SalonBookingCatalog) {
         serviceName: string;
         dateIso: string;
         timePreference?: TimePreference;
+        requestedTime?: string;
       }>({
         type: "object",
         properties: {
@@ -90,11 +92,15 @@ export function createBookingTools(catalog: SalonBookingCatalog) {
             enum: ["morning", "afternoon", "evening", "any"],
             description: "Optional time-of-day preference",
           },
+          requestedTime: {
+            type: "string",
+            description: "Optional specific time to verify, 24h HH:mm (e.g. 15:00 for 3pm). Always pass when the user asks for a specific time.",
+          },
         },
         required: ["stylistName", "serviceName", "dateIso"],
         additionalProperties: false,
       }),
-      execute: async ({ stylistName, serviceName, dateIso, timePreference }) => {
+      execute: async ({ stylistName, serviceName, dateIso, timePreference, requestedTime }) => {
         const stylistResult = resolveStylist(stylists, stylistName);
         if (!stylistResult.ok) {
           return errorPayload(stylistResult.error, stylistResult.suggestions);
@@ -116,15 +122,56 @@ export function createBookingTools(catalog: SalonBookingCatalog) {
           stylistOverrides
         );
 
+        const dateIsoNorm = parseSalonDateIso(dateIso) ?? dateIso;
+        let requestedSlotAvailable: boolean | undefined;
+        let requestedSlot: SlotCandidate | undefined;
+
+        if (requestedTime?.trim()) {
+          const parsedTime = parseSalonLocalTime(requestedTime.trim());
+          if (parsedTime) {
+            const start = salonLocalToUtc(dateIsoNorm, parsedTime.hour, parsedTime.minute);
+            requestedSlotAvailable = await isSlotAvailable({
+              salonId,
+              stylistId: stylistResult.item.id,
+              startTime: start,
+              durationMinutes,
+            });
+            if (requestedSlotAvailable) {
+              requestedSlot = {
+                startIso: start.toISOString(),
+                endIso: new Date(start.getTime() + durationMinutes * 60_000).toISOString(),
+                dayLabel: start.toLocaleDateString("en-GB", {
+                  timeZone: "Europe/London",
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                }),
+                timeLabel: requestedTime.trim(),
+              };
+            }
+          }
+        }
+
         const slots = await findAvailableSlots({
           salonId,
           stylistId: stylistResult.item.id,
           durationMinutes,
-          fromDate: date,
+          fromDate: dateIsoNorm,
           daysToScan: 3,
           timePreference: timePreference ?? "any",
-          maxResults: 6,
+          maxResults: 12,
+          prioritizeLocalTime: requestedTime?.trim(),
         });
+
+        if (requestedSlotAvailable === false) {
+          return {
+            success: false as const,
+            error: `${stylistResult.item.name} is not free at ${requestedTime} on ${dateIsoNorm} for a ${durationMinutes}-minute ${serviceResult.item.name}.`,
+            requestedSlotAvailable: false,
+            suggestions: slots.slice(0, 6).map((s) => `${s.dayLabel} at ${s.timeLabel}`),
+            alternativeSlots: slots.slice(0, 6),
+          };
+        }
 
         if (slots.length === 0) {
           const altSlots = await findAvailableSlots({
@@ -158,6 +205,7 @@ export function createBookingTools(catalog: SalonBookingCatalog) {
           durationMinutes,
           price: formatPriceMinor(serviceResult.item.priceMinor),
           slots,
+          ...(requestedSlot ? { requestedSlot, requestedSlotAvailable: true } : {}),
         });
       },
     }),
@@ -419,9 +467,11 @@ export function createBookingTools(catalog: SalonBookingCatalog) {
 }
 
 export function buildBookingSystemPrompt(catalog: SalonBookingCatalog): string {
-  const today = new Date();
-  const todayIso = today.toISOString().slice(0, 10);
-  const weekday = today.toLocaleDateString("en-GB", { weekday: "long" });
+  const todayIso = todaySalonDateIso();
+  const weekday = new Date().toLocaleDateString("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "long",
+  });
 
   const serviceLines = catalog.services
     .slice(0, 40)
@@ -436,11 +486,12 @@ Today is ${weekday}, ${todayIso}. Use UK English and 24-hour style times in repl
 
 You help salon staff book and reschedule appointments using tools. Always:
 1. Resolve service and stylist names against the salon catalog below.
-2. Call check_availability before book_appointment when the user gives a day/time preference.
-3. Ask for the client or guest name before booking if missing.
-4. If a tool returns success:false, explain politely and offer suggestions from the tool response.
-5. Never invent services, stylists, prices, or times — only use tool results.
-6. After a successful booking or reschedule, confirm details clearly and mention the Classic Mode diary will show the update.
+2. Call check_availability before book_appointment when the user gives a day/time preference. If they ask for a specific time (e.g. 3pm), always pass requestedTime as 24h HH:mm (15:00).
+3. If requestedSlotAvailable is true, that exact time is free — book it. Do not say unavailable because other listed slots are earlier in the day.
+4. Ask for the client or guest name before booking if missing.
+5. If a tool returns success:false, explain politely and offer suggestions from the tool response.
+6. Never invent services, stylists, prices, or times — only use tool results.
+7. After a successful booking or reschedule, confirm details clearly and mention the Classic Mode diary will show the update.
 
 Services:
 ${serviceLines || "(none configured)"}
