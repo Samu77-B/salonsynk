@@ -127,7 +127,6 @@ export function AddAppointmentModal({
     }
   }, [clientId, clients]);
 
-  const messagingOn = sendReminderSms || sendReviewRequest || sendAftercare;
   const hasContact = !!(email?.trim() || phone?.trim());
 
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null;
@@ -488,36 +487,6 @@ export function AddAppointmentModal({
                 </span>
               </label>
             </div>
-          </div>
-          <div className="rounded-lg border border-border p-3 space-y-2">
-            <p className="text-sm font-medium">Messages to client</p>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={sendReminderSms}
-                onChange={(e) => setSendReminderSms(e.target.checked)}
-                className="rounded border-border"
-              />
-              <span className="text-sm">Send reminder (SMS/text) before appointment</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={sendReviewRequest}
-                onChange={(e) => setSendReviewRequest(e.target.checked)}
-                className="rounded border-border"
-              />
-              <span className="text-sm">Ask how their experience was after appointment</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={sendAftercare}
-                onChange={(e) => setSendAftercare(e.target.checked)}
-                className="rounded border-border"
-              />
-              <span className="text-sm">Send aftercare instructions after appointment</span>
-            </label>
           </div>
           <div ref={errorAndOverlapRef} className="space-y-3 scroll-mt-4">
           {submitError && (
