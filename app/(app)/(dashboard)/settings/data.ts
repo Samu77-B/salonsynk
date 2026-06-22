@@ -12,6 +12,57 @@ import {
 import { fetchSalonPlanState } from "@/lib/salon-features.server";
 import { isPaymentGatewayId, PAYMENT_GATEWAYS, salonUsesStripeCheckout } from "@/config/payment-gateways";
 import { redirect } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+const SERVICE_SELECT_ATTEMPTS = [
+  "id, name, duration_minutes, price_minor, processing_time_minutes, description, color, category_id, sort_order",
+  "id, name, duration_minutes, price_minor, processing_time_minutes, description, color, category_id",
+  "id, name, duration_minutes, price_minor, processing_time_minutes, description, category_id",
+  "id, name, duration_minutes, price_minor, processing_time_minutes, description, color",
+  "id, name, duration_minutes, price_minor, processing_time_minutes, description",
+  "id, name, duration_minutes, price_minor, processing_time_minutes",
+  "id, name, duration_minutes, price_minor, description",
+  "id, name, duration_minutes, price_minor",
+] as const;
+
+export type ServiceSchemaCapabilities = {
+  hasColorColumn: boolean;
+  hasCategoryColumn: boolean;
+};
+
+async function fetchSalonServices(
+  supabase: SupabaseClient,
+  salonId: string
+): Promise<{
+  data: Record<string, unknown>[] | null;
+  schema: ServiceSchemaCapabilities;
+}> {
+  for (const cols of SERVICE_SELECT_ATTEMPTS) {
+    for (const orderBySortOrder of [true, false]) {
+      let query = supabase.from("services").select(cols).eq("salon_id", salonId);
+      if (orderBySortOrder) query = query.order("sort_order");
+      const res = await query.order("name");
+      if (!res.error) {
+        return {
+          data: (res.data ?? []) as unknown as Record<string, unknown>[],
+          schema: {
+            hasColorColumn: cols.includes("color"),
+            hasCategoryColumn: cols.includes("category_id"),
+          },
+        };
+      }
+    }
+  }
+  const fallback = await supabase
+    .from("services")
+    .select("id, name, duration_minutes, price_minor")
+    .eq("salon_id", salonId)
+    .order("name");
+  return {
+    data: (fallback.data ?? []) as unknown as Record<string, unknown>[],
+    schema: { hasColorColumn: false, hasCategoryColumn: false },
+  };
+}
 
 export async function getSettingsData() {
   const context = await getCurrentUserSalon();
@@ -20,32 +71,7 @@ export async function getSettingsData() {
   const isSuperAdmin = await getIsSuperAdmin();
   const supabase = await createClient();
 
-  const servicesPromise = (async () => {
-    const attempts = [
-      "id, name, duration_minutes, price_minor, processing_time_minutes, description, color, category_id, sort_order",
-      "id, name, duration_minutes, price_minor, processing_time_minutes, description, color, category_id",
-      "id, name, duration_minutes, price_minor, processing_time_minutes, description, category_id",
-      "id, name, duration_minutes, price_minor, processing_time_minutes, description, color",
-      "id, name, duration_minutes, price_minor, processing_time_minutes, description",
-      "id, name, duration_minutes, price_minor, processing_time_minutes",
-      "id, name, duration_minutes, price_minor, description",
-      "id, name, duration_minutes, price_minor",
-    ] as const;
-    for (const cols of attempts) {
-      const res = await supabase
-        .from("services")
-        .select(cols)
-        .eq("salon_id", context.salon.id)
-        .order("sort_order")
-        .order("name");
-      if (!res.error) return res;
-    }
-    return supabase
-      .from("services")
-      .select("id, name, duration_minutes, price_minor")
-      .eq("salon_id", context.salon.id)
-      .order("name");
-  })();
+  const servicesPromise = fetchSalonServices(supabase, context.salon.id);
 
   const categoriesPromise = supabase
     .from("service_categories")
@@ -54,7 +80,7 @@ export async function getSettingsData() {
     .order("sort_order")
     .order("name");
 
-  const [{ data: salon }, { data: member }, { data: services }, { data: categories }] = await Promise.all([
+  const [{ data: salon }, { data: member }, servicesResult, { data: categories }] = await Promise.all([
     supabase
       .from("salons")
       .select(
@@ -71,6 +97,8 @@ export async function getSettingsData() {
     servicesPromise,
     categoriesPromise,
   ]);
+  const services = servicesResult.data;
+  const serviceSchema = servicesResult.schema;
 
   const settings = (salon?.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | undefined>) ?? {};
@@ -113,6 +141,7 @@ export async function getSettingsData() {
       const row = c as { id: string; name: string; sort_order: number };
       return { id: row.id, name: row.name, sort_order: row.sort_order ?? 0 };
     }),
+    serviceSchema,
     services: (services ?? []).map((s) => {
       const row = s as {
         id: string;

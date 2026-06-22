@@ -588,11 +588,13 @@ export function ServicesView({
   canManageServices,
   services = [],
   categories = [],
+  serviceSchema = { hasColorColumn: true, hasCategoryColumn: true },
 }: {
   salonId: string;
   canManageServices: boolean;
   services?: ServiceRow[];
   categories?: CategoryRow[];
+  serviceSchema?: { hasColorColumn: boolean; hasCategoryColumn: boolean };
 }) {
   const router = useRouter();
   const [newServiceName, setNewServiceName] = useState("");
@@ -636,6 +638,20 @@ export function ServicesView({
 
   return (
     <section className="space-y-8">
+      {(!serviceSchema.hasColorColumn || !serviceSchema.hasCategoryColumn) && (
+        <div
+          className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-foreground"
+          role="status"
+        >
+          <p className="font-medium">Database update required for categories and diary colours</p>
+          <p className="mt-1 text-muted">
+            Your salon database is missing columns needed to store service categories and diary colours. Run the SQL
+            migration{" "}
+            <code className="rounded bg-background/80 px-1 py-0.5 text-xs">051_ensure_service_color_and_category.sql</code>{" "}
+            in the Supabase SQL Editor, then reopen this page and save each service again.
+          </p>
+        </div>
+      )}
       <p className="text-sm text-muted">
         Each service is a card: set timing and price. Optional: allow <span className="font-medium text-foreground">overlap</span>{" "}
         when the client is processing (e.g. colour developing) so another client can be booked in that gap. Use{" "}
