@@ -11,6 +11,7 @@ import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDate
 import type { PublicSalonContext } from "./load-public-salon-catalog";
 import type { SlotCandidate, TimePreference } from "./booking-types";
 import { formatDurationMinutes } from "@/lib/format-duration";
+import { SYNKAI_AGENT_NAME } from "@/lib/ai/synkai-brand";
 
 function errorPayload(message: string, suggestions: string[] = []) {
   return { success: false as const, error: message, suggestions };
@@ -22,7 +23,7 @@ function successPayload<T extends Record<string, unknown>>(data: T) {
 
 /** Guest-safe booking tools — no client list, reschedule, or internal notes. */
 export function createPublicBookingTools(catalog: PublicSalonContext) {
-  const { salonId, salonName, services, stylists, stylistOverrides, slug } = catalog;
+  const { salonId, salonName, services, stylists, stylistOverrides, slug, products } = catalog;
 
   return {
     list_services: tool({
@@ -40,6 +41,28 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
             name: s.name,
             durationMinutes: s.durationMinutes,
             price: formatPriceMinor(s.priceMinor),
+            category: s.categoryName ?? undefined,
+            description: s.description ? s.description.slice(0, 220) : undefined,
+          })),
+        });
+      },
+    }),
+
+    list_products: tool({
+      description: "List retail products sold by the salon (shampoo, styling products, etc.).",
+      inputSchema: jsonSchema<{ query?: string }>({
+        type: "object",
+        properties: { query: { type: "string" } },
+        additionalProperties: false,
+      }),
+      execute: async ({ query }) => {
+        const q = query?.trim().toLowerCase();
+        const rows = q ? products.filter((p) => p.name.toLowerCase().includes(q)) : products;
+        return successPayload({
+          products: rows.map((p) => ({
+            name: p.name,
+            price: formatPriceMinor(p.priceMinor),
+            description: p.description ? p.description.slice(0, 160) : undefined,
           })),
         });
       },
@@ -215,27 +238,43 @@ export function buildPublicConciergePrompt(catalog: PublicSalonContext): string 
   const today = todaySalonDateIso();
   const serviceLines = catalog.services
     .slice(0, 30)
-    .map((s) => `- ${s.name} (${formatDurationMinutes(s.durationMinutes)}, ${formatPriceMinor(s.priceMinor)})`)
+    .map((s) => {
+      const bits = [`${s.name} (${formatDurationMinutes(s.durationMinutes)}, ${formatPriceMinor(s.priceMinor)})`];
+      if (s.categoryName) bits.push(`[${s.categoryName}]`);
+      if (s.description) bits.push(`— ${s.description.slice(0, 150)}`);
+      return `- ${bits.join(" ")}`;
+    })
     .join("\n");
 
-  return `You are the AI Concierge for ${catalog.salonName} — a friendly public booking assistant for clients (not staff).
+  const productLines = catalog.products
+    .slice(0, 15)
+    .map((p) => `- ${p.name} (${formatPriceMinor(p.priceMinor)})`)
+    .join("\n");
+
+  return `You are ${SYNKAI_AGENT_NAME} for ${catalog.salonName} — a friendly public assistant for clients booking online.
 
 Today is ${today}. Use UK English.
 
-You help clients:
-- Learn about services and prices
-- Check availability
-- Book appointments (collect full name and email before booking)
+You help clients with:
+- Hair services (cuts, colour, highlights, balayage, styling, etc.) — use service names and descriptions below
+- Booking appointments (check availability, then book with name + email)
+- General salon questions: opening hours, policies, what a service includes
+
+Opening hours: ${catalog.openingHoursNote}
 
 Rules:
-- Never mention internal staff tools, reports, or client databases
-- Use check_availability before book_guest_appointment; pass requestedTime as HH:mm when the client asks for a specific time
-- If requestedSlotAvailable is true, that time is free — proceed to book
+- Never mention internal staff tools or client databases
+- Use list_services / check_availability / book_guest_appointment for bookings
+- For style or colour advice, describe what the salon offers based on service list — do not invent services
+- If asked about opening times, use the opening hours note above; if unsure, suggest calling the salon
 - If asked about salon policy: ${catalog.policyNotes}
 - Be concise and welcoming
 
-Services:
+Services (use descriptions to explain cuts, colour, highlights, etc.):
 ${serviceLines || "(contact salon)"}
+
+Retail products:
+${productLines || "(ask salon)"}
 
 Stylists:
 ${catalog.stylists.map((s) => `- ${s.name}`).join("\n") || "(any available)"}`;
@@ -243,21 +282,32 @@ ${catalog.stylists.map((s) => `- ${s.name}`).join("\n") || "(any available)"}`;
 
 export function buildPublicQaPrompt(catalog: PublicSalonContext): string {
   const serviceLines = catalog.services
-    .map((s) => `- ${s.name}: ${formatDurationMinutes(s.durationMinutes)}, ${formatPriceMinor(s.priceMinor)}`)
+    .map((s) => {
+      const bits = [`${s.name}: ${formatDurationMinutes(s.durationMinutes)}, ${formatPriceMinor(s.priceMinor)}`];
+      if (s.description) bits.push(s.description.slice(0, 180));
+      return `- ${bits.join(" — ")}`;
+    })
     .join("\n");
 
-  return `You are the SalonSynk QA Assistant for ${catalog.salonName}. Answer client questions about services, pricing, policies, and how to book.
+  return `You are ${SYNKAI_AGENT_NAME} for ${catalog.salonName}. Answer client questions about services, styling, colour, pricing, policies, opening hours, and how to book.
+
+Opening hours: ${catalog.openingHoursNote}
 
 Policy context: ${catalog.policyNotes}
 
-Services:
+Services (use these to answer questions about cuts, colour techniques, duration, and price):
 ${serviceLines}
 
-Booking: clients can book via this page's booking form or AI Concierge tab.
+Retail products:
+${catalog.products.map((p) => `- ${p.name}: ${formatPriceMinor(p.priceMinor)}`).join("\n") || "(none listed)"}
+
+Booking: clients can book via this page's booking form or the ${SYNKAI_AGENT_NAME} tab.
 
 Rules:
 - UK English, friendly and factual
+- For hair style or colour questions, explain using the service list and descriptions — suggest booking a consultation if unsure
+- For opening times, use the opening hours note; do not invent hours
 - Do not invent services or prices not listed above
 - For account-specific questions, ask them to contact the salon directly
-- You cannot access appointment records or staff schedules in QA mode — suggest the AI Concierge for booking`;
+- You cannot access live appointment schedules in QA mode — suggest ${SYNKAI_AGENT_NAME} booking for availability`;
 }

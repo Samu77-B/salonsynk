@@ -3,6 +3,29 @@ export type AiBookingService = {
   name: string;
   durationMinutes: number;
   priceMinor: number | null;
+  description?: string | null;
+  categoryName?: string | null;
+};
+
+export type AiBookingProduct = {
+  id: string;
+  name: string;
+  priceMinor: number;
+  description?: string | null;
+  category?: string | null;
+};
+
+export type AiBookingTeamMember = {
+  id: string;
+  name: string;
+  role: string;
+  showsOnDiary: boolean;
+};
+
+export type SynkAiAccess = {
+  isManager: boolean;
+  memberRole: string;
+  pathname?: string;
 };
 
 export type AiBookingStylist = {
@@ -33,6 +56,10 @@ export type SalonBookingCatalog = {
   stylists: AiBookingStylist[];
   clients: AiBookingClient[];
   stylistOverrides: Record<string, Record<string, number>>;
+  products: AiBookingProduct[];
+  teamMembers: AiBookingTeamMember[];
+  openingHoursNote: string;
+  aftercareMessage: string | null;
 };
 
 export type ResolveResult<T> =

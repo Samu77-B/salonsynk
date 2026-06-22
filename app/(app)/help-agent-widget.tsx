@@ -5,6 +5,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { usePathname } from "next/navigation";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { getPageHelpContext } from "@/lib/help/page-context";
+import { SYNKAI_AGENT_NAME } from "@/lib/ai/synkai-brand";
 
 function textFromMessage(m: UIMessage): string {
   return m.parts
@@ -59,7 +60,7 @@ export function HelpAgentWidget() {
           type="button"
           onClick={() => setOpen(true)}
           className="fixed bottom-5 right-5 z-[100] flex h-14 w-14 items-center justify-center rounded-full bg-accent text-lg font-bold text-background shadow-lg ring-2 ring-background/80 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background"
-          aria-label="Open SalonSynk help chat"
+          aria-label={`Open ${SYNKAI_AGENT_NAME} help chat`}
         >
           ?
         </button>
@@ -69,7 +70,7 @@ export function HelpAgentWidget() {
         <div className="fixed bottom-5 right-5 z-[100] flex h-[min(80vh,28rem)] w-[min(100vw-1.5rem,22rem)] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
           <div className="flex items-center justify-between gap-2 border-b border-border bg-white/5 px-3 py-2">
             <div className="min-w-0">
-              <p className="text-sm font-semibold truncate">Help — {page.pageLabel}</p>
+              <p className="text-sm font-semibold truncate">{SYNKAI_AGENT_NAME} — {page.pageLabel}</p>
               <p className="text-[11px] text-muted leading-snug line-clamp-2">{page.helpPrompt}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -109,7 +110,7 @@ export function HelpAgentWidget() {
                 }`}
               >
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-muted mb-1">
-                  {m.role === "user" ? "You" : "SalonSynk Help"}
+                  {m.role === "user" ? "You" : SYNKAI_AGENT_NAME}
                 </p>
                 <p className="whitespace-pre-wrap text-[13px] leading-relaxed">{textFromMessage(m)}</p>
               </div>

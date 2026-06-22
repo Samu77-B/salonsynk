@@ -1,7 +1,9 @@
 /**
- * Page-aware copy for the in-app AI help agent.
+ * Page-aware copy for the in-app SynkAI help agent.
  * Keep in sync with real product behaviour (see Help page and navigation).
  */
+
+import { SYNKAI_AGENT_NAME } from "@/lib/ai/synkai-brand";
 
 export type PageHelpContext = {
   pageId: string;
@@ -15,7 +17,7 @@ export type PageHelpContext = {
 const DEFAULT: PageHelpContext = {
   pageId: "general",
   pageLabel: "SalonSynk",
-  helpPrompt: "Need help with SalonSynk? Ask me anything about the app.",
+  helpPrompt: `Need help with SalonSynk? Ask ${SYNKAI_AGENT_NAME} anything about the app.`,
   knowledge: `SalonSynk is salon management software: diary, team, clients, checkout (Stripe), online booking, reminders, reports, campaigns, services/products, and settings. Users are staff or owners of a single salon context after login.`,
 };
 

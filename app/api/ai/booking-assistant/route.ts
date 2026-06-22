@@ -1,6 +1,8 @@
 import { openai } from "@ai-sdk/openai";
 import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { isManagerRole } from "@/lib/dashboard-roles";
 import { loadSalonBookingCatalog } from "@/lib/ai/salon-booking-catalog";
 import { buildBookingSystemPrompt, createBookingTools } from "@/lib/ai/booking-tools";
 
@@ -26,15 +28,24 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const raw = body as { messages?: UIMessage[] };
+  const raw = body as { messages?: UIMessage[]; pathname?: string };
   const messages = raw.messages;
   if (!Array.isArray(messages) || messages.length === 0) {
     return Response.json({ error: "Missing messages" }, { status: 400 });
   }
 
+  const isSuperAdmin = await getIsSuperAdmin();
+  const isManager = isManagerRole(isSuperAdmin, salonContext.member.role ?? "");
+  const pathname = typeof raw.pathname === "string" ? raw.pathname : "/dashboard";
+
   const catalog = await loadSalonBookingCatalog(salonContext.salon.id, salonContext.salon.name);
-  const tools = createBookingTools(catalog);
-  const system = buildBookingSystemPrompt(catalog);
+  const access = {
+    isManager,
+    memberRole: salonContext.member.role ?? "staff",
+    pathname: isManager ? pathname : undefined,
+  };
+  const tools = createBookingTools(catalog, access);
+  const system = buildBookingSystemPrompt(catalog, access);
   const modelMessages = await convertToModelMessages(messages);
 
   const result = streamText({
@@ -42,7 +53,7 @@ export async function POST(req: Request) {
     system,
     messages: modelMessages,
     tools,
-    stopWhen: stepCountIs(6),
+    stopWhen: stepCountIs(8),
   });
 
   return result.toUIMessageStreamResponse();

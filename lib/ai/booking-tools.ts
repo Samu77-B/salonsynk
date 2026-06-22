@@ -11,8 +11,18 @@ import {
 } from "./booking-resolvers";
 import { findAvailableSlots, isSlotAvailable, parseDateIso } from "./slot-finder";
 import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso } from "./salon-time";
-import type { SalonBookingCatalog, SlotCandidate, TimePreference } from "./booking-types";
+import type { SalonBookingCatalog, SlotCandidate, SynkAiAccess, TimePreference } from "./booking-types";
 import { formatDurationMinutes } from "@/lib/format-duration";
+import { SYNKAI_AGENT_NAME } from "@/lib/ai/synkai-brand";
+import {
+  synkaiCancelAppointment,
+  synkaiDeleteAppointment,
+  synkaiSendAftercare,
+  synkaiSendAppointmentReminder,
+  synkaiSendBookingConfirmation,
+  synkaiSendRunningLate,
+} from "@/lib/ai/synkai-appointment-actions";
+import { getPageHelpContext } from "@/lib/help/page-context";
 
 function errorPayload(message: string, suggestions: string[] = []) {
   return { success: false as const, error: message, suggestions };
@@ -22,8 +32,10 @@ function successPayload<T extends Record<string, unknown>>(data: T) {
   return { success: true as const, ...data };
 }
 
-export function createBookingTools(catalog: SalonBookingCatalog) {
-  const { salonId, salonName, services, stylists, clients, stylistOverrides } = catalog;
+export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAiAccess) {
+  const { salonId, salonName, services, stylists, clients, stylistOverrides, products, teamMembers } =
+    catalog;
+  const isManager = access?.isManager ?? false;
 
   return {
     list_services: tool({
@@ -51,6 +63,8 @@ export function createBookingTools(catalog: SalonBookingCatalog) {
             name: s.name,
             durationMinutes: s.durationMinutes,
             price: formatPriceMinor(s.priceMinor),
+            category: s.categoryName ?? undefined,
+            description: s.description ? s.description.slice(0, 200) : undefined,
           })),
         });
       },
@@ -464,10 +478,215 @@ export function createBookingTools(catalog: SalonBookingCatalog) {
         });
       },
     }),
+
+    list_products: tool({
+      description: "List retail products the salon sells (for checkout suggestions or client questions).",
+      inputSchema: jsonSchema<{ query?: string }>({
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Optional filter by product name" },
+        },
+        additionalProperties: false,
+      }),
+      execute: async ({ query }) => {
+        const q = query?.trim().toLowerCase();
+        const rows = q ? products.filter((p) => p.name.toLowerCase().includes(q)) : products;
+        if (rows.length === 0) {
+          return errorPayload(
+            q ? `No products match "${query}".` : "No active retail products are configured.",
+            products.slice(0, 6).map((p) => p.name)
+          );
+        }
+        return successPayload({
+          products: rows.map((p) => ({
+            name: p.name,
+            price: formatPriceMinor(p.priceMinor),
+            category: p.category ?? undefined,
+            description: p.description ? p.description.slice(0, 160) : undefined,
+          })),
+        });
+      },
+    }),
+
+    list_clients: tool({
+      description:
+        "Search clients on file by name. Use before booking or when the user asks about a client.",
+      inputSchema: jsonSchema<{ query?: string }>({
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Optional name filter" },
+        },
+        additionalProperties: false,
+      }),
+      execute: async ({ query }) => {
+        const q = query?.trim().toLowerCase();
+        const rows = q
+          ? clients.filter((c) => (c.name ?? "").toLowerCase().includes(q))
+          : clients.slice(0, 30);
+        if (rows.length === 0) {
+          return errorPayload(q ? `No clients match "${query}".` : "No clients on file yet.", []);
+        }
+        return successPayload({
+          clients: rows.map((c) => ({
+            name: c.name ?? "Unnamed",
+            hasEmail: Boolean(c.email?.trim()),
+            hasPhone: Boolean(c.phone?.trim()),
+          })),
+        });
+      },
+    }),
+
+    ...(isManager
+      ? {
+          list_team_members: tool({
+            description: "List all active salon team members and their roles (owners/managers only).",
+            inputSchema: jsonSchema<Record<string, never>>({
+              type: "object",
+              properties: {},
+              additionalProperties: false,
+            }),
+            execute: async () => {
+              if (teamMembers.length === 0) {
+                return errorPayload("No team members found.", []);
+              }
+              return successPayload({
+                team: teamMembers.map((m) => ({
+                  name: m.name,
+                  role: m.role,
+                  onDiary: m.showsOnDiary,
+                })),
+              });
+            },
+          }),
+        }
+      : {}),
+
+    cancel_appointment: tool({
+      description: "Cancel a scheduled appointment (sets status to canceled). Use find_appointments first.",
+      inputSchema: jsonSchema<{ appointmentId: string }>({
+        type: "object",
+        properties: { appointmentId: { type: "string" } },
+        required: ["appointmentId"],
+        additionalProperties: false,
+      }),
+      execute: async ({ appointmentId }) => {
+        const result = await synkaiCancelAppointment(appointmentId, salonId);
+        if (!result.ok) return errorPayload(result.error ?? "Could not cancel.", []);
+        return successPayload({
+          bookingChanged: true,
+          appointmentId,
+          message: "Appointment canceled.",
+        });
+      },
+    }),
+
+    delete_appointment: tool({
+      description: "Permanently delete an appointment from the diary. Confirm with the user first.",
+      inputSchema: jsonSchema<{ appointmentId: string }>({
+        type: "object",
+        properties: { appointmentId: { type: "string" } },
+        required: ["appointmentId"],
+        additionalProperties: false,
+      }),
+      execute: async ({ appointmentId }) => {
+        const supabase = await createClient();
+        const { data } = await supabase
+          .from("appointments")
+          .select("id")
+          .eq("id", appointmentId)
+          .eq("salon_id", salonId)
+          .maybeSingle();
+        if (!data) return errorPayload("Appointment not found.", []);
+        const result = await synkaiDeleteAppointment(appointmentId);
+        if (!result.ok) return errorPayload(result.error ?? "Could not delete.", []);
+        return successPayload({
+          bookingChanged: true,
+          appointmentId,
+          message: "Appointment deleted from the diary.",
+        });
+      },
+    }),
+
+    send_booking_confirmation: tool({
+      description:
+        "Send booking confirmation to the client by email (preferred) or SMS/WhatsApp using contact details on file.",
+      inputSchema: jsonSchema<{ appointmentId: string }>({
+        type: "object",
+        properties: { appointmentId: { type: "string" } },
+        required: ["appointmentId"],
+        additionalProperties: false,
+      }),
+      execute: async ({ appointmentId }) => {
+        const result = await synkaiSendBookingConfirmation(appointmentId, salonId);
+        if (!result.ok) return errorPayload(result.error ?? "Could not send confirmation.", []);
+        return successPayload({
+          appointmentId,
+          channel: result.channel,
+          message: `Booking confirmation sent via ${result.channel}.`,
+        });
+      },
+    }),
+
+    send_appointment_reminder: tool({
+      description:
+        "Send an appointment reminder now by SMS/WhatsApp or email, depending on what contact info is saved.",
+      inputSchema: jsonSchema<{ appointmentId: string }>({
+        type: "object",
+        properties: { appointmentId: { type: "string" } },
+        required: ["appointmentId"],
+        additionalProperties: false,
+      }),
+      execute: async ({ appointmentId }) => {
+        const result = await synkaiSendAppointmentReminder(appointmentId, salonId);
+        if (!result.ok) return errorPayload(result.error ?? "Could not send reminder.", []);
+        return successPayload({
+          appointmentId,
+          channel: result.channel,
+          message: `Reminder sent via ${result.channel}.`,
+        });
+      },
+    }),
+
+    send_aftercare_message: tool({
+      description:
+        "Send aftercare advice to the client after their visit (SMS/WhatsApp or email fallback).",
+      inputSchema: jsonSchema<{ appointmentId: string }>({
+        type: "object",
+        properties: { appointmentId: { type: "string" } },
+        required: ["appointmentId"],
+        additionalProperties: false,
+      }),
+      execute: async ({ appointmentId }) => {
+        const result = await synkaiSendAftercare(appointmentId, salonId);
+        if (!result.ok) return errorPayload(result.error ?? "Could not send aftercare.", []);
+        return successPayload({
+          appointmentId,
+          message: "Aftercare message sent.",
+        });
+      },
+    }),
+
+    send_running_late_message: tool({
+      description: "Text the client that the salon is running late for their appointment (SMS).",
+      inputSchema: jsonSchema<{ appointmentId: string }>({
+        type: "object",
+        properties: { appointmentId: { type: "string" } },
+        required: ["appointmentId"],
+        additionalProperties: false,
+      }),
+      execute: async ({ appointmentId }) => {
+        const result = await synkaiSendRunningLate(appointmentId, salonId, salonName);
+        if (!result.ok) return errorPayload(result.error ?? "Could not send SMS.", []);
+        return successPayload({
+          appointmentId,
+          message: "Running-late text sent.",
+        });
+      },
+    }),
   };
 }
 
-export function buildBookingSystemPrompt(catalog: SalonBookingCatalog): string {
+export function buildBookingSystemPrompt(catalog: SalonBookingCatalog, access?: SynkAiAccess): string {
   const todayIso = todaySalonDateIso();
   const weekday = new Date().toLocaleDateString("en-GB", {
     timeZone: "Europe/London",
@@ -476,29 +695,62 @@ export function buildBookingSystemPrompt(catalog: SalonBookingCatalog): string {
 
   const serviceLines = catalog.services
     .slice(0, 40)
-    .map((s) => `- ${s.name} (${formatDurationMinutes(s.durationMinutes)}, ${formatPriceMinor(s.priceMinor)})`)
+    .map((s) => {
+      const bits = [`${s.name} (${formatDurationMinutes(s.durationMinutes)}, ${formatPriceMinor(s.priceMinor)})`];
+      if (s.categoryName) bits.push(`[${s.categoryName}]`);
+      if (s.description) bits.push(`— ${s.description.slice(0, 120)}`);
+      return `- ${bits.join(" ")}`;
+    })
+    .join("\n");
+
+  const productLines = catalog.products
+    .slice(0, 20)
+    .map((p) => `- ${p.name} (${formatPriceMinor(p.priceMinor)})`)
     .join("\n");
 
   const stylistLines = catalog.stylists.map((s) => `- ${s.name}`).join("\n");
 
-  return `You are SalonSynk Booking Assistant for ${catalog.salonName}.
+  const isManager = access?.isManager ?? false;
+  const roleLine = isManager
+    ? `The user is a salon owner or manager (${access?.memberRole ?? "manager"}). You may help with team overview, SalonSynk features, and full salon operations.`
+    : `The user is salon staff (${access?.memberRole ?? "staff"}). Focus on diary work: bookings, clients, services, products, and client messages — not billing setup or admin configuration.`;
 
-Today is ${weekday}, ${todayIso}. Use UK English and 24-hour style times in replies.
+  let helpBlock = "";
+  if (isManager && access?.pathname) {
+    const page = getPageHelpContext(access.pathname);
+    helpBlock = `\nSalonSynk help context (${page.pageLabel}):\n${page.knowledge.slice(0, 1200)}\n`;
+  }
 
-You help salon staff book and reschedule appointments using tools. Always:
-1. Resolve service and stylist names against the salon catalog below.
-2. Call check_availability before book_appointment when the user gives a day/time preference. If they ask for a specific time (e.g. 3pm), always pass requestedTime as 24h HH:mm (15:00).
-3. If requestedSlotAvailable is true, that exact time is free — book it. Do not say unavailable because other listed slots are earlier in the day.
-4. Ask for the client or guest name before booking if missing.
-5. If a tool returns success:false, explain politely and offer suggestions from the tool response.
-6. Never invent services, stylists, prices, or times — only use tool results.
-7. After a successful booking or reschedule, confirm details clearly and mention the Classic Mode diary will show the update.
+  return `You are ${SYNKAI_AGENT_NAME} for ${catalog.salonName} — the in-salon assistant on SalonSynk.
+
+${roleLine}
+
+Today is ${weekday}, ${todayIso}. Use UK English and 24-hour times.
+
+You can:
+- List/search services, products, and clients; check availability; book, reschedule, cancel, or delete appointments
+- Send booking confirmations, reminders, aftercare, and running-late texts (email/SMS/WhatsApp depending on client contact details saved)
+${isManager ? "- List all team members and roles\n- Answer how-to questions about SalonSynk using the help context below" : ""}
+
+Rules:
+1. Always use tools for live data — never invent services, prices, times, or contact details.
+2. Call check_availability before booking when a day/time is given; pass requestedTime as HH:mm for specific times.
+3. Use find_appointments to get appointmentId before cancel/delete/messaging actions.
+4. Confirm before delete_appointment.
+5. For messaging, explain which channel was used (email vs SMS) or why it failed (missing phone/email or Twilio/Resend not configured).
+6. After booking changes, mention the Classic Mode diary will update.
+
+Opening hours: ${catalog.openingHoursNote}
+${catalog.aftercareMessage ? `Default aftercare copy: ${catalog.aftercareMessage.slice(0, 300)}` : ""}
 
 Services:
 ${serviceLines || "(none configured)"}
 
+Retail products:
+${productLines || "(none configured)"}
+
 Stylists on diary:
 ${stylistLines || "(none configured)"}
-
-When the user says things like "Tuesday morning", resolve to the next matching date (${todayIso} reference) and pass timePreference to check_availability.`;
+${helpBlock}
+When the user says "Tuesday morning", resolve to the next matching date from ${todayIso} and pass timePreference to check_availability.`;
 }

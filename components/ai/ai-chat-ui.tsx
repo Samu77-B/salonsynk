@@ -3,6 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SYNKAI_AGENT_NAME } from "@/lib/ai/synkai-brand";
 
 export function textFromMessage(m: UIMessage): string {
   return m.parts
@@ -42,6 +43,8 @@ export type AiChatUiProps = {
   onFinish?: () => void;
   className?: string;
   enableVoice?: boolean;
+  /** Extra JSON fields sent with each chat request (e.g. current pathname). */
+  requestBody?: () => Record<string, unknown>;
 };
 
 export function AiChatUi({
@@ -49,20 +52,22 @@ export function AiChatUi({
   credentials = "same-origin",
   title,
   subtitle,
-  assistantLabel = "Assistant",
+  assistantLabel = SYNKAI_AGENT_NAME,
   placeholder = "Type your message…",
   emptyPrompts = [],
   onFinish,
   className = "",
   enableVoice = true,
+  requestBody,
 }: AiChatUiProps) {
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: apiUrl,
         credentials,
+        body: requestBody,
       }),
-    [apiUrl, credentials]
+    [apiUrl, credentials, requestBody]
   );
 
   const { messages, sendMessage, status, stop, error, clearError } = useChat({

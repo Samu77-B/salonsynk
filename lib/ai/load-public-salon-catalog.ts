@@ -7,6 +7,15 @@ export type PublicSalonContext = SalonBookingCatalog & {
   policyNotes: string;
 };
 
+function openingHoursFromSettings(settings: Record<string, unknown>): string {
+  const custom = settings.opening_hours;
+  if (typeof custom === "string" && custom.trim()) return custom.trim();
+  if (typeof settings.opening_hours_note === "string" && settings.opening_hours_note.trim()) {
+    return settings.opening_hours_note.trim();
+  }
+  return "Please contact the salon directly for opening hours. Online booking is typically available between 6:00 and 19:00.";
+}
+
 export async function loadPublicSalonBySlug(slug: string): Promise<PublicSalonContext | null> {
   const supabase = createAdminClient();
   const { data: salon } = await supabase
@@ -32,30 +41,53 @@ export async function loadPublicSalonBySlug(slug: string): Promise<PublicSalonCo
     policyParts.push(`Booking welcome: ${branding.booking_heading.trim()}`);
   }
 
-  const servicesRes = await supabase
-    .from("services")
-    .select("id, name, duration_minutes, price_minor, description")
-    .eq("salon_id", salonId)
-    .order("sort_order")
-    .order("name");
-
-  const membersLoad = await fetchSalonMembersAdaptiveSelect(supabase, salonId, [
-    "id, display_name, role, show_on_diary",
-    "id, display_name, role",
+  const [servicesRes, membersLoad, overridesRes, productsRes, categoriesRes] = await Promise.all([
+    supabase
+      .from("services")
+      .select("id, name, duration_minutes, price_minor, description, category_id")
+      .eq("salon_id", salonId)
+      .order("sort_order")
+      .order("name"),
+    fetchSalonMembersAdaptiveSelect(supabase, salonId, [
+      "id, display_name, role, show_on_diary",
+      "id, display_name, role",
+    ]),
+    supabase
+      .from("stylist_service_overrides")
+      .select("stylist_id, service_id, custom_duration_minutes")
+      .eq("salon_id", salonId),
+    supabase
+      .from("products")
+      .select("id, name, description, category, price_minor")
+      .eq("salon_id", salonId)
+      .eq("is_active", true)
+      .order("sort_order")
+      .order("name"),
+    supabase.from("service_categories").select("id, name").eq("salon_id", salonId),
   ]);
 
-  const overridesRes = await supabase
-    .from("stylist_service_overrides")
-    .select("stylist_id, service_id, custom_duration_minutes")
-    .eq("salon_id", salonId);
+  const categoryNames = new Map<string, string>();
+  for (const c of categoriesRes.data ?? []) {
+    const row = c as { id: string; name: string };
+    categoryNames.set(row.id, row.name);
+  }
 
   const services = (servicesRes.data ?? []).map((row) => {
-    const r = row as { id: string; name: string; duration_minutes: number; price_minor?: number | null };
+    const r = row as {
+      id: string;
+      name: string;
+      duration_minutes: number;
+      price_minor?: number | null;
+      description?: string | null;
+      category_id?: string | null;
+    };
     return {
       id: r.id,
       name: r.name,
       durationMinutes: Number(r.duration_minutes) || 30,
       priceMinor: r.price_minor != null ? Number(r.price_minor) : null,
+      description: r.description?.trim() || null,
+      categoryName: r.category_id ? categoryNames.get(r.category_id) ?? null : null,
     };
   });
 
@@ -73,6 +105,28 @@ export async function loadPublicSalonBySlug(slug: string): Promise<PublicSalonCo
     stylistOverrides[r.stylist_id][r.service_id] = Number(r.custom_duration_minutes) || 0;
   }
 
+  const products = (productsRes.data ?? []).map((row) => {
+    const r = row as {
+      id: string;
+      name: string;
+      price_minor: number;
+      description?: string | null;
+      category?: string | null;
+    };
+    return {
+      id: r.id,
+      name: r.name,
+      priceMinor: Number(r.price_minor) || 0,
+      description: r.description?.trim() || null,
+      category: r.category?.trim() || null,
+    };
+  });
+
+  const aftercareMessage =
+    typeof settings.aftercare_message === "string" && settings.aftercare_message.trim()
+      ? settings.aftercare_message.trim()
+      : null;
+
   return {
     salonId,
     salonName: salon.name as string,
@@ -81,6 +135,10 @@ export async function loadPublicSalonBySlug(slug: string): Promise<PublicSalonCo
     stylists,
     clients: [],
     stylistOverrides,
+    products,
+    teamMembers: [],
+    openingHoursNote: openingHoursFromSettings(settings),
+    aftercareMessage,
     policyNotes: policyParts.join(" ") || "Standard salon cancellation policies apply. Contact the salon for no-show rules.",
   };
 }

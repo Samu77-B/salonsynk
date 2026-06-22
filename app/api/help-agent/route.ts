@@ -2,6 +2,7 @@ import { openai } from "@ai-sdk/openai";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getPageHelpContext } from "@/lib/help/page-context";
+import { SYNKAI_AGENT_NAME } from "@/lib/ai/synkai-brand";
 
 export const maxDuration = 60;
 
@@ -13,7 +14,7 @@ export async function POST(req: Request) {
 
   if (!process.env.OPENAI_API_KEY?.trim()) {
     return Response.json(
-      { error: "AI help is not configured. Add OPENAI_API_KEY to the server environment." },
+      { error: `${SYNKAI_AGENT_NAME} is not configured. Add OPENAI_API_KEY to the server environment.` },
       { status: 503 }
     );
   }
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
 
   const modelMessages = await convertToModelMessages(messages);
 
-  const system = `You are SalonSynk Help, a concise assistant for logged-in salon staff.
+  const system = `You are ${SYNKAI_AGENT_NAME}, the SalonSynk assistant for logged-in salon staff.
 
 Current page: ${page.pageLabel} (id: ${page.pageId})
 URL path: ${pathname}

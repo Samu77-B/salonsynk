@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { PublicAiConcierge } from "./public-ai-concierge";
 import { PublicSalonQa } from "./public-salon-qa";
+import { SYNKAI_AGENT_NAME } from "@/lib/ai/synkai-brand";
 
 type Tab = "form" | "concierge" | "qa";
 
@@ -19,7 +20,7 @@ export function PublicBookingExperience({
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "form", label: "Book online" },
-    { id: "concierge", label: "AI Concierge" },
+    { id: "concierge", label: SYNKAI_AGENT_NAME },
     { id: "qa", label: "Salon QA" },
   ];
 
