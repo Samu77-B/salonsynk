@@ -221,7 +221,45 @@ export async function uploadSalonLogo(
   return { error: null, url };
 }
 
-export type ServiceMutationResult = { error?: string };
+export type ServiceMutationResult = {
+  error?: string;
+  service?: { id: string; color: string; category_id: string | null };
+};
+
+function optionalServiceFieldSaveError(
+  field: "color" | "category_id",
+  error: { message?: string } | null | undefined
+): string | null {
+  if (field === "color" && isMissingColorColumnError(error)) {
+    return "Diary colour could not be saved. Please run the latest database update (migration 051) on your Supabase project, then try again.";
+  }
+  if (field === "category_id" && isMissingCategoryColumnError(error)) {
+    return "Category could not be saved. Please run the latest database update (migration 051) on your Supabase project, then try again.";
+  }
+  return null;
+}
+
+function verifySavedServiceOptionalFields(
+  requested: { color?: string; category_id?: string | null },
+  saved: { color?: string | null; category_id?: string | null } | null
+): string | null {
+  if (!saved) return "Service was not updated. Please try again.";
+  if (requested.color !== undefined) {
+    const want = requested.color.trim() || null;
+    const got = (saved.color ?? "").trim() || null;
+    if (want !== got) {
+      return "Diary colour did not save. Please try again or contact support if this keeps happening.";
+    }
+  }
+  if (requested.category_id !== undefined) {
+    const want = requested.category_id?.trim() || null;
+    const got = saved.category_id?.trim() || null;
+    if (want !== got) {
+      return "Category did not save. Please try again or contact support if this keeps happening.";
+    }
+  }
+  return null;
+}
 
 // Services management (owners only)
 export async function addService(
@@ -250,6 +288,17 @@ export async function addService(
     const db = admin ?? supabase;
     const color = data.color?.trim() || null;
     const categoryId = data.category_id?.trim() || null;
+    if (categoryId) {
+      const { data: cat, error: catError } = await db
+        .from("service_categories")
+        .select("id")
+        .eq("id", categoryId)
+        .eq("salon_id", salonId)
+        .maybeSingle();
+      if (catError || !cat) {
+        return { error: "That category could not be found. Refresh the page and try again." };
+      }
+    }
     let insertPayload: Record<string, unknown> = {
       salon_id: salonId,
       name,
@@ -261,44 +310,50 @@ export async function addService(
       category_id: categoryId,
     };
     const attemptInsert = async (payload: Record<string, unknown>) => {
-      let { error } = await db.from("services").insert(payload);
-      if (error && admin) {
-        const r = await admin.from("services").insert(payload);
-        error = r.error;
+      let result = await db.from("services").insert(payload).select("id, color, category_id").single();
+      if (result.error && admin) {
+        result = await admin.from("services").insert(payload).select("id, color, category_id").single();
       }
-      return error;
+      return result;
     };
-    let insertError = await attemptInsert(insertPayload);
-    if (insertError && isMissingCategoryColumnError(insertError)) {
-      const { category_id: _cat, ...next } = insertPayload;
-      insertPayload = next;
-      insertError = await attemptInsert(insertPayload);
+    let insertResult = await attemptInsert(insertPayload);
+    let insertError = insertResult.error;
+    if (insertError && categoryId) {
+      const msg = optionalServiceFieldSaveError("category_id", insertError);
+      if (msg) return { error: msg };
+    }
+    if (insertError && color) {
+      const msg = optionalServiceFieldSaveError("color", insertError);
+      if (msg) return { error: msg };
     }
     if (insertError && isMissingDescriptionColumnError(insertError)) {
       const { description: _d, ...next } = insertPayload;
       insertPayload = next;
-      insertError = await attemptInsert(insertPayload);
+      insertResult = await attemptInsert(insertPayload);
+      insertError = insertResult.error;
     }
     if (insertError && isMissingProcessingColumnError(insertError)) {
       const { processing_time_minutes: _p, ...next } = insertPayload;
       insertPayload = next;
-      insertError = await attemptInsert(insertPayload);
-    }
-    if (insertError && isMissingDescriptionColumnError(insertError)) {
-      const { description: _d2, ...next } = insertPayload;
-      insertPayload = next;
-      insertError = await attemptInsert(insertPayload);
-    }
-    if (insertError && isMissingColorColumnError(insertError)) {
-      const { color: _c, ...next } = insertPayload;
-      insertPayload = next;
-      insertError = await attemptInsert(insertPayload);
+      insertResult = await attemptInsert(insertPayload);
+      insertError = insertResult.error;
     }
     if (insertError) return { error: formatDbError(insertError) };
+    const verifyError = verifySavedServiceOptionalFields(
+      { color: data.color, category_id: data.category_id },
+      insertResult.data
+    );
+    if (verifyError) return { error: verifyError };
     revalidatePath("/settings");
     revalidatePath("/services");
     revalidatePath("/dashboard");
-    return {};
+    return {
+      service: {
+        id: insertResult.data!.id,
+        color: (insertResult.data!.color ?? "").trim(),
+        category_id: insertResult.data!.category_id ?? null,
+      },
+    };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to add service" };
   }
@@ -335,55 +390,87 @@ export async function updateService(
     }
     if (data.description !== undefined) payload.description = normalizeServiceDescription(data.description);
     if (data.color !== undefined) payload.color = data.color?.trim() || null;
-    if (data.category_id !== undefined) payload.category_id = data.category_id?.trim() || null;
-    if (Object.keys(payload).length === 0) return {};
     const supabase = await createClient();
     const admin = getOptionalAdminClient();
     const db = admin ?? supabase;
-    const attemptUpdate = async (p: Record<string, unknown>) => {
-      let { error } = await db.from("services").update(p).eq("id", serviceId).eq("salon_id", salonId);
-      if (error && admin) {
-        const r = await admin.from("services").update(p).eq("id", serviceId).eq("salon_id", salonId);
-        error = r.error;
+    if (data.category_id !== undefined) {
+      const categoryId = data.category_id?.trim() || null;
+      if (categoryId) {
+        const { data: cat, error: catError } = await db
+          .from("service_categories")
+          .select("id")
+          .eq("id", categoryId)
+          .eq("salon_id", salonId)
+          .maybeSingle();
+        if (catError || !cat) {
+          return { error: "That category could not be found. Refresh the page and try again." };
+        }
       }
-      return error;
+      payload.category_id = categoryId;
+    }
+    if (Object.keys(payload).length === 0) return {};
+    const attemptUpdate = async (p: Record<string, unknown>) => {
+      let result = await db
+        .from("services")
+        .update(p)
+        .eq("id", serviceId)
+        .eq("salon_id", salonId)
+        .select("id, color, category_id")
+        .maybeSingle();
+      if (result.error && admin) {
+        result = await admin
+          .from("services")
+          .update(p)
+          .eq("id", serviceId)
+          .eq("salon_id", salonId)
+          .select("id, color, category_id")
+          .maybeSingle();
+      }
+      return result;
     };
     let updatePayload: Record<string, unknown> = { ...payload };
-    let error = await attemptUpdate(updatePayload);
-    if (error && isMissingCategoryColumnError(error)) {
-      const { category_id: _cat, ...next } = updatePayload;
-      updatePayload = next;
-      if (Object.keys(updatePayload).length === 0) return { error: formatDbError(error) };
-      error = await attemptUpdate(updatePayload);
+    let updateResult = await attemptUpdate(updatePayload);
+    let error = updateResult.error;
+    if (error && payload.category_id !== undefined && payload.category_id !== null) {
+      const msg = optionalServiceFieldSaveError("category_id", error);
+      if (msg) return { error: msg };
+    }
+    if (error && payload.color !== undefined && payload.color) {
+      const msg = optionalServiceFieldSaveError("color", error);
+      if (msg) return { error: msg };
     }
     if (error && isMissingDescriptionColumnError(error)) {
       const { description: _d, ...next } = updatePayload;
       updatePayload = next;
       if (Object.keys(updatePayload).length === 0) return { error: formatDbError(error) };
-      error = await attemptUpdate(updatePayload);
+      updateResult = await attemptUpdate(updatePayload);
+      error = updateResult.error;
     }
     if (error && isMissingProcessingColumnError(error)) {
       const { processing_time_minutes: _p, ...next } = updatePayload;
       updatePayload = next;
       if (Object.keys(updatePayload).length === 0) return { error: formatDbError(error) };
-      error = await attemptUpdate(updatePayload);
-    }
-    if (error && isMissingDescriptionColumnError(error)) {
-      const { description: _d2, ...next } = updatePayload;
-      updatePayload = next;
-      if (Object.keys(updatePayload).length === 0) return { error: formatDbError(error) };
-      error = await attemptUpdate(updatePayload);
-    }
-    if (error && isMissingColorColumnError(error)) {
-      const { color: _c, ...next } = updatePayload;
-      updatePayload = next;
-      if (Object.keys(updatePayload).length === 0) return { error: formatDbError(error) };
-      error = await attemptUpdate(updatePayload);
+      updateResult = await attemptUpdate(updatePayload);
+      error = updateResult.error;
     }
     if (error) return { error: formatDbError(error) };
+    const verifyError = verifySavedServiceOptionalFields(
+      { color: data.color, category_id: data.category_id },
+      updateResult.data
+    );
+    if (verifyError) return { error: verifyError };
     revalidatePath("/settings");
     revalidatePath("/services");
     revalidatePath("/dashboard");
+    if (updateResult.data) {
+      return {
+        service: {
+          id: updateResult.data.id,
+          color: (updateResult.data.color ?? "").trim(),
+          category_id: updateResult.data.category_id ?? null,
+        },
+      };
+    }
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to update service" };

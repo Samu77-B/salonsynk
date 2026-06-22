@@ -23,6 +23,8 @@ export async function getSettingsData() {
   const servicesPromise = (async () => {
     const attempts = [
       "id, name, duration_minutes, price_minor, processing_time_minutes, description, color, category_id, sort_order",
+      "id, name, duration_minutes, price_minor, processing_time_minutes, description, color, category_id",
+      "id, name, duration_minutes, price_minor, processing_time_minutes, description, category_id",
       "id, name, duration_minutes, price_minor, processing_time_minutes, description, color",
       "id, name, duration_minutes, price_minor, processing_time_minutes, description",
       "id, name, duration_minutes, price_minor, processing_time_minutes",

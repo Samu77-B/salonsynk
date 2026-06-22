@@ -379,6 +379,10 @@ function ServiceCard({
       setFeedback("error");
       setFeedbackText(result.error);
     } else {
+      if (result.service) {
+        setServiceColor(result.service.color ?? "");
+        setCategoryId(result.service.category_id);
+      }
       setFeedback("saved");
       window.setTimeout(() => setFeedback(null), 2000);
       router.refresh();
