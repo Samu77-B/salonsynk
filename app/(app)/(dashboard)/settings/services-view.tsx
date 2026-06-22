@@ -4,14 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addService, updateService, deleteService, addCategory, updateCategory, deleteCategory } from "./actions";
 import { formatDurationMinutes } from "@/lib/format-duration";
+import { serviceColorLabel, serviceColorOptions } from "@/lib/service-colors";
 
 const DESCRIPTION_MAX = 2000;
-
-const SERVICE_COLORS = [
-  "#3b82f6", "#22c55e", "#eab308", "#ef4444", "#a855f7",
-  "#06b6d4", "#f97316", "#ec4899", "#14b8a6", "#84cc16",
-  "#6366f1", "#0ea5e9",
-];
 
 type ServiceRow = {
   id: string;
@@ -230,6 +225,63 @@ function CategorySelect({
   );
 }
 
+function DiaryColorPicker({
+  value,
+  onChange,
+  idPrefix,
+}: {
+  value: string;
+  onChange: (hex: string) => void;
+  idPrefix: string;
+}) {
+  const options = serviceColorOptions(value);
+
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-medium">Diary colour</label>
+      <p className="mb-2 text-xs text-muted">Appointment blocks on the diary will use this colour.</p>
+      <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2">
+        <span
+          className="h-5 w-5 shrink-0 rounded-full border border-border"
+          style={{ backgroundColor: value.trim() || "var(--muted)" }}
+          aria-hidden
+        />
+        <span className="text-xs text-muted-foreground">
+          {value.trim() ? (
+            <>
+              Saved colour: <span className="font-medium text-foreground">{serviceColorLabel(value)}</span>
+            </>
+          ) : (
+            "No colour selected — diary uses the default green"
+          )}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          id={`${idPrefix}-color-none`}
+          onClick={() => onChange("")}
+          className={`h-8 w-8 rounded-full border-2 shrink-0 ${!value ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
+          style={{ backgroundColor: "var(--muted)" }}
+          title="No colour (default)"
+          aria-label="No colour"
+        />
+        {options.map((hex) => (
+          <button
+            key={hex}
+            type="button"
+            onClick={() => onChange(hex)}
+            className={`h-8 w-8 rounded-full border-2 shrink-0 ${value === hex ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
+            style={{ backgroundColor: hex }}
+            title={hex}
+            aria-label={`Colour ${hex}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Individual service card
 // ---------------------------------------------------------------------------
@@ -257,6 +309,11 @@ function ServiceCard({
   const [deleting, setDeleting] = useState(false);
   const [feedback, setFeedback] = useState<"saved" | "error" | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
+
+  const categoryName = useMemo(
+    () => (categoryId ? categories.find((c) => c.id === categoryId)?.name ?? null : null),
+    [categories, categoryId],
+  );
 
   useEffect(() => {
     setName(service.name);
@@ -343,7 +400,29 @@ function ServiceCard({
   }
 
   return (
-    <article className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-background p-4 shadow-sm">
+    <article
+      className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-background p-4 shadow-sm overflow-hidden"
+      style={serviceColor.trim() ? { borderTopWidth: 4, borderTopColor: serviceColor } : undefined}
+    >
+      {(categoryName || serviceColor.trim()) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {categoryName ? (
+            <span className="inline-flex items-center rounded-md bg-accent/15 px-2.5 py-1 text-xs font-medium text-foreground">
+              {categoryName}
+            </span>
+          ) : null}
+          {serviceColor.trim() ? (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
+              <span
+                className="h-3 w-3 shrink-0 rounded-full border border-border"
+                style={{ backgroundColor: serviceColor }}
+                aria-hidden
+              />
+              Diary colour
+            </span>
+          ) : null}
+        </div>
+      )}
       <div>
         <label htmlFor={`svc-name-${service.id}`} className="mb-1 block text-sm font-medium">
           Service name
@@ -463,31 +542,11 @@ function ServiceCard({
           {description.length} / {DESCRIPTION_MAX}
         </p>
       </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium">Diary colour</label>
-        <p className="mb-2 text-xs text-muted">Appointment blocks on the diary will use this colour.</p>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setServiceColor("")}
-            className={`h-8 w-8 rounded-full border-2 shrink-0 ${!serviceColor ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
-            style={{ backgroundColor: "var(--muted)" }}
-            title="No colour (default)"
-            aria-label="No colour"
-          />
-          {SERVICE_COLORS.map((hex) => (
-            <button
-              key={hex}
-              type="button"
-              onClick={() => setServiceColor(hex)}
-              className={`h-8 w-8 rounded-full border-2 shrink-0 ${serviceColor === hex ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
-              style={{ backgroundColor: hex }}
-              title={hex}
-              aria-label={`Colour ${hex}`}
-            />
-          ))}
-        </div>
-      </div>
+      <DiaryColorPicker
+        idPrefix={`svc-${service.id}`}
+        value={serviceColor}
+        onChange={setServiceColor}
+      />
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
         <button
           type="button"
@@ -766,31 +825,11 @@ export function ServicesView({
               {newServiceDescription.length} / {DESCRIPTION_MAX}
             </p>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Diary colour</label>
-            <p className="mb-2 text-xs text-muted">Appointment blocks on the diary will use this colour.</p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setNewServiceColor("")}
-                className={`h-8 w-8 rounded-full border-2 shrink-0 ${!newServiceColor ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
-                style={{ backgroundColor: "var(--muted)" }}
-                title="No colour (default)"
-                aria-label="No colour"
-              />
-              {SERVICE_COLORS.map((hex) => (
-                <button
-                  key={hex}
-                  type="button"
-                  onClick={() => setNewServiceColor(hex)}
-                  className={`h-8 w-8 rounded-full border-2 shrink-0 ${newServiceColor === hex ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
-                  style={{ backgroundColor: hex }}
-                  title={hex}
-                  aria-label={`Colour ${hex}`}
-                />
-              ))}
-            </div>
-          </div>
+          <DiaryColorPicker
+            idPrefix="new-service"
+            value={newServiceColor}
+            onChange={setNewServiceColor}
+          />
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="submit"
