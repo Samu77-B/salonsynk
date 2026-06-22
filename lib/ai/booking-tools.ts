@@ -8,12 +8,18 @@ import {
   resolveService,
   resolveStylist,
   serviceDurationForStylist,
+  filterServices,
 } from "./booking-resolvers";
 import { findAvailableSlots, isSlotAvailable, parseDateIso } from "./slot-finder";
 import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso } from "./salon-time";
 import type { SalonBookingCatalog, SlotCandidate, SynkAiAccess, TimePreference } from "./booking-types";
 import { formatDurationMinutes } from "@/lib/format-duration";
 import { SYNKAI_AGENT_NAME } from "@/lib/ai/synkai-brand";
+import {
+  SYNKAI_NATURAL_LANGUAGE_SERVICES,
+  formatServiceCatalogLine,
+  uniqueServiceCategories,
+} from "@/lib/ai/synkai-service-prompts";
 import {
   synkaiCancelAppointment,
   synkaiDeleteAppointment,
@@ -48,13 +54,10 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
         additionalProperties: false,
       }),
       execute: async ({ query }) => {
-        const q = query?.trim().toLowerCase();
-        const rows = q
-          ? services.filter((s) => s.name.toLowerCase().includes(q))
-          : services;
+        const rows = filterServices(services, query);
         if (rows.length === 0) {
           return errorPayload(
-            q ? `No services match "${query}".` : "No services are configured for this salon.",
+            query?.trim() ? `No services match "${query}".` : "No services are configured for this salon.",
             services.slice(0, 6).map((s) => s.name)
           );
         }
@@ -693,15 +696,8 @@ export function buildBookingSystemPrompt(catalog: SalonBookingCatalog, access?: 
     weekday: "long",
   });
 
-  const serviceLines = catalog.services
-    .slice(0, 40)
-    .map((s) => {
-      const bits = [`${s.name} (${formatDurationMinutes(s.durationMinutes)}, ${formatPriceMinor(s.priceMinor)})`];
-      if (s.categoryName) bits.push(`[${s.categoryName}]`);
-      if (s.description) bits.push(`— ${s.description.slice(0, 120)}`);
-      return `- ${bits.join(" ")}`;
-    })
-    .join("\n");
+  const serviceLines = catalog.services.slice(0, 40).map((s) => formatServiceCatalogLine(s, 120)).join("\n");
+  const categories = uniqueServiceCategories(catalog.services);
 
   const productLines = catalog.products
     .slice(0, 20)
@@ -734,17 +730,21 @@ ${isManager ? "- List all team members and roles\n- Answer how-to questions abou
 
 Rules:
 1. Always use tools for live data — never invent services, prices, times, or contact details.
-2. Call check_availability before booking when a day/time is given; pass requestedTime as HH:mm for specific times.
-3. Use find_appointments to get appointmentId before cancel/delete/messaging actions.
-4. Confirm before delete_appointment.
-5. For messaging, explain which channel was used (email vs SMS) or why it failed (missing phone/email or Twilio/Resend not configured).
-6. After booking changes, mention the Classic Mode diary will update.
+2. ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
+3. Call check_availability before booking when a day/time is given; pass requestedTime as HH:mm for specific times.
+4. Use find_appointments to get appointmentId before cancel/delete/messaging actions.
+5. Confirm before delete_appointment.
+6. For messaging, explain which channel was used (email vs SMS) or why it failed (missing phone/email or Twilio/Resend not configured).
+7. After booking changes, mention the Classic Mode diary will update.
 
 Opening hours: ${catalog.openingHoursNote}
 ${catalog.aftercareMessage ? `Default aftercare copy: ${catalog.aftercareMessage.slice(0, 300)}` : ""}
 
 Services:
 ${serviceLines || "(none configured)"}
+
+Service categories:
+${categories.map((c) => `- ${c}`).join("\n") || "(none)"}
 
 Retail products:
 ${productLines || "(none configured)"}

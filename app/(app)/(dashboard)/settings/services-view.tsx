@@ -643,12 +643,14 @@ export function ServicesView({
           className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-foreground"
           role="status"
         >
-          <p className="font-medium">Database update required for categories and diary colours</p>
+          <p className="font-medium">Categories and diary colours may not save yet</p>
           <p className="mt-1 text-muted">
-            Your salon database is missing columns needed to store service categories and diary colours. Run the SQL
-            migration{" "}
-            <code className="rounded bg-background/80 px-1 py-0.5 text-xs">051_ensure_service_color_and_category.sql</code>{" "}
-            in the Supabase SQL Editor, then reopen this page and save each service again.
+            The app cannot read the <code className="text-xs">color</code> /{" "}
+            <code className="text-xs">category_id</code> columns through the Supabase API. If you already ran migration{" "}
+            051, open Supabase → SQL Editor and run{" "}
+            <code className="rounded bg-background/80 px-1 py-0.5 text-xs">NOTIFY pgrst, &apos;reload schema&apos;;</code>{" "}
+            or restart the project under Settings → General. Then hard-refresh this page. You can still try adding a
+            service — if you see &ldquo;Saved&rdquo; with no red error, it is working.
           </p>
         </div>
       )}

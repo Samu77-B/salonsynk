@@ -5,13 +5,18 @@ import {
   resolveService,
   resolveStylist,
   serviceDurationForStylist,
+  filterServices,
 } from "./booking-resolvers";
 import { findAvailableSlots, isSlotAvailable } from "./slot-finder";
 import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso } from "./salon-time";
 import type { PublicSalonContext } from "./load-public-salon-catalog";
 import type { SlotCandidate, TimePreference } from "./booking-types";
-import { formatDurationMinutes } from "@/lib/format-duration";
 import { SYNKAI_AGENT_NAME } from "@/lib/ai/synkai-brand";
+import {
+  SYNKAI_NATURAL_LANGUAGE_SERVICES,
+  formatServiceCatalogLine,
+  uniqueServiceCategories,
+} from "@/lib/ai/synkai-service-prompts";
 
 function errorPayload(message: string, suggestions: string[] = []) {
   return { success: false as const, error: message, suggestions };
@@ -27,15 +32,20 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
 
   return {
     list_services: tool({
-      description: "List services available for online booking.",
+      description:
+        "List services available for online booking. Search by service name, category, or description keywords.",
       inputSchema: jsonSchema<{ query?: string }>({
         type: "object",
-        properties: { query: { type: "string" } },
+        properties: {
+          query: {
+            type: "string",
+            description: "Optional filter — e.g. root, highlights, tint, colour",
+          },
+        },
         additionalProperties: false,
       }),
       execute: async ({ query }) => {
-        const q = query?.trim().toLowerCase();
-        const rows = q ? services.filter((s) => s.name.toLowerCase().includes(q)) : services;
+        const rows = filterServices(services, query);
         return successPayload({
           services: rows.map((s) => ({
             name: s.name,
@@ -236,15 +246,8 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
 
 export function buildPublicConciergePrompt(catalog: PublicSalonContext): string {
   const today = todaySalonDateIso();
-  const serviceLines = catalog.services
-    .slice(0, 30)
-    .map((s) => {
-      const bits = [`${s.name} (${formatDurationMinutes(s.durationMinutes)}, ${formatPriceMinor(s.priceMinor)})`];
-      if (s.categoryName) bits.push(`[${s.categoryName}]`);
-      if (s.description) bits.push(`— ${s.description.slice(0, 150)}`);
-      return `- ${bits.join(" ")}`;
-    })
-    .join("\n");
+  const categories = uniqueServiceCategories(catalog.services);
+  const serviceLines = catalog.services.slice(0, 30).map((s) => formatServiceCatalogLine(s)).join("\n");
 
   const productLines = catalog.products
     .slice(0, 15)
@@ -264,6 +267,7 @@ Opening hours: ${catalog.openingHoursNote}
 
 Rules:
 - Never mention internal staff tools or client databases
+- ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
 - Use list_services / check_availability / book_guest_appointment for bookings
 - For style or colour advice, describe what the salon offers based on service list — do not invent services
 - If asked about opening times, use the opening hours note above; if unsure, suggest calling the salon
@@ -273,6 +277,9 @@ Rules:
 Services (use descriptions to explain cuts, colour, highlights, etc.):
 ${serviceLines || "(contact salon)"}
 
+Service categories:
+${categories.map((c) => `- ${c}`).join("\n") || "(none)"}
+
 Retail products:
 ${productLines || "(ask salon)"}
 
@@ -281,13 +288,8 @@ ${catalog.stylists.map((s) => `- ${s.name}`).join("\n") || "(any available)"}`;
 }
 
 export function buildPublicQaPrompt(catalog: PublicSalonContext): string {
-  const serviceLines = catalog.services
-    .map((s) => {
-      const bits = [`${s.name}: ${formatDurationMinutes(s.durationMinutes)}, ${formatPriceMinor(s.priceMinor)}`];
-      if (s.description) bits.push(s.description.slice(0, 180));
-      return `- ${bits.join(" — ")}`;
-    })
-    .join("\n");
+  const categories = uniqueServiceCategories(catalog.services);
+  const serviceLines = catalog.services.map((s) => formatServiceCatalogLine(s, 180)).join("\n");
 
   return `You are ${SYNKAI_AGENT_NAME} for ${catalog.salonName}. Answer client questions about services, styling, colour, pricing, policies, opening hours, and how to book.
 
@@ -298,6 +300,9 @@ Policy context: ${catalog.policyNotes}
 Services (use these to answer questions about cuts, colour techniques, duration, and price):
 ${serviceLines}
 
+Service categories:
+${categories.map((c) => `- ${c}`).join("\n") || "(none)"}
+
 Retail products:
 ${catalog.products.map((p) => `- ${p.name}: ${formatPriceMinor(p.priceMinor)}`).join("\n") || "(none listed)"}
 
@@ -305,6 +310,7 @@ Booking: clients can book via this page's booking form or the ${SYNKAI_AGENT_NAM
 
 Rules:
 - UK English, friendly and factual
+- ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
 - For hair style or colour questions, explain using the service list and descriptions — suggest booking a consultation if unsure
 - For opening times, use the opening hours note; do not invent hours
 - Do not invent services or prices not listed above

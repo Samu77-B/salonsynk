@@ -30,6 +30,38 @@ export type ServiceSchemaCapabilities = {
   hasCategoryColumn: boolean;
 };
 
+function selectListHasField(cols: string, field: string): boolean {
+  return cols.split(",").map((c) => c.trim()).includes(field);
+}
+
+function isMissingColumnError(error: { message?: string } | null | undefined, column: string): boolean {
+  const msg = (error?.message ?? "").toLowerCase();
+  return msg.includes(column.toLowerCase()) && (msg.includes("does not exist") || msg.includes("schema cache"));
+}
+
+async function probeServiceColumn(
+  supabase: SupabaseClient,
+  salonId: string,
+  column: string
+): Promise<boolean> {
+  const res = await supabase.from("services").select(column).eq("salon_id", salonId).limit(1);
+  if (!res.error) return true;
+  if (isMissingColumnError(res.error, column)) return false;
+  // Transient/RLS errors — don't treat as missing column
+  return true;
+}
+
+async function probeServiceSchema(
+  supabase: SupabaseClient,
+  salonId: string
+): Promise<ServiceSchemaCapabilities> {
+  const [hasColorColumn, hasCategoryColumn] = await Promise.all([
+    probeServiceColumn(supabase, salonId, "color"),
+    probeServiceColumn(supabase, salonId, "category_id"),
+  ]);
+  return { hasColorColumn, hasCategoryColumn };
+}
+
 async function fetchSalonServices(
   supabase: SupabaseClient,
   salonId: string
@@ -37,19 +69,26 @@ async function fetchSalonServices(
   data: Record<string, unknown>[] | null;
   schema: ServiceSchemaCapabilities;
 }> {
+  const schema = await probeServiceSchema(supabase, salonId);
+
   for (const cols of SERVICE_SELECT_ATTEMPTS) {
+    if (schema.hasColorColumn && !selectListHasField(cols, "color")) continue;
+    if (!schema.hasColorColumn && selectListHasField(cols, "color")) continue;
+    if (schema.hasCategoryColumn && !selectListHasField(cols, "category_id")) continue;
+    if (!schema.hasCategoryColumn && selectListHasField(cols, "category_id")) continue;
+
     for (const orderBySortOrder of [true, false]) {
       let query = supabase.from("services").select(cols).eq("salon_id", salonId);
       if (orderBySortOrder) query = query.order("sort_order");
       const res = await query.order("name");
       if (!res.error) {
-        return {
-          data: (res.data ?? []) as unknown as Record<string, unknown>[],
-          schema: {
-            hasColorColumn: cols.includes("color"),
-            hasCategoryColumn: cols.includes("category_id"),
-          },
+        const rows = (res.data ?? []) as unknown as Record<string, unknown>[];
+        const sample = rows[0];
+        const loadedSchema: ServiceSchemaCapabilities = {
+          hasColorColumn: selectListHasField(cols, "color") && (!sample || "color" in sample),
+          hasCategoryColumn: selectListHasField(cols, "category_id") && (!sample || "category_id" in sample),
         };
+        return { data: rows, schema: loadedSchema };
       }
     }
   }
@@ -60,7 +99,7 @@ async function fetchSalonServices(
     .order("name");
   return {
     data: (fallback.data ?? []) as unknown as Record<string, unknown>[],
-    schema: { hasColorColumn: false, hasCategoryColumn: false },
+    schema,
   };
 }
 
