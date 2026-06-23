@@ -44,6 +44,31 @@ function getOptionalAdminClient() {
   }
 }
 
+async function readServiceOptionalFields(
+  serviceId: string,
+  salonId: string
+): Promise<{ id: string; color: string | null; category_id: string | null } | null> {
+  const supabase = await createClient();
+  const admin = getOptionalAdminClient();
+  const clients = admin ? [admin, supabase] : [supabase];
+  for (const client of clients) {
+    const res = await client
+      .from("services")
+      .select("id, color, category_id")
+      .eq("id", serviceId)
+      .eq("salon_id", salonId)
+      .maybeSingle();
+    if (!res.error && res.data) {
+      return {
+        id: res.data.id as string,
+        color: (res.data.color as string | null) ?? null,
+        category_id: (res.data.category_id as string | null) ?? null,
+      };
+    }
+  }
+  return null;
+}
+
 export async function updateSalonBranding(salonId: string, branding: BrandingInput) {
   const context = await getCurrentUserSalon();
   if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
@@ -339,9 +364,13 @@ export async function addService(
       insertError = insertResult.error;
     }
     if (insertError) return { error: formatDbError(insertError) };
+    const savedRow =
+      insertResult.data?.id != null
+        ? (await readServiceOptionalFields(insertResult.data.id, salonId)) ?? insertResult.data
+        : insertResult.data;
     const verifyError = verifySavedServiceOptionalFields(
       { color: data.color, category_id: data.category_id },
-      insertResult.data
+      savedRow
     );
     if (verifyError) return { error: verifyError };
     revalidatePath("/settings");
@@ -349,9 +378,9 @@ export async function addService(
     revalidatePath("/dashboard");
     return {
       service: {
-        id: insertResult.data!.id,
-        color: (insertResult.data!.color ?? "").trim(),
-        category_id: insertResult.data!.category_id ?? null,
+        id: savedRow!.id,
+        color: (savedRow!.color ?? "").trim(),
+        category_id: savedRow!.category_id ?? null,
       },
     };
   } catch (err) {
@@ -454,20 +483,22 @@ export async function updateService(
       error = updateResult.error;
     }
     if (error) return { error: formatDbError(error) };
+    const savedRow =
+      (await readServiceOptionalFields(serviceId, salonId)) ?? updateResult.data;
     const verifyError = verifySavedServiceOptionalFields(
       { color: data.color, category_id: data.category_id },
-      updateResult.data
+      savedRow
     );
     if (verifyError) return { error: verifyError };
     revalidatePath("/settings");
     revalidatePath("/services");
     revalidatePath("/dashboard");
-    if (updateResult.data) {
+    if (savedRow) {
       return {
         service: {
-          id: updateResult.data.id,
-          color: (updateResult.data.color ?? "").trim(),
-          category_id: updateResult.data.category_id ?? null,
+          id: savedRow.id,
+          color: (savedRow.color ?? "").trim(),
+          category_id: savedRow.category_id ?? null,
         },
       };
     }

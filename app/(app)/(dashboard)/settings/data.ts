@@ -1,5 +1,6 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import {
   getStripePriceIdForTier,
@@ -12,7 +13,6 @@ import {
 import { fetchSalonPlanState } from "@/lib/salon-features.server";
 import { isPaymentGatewayId, PAYMENT_GATEWAYS, salonUsesStripeCheckout } from "@/config/payment-gateways";
 import { redirect } from "next/navigation";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 const SERVICE_SELECT_ATTEMPTS = [
   "id, name, duration_minutes, price_minor, processing_time_minutes, description, color, category_id, sort_order",
@@ -34,72 +34,53 @@ function selectListHasField(cols: string, field: string): boolean {
   return cols.split(",").map((c) => c.trim()).includes(field);
 }
 
-function isMissingColumnError(error: { message?: string } | null | undefined, column: string): boolean {
-  const msg = (error?.message ?? "").toLowerCase();
-  return msg.includes(column.toLowerCase()) && (msg.includes("does not exist") || msg.includes("schema cache"));
-}
-
-async function probeServiceColumn(
-  supabase: SupabaseClient,
-  salonId: string,
-  column: string
-): Promise<boolean> {
-  const res = await supabase.from("services").select(column).eq("salon_id", salonId).limit(1);
-  if (!res.error) return true;
-  if (isMissingColumnError(res.error, column)) return false;
-  // Transient/RLS errors — don't treat as missing column
-  return true;
-}
-
-async function probeServiceSchema(
-  supabase: SupabaseClient,
-  salonId: string
-): Promise<ServiceSchemaCapabilities> {
-  const [hasColorColumn, hasCategoryColumn] = await Promise.all([
-    probeServiceColumn(supabase, salonId, "color"),
-    probeServiceColumn(supabase, salonId, "category_id"),
-  ]);
-  return { hasColorColumn, hasCategoryColumn };
+function getOptionalAdminClient() {
+  try {
+    return createAdminClient();
+  } catch {
+    return null;
+  }
 }
 
 async function fetchSalonServices(
-  supabase: SupabaseClient,
   salonId: string
 ): Promise<{
   data: Record<string, unknown>[] | null;
   schema: ServiceSchemaCapabilities;
 }> {
-  const schema = await probeServiceSchema(supabase, salonId);
+  const supabase = await createClient();
+  const admin = getOptionalAdminClient();
+  const dbs = admin ? [admin, supabase] : [supabase];
 
-  for (const cols of SERVICE_SELECT_ATTEMPTS) {
-    if (schema.hasColorColumn && !selectListHasField(cols, "color")) continue;
-    if (!schema.hasColorColumn && selectListHasField(cols, "color")) continue;
-    if (schema.hasCategoryColumn && !selectListHasField(cols, "category_id")) continue;
-    if (!schema.hasCategoryColumn && selectListHasField(cols, "category_id")) continue;
-
-    for (const orderBySortOrder of [true, false]) {
-      let query = supabase.from("services").select(cols).eq("salon_id", salonId);
-      if (orderBySortOrder) query = query.order("sort_order");
-      const res = await query.order("name");
-      if (!res.error) {
-        const rows = (res.data ?? []) as unknown as Record<string, unknown>[];
-        const sample = rows[0];
-        const loadedSchema: ServiceSchemaCapabilities = {
-          hasColorColumn: selectListHasField(cols, "color") && (!sample || "color" in sample),
-          hasCategoryColumn: selectListHasField(cols, "category_id") && (!sample || "category_id" in sample),
-        };
-        return { data: rows, schema: loadedSchema };
+  for (const db of dbs) {
+    for (const cols of SERVICE_SELECT_ATTEMPTS) {
+      for (const orderBySortOrder of [true, false]) {
+        let query = db.from("services").select(cols).eq("salon_id", salonId);
+        if (orderBySortOrder) query = query.order("sort_order");
+        const res = await query.order("name");
+        if (!res.error) {
+          const rows = (res.data ?? []) as unknown as Record<string, unknown>[];
+          return {
+            data: rows,
+            schema: {
+              hasColorColumn: selectListHasField(cols, "color"),
+              hasCategoryColumn: selectListHasField(cols, "category_id"),
+            },
+          };
+        }
       }
     }
   }
-  const fallback = await supabase
+
+  const fallbackDb = admin ?? supabase;
+  const fallback = await fallbackDb
     .from("services")
     .select("id, name, duration_minutes, price_minor")
     .eq("salon_id", salonId)
     .order("name");
   return {
     data: (fallback.data ?? []) as unknown as Record<string, unknown>[],
-    schema,
+    schema: { hasColorColumn: false, hasCategoryColumn: false },
   };
 }
 
@@ -110,7 +91,7 @@ export async function getSettingsData() {
   const isSuperAdmin = await getIsSuperAdmin();
   const supabase = await createClient();
 
-  const servicesPromise = fetchSalonServices(supabase, context.salon.id);
+  const servicesPromise = fetchSalonServices(context.salon.id);
 
   const categoriesPromise = supabase
     .from("service_categories")
