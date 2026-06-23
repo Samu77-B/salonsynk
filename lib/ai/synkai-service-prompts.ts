@@ -2,7 +2,16 @@ import type { AiBookingService } from "./booking-types";
 import { formatDurationMinutes } from "@/lib/format-duration";
 import { formatPriceMinor } from "./booking-resolvers";
 
-export const SYNKAI_NATURAL_LANGUAGE_SERVICES = `When someone describes a treatment in everyday language (e.g. "roots coloured", "need my highlights done", "regrowth tint"), map it to the closest service from the catalogue below. Use category names to narrow choices (e.g. Colour Tints, Colour - Highlights). If you are fairly sure but not certain, ask once: "Do you mean [exact service name]?" before checking availability or booking. Use list_services with keywords from what they said to find matches.`;
+export const SYNKAI_NATURAL_LANGUAGE_SERVICES = `When someone describes a treatment in everyday language (e.g. "roots coloured", "root colour", "highlights"), map it to the closest **bookable service name** from the catalogue — never to a category heading.
+
+Categories (e.g. "Colour Tints", "Colour - Highlights") group services but are NOT bookable themselves. Always confirm using an exact service name such as "Root Tint" or "Full Head", never "Colour Tint" or "Colour Tints".
+
+Workflow for bookings:
+1. Call match_service (or list_services) with the client's words to get the exact serviceName.
+2. If match_service returns needsConfirmation, ask once: "Do you mean Root Tint?" using the exact name it returns.
+3. Pass that exact serviceName to check_availability and book_guest_appointment.
+4. If the client does not name a stylist, omit stylistName on check_availability to search all stylists.
+5. Resolve "tomorrow" to the next calendar date from today in the prompt.`;
 
 export function uniqueServiceCategories(services: AiBookingService[]): string[] {
   const seen = new Set<string>();

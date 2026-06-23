@@ -6,6 +6,7 @@ import {
   resolveStylist,
   serviceDurationForStylist,
   filterServices,
+  matchServiceForBooking,
 } from "./booking-resolvers";
 import { findAvailableSlots, isSlotAvailable } from "./slot-finder";
 import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso } from "./salon-time";
@@ -31,6 +32,36 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
   const { salonId, salonName, services, stylists, stylistOverrides, slug, products } = catalog;
 
   return {
+    match_service: tool({
+      description:
+        "Resolve casual wording to an exact bookable service name. Call this before check_availability when the client describes a treatment in plain English.",
+      inputSchema: jsonSchema<{ description: string }>({
+        type: "object",
+        properties: {
+          description: {
+            type: "string",
+            description: "What the client asked for, e.g. root colour, highlights, fringe trim",
+          },
+        },
+        required: ["description"],
+        additionalProperties: false,
+      }),
+      execute: async ({ description }) => {
+        const match = matchServiceForBooking(services, description);
+        if (!match.ok) {
+          return errorPayload(match.error, match.suggestions);
+        }
+        return successPayload({
+          serviceName: match.service.name,
+          durationMinutes: match.service.durationMinutes,
+          price: formatPriceMinor(match.service.priceMinor),
+          category: match.service.categoryName ?? undefined,
+          needsConfirmation: match.needsConfirmation,
+          alternatives: match.alternatives,
+        });
+      },
+    }),
+
     list_services: tool({
       description:
         "List services available for online booking. Search by service name, category, or description keywords.",
@@ -85,99 +116,115 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
     }),
 
     check_availability: tool({
-      description: "Check open appointment times for a stylist and service.",
+      description:
+        "Check open appointment times for a service on a given date. stylistName is optional — omit it to search all stylists.",
       inputSchema: jsonSchema<{
-        stylistName: string;
         serviceName: string;
         dateIso: string;
+        stylistName?: string;
         timePreference?: TimePreference;
         requestedTime?: string;
       }>({
         type: "object",
         properties: {
-          stylistName: { type: "string" },
-          serviceName: { type: "string" },
-          dateIso: { type: "string" },
+          stylistName: { type: "string", description: "Optional stylist name" },
+          serviceName: { type: "string", description: "Exact service name from match_service or list_services" },
+          dateIso: { type: "string", description: "Date YYYY-MM-DD (resolve tomorrow from today before calling)" },
           timePreference: { type: "string", enum: ["morning", "afternoon", "evening", "any"] },
           requestedTime: { type: "string", description: "Specific time HH:mm when client asks for a slot" },
         },
-        required: ["stylistName", "serviceName", "dateIso"],
+        required: ["serviceName", "dateIso"],
         additionalProperties: false,
       }),
       execute: async ({ stylistName, serviceName, dateIso, timePreference, requestedTime }) => {
-        const stylistResult = resolveStylist(stylists, stylistName);
-        if (!stylistResult.ok) return errorPayload(stylistResult.error, stylistResult.suggestions);
         const serviceResult = resolveService(services, serviceName);
         if (!serviceResult.ok) return errorPayload(serviceResult.error, serviceResult.suggestions);
         const dateIsoNorm = parseSalonDateIso(dateIso);
         if (!dateIsoNorm) return errorPayload("Please provide a valid date.", []);
 
-        const durationMinutes = serviceDurationForStylist(
-          serviceResult.item,
-          stylistResult.item.id,
-          stylistOverrides
-        );
+        const stylistCandidates = stylistName?.trim()
+          ? [resolveStylist(stylists, stylistName)]
+          : stylists.map((s) => ({ ok: true as const, item: s }));
 
-        let requestedSlot: SlotCandidate | undefined;
-        if (requestedTime?.trim()) {
-          const parsedTime = parseSalonLocalTime(requestedTime.trim());
-          if (parsedTime) {
-            const start = salonLocalToUtc(dateIsoNorm, parsedTime.hour, parsedTime.minute);
-            const ok = await isSlotAvailable({
-              salonId,
-              stylistId: stylistResult.item.id,
-              startTime: start,
-              durationMinutes,
-            });
-            if (ok) {
-              requestedSlot = {
-                startIso: start.toISOString(),
-                endIso: new Date(start.getTime() + durationMinutes * 60_000).toISOString(),
-                dayLabel: start.toLocaleDateString("en-GB", {
-                  timeZone: "Europe/London",
-                  weekday: "short",
-                  day: "numeric",
-                  month: "short",
-                }),
-                timeLabel: requestedTime.trim(),
-              };
-            } else {
-              const alt = await findAvailableSlots({
+        const slotRows: Array<SlotCandidate & { stylist: string }> = [];
+        let requestedSlot: (SlotCandidate & { stylist: string }) | undefined;
+
+        for (const stylistResult of stylistCandidates) {
+          if (!stylistResult.ok) {
+            if (stylistName?.trim()) return errorPayload(stylistResult.error, stylistResult.suggestions);
+            continue;
+          }
+
+          const durationMinutes = serviceDurationForStylist(
+            serviceResult.item,
+            stylistResult.item.id,
+            stylistOverrides
+          );
+
+          if (requestedTime?.trim()) {
+            const parsedTime = parseSalonLocalTime(requestedTime.trim());
+            if (parsedTime) {
+              const start = salonLocalToUtc(dateIsoNorm, parsedTime.hour, parsedTime.minute);
+              const ok = await isSlotAvailable({
                 salonId,
                 stylistId: stylistResult.item.id,
+                startTime: start,
                 durationMinutes,
-                fromDate: dateIsoNorm,
-                daysToScan: 5,
-                timePreference: "any",
-                maxResults: 6,
               });
-              return errorPayload(
-                `Not available at ${requestedTime} on ${dateIsoNorm}.`,
-                alt.map((s) => `${s.dayLabel} at ${s.timeLabel}`)
-              );
+              if (ok) {
+                requestedSlot = {
+                  startIso: start.toISOString(),
+                  endIso: new Date(start.getTime() + durationMinutes * 60_000).toISOString(),
+                  dayLabel: start.toLocaleDateString("en-GB", {
+                    timeZone: "Europe/London",
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                  }),
+                  timeLabel: requestedTime.trim(),
+                  stylist: stylistResult.item.name,
+                };
+                break;
+              }
             }
           }
+
+          const slots = await findAvailableSlots({
+            salonId,
+            stylistId: stylistResult.item.id,
+            durationMinutes,
+            fromDate: dateIsoNorm,
+            daysToScan: stylistName?.trim() ? 5 : 3,
+            timePreference: timePreference ?? "any",
+            maxResults: stylistName?.trim() ? 8 : 4,
+            prioritizeLocalTime: requestedTime?.trim(),
+          });
+          slotRows.push(...slots.map((slot) => ({ ...slot, stylist: stylistResult.item.name })));
         }
 
-        const slots = await findAvailableSlots({
-          salonId,
-          stylistId: stylistResult.item.id,
-          durationMinutes,
-          fromDate: dateIsoNorm,
-          daysToScan: 5,
-          timePreference: timePreference ?? "any",
-          maxResults: 8,
-          prioritizeLocalTime: requestedTime?.trim(),
-        });
-        if (slots.length === 0) {
+        if (requestedTime?.trim() && !requestedSlot) {
+          const alt = slotRows.slice(0, 6).map((s) => `${s.stylist}: ${s.dayLabel} at ${s.timeLabel}`);
+          return errorPayload(`Not available at ${requestedTime} on ${dateIsoNorm}.`, alt);
+        }
+
+        if (requestedSlot) {
+          return successPayload({
+            stylist: requestedSlot.stylist,
+            service: serviceResult.item.name,
+            price: formatPriceMinor(serviceResult.item.priceMinor),
+            requestedSlot,
+            requestedSlotAvailable: true,
+          });
+        }
+
+        if (slotRows.length === 0) {
           return errorPayload("No openings on that day. Try another date or stylist.", stylists.map((s) => s.name));
         }
+
         return successPayload({
-          stylist: stylistResult.item.name,
           service: serviceResult.item.name,
           price: formatPriceMinor(serviceResult.item.priceMinor),
-          slots,
-          ...(requestedSlot ? { requestedSlot, requestedSlotAvailable: true } : {}),
+          slots: slotRows.slice(0, 8),
         });
       },
     }),
@@ -268,7 +315,8 @@ Opening hours: ${catalog.openingHoursNote}
 Rules:
 - Never mention internal staff tools or client databases
 - ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
-- Use list_services / check_availability / book_guest_appointment for bookings
+- Use match_service / list_services / check_availability / book_guest_appointment for bookings
+- When the client confirms with "yes", "that's right", etc., reuse the exact serviceName you already identified — never pass the word "yes" as the service name
 - For style or colour advice, describe what the salon offers based on service list — do not invent services
 - If asked about opening times, use the opening hours note above; if unsure, suggest calling the salon
 - If asked about salon policy: ${catalog.policyNotes}

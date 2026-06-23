@@ -9,6 +9,7 @@ import {
   resolveStylist,
   serviceDurationForStylist,
   filterServices,
+  matchServiceForBooking,
 } from "./booking-resolvers";
 import { findAvailableSlots, isSlotAvailable, parseDateIso } from "./slot-finder";
 import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso } from "./salon-time";
@@ -69,6 +70,31 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
             category: s.categoryName ?? undefined,
             description: s.description ? s.description.slice(0, 200) : undefined,
           })),
+        });
+      },
+    }),
+
+    match_service: tool({
+      description:
+        "Resolve casual wording to an exact bookable service name before checking availability or booking.",
+      inputSchema: jsonSchema<{ description: string }>({
+        type: "object",
+        properties: {
+          description: { type: "string", description: "Plain English service request from the user" },
+        },
+        required: ["description"],
+        additionalProperties: false,
+      }),
+      execute: async ({ description }) => {
+        const match = matchServiceForBooking(services, description);
+        if (!match.ok) return errorPayload(match.error, match.suggestions);
+        return successPayload({
+          serviceName: match.service.name,
+          durationMinutes: match.service.durationMinutes,
+          price: formatPriceMinor(match.service.priceMinor),
+          category: match.service.categoryName ?? undefined,
+          needsConfirmation: match.needsConfirmation,
+          alternatives: match.alternatives,
         });
       },
     }),
@@ -731,11 +757,12 @@ ${isManager ? "- List all team members and roles\n- Answer how-to questions abou
 Rules:
 1. Always use tools for live data — never invent services, prices, times, or contact details.
 2. ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
-3. Call check_availability before booking when a day/time is given; pass requestedTime as HH:mm for specific times.
-4. Use find_appointments to get appointmentId before cancel/delete/messaging actions.
-5. Confirm before delete_appointment.
-6. For messaging, explain which channel was used (email vs SMS) or why it failed (missing phone/email or Twilio/Resend not configured).
-7. After booking changes, mention the Classic Mode diary will update.
+3. Call match_service when the user describes a treatment loosely; never book using a category name.
+4. Call check_availability before booking when a day/time is given; pass requestedTime as HH:mm for specific times.
+5. Use find_appointments to get appointmentId before cancel/delete/messaging actions.
+6. Confirm before delete_appointment.
+7. For messaging, explain which channel was used (email vs SMS) or why it failed (missing phone/email or Twilio/Resend not configured).
+8. After booking changes, mention the Classic Mode diary will update.
 
 Opening hours: ${catalog.openingHoursNote}
 ${catalog.aftercareMessage ? `Default aftercare copy: ${catalog.aftercareMessage.slice(0, 300)}` : ""}

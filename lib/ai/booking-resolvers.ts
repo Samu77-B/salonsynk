@@ -1,5 +1,14 @@
 import type { AiBookingClient, AiBookingService, AiBookingStylist, ResolveResult } from "./booking-types";
 
+export type ServiceMatchResult =
+  | {
+      ok: true;
+      service: AiBookingService;
+      needsConfirmation: boolean;
+      alternatives: string[];
+    }
+  | { ok: false; error: string; suggestions: string[]; isCategory?: boolean };
+
 function normalizeQuery(value: string): string {
   return value
     .toLowerCase()
@@ -7,6 +16,107 @@ function normalizeQuery(value: string): string {
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function queryMatchesCategoryLabel(query: string, categoryName: string): boolean {
+  const q = normalizeQuery(query);
+  const c = normalizeQuery(categoryName);
+  if (!q || !c) return false;
+  if (q === c) return true;
+  if (`${q}s` === c || q === `${c}s` || (q.endsWith("s") && q.slice(0, -1) === c) || (c.endsWith("s") && c.slice(0, -1) === q)) {
+    return true;
+  }
+  return q.length >= 4 && (c.startsWith(q) || q.startsWith(c));
+}
+
+const ROOT_TINT_HINTS = [
+  "root colour",
+  "root color",
+  "roots coloured",
+  "roots colored",
+  "regrowth",
+  "root touch up",
+  "touch up roots",
+  "roots done",
+];
+
+function queryImpliesRootTint(query: string): boolean {
+  const q = normalizeQuery(query);
+  if (ROOT_TINT_HINTS.some((hint) => q.includes(normalizeQuery(hint)))) return true;
+  return q.includes("root") && (q.includes("colour") || q.includes("color"));
+}
+
+function findRootTintService(services: AiBookingService[]): AiBookingService | null {
+  const exact = services.find((s) => normalizeQuery(s.name) === "root tint");
+  if (exact) return exact;
+  return services.find((s) => normalizeQuery(s.name).includes("root") && normalizeQuery(s.name).includes("tint")) ?? null;
+}
+
+export function matchServiceForBooking(services: AiBookingService[], query: string): ServiceMatchResult {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return {
+      ok: false,
+      error: "Please describe which service you would like.",
+      suggestions: services.slice(0, 6).map((s) => s.name),
+    };
+  }
+
+  const categoryHits = new Map<string, AiBookingService[]>();
+  for (const service of services) {
+    if (!service.categoryName) continue;
+    if (!queryMatchesCategoryLabel(trimmed, service.categoryName)) continue;
+    const list = categoryHits.get(service.categoryName) ?? [];
+    list.push(service);
+    categoryHits.set(service.categoryName, list);
+  }
+  if (categoryHits.size > 0) {
+    const grouped = [...categoryHits.values()].flat();
+    const names = [...new Set(grouped.map((s) => s.name))];
+    return {
+      ok: false,
+      error: `"${trimmed}" matches a service category, not a bookable service. Pick the exact service name:`,
+      suggestions: names,
+      isCategory: true,
+    };
+  }
+
+  if (queryImpliesRootTint(trimmed)) {
+    const rootTint = findRootTintService(services);
+    if (rootTint) {
+      return { ok: true, service: rootTint, needsConfirmation: true, alternatives: [] };
+    }
+  }
+
+  const scored = services
+    .map((service) => ({ service, score: scoreServiceMatch(service, trimmed) }))
+    .filter((row) => row.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (scored.length === 0) {
+    return {
+      ok: false,
+      error: `I couldn't find a service matching "${trimmed}".`,
+      suggestions: services.slice(0, 6).map((s) => s.name),
+    };
+  }
+
+  const best = scored[0];
+  const nameScore = scoreNameMatch(best.service.name, trimmed);
+  const second = scored[1];
+  const needsConfirmation =
+    Boolean(second && (best.score - second.score < 10 || nameScore < 70)) && best.score < 95;
+
+  if (needsConfirmation) {
+    return {
+      ok: true,
+      service: best.service,
+      needsConfirmation: true,
+      alternatives: scored.slice(1, 4).map((row) => row.service.name),
+    };
+  }
+
+  return { ok: true, service: best.service, needsConfirmation: false, alternatives: [] };
 }
 
 function scoreNameMatch(candidate: string, query: string): number {
@@ -58,39 +168,18 @@ export function resolveService(
   services: AiBookingService[],
   serviceName: string
 ): ResolveResult<AiBookingService> {
-  const trimmed = serviceName.trim();
-  if (!trimmed) {
-    return {
-      ok: false,
-      error: "Please specify which service you mean.",
-      suggestions: services.slice(0, 6).map((s) => s.name),
-    };
+  const match = matchServiceForBooking(services, serviceName);
+  if (match.ok) {
+    if (match.needsConfirmation && match.alternatives.length > 0) {
+      return {
+        ok: false,
+        error: `Several services could match "${serviceName}". Which did you mean?`,
+        suggestions: [match.service.name, ...match.alternatives],
+      };
+    }
+    return { ok: true, item: match.service };
   }
-
-  const scored = services
-    .map((item) => ({ item, score: scoreServiceMatch(item, trimmed) }))
-    .filter((row) => row.score > 0)
-    .sort((a, b) => b.score - a.score);
-
-  if (scored.length === 0) {
-    return {
-      ok: false,
-      error: `I couldn't find a service matching "${trimmed}".`,
-      suggestions: services.slice(0, 6).map((s) => s.name),
-    };
-  }
-
-  const best = scored[0];
-  const second = scored[1];
-  if (second && best.score - second.score < 8 && best.score < 90) {
-    return {
-      ok: false,
-      error: `Several services match "${trimmed}". Which did you mean?`,
-      suggestions: scored.slice(0, 5).map((r) => r.item.name),
-    };
-  }
-
-  return { ok: true, item: best.item };
+  return { ok: false, error: match.error, suggestions: match.suggestions };
 }
 
 function resolveByName<T extends { id: string; label: string }>(
