@@ -11,6 +11,7 @@ import { validateMoveWithProcessing, type AppointmentBlockingInput } from "@/lib
 import { dedupeOrderedServiceIds } from "@/lib/appointments/appointment-service-lines";
 import type { UpdateAppointmentInput } from "@/lib/appointments/patch-appointment";
 import { DashboardModeToggle } from "./modes/dashboard-mode-context";
+import { buildServiceDiaryColorMap, DEFAULT_DIARY_COLOR } from "@/lib/service-diary-color";
 
 /** Route Handler + JSON — avoids Next.js server-action digest errors on diary saves (add, delete, status, drag, form). */
 async function createAppointmentViaApi(
@@ -495,7 +496,7 @@ export function DiaryView({
   stylistOverrides?: Record<string, Record<string, number>>;
   clientPromptData?: Record<string, { lastVisit?: string; lastFormula?: string; alertNotes?: string[] }>;
   clientCompletedCounts?: Record<string, number>;
-  categories?: { id: string; name: string }[];
+  categories?: { id: string; name: string; color?: string | null }[];
 }) {
   const [view, setView] = useState<"day" | "week">("day");
   const [currentDate, setCurrentDate] = useState(() => formatDate(new Date()));
@@ -623,13 +624,10 @@ export function DiaryView({
   }, []);
 
   const dateObj = useMemo(() => new Date(currentDate + "T12:00:00"), [currentDate]);
-  const serviceColorMap = useMemo(() => {
-    const m: Record<string, string> = {};
-    for (const svc of services) {
-      if (svc.color) m[svc.id] = svc.color;
-    }
-    return m;
-  }, [services]);
+  const serviceColorMap = useMemo(
+    () => buildServiceDiaryColorMap(services, categories),
+    [services, categories]
+  );
 
   const daysToShow = useMemo(
     () =>
@@ -1384,7 +1382,7 @@ export function DiaryView({
                               const phone = client?.phone ?? a.guest_phone ?? "";
                               const label = client?.name || a.guest_name || "Walk-in";
                               const serviceName = svc?.name || "Service";
-                              const color = (a.service_id && serviceColorMap[a.service_id]) || "#22c55e";
+                              const color = (a.service_id && serviceColorMap[a.service_id]) || DEFAULT_DIARY_COLOR;
                               const lane = lanes.get(a.id) ?? { lane: 0, laneCount: 1 };
                               const { lane: li, laneCount: lc } = lane;
                               const pct = 100 / lc;
@@ -1533,7 +1531,7 @@ export function DiaryView({
                         const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
                         const label = client?.name || a.guest_name || "Walk-in";
                         const serviceName = svc?.name || "Service";
-                        const color = (a.service_id && serviceColorMap[a.service_id]) || "#22c55e";
+                        const color = (a.service_id && serviceColorMap[a.service_id]) || DEFAULT_DIARY_COLOR;
                         const stylistName =
                           members.find((m) => m.id === a.stylist_id)?.display_name ||
                           members.find((m) => m.id === a.stylist_id)?.role ||

@@ -22,6 +22,16 @@ export function isMissingCategoryColumnError(error: { message?: string } | null 
   return msg.includes("category_id") && (msg.includes("does not exist") || msg.includes("schema cache"));
 }
 
+/** True when service_categories.color column is not present yet. */
+export function isMissingCategoryColorColumnError(error: { message?: string } | null | undefined) {
+  const msg = (error?.message ?? "").toLowerCase();
+  return (
+    msg.includes("color") &&
+    (msg.includes("service_categories") || msg.includes("schema cache")) &&
+    (msg.includes("does not exist") || msg.includes("schema cache"))
+  );
+}
+
 /** True when services.sort_order column is not present yet. */
 export function isMissingSortOrderColumnError(error: { message?: string } | null | undefined) {
   const msg = (error?.message ?? "").toLowerCase();

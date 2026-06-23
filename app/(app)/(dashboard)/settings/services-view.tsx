@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { addService, updateService, deleteService, addCategory, updateCategory, deleteCategory } from "./actions";
 import { formatDurationMinutes } from "@/lib/format-duration";
 import { serviceColorLabel, serviceColorOptions } from "@/lib/service-colors";
+import { resolveDiaryColor } from "@/lib/service-diary-color";
 
 const DESCRIPTION_MAX = 2000;
 
@@ -24,6 +25,7 @@ type CategoryRow = {
   id: string;
   name: string;
   sort_order: number;
+  color?: string;
 };
 
 const inputClass =
@@ -51,6 +53,8 @@ function CategoryManager({
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [colorEditingId, setColorEditingId] = useState<string | null>(null);
+  const [colorSavingId, setColorSavingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -86,6 +90,18 @@ function CategoryManager({
     }
   }
 
+  async function handleColorChange(catId: string, hex: string) {
+    setColorSavingId(catId);
+    setError("");
+    const res = await updateCategory(salonId, catId, { color: hex });
+    setColorSavingId(null);
+    if (res.error) {
+      setError(res.error);
+    } else {
+      router.refresh();
+    }
+  }
+
   async function handleDelete(cat: CategoryRow) {
     if (!confirm(`Delete category "${cat.name}"? Services in it will become uncategorised.`)) return;
     setDeletingId(cat.id);
@@ -103,13 +119,15 @@ function CategoryManager({
     <div className="rounded-xl border border-border bg-background/60 p-4 shadow-sm sm:p-5 space-y-4">
       <h2 className="text-base font-semibold">Categories</h2>
       <p className="text-sm text-muted">
-        Group services under headings like &ldquo;Ladies&rsquo; Highlights&rdquo; or &ldquo;Gents&rdquo;. Services without a category still appear on their own.
+        Group services under headings like &ldquo;Ladies&rsquo; Highlights&rdquo; or &ldquo;Gents&rdquo;. Each category gets a{" "}
+        <span className="font-medium text-foreground">diary colour</span> — all services in that group use it unless a service has its own override.
       </p>
 
       {categories.length > 0 && (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {categories.map((cat) => (
-            <li key={cat.id} className="flex items-center gap-2 text-sm">
+            <li key={cat.id} className="rounded-lg border border-border bg-background/40 p-3">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
               {editingId === cat.id ? (
                 <>
                   <input
@@ -138,10 +156,24 @@ function CategoryManager({
                 </>
               ) : (
                 <>
+                  {cat.color ? (
+                    <span
+                      className="h-4 w-4 shrink-0 rounded-full border border-border"
+                      style={{ backgroundColor: cat.color }}
+                      aria-hidden
+                    />
+                  ) : null}
                   <span className="font-medium text-foreground">{cat.name}</span>
                   <button
                     type="button"
-                    onClick={() => { setEditingId(cat.id); setEditName(cat.name); }}
+                    onClick={() => setColorEditingId((id) => (id === cat.id ? null : cat.id))}
+                    className="text-xs text-muted-foreground hover:underline"
+                  >
+                    {colorEditingId === cat.id ? "Hide colour" : "Diary colour"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingId(cat.id); setEditName(cat.name); setColorEditingId(null); }}
                     className="text-xs text-muted-foreground hover:underline"
                   >
                     Rename
@@ -156,6 +188,19 @@ function CategoryManager({
                   </button>
                 </>
               )}
+              </div>
+              {colorEditingId === cat.id && editingId !== cat.id ? (
+                <div className="mt-3 border-t border-border pt-3">
+                  <DiaryColorPicker
+                    idPrefix={`cat-${cat.id}`}
+                    value={cat.color ?? ""}
+                    onChange={(hex) => void handleColorChange(cat.id, hex)}
+                    label="Category diary colour"
+                    hint="All services in this category use this colour on the diary unless they have their own override."
+                    saving={colorSavingId === cat.id}
+                  />
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -229,31 +274,49 @@ function DiaryColorPicker({
   value,
   onChange,
   idPrefix,
+  label = "Diary colour",
+  hint = "Appointment blocks on the diary will use this colour.",
+  inheritColor,
+  inheritLabel = "category",
+  saving = false,
 }: {
   value: string;
   onChange: (hex: string) => void;
   idPrefix: string;
+  label?: string;
+  hint?: string;
+  inheritColor?: string | null;
+  inheritLabel?: string;
+  saving?: boolean;
 }) {
   const options = serviceColorOptions(value);
+  const inherited = inheritColor?.trim() ?? "";
+  const effective = resolveDiaryColor(value, inherited);
 
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium">Diary colour</label>
-      <p className="mb-2 text-xs text-muted">Appointment blocks on the diary will use this colour.</p>
+      <label className="mb-1 block text-sm font-medium">{label}</label>
+      <p className="mb-2 text-xs text-muted">{hint}</p>
       <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2">
         <span
           className="h-5 w-5 shrink-0 rounded-full border border-border"
-          style={{ backgroundColor: value.trim() || "var(--muted)" }}
+          style={{ backgroundColor: effective }}
           aria-hidden
         />
         <span className="text-xs text-muted-foreground">
           {value.trim() ? (
             <>
-              Saved colour: <span className="font-medium text-foreground">{serviceColorLabel(value)}</span>
+              Override: <span className="font-medium text-foreground">{serviceColorLabel(value)}</span>
+            </>
+          ) : inherited ? (
+            <>
+              Uses {inheritLabel} colour:{" "}
+              <span className="font-medium text-foreground">{serviceColorLabel(inherited)}</span>
             </>
           ) : (
             "No colour selected — diary uses the default green"
           )}
+          {saving ? <span className="ml-2 text-muted">Saving…</span> : null}
         </span>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -263,8 +326,8 @@ function DiaryColorPicker({
           onClick={() => onChange("")}
           className={`h-8 w-8 rounded-full border-2 shrink-0 ${!value ? "border-foreground ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent"}`}
           style={{ backgroundColor: "var(--muted)" }}
-          title="No colour (default)"
-          aria-label="No colour"
+          title="Use category colour (no override)"
+          aria-label="Use category colour"
         />
         {options.map((hex) => (
           <button
@@ -314,6 +377,11 @@ function ServiceCard({
     () => (categoryId ? categories.find((c) => c.id === categoryId)?.name ?? null : null),
     [categories, categoryId],
   );
+  const categoryColor = useMemo(
+    () => (categoryId ? categories.find((c) => c.id === categoryId)?.color ?? "" : ""),
+    [categories, categoryId],
+  );
+  const effectiveDiaryColor = resolveDiaryColor(serviceColor, categoryColor);
 
   useEffect(() => {
     setName(service.name);
@@ -406,12 +474,19 @@ function ServiceCard({
   return (
     <article
       className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-background p-4 shadow-sm overflow-hidden"
-      style={serviceColor.trim() ? { borderTopWidth: 4, borderTopColor: serviceColor } : undefined}
+      style={effectiveDiaryColor ? { borderTopWidth: 4, borderTopColor: effectiveDiaryColor } : undefined}
     >
-      {(categoryName || serviceColor.trim()) && (
+      {(categoryName || serviceColor.trim() || categoryColor.trim()) && (
         <div className="flex flex-wrap items-center gap-2">
           {categoryName ? (
-            <span className="inline-flex items-center rounded-md bg-accent/15 px-2.5 py-1 text-xs font-medium text-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-accent/15 px-2.5 py-1 text-xs font-medium text-foreground">
+              {categoryColor.trim() ? (
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full border border-border"
+                  style={{ backgroundColor: categoryColor }}
+                  aria-hidden
+                />
+              ) : null}
               {categoryName}
             </span>
           ) : null}
@@ -422,7 +497,11 @@ function ServiceCard({
                 style={{ backgroundColor: serviceColor }}
                 aria-hidden
               />
-              Diary colour
+              Colour override
+            </span>
+          ) : categoryColor.trim() ? (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
+              Uses category colour
             </span>
           ) : null}
         </div>
@@ -550,6 +629,9 @@ function ServiceCard({
         idPrefix={`svc-${service.id}`}
         value={serviceColor}
         onChange={setServiceColor}
+        label="Service colour override"
+        hint="Leave unset to use the category colour on the diary. Pick a colour here only when this service should look different from others in its group."
+        inheritColor={categoryColor}
       />
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
         <button
@@ -637,9 +719,8 @@ export function ServicesView({
   return (
     <section className="space-y-8">
       <p className="text-sm text-muted">
-        Each service is a card: set timing and price. Optional: allow <span className="font-medium text-foreground">overlap</span>{" "}
-        when the client is processing (e.g. colour developing) so another client can be booked in that gap. Use{" "}
-        <span className="font-medium text-foreground">More info</span> for details, aftercare, or internal notes.
+        Each service is a card: set timing and price. Services inherit their category&apos;s diary colour — use a per-service override only when one treatment should stand out. Optional: allow{" "}
+        <span className="font-medium text-foreground">overlap</span> when the client is processing (e.g. colour developing) so another client can be booked in that gap.
       </p>
 
       <CategoryManager salonId={salonId} categories={categories} />
@@ -833,6 +914,9 @@ export function ServicesView({
             idPrefix="new-service"
             value={newServiceColor}
             onChange={setNewServiceColor}
+            label="Service colour override"
+            hint="Optional. Leave unset to use the category colour on the diary."
+            inheritColor={newCategoryId ? categories.find((c) => c.id === newCategoryId)?.color : ""}
           />
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -858,7 +942,16 @@ export function ServicesView({
         if (group.services.length === 0 && !group.category) return null;
         return (
           <div key={key}>
-            <h2 className="mb-3 text-base font-semibold">{heading}</h2>
+            <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
+              {group.category?.color ? (
+                <span
+                  className="h-4 w-4 shrink-0 rounded-full border border-border"
+                  style={{ backgroundColor: group.category.color }}
+                  aria-hidden
+                />
+              ) : null}
+              {heading}
+            </h2>
             {group.services.length > 0 ? (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {group.services.map((s) => (

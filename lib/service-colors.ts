@@ -1,4 +1,4 @@
-/** Diary block colours — one distinct swatch per service (supports ~30+ services). */
+/** Diary block colours — palette for categories; services may override individually. */
 export const SERVICE_COLORS = [
   "#ef4444",
   "#f97316",

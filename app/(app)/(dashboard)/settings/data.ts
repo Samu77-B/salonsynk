@@ -152,12 +152,21 @@ export async function getSettingsData() {
 
   const servicesPromise = fetchSalonServices(context.salon.id);
 
-  const categoriesPromise = supabase
-    .from("service_categories")
-    .select("id, name, sort_order")
-    .eq("salon_id", context.salon.id)
-    .order("sort_order")
-    .order("name");
+  const categoriesPromise = (async () => {
+    const withColor = await supabase
+      .from("service_categories")
+      .select("id, name, sort_order, color")
+      .eq("salon_id", context.salon.id)
+      .order("sort_order")
+      .order("name");
+    if (!withColor.error) return withColor;
+    return supabase
+      .from("service_categories")
+      .select("id, name, sort_order")
+      .eq("salon_id", context.salon.id)
+      .order("sort_order")
+      .order("name");
+  })();
 
   const [{ data: salon }, { data: member }, servicesResult, { data: categories }] = await Promise.all([
     supabase
@@ -216,8 +225,8 @@ export async function getSettingsData() {
     salon,
     member,
     categories: (categories ?? []).map((c) => {
-      const row = c as { id: string; name: string; sort_order: number };
-      return { id: row.id, name: row.name, sort_order: row.sort_order ?? 0 };
+      const row = c as { id: string; name: string; sort_order: number; color?: string | null };
+      return { id: row.id, name: row.name, sort_order: row.sort_order ?? 0, color: row.color ?? "" };
     }),
     services: (services ?? []).map((s) => {
       const row = s as {

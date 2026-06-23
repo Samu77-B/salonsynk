@@ -96,6 +96,13 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
 
   const categoriesPromise = (async () => {
     try {
+      const withColor = await supabase
+        .from("service_categories")
+        .select("id, name, sort_order, color")
+        .eq("salon_id", context.salon.id)
+        .order("sort_order")
+        .order("name");
+      if (!withColor.error) return withColor;
       return await supabase
         .from("service_categories")
         .select("id, name, sort_order")
@@ -103,7 +110,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
         .order("sort_order")
         .order("name");
     } catch {
-      return { data: [] as { id: string; name: string; sort_order: number }[], error: null };
+      return { data: [] as { id: string; name: string; sort_order: number; color?: string | null }[], error: null };
     }
   })();
 
@@ -193,9 +200,10 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
       price_minor: row.price_minor != null ? Number(row.price_minor) : null,
     };
   });
-  const serviceCategories = ((categoriesRes as { data?: { id: string; name: string; sort_order: number }[] | null }).data ?? []).map((c) => ({
+  const serviceCategories = ((categoriesRes as { data?: { id: string; name: string; sort_order: number; color?: string | null }[] | null }).data ?? []).map((c) => ({
     id: c.id,
     name: c.name,
+    color: c.color ?? null,
   }));
   const clients = clientsRes.data ?? [];
 

@@ -5,7 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
-import { isMissingDescriptionColumnError, isMissingProcessingColumnError, isMissingColorColumnError, isMissingCategoryColumnError, isMissingSortOrderColumnError } from "@/lib/db/service-schema";
+import { isMissingDescriptionColumnError, isMissingProcessingColumnError, isMissingColorColumnError, isMissingCategoryColumnError, isMissingSortOrderColumnError, isMissingCategoryColorColumnError } from "@/lib/db/service-schema";
+import { pickNextCategoryColor } from "@/lib/service-diary-color";
 
 const SERVICE_DESCRIPTION_MAX_LEN = 2000;
 
@@ -542,10 +543,21 @@ export async function deleteService(salonId: string, serviceId: string): Promise
 // Service categories
 // ---------------------------------------------------------------------------
 
+async function fetchSalonCategoryColors(
+  salonId: string,
+  db: ReturnType<typeof createAdminClient> | Awaited<ReturnType<typeof createClient>>
+): Promise<string[]> {
+  const res = await db.from("service_categories").select("color").eq("salon_id", salonId);
+  if (res.error) return [];
+  return (res.data ?? [])
+    .map((row) => String((row as { color?: string | null }).color ?? "").trim())
+    .filter(Boolean);
+}
+
 export async function addCategory(
   salonId: string,
   data: { name: string }
-): Promise<ServiceMutationResult & { id?: string }> {
+): Promise<ServiceMutationResult & { id?: string; color?: string }> {
   try {
     const auth = await assertCanManageServices(salonId);
     if ("error" in auth) return { error: auth.error };
@@ -554,16 +566,22 @@ export async function addCategory(
     const admin = getOptionalAdminClient();
     const supabase = await createClient();
     const db = admin ?? supabase;
-    const { data: row, error } = await db
-      .from("service_categories")
-      .insert({ salon_id: salonId, name })
-      .select("id")
-      .single();
-    if (error) return { error: formatDbError(error) };
+    const usedColors = await fetchSalonCategoryColors(salonId, db);
+    const color = pickNextCategoryColor(usedColors);
+    let insertPayload: Record<string, unknown> = { salon_id: salonId, name, color };
+    let result = await db.from("service_categories").insert(insertPayload).select("id, color").single();
+    if (result.error && isMissingCategoryColorColumnError(result.error)) {
+      insertPayload = { salon_id: salonId, name };
+      result = await db.from("service_categories").insert(insertPayload).select("id").single();
+    }
+    if (result.error) return { error: formatDbError(result.error) };
     revalidatePath("/settings");
     revalidatePath("/services");
     revalidatePath("/dashboard");
-    return { id: row?.id };
+    return {
+      id: result.data?.id,
+      color: (result.data as { color?: string | null } | null)?.color?.trim() || color,
+    };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to add category" };
   }
@@ -572,8 +590,8 @@ export async function addCategory(
 export async function updateCategory(
   salonId: string,
   categoryId: string,
-  data: { name?: string; sort_order?: number }
-): Promise<ServiceMutationResult> {
+  data: { name?: string; sort_order?: number; color?: string | null }
+): Promise<ServiceMutationResult & { color?: string }> {
   try {
     const auth = await assertCanManageServices(salonId);
     if ("error" in auth) return { error: auth.error };
@@ -584,20 +602,34 @@ export async function updateCategory(
       payload.name = n;
     }
     if (data.sort_order !== undefined) payload.sort_order = Math.max(0, Math.round(data.sort_order));
+    if (data.color !== undefined) payload.color = data.color?.trim() || null;
     if (Object.keys(payload).length === 0) return {};
     const admin = getOptionalAdminClient();
     const supabase = await createClient();
     const db = admin ?? supabase;
-    const { error } = await db
+    let result = await db
       .from("service_categories")
       .update(payload)
       .eq("id", categoryId)
-      .eq("salon_id", salonId);
-    if (error) return { error: formatDbError(error) };
+      .eq("salon_id", salonId)
+      .select("color")
+      .maybeSingle();
+    if (result.error && data.color !== undefined && isMissingCategoryColorColumnError(result.error)) {
+      const { color: _c, ...withoutColor } = payload;
+      if (Object.keys(withoutColor).length === 0) return {};
+      result = await db
+        .from("service_categories")
+        .update(withoutColor)
+        .eq("id", categoryId)
+        .eq("salon_id", salonId)
+        .select("color")
+        .maybeSingle();
+    }
+    if (result.error) return { error: formatDbError(result.error) };
     revalidatePath("/settings");
     revalidatePath("/services");
     revalidatePath("/dashboard");
-    return {};
+    return { color: (result.data as { color?: string | null } | null)?.color?.trim() ?? data.color?.trim() ?? "" };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to update category" };
   }

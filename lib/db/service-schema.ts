@@ -5,4 +5,5 @@ export {
   isMissingColorColumnError,
   isMissingCategoryColumnError,
   isMissingSortOrderColumnError,
+  isMissingCategoryColorColumnError,
 } from "@core/db/service-schema";
