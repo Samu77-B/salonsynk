@@ -15,6 +15,8 @@ import { isPaymentGatewayId, PAYMENT_GATEWAYS, salonUsesStripeCheckout } from "@
 import { redirect } from "next/navigation";
 
 const SERVICE_SELECT_ATTEMPTS = [
+  "id, name, duration_minutes, price_minor, processing_time_minutes, description, color, category_id",
+  "id, name, duration_minutes, price_minor, color, category_id",
   "id, name, duration_minutes, price_minor, processing_time_minutes, description, color, category_id, sort_order",
   "id, name, duration_minutes, price_minor, processing_time_minutes, description, color, category_id",
   "id, name, duration_minutes, price_minor, processing_time_minutes, description, category_id",
@@ -42,6 +44,45 @@ function getOptionalAdminClient() {
   }
 }
 
+async function enrichServicesWithColorAndCategory(
+  salonId: string,
+  rows: Record<string, unknown>[]
+): Promise<{ rows: Record<string, unknown>[]; enriched: boolean }> {
+  const supabase = await createClient();
+  const admin = getOptionalAdminClient();
+  const clients = admin ? [admin, supabase] : [supabase];
+
+  for (const db of clients) {
+    const res = await db
+      .from("services")
+      .select("id, color, category_id")
+      .eq("salon_id", salonId);
+    if (res.error || !res.data) continue;
+
+    const byId = new Map(
+      res.data.map((row) => {
+        const r = row as { id: string; color?: string | null; category_id?: string | null };
+        return [r.id, r] as const;
+      })
+    );
+
+    return {
+      enriched: true,
+      rows: rows.map((row) => {
+        const extra = byId.get(row.id as string);
+        if (!extra) return row;
+        return {
+          ...row,
+          color: extra.color ?? null,
+          category_id: extra.category_id ?? null,
+        };
+      }),
+    };
+  }
+
+  return { rows, enriched: false };
+}
+
 async function fetchSalonServices(
   salonId: string
 ): Promise<{
@@ -54,18 +95,29 @@ async function fetchSalonServices(
 
   for (const db of dbs) {
     for (const cols of SERVICE_SELECT_ATTEMPTS) {
-      for (const orderBySortOrder of [true, false]) {
+      for (const orderBySortOrder of [false, true]) {
         let query = db.from("services").select(cols).eq("salon_id", salonId);
-        if (orderBySortOrder) query = query.order("sort_order");
+        if (orderBySortOrder && selectListHasField(cols, "sort_order")) {
+          query = query.order("sort_order");
+        }
         const res = await query.order("name");
         if (!res.error) {
-          const rows = (res.data ?? []) as unknown as Record<string, unknown>[];
+          let rows = (res.data ?? []) as unknown as Record<string, unknown>[];
+          let hasColor = selectListHasField(cols, "color");
+          let hasCategory = selectListHasField(cols, "category_id");
+
+          if (!hasColor || !hasCategory) {
+            const enriched = await enrichServicesWithColorAndCategory(salonId, rows);
+            rows = enriched.rows;
+            if (enriched.enriched) {
+              hasColor = true;
+              hasCategory = true;
+            }
+          }
+
           return {
             data: rows,
-            schema: {
-              hasColorColumn: selectListHasField(cols, "color"),
-              hasCategoryColumn: selectListHasField(cols, "category_id"),
-            },
+            schema: { hasColorColumn: hasColor, hasCategoryColumn: hasCategory },
           };
         }
       }
@@ -78,9 +130,16 @@ async function fetchSalonServices(
     .select("id, name, duration_minutes, price_minor")
     .eq("salon_id", salonId)
     .order("name");
+
+  const baseRows = (fallback.data ?? []) as unknown as Record<string, unknown>[];
+  const enriched = await enrichServicesWithColorAndCategory(salonId, baseRows);
+
   return {
-    data: (fallback.data ?? []) as unknown as Record<string, unknown>[],
-    schema: { hasColorColumn: false, hasCategoryColumn: false },
+    data: enriched.rows,
+    schema: {
+      hasColorColumn: enriched.enriched,
+      hasCategoryColumn: enriched.enriched,
+    },
   };
 }
 
@@ -118,7 +177,6 @@ export async function getSettingsData() {
     categoriesPromise,
   ]);
   const services = servicesResult.data;
-  const serviceSchema = servicesResult.schema;
 
   const settings = (salon?.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | undefined>) ?? {};
@@ -161,7 +219,6 @@ export async function getSettingsData() {
       const row = c as { id: string; name: string; sort_order: number };
       return { id: row.id, name: row.name, sort_order: row.sort_order ?? 0 };
     }),
-    serviceSchema,
     services: (services ?? []).map((s) => {
       const row = s as {
         id: string;

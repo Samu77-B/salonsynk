@@ -21,7 +21,6 @@ export default async function ServicesPage() {
         canManageServices={data.canManageServices}
         services={data.services}
         categories={data.categories}
-        serviceSchema={data.serviceSchema}
       />
     </main>
   );

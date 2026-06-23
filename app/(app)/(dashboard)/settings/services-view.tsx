@@ -588,13 +588,11 @@ export function ServicesView({
   canManageServices,
   services = [],
   categories = [],
-  serviceSchema = { hasColorColumn: true, hasCategoryColumn: true },
 }: {
   salonId: string;
   canManageServices: boolean;
   services?: ServiceRow[];
   categories?: CategoryRow[];
-  serviceSchema?: { hasColorColumn: boolean; hasCategoryColumn: boolean };
 }) {
   const router = useRouter();
   const [newServiceName, setNewServiceName] = useState("");
@@ -638,22 +636,6 @@ export function ServicesView({
 
   return (
     <section className="space-y-8">
-      {(!serviceSchema.hasColorColumn || !serviceSchema.hasCategoryColumn) && (
-        <div
-          className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-foreground"
-          role="status"
-        >
-          <p className="font-medium">Categories and diary colours may not save yet</p>
-          <p className="mt-1 text-muted">
-            The app cannot read the <code className="text-xs">color</code> /{" "}
-            <code className="text-xs">category_id</code> columns through the Supabase API. If you already ran migration{" "}
-            051, open Supabase → SQL Editor and run{" "}
-            <code className="rounded bg-background/80 px-1 py-0.5 text-xs">NOTIFY pgrst, &apos;reload schema&apos;;</code>{" "}
-            or restart the project under Settings → General. Then hard-refresh this page. You can still try adding a
-            service — if you see &ldquo;Saved&rdquo; with no red error, it is working.
-          </p>
-        </div>
-      )}
       <p className="text-sm text-muted">
         Each service is a card: set timing and price. Optional: allow <span className="font-medium text-foreground">overlap</span>{" "}
         when the client is processing (e.g. colour developing) so another client can be booked in that gap. Use{" "}
