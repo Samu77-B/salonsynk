@@ -68,12 +68,11 @@ export function AddAppointmentModal({
   const [phone, setPhone] = useState("");
   const [date, setDate] = useState(currentDate);
   const [time, setTime] = useState(() => initialTimeHHmm ?? "09:00");
-  const [notes, setNotes] = useState("");
   const [sendReminderSms, setSendReminderSms] = useState(true);
   const [sendReviewRequest, setSendReviewRequest] = useState(true);
   const [sendAftercare, setSendAftercare] = useState(false);
   const [allowScheduleOverlap, setAllowScheduleOverlap] = useState(false);
-  const [silentService, setSilentService] = useState(false);
+  const [walkInMode, setWalkInMode] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   const [clientPickerFocused, setClientPickerFocused] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -202,12 +201,10 @@ export function AddAppointmentModal({
         guestName: clientId ? null : guestName?.trim() || null,
         guestEmail: email?.trim() || null,
         guestPhone: phone?.trim() || null,
-        notes: notes || null,
         sendReminderSms,
         sendReviewRequest,
         sendAftercare,
         allowScheduleOverlap,
-        silentService,
       });
       if (result?.error) setSubmitError(result.error);
     } catch (e) {
@@ -224,13 +221,12 @@ export function AddAppointmentModal({
     >
       <div
         ref={panelRef}
-        className="w-full min-w-0 max-w-md xl:max-w-4xl max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6"
+        className="w-full min-w-0 max-w-md max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold mb-4">Add appointment</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 xl:grid-cols-2 xl:gap-x-8 xl:items-start gap-y-6">
-            <div className="space-y-4 min-w-0">
+          <div className="space-y-4 min-w-0">
           <div>
             <label className="block text-sm font-medium mb-1">Stylist</label>
             <select
@@ -258,6 +254,7 @@ export function AddAppointmentModal({
                     onClick={() => {
                       setClientId("");
                       setClientSearch("");
+                      setWalkInMode(false);
                     }}
                   >
                     Change
@@ -298,6 +295,7 @@ export function AddAppointmentModal({
                           onMouseDown={(e) => {
                             e.preventDefault();
                             setGuestName("");
+                            setWalkInMode(false);
                             setClientId(c.id);
                             setClientSearch("");
                           }}
@@ -361,6 +359,24 @@ export function AddAppointmentModal({
             </p>
           </div>
 
+          {!clientId && (
+            <button
+              type="button"
+              onClick={() => {
+                setWalkInMode(true);
+                setGuestName("");
+                setEmail("");
+                setPhone("");
+              }}
+              className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                walkInMode
+                  ? "border-accent/60 bg-accent/10 text-accent"
+                  : "border-accent/50 text-accent hover:bg-accent/5"
+              }`}
+            >
+              Walk-in guest
+            </button>
+          )}
           {clientId ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
@@ -384,7 +400,7 @@ export function AddAppointmentModal({
                 />
               </div>
             </div>
-          ) : (
+          ) : walkInMode ? (
             <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
               <p className="text-xs font-medium text-muted-foreground leading-snug">
                 Walk-in guest{" "}
@@ -430,83 +446,49 @@ export function AddAppointmentModal({
                 </p>
               )}
             </div>
-          )}
+          ) : null}
           {clientId && !hasContact && (
             <p className="text-sm text-amber-600">
               No email or phone – we can&apos;t send a booking confirmation or reminders.
             </p>
           )}
-            </div>
-
-            <div className="space-y-4 min-w-0">
-              <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-                  <div className="flex-1 min-w-0">
-                    <label className="block text-sm font-medium mb-1">Date</label>
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      required
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <label className="block text-sm font-medium mb-1">Time</label>
-                    <input
-                      type="time"
-                      value={time}
-                      onChange={(e) => setTime(e.target.value)}
-                      required
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1" htmlFor="add-appt-notes">
-                    Notes
-                  </label>
-                  <textarea
-                    id="add-appt-notes"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Treatments discussed, formulas, sensitivities..."
-                    rows={5}
-                    className="w-full min-h-[8.5rem] resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm leading-relaxed placeholder:text-muted-foreground"
-                  />
-                </div>
-              </div>
-              <ServicePickerField
-                id="add-appointment-service-search"
-                services={services}
-                stylistId={stylistId}
-                stylistOverrides={stylistOverrides}
-                selectedIds={selectedServiceIds}
-                onSelectedIdsChange={setSelectedServiceIds}
-                categories={categories}
-                hint={`Type to add one or more; durations are combined for this appointment (${formatDurationMinutes(durationMinutes)} total).`}
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+            <div className="flex-1 min-w-0">
+              <label className="block text-sm font-medium mb-1">Date</label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
               />
-              {serviceSummariesForNotes.some((s) => (s.processing_time_minutes ?? 0) > 0) && (
-                <p className="text-xs text-muted-foreground">
-                  At least one selected service uses processing time — another booking can overlap that window during processing.
-                </p>
-              )}
-              <label className="flex items-start gap-2 rounded-lg border border-border bg-background px-3 py-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={silentService}
-                  onChange={(e) => setSilentService(e.target.checked)}
-                  className="mt-0.5 rounded border-border"
-                  aria-label="Quiet session — client prefers minimal conversation"
-                />
-                <span className="text-sm">
-                  <span className="font-medium text-foreground">Quiet session</span>
-                  <span className="block text-muted-foreground text-xs mt-0.5">
-                    Client prefers minimal small talk — same as Silent booking on checkout.
-                  </span>
-                </span>
-              </label>
             </div>
+            <div className="flex-1 min-w-0">
+              <label className="block text-sm font-medium mb-1">Time</label>
+              <input
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                required
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+          <ServicePickerField
+            id="add-appointment-service-search"
+            services={services}
+            stylistId={stylistId}
+            stylistOverrides={stylistOverrides}
+            selectedIds={selectedServiceIds}
+            onSelectedIdsChange={setSelectedServiceIds}
+            categories={categories}
+            hint={`Type to add one or more; durations are combined for this appointment (${formatDurationMinutes(durationMinutes)} total).`}
+          />
+          {serviceSummariesForNotes.some((s) => (s.processing_time_minutes ?? 0) > 0) && (
+            <p className="text-xs text-muted-foreground">
+              At least one selected service uses processing time — another booking can overlap that window during processing.
+            </p>
+          )}
           </div>
           <div ref={errorAndOverlapRef} className="space-y-3 scroll-mt-4">
           {submitError && (
