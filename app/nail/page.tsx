@@ -15,17 +15,17 @@ const HOW_IT_WORKS = [
   {
     icon: "/imgs/nail/how/step-join.svg",
     title: "Client joins",
-    desc: "They scan the QR code on your door or give their name at the desk.",
+    desc: "They scan the QR code at your door, enter their name, and join the queue from their phone — no app needed.",
   },
   {
     icon: "/imgs/nail/how/step-serve.svg",
-    title: "You serve",
-    desc: "Tap Start when they sit down. The queue updates for everyone in real time.",
+    title: "Your team serves",
+    desc: "The live queue updates on every screen. Tap Start when a client sits down — everyone on shift sees who's waiting and who's at the station.",
   },
   {
-    icon: "/imgs/nail/how/step-pay.svg",
-    title: "Cash or card",
-    desc: "Complete the service and track payment. Revenue logged. Next client.",
+    icon: "/imgs/nail/how/step-notify.svg",
+    title: "They're notified",
+    desc: "Waiting clients get a text automatically when you tap Start. No shouting names across the salon — they can wait nearby until it's their turn.",
   },
 ];
 
