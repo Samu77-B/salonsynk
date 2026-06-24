@@ -61,7 +61,7 @@ export function NailRequestForm() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold" style={{ color: TEXT_DARK }}>{NAIL_SITE.name}</p>
-            <p className="text-xs" style={{ color: TEXT_MUTED }}>Queue and diary for nail bars</p>
+            <p className="text-xs" style={{ color: TEXT_MUTED }}>Walk-in queue for nail bars</p>
           </div>
         </div>
       </div>
