@@ -4,9 +4,9 @@
 
 export const NAIL_SITE = {
   name: "NailSynk",
-  tagline: "Your salon. Your queue. Your diary.",
+  tagline: "Your salon. Your queue. Your way.",
   description:
-    "Walk-in queue and appointment diary for nail bars. Live queue, online booking, patch test tracking.",
+    "Walk-in queue management for nail bars. Scan to join, live queue on every screen, and automatic text updates when it's your turn.",
   url: "https://nailsynk.com",
   email: "hello@nailsynk.com",
   studio: "Paradigm Digital Studio",

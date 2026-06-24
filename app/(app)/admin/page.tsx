@@ -228,7 +228,7 @@ export default async function AdminDashboardPage() {
                   </span>
                 </div>
                 <p className="text-sm text-muted font-mono truncate" title={s.slug}>
-                  /nail/join/{s.slug} · /book/{s.slug}
+                  /nail/join/{s.slug}
                 </p>
                 <p className="text-xs text-muted">
                   Joined{" "}
@@ -243,18 +243,9 @@ export default async function AdminDashboardPage() {
                     href={`${NAIL_SITE.url}/nail/join/${s.slug}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-accent hover:underline"
+                    className="text-sm text-accent hover:underline font-medium"
                   >
                     Join queue
-                  </a>
-                  <span className="text-muted">·</span>
-                  <a
-                    href={`${NAIL_SITE.url}/book/${s.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-accent hover:underline"
-                  >
-                    Booking
                   </a>
                   <span className="text-muted">·</span>
                   <a

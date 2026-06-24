@@ -41,7 +41,11 @@ function serviceOptionLabel(name: string, priceMinor: number): string {
 
 const ACTIVE_STATUSES = ["waiting", "in_chair"];
 
-function useRealtimeQueue(salonId: string, serverQueue: QueueEntry[]) {
+function useRealtimeQueue(
+  salonId: string,
+  serverQueue: QueueEntry[],
+  onNewJoin?: (entry: QueueEntry) => void
+) {
   const [liveQueue, setLiveQueue] = useState<QueueEntry[]>(serverQueue);
 
   const serverRef = useRef(serverQueue);
@@ -57,9 +61,10 @@ function useRealtimeQueue(salonId: string, serverQueue: QueueEntry[]) {
     if (!ACTIVE_STATUSES.includes(row.status)) return;
     setLiveQueue((prev) => {
       if (prev.some((e) => e.id === row.id)) return prev;
+      onNewJoin?.(row);
       return [...prev, row].sort((a, b) => a.position - b.position);
     });
-  }, [salonId]);
+  }, [salonId, onNewJoin]);
 
   const applyUpdate = useCallback((row: QueueEntry) => {
     if (row.salon_id !== salonId) return;
@@ -118,7 +123,13 @@ export function LiveQueueView({
   stats,
 }: Props) {
   const router = useRouter();
-  const liveQueue = useRealtimeQueue(salonId, queue);
+  const [newJoinAlert, setNewJoinAlert] = useState<string | null>(null);
+
+  const handleNewJoin = useCallback((entry: QueueEntry) => {
+    setNewJoinAlert(entry.guest_name?.trim() || "Walk-in");
+  }, []);
+
+  const liveQueue = useRealtimeQueue(salonId, queue, handleNewJoin);
 
   useEffect(() => {
     const id = setInterval(() => router.refresh(), 12_000);
@@ -130,6 +141,24 @@ export function LiveQueueView({
 
   return (
     <div className="space-y-6">
+      {newJoinAlert && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-4 py-3"
+          role="status"
+        >
+          <p className="text-sm text-emerald-100">
+            <span className="font-semibold">New walk-in joined:</span> {newJoinAlert}
+          </p>
+          <button
+            type="button"
+            onClick={() => setNewJoinAlert(null)}
+            className="shrink-0 text-xs text-emerald-200/80 hover:text-emerald-50 border border-emerald-500/30 rounded px-2 py-1"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted">Auto-refreshes every 12 seconds</p>
         <button

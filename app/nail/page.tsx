@@ -41,19 +41,19 @@ const FEATURES = [
       "Walk-ins join a live queue that updates instantly across every screen in your salon. No clipboards — your whole team sees who is waiting and who is at the station.",
   },
   {
-    title: "Appointment Diary",
-    description:
-      "Manage walk-ins and pre-booked appointments in one system. Booked slots sit alongside the queue so nothing clashes and no client gets forgotten.",
-  },
-  {
-    title: "Patch Test Tracking",
-    description:
-      "Track patch test due dates on client profiles so your team knows when colour services are safe to book.",
-  },
-  {
     title: "Customer Self-Check-in",
     description:
       "Share a QR code at your door. Clients scan it, enter their name, and join the queue from their phone — no app download required.",
+  },
+  {
+    title: "Automatic Text Updates",
+    description:
+      "When you tap Start, waiting clients get a text so they know when it's their turn. No shouting names across the salon.",
+  },
+  {
+    title: "Real-Time for Your Team",
+    description:
+      "New walk-ins appear on the queue screen instantly. Everyone on shift sees the same live list — reception, technicians, and managers.",
   },
 ];
 
@@ -71,8 +71,8 @@ const FAQ_ITEMS = [
     a: "Absolutely. Your team can add walk-ins directly from the queue screen. The public join page is an optional extra.",
   },
   {
-    q: "Does it replace my booking diary?",
-    a: "NailSynk combines a walk-in queue with a full appointment diary — ideal for busy nail bars that do both.",
+    q: "How do clients know when it's their turn?",
+    a: "When your technician taps Start, NailSynk texts the next people in the queue automatically — so they can wait nearby without hovering at the desk.",
   },
   {
     q: "How do I get in touch?",
@@ -137,7 +137,7 @@ export default function NailHomePage() {
                   <br />
                   Your queue.
                   <br />
-                  <span style={{ color: ACCENT }}>Your diary.</span>
+                  <span style={{ color: ACCENT }}>Your way.</span>
                 </h1>
                 <p className="mt-5 text-lg leading-relaxed" style={{ color: "rgba(255,255,255,0.85)" }}>
                   {NAIL_SITE.description}
@@ -170,7 +170,7 @@ export default function NailHomePage() {
                 Everything your nail bar needs.
               </h2>
               <p className="mx-auto mt-3 max-w-2xl text-center" style={{ color: TEXT_MUTED }}>
-                Walk-in queue, appointment diary, and client records — built for nail salons.
+                Built around walk-ins, queues, and getting clients served in order.
               </p>
               <div className="mt-14 grid gap-6 sm:grid-cols-2">
                 {FEATURES.map((f) => (

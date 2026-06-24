@@ -21,11 +21,7 @@ export default async function NailQueuePage() {
         </p>
       </div>
       <p className="text-xs text-muted -mt-2">
-        Walk-in customers from the join queue page appear here. Pre-booked appointments are on the{" "}
-        <a href="/nail/diary" className="text-blue-400 hover:underline">
-          Diary
-        </a>
-        .
+        Walk-in customers from the join queue page appear here in real time. Tap Start to notify the next clients by text.
       </p>
 
       <LiveQueueView

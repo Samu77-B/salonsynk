@@ -23,14 +23,10 @@ export function NailDashboardHeader({
 
   const links: NavLink[] = [
     { href: "/nail/queue", label: "Queue" },
-    { href: "/nail/diary", label: "Diary" },
-    { href: "/nail/clients", label: "Clients" },
-    { href: "/nail/checkout", label: "Checkout" },
     ...(isOwner
       ? [
           { href: "/nail/services", label: "Services" },
           { href: "/nail/team", label: "Team" },
-          { href: "/nail/settings", label: "Settings" },
         ]
       : []),
   ];

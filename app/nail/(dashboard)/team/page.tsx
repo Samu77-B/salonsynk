@@ -117,7 +117,7 @@ export default async function NailTeamPage() {
         </Link>
         <h1 className="text-xl font-bold mt-1">Team</h1>
         <p className="text-sm text-muted mt-1">
-          Manage technicians, reception staff, diary columns, and walk-in queue visibility.
+          Manage technicians, station numbers, and who appears on the walk-in queue screen.
         </p>
       </div>
 

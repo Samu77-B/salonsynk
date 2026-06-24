@@ -43,14 +43,14 @@ export default async function NailServicesPage() {
         </Link>
         <h1 className="text-xl font-bold mt-1">Services</h1>
         <p className="text-sm text-muted mt-1">
-          Manage categorized treatments for your diary, walk-in queue, and{" "}
+          Manage treatments shown on the walk-in{" "}
           <a
             href={`/nail/join/${context.salon.slug}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-accent hover:underline"
           >
-            public join page
+            join page
           </a>
           .
         </p>
