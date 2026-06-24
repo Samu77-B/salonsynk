@@ -58,6 +58,8 @@ git push -u origin main
 
 Your app will then be live at **https://salonsynk.com**.
 
+For **barbersynk.com** and **nailsynk.com**, add each domain in the same Vercel project (**Settings → Domains**). Middleware routes each host to the correct product (`/barber`, `/nail`, or salon routes). Add auth redirect URLs for each domain in Supabase, e.g. `https://nailsynk.com/auth/callback`.
+
 ---
 
 ## 4. Supabase: production auth URLs

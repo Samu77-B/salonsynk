@@ -1,0 +1,487 @@
+"use client";
+
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import type { CreateAppointmentInput } from "./actions";
+import { ServicePickerField } from "./service-picker-field";
+import {
+  classifyClientIntake,
+  clientIntakeBadgeClass,
+  clientIntakeLabel,
+} from "@/lib/client-intake";
+import { formatDurationMinutes } from "@/lib/format-duration";
+
+type Member = { id: string; display_name: string | null; role: string };
+type Service = { id: string; name: string; duration_minutes: number; processing_time_minutes?: number };
+type Client = { id: string; name: string | null; email: string | null; phone: string | null; last_skin_test_at?: string | null };
+
+function resolveInitialTechnicianId(members: Member[], initialTechnicianId?: string | null) {
+  if (initialTechnicianId && members.some((m) => m.id === initialTechnicianId)) return initialTechnicianId;
+  return members[0]?.id ?? "";
+}
+
+function resolveInitialClientId(clientsList: Client[], initialClientId?: string | null) {
+  if (initialClientId && clientsList.some((c) => c.id === initialClientId)) return initialClientId;
+  return "";
+}
+
+export function AddAppointmentModal({
+  salonId,
+  members,
+  services,
+  clients,
+  categories = [],
+  currentDate,
+  initialTechnicianId,
+  initialTimeHHmm,
+  initialClientId,
+  technicianOverrides = {},
+  clientCompletedCounts = {},
+  entryAnimation = "from-top",
+  onCreate,
+  onClose,
+}: {
+  salonId: string;
+  members: Member[];
+  services: Service[];
+  clients: Client[];
+  categories?: { id: string; name: string }[];
+  currentDate: string;
+  initialTechnicianId?: string | null;
+  initialTimeHHmm?: string | null;
+  initialClientId?: string | null;
+  technicianOverrides?: Record<string, Record<string, number>>;
+  clientCompletedCounts?: Record<string, number>;
+  entryAnimation?: "from-top" | "none";
+  onCreate: (data: CreateAppointmentInput) => Promise<{ error?: string | null }>;
+  onClose: () => void;
+}) {
+  const [technicianId, setTechnicianId] = useState(() => resolveInitialTechnicianId(members, initialTechnicianId));
+  const [clientId, setClientId] = useState(() => resolveInitialClientId(clients, initialClientId));
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [guestName, setGuestName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [date, setDate] = useState(currentDate);
+  const [time, setTime] = useState(() => initialTimeHHmm ?? "09:00");
+  const [notes, setNotes] = useState("");
+  const [allowScheduleOverlap, setAllowScheduleOverlap] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientPickerFocused, setClientPickerFocused] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const errorAndOverlapRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (entryAnimation !== "from-top") return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    panel.style.opacity = "0";
+    panel.style.transform = "translateY(-28px)";
+    let cleanupTimeout = 0;
+    let innerRaf = 0;
+    const outerRaf = requestAnimationFrame(() => {
+      innerRaf = requestAnimationFrame(() => {
+        panel.style.transition =
+          "opacity 0.26s cubic-bezier(0.22, 1, 0.36, 1), transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)";
+        panel.style.opacity = "1";
+        panel.style.transform = "translateY(0)";
+        cleanupTimeout = window.setTimeout(() => {
+          panel.style.transition = "";
+          panel.style.removeProperty("opacity");
+          panel.style.removeProperty("transform");
+        }, 400);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(outerRaf);
+      cancelAnimationFrame(innerRaf);
+      clearTimeout(cleanupTimeout);
+      panel.style.transition = "";
+      panel.style.removeProperty("opacity");
+      panel.style.removeProperty("transform");
+    };
+  }, [entryAnimation]);
+
+  useEffect(() => {
+    const resolved = resolveInitialClientId(clients, initialClientId);
+    if (resolved) setClientId(resolved);
+  }, [initialClientId, clients]);
+
+  useEffect(() => {
+    if (submitError) {
+      errorAndOverlapRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [submitError]);
+
+  useEffect(() => {
+    if (clientId) {
+      const client = clients.find((c) => c.id === clientId);
+      setEmail(client?.email ?? "");
+      setPhone(client?.phone ?? "");
+    } else {
+      setEmail("");
+      setPhone("");
+    }
+  }, [clientId, clients]);
+
+  const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null;
+
+  const serviceSummariesForNotes = selectedServiceIds
+    .map((sid) => services.find((x) => x.id === sid))
+    .filter((s): s is Service => s !== undefined);
+
+  const durationMinutes = useMemo(() => {
+    if (serviceSummariesForNotes.length === 0) return 60;
+    let sum = 0;
+    for (const s of serviceSummariesForNotes) {
+      const ov = technicianId ? technicianOverrides[technicianId]?.[s.id] : undefined;
+      sum += ov ?? s.duration_minutes;
+    }
+    return Math.max(15, sum);
+  }, [serviceSummariesForNotes, technicianId, technicianOverrides]);
+
+  const clientIntakeStatus = classifyClientIntake({
+    clientId: clientId || null,
+    priorCompletedAppointments: clientId ? clientCompletedCounts[clientId] ?? 0 : 0,
+  });
+
+  const filteredClients = useMemo(() => {
+    const raw = clientSearch.trim();
+    const q = raw.toLowerCase();
+    const digits = raw.replace(/\D/g, "");
+    if (!q.length) return clients.slice(0, 20);
+    return clients
+      .filter((c) => {
+        const name = (c.name ?? "").toLowerCase();
+        const email = (c.email ?? "").toLowerCase();
+        const phoneDigits = (c.phone ?? "").replace(/\D/g, "");
+        if (name.includes(q) || email.includes(q)) return true;
+        if (digits.length >= 3 && phoneDigits.includes(digits)) return true;
+        return false;
+      })
+      .slice(0, 30);
+  }, [clients, clientSearch]);
+
+  const patchTestExpired = (() => {
+    if (!selectedClient?.last_skin_test_at) return false;
+    const testDate = new Date(selectedClient.last_skin_test_at);
+    const monthsSince = (Date.now() - testDate.getTime()) / (30.44 * 24 * 60 * 60 * 1000);
+    return monthsSince >= 12;
+  })();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!technicianId) return;
+    const [hours, mins] = time.split(":").map(Number);
+    const start = new Date(date + "T12:00:00");
+    start.setHours(hours, mins, 0, 0);
+    const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+
+    setSubmitError(null);
+    setLoading(true);
+    try {
+      const result = await onCreate({
+        salonId,
+        technicianId,
+        clientId: clientId || null,
+        serviceId: selectedServiceIds[0] ?? null,
+        serviceIds: selectedServiceIds.length > 0 ? selectedServiceIds : undefined,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+        guestName: clientId ? null : guestName?.trim() || null,
+        guestEmail: email?.trim() || null,
+        guestPhone: phone?.trim() || null,
+        notes: notes || null,
+        allowScheduleOverlap,
+      });
+      if (result?.error) setSubmitError(result.error);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Could not save appointment.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 pb-10 pt-[max(0.125rem,env(safe-area-inset-top))] sm:px-6 sm:pt-2 sm:pb-12"
+      onClick={onClose}
+    >
+      <div
+        ref={panelRef}
+        className="w-full min-w-0 max-w-md xl:max-w-4xl max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold mb-4">Add appointment</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 xl:gap-x-8 xl:items-start gap-y-6">
+            <div className="space-y-4 min-w-0">
+              <div>
+                <label className="block text-sm font-medium mb-1">Technician</label>
+                <select
+                  value={technicianId}
+                  onChange={(e) => setTechnicianId(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.display_name || m.role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="relative z-50">
+                {selectedClient ? (
+                  <>
+                    <label className="block text-sm font-medium mb-1">Saved client</label>
+                    <div className="flex gap-2 items-center rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                      <span className="flex-1 min-w-0 truncate">
+                        {selectedClient.name || selectedClient.email || selectedClient.phone || "Saved client"}
+                      </span>
+                      <button
+                        type="button"
+                        className="shrink-0 text-sm text-accent hover:underline"
+                        onClick={() => {
+                          setClientId("");
+                          setClientSearch("");
+                        }}
+                      >
+                        Change
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <label className="block text-sm font-medium mb-1" htmlFor="add-appointment-client-search">
+                      Saved client
+                    </label>
+                    <input
+                      id="add-appointment-client-search"
+                      type="search"
+                      autoComplete="off"
+                      placeholder="Search by name, email, or phone"
+                      value={clientSearch}
+                      onChange={(e) => setClientSearch(e.target.value)}
+                      onFocus={() => setClientPickerFocused(true)}
+                      onBlur={() => {
+                        window.setTimeout(() => setClientPickerFocused(false), 150);
+                      }}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                    {clientPickerFocused && filteredClients.length > 0 && (
+                      <ul
+                        role="listbox"
+                        aria-label="Matching clients"
+                        className="absolute left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-lg border border-border bg-background py-1 shadow-lg z-[60]"
+                      >
+                        {filteredClients.map((c) => (
+                          <li key={c.id} role="presentation">
+                            <button
+                              type="button"
+                              role="option"
+                              aria-selected={clientId === c.id}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-muted/40"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setGuestName("");
+                                setClientId(c.id);
+                                setClientSearch("");
+                              }}
+                            >
+                              <span className="font-medium">{c.name || "Unnamed"}</span>
+                              {(c.email || c.phone) && (
+                                <span className="mt-0.5 block text-xs text-muted-foreground truncate">
+                                  {[c.email, c.phone].filter(Boolean).join(" · ")}
+                                </span>
+                              )}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {clientPickerFocused && clientSearch.trim().length > 0 && filteredClients.length === 0 ? (
+                      <p className="mt-2 text-xs text-muted-foreground">No matches — use Walk-in guest below instead.</p>
+                    ) : null}
+                  </>
+                )}
+                {patchTestExpired && (
+                  <p className="mt-2 text-sm text-red-400 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2">
+                    Patch test expired — last test was over 12 months ago. A new test may be required before certain
+                    services.
+                  </p>
+                )}
+                <p className="mt-2">
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${clientIntakeBadgeClass(clientIntakeStatus)}`}
+                  >
+                    {clientIntakeLabel(clientIntakeStatus)}
+                  </span>
+                </p>
+              </div>
+
+              {clientId ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="client@example.com"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="07xxx xxxxxx"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground leading-snug">
+                    Walk-in guest{" "}
+                    <span className="font-normal opacity-90">(not linked to your client list — name appears on this booking only.)</span>
+                  </p>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      placeholder="For the diary column"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="client@example.com"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="07xxx xxxxxx"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4 min-w-0">
+              <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-sm font-medium mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      required
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-sm font-medium mb-1">Time</label>
+                    <input
+                      type="time"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                      required
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="add-appt-notes">
+                    Notes
+                  </label>
+                  <textarea
+                    id="add-appt-notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Treatments discussed, sensitivities..."
+                    rows={5}
+                    className="w-full min-h-[8.5rem] resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm leading-relaxed placeholder:text-muted-foreground"
+                  />
+                </div>
+              </div>
+              <ServicePickerField
+                id="add-appointment-service-search"
+                services={services}
+                technicianId={technicianId}
+                technicianOverrides={technicianOverrides}
+                selectedIds={selectedServiceIds}
+                onSelectedIdsChange={setSelectedServiceIds}
+                categories={categories}
+                hint={`Type to add one or more; durations are combined for this appointment (${formatDurationMinutes(durationMinutes)} total).`}
+              />
+              {serviceSummariesForNotes.some((s) => (s.processing_time_minutes ?? 0) > 0) && (
+                <p className="text-xs text-muted-foreground">
+                  At least one selected service uses processing time — another booking can overlap that window during
+                  processing.
+                </p>
+              )}
+            </div>
+          </div>
+          <div ref={errorAndOverlapRef} className="space-y-3 scroll-mt-4">
+            {submitError && (
+              <p className="text-sm text-red-400" role="alert">
+                {submitError}
+              </p>
+            )}
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  id="allow-schedule-overlap"
+                  type="checkbox"
+                  checked={allowScheduleOverlap}
+                  onChange={(e) => setAllowScheduleOverlap(e.target.checked)}
+                  className="mt-1 rounded border-border"
+                />
+                <span className="text-sm">
+                  <span className="font-medium text-foreground">Add even if this overlaps another booking</span>
+                  <span className="mt-1 block text-muted">
+                    Use for walk-ins or when the diary can&apos;t model your situation (e.g. another client is only
+                    processing).
+                  </span>
+                </span>
+              </label>
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+            >
+              {loading ? "Adding…" : "Add"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

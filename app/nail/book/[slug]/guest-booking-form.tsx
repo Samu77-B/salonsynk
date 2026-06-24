@@ -1,0 +1,247 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { createNailGuestBooking } from "./actions";
+
+type Service = { id: string; name: string; duration_minutes: number; category_id?: string | null };
+type Category = { id: string; name: string };
+type Technician = { id: string; display_name: string | null };
+
+function ServiceSelect({
+  services,
+  categories,
+  value,
+  onChange,
+}: {
+  services: Service[];
+  categories: Category[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const grouped = useMemo(() => {
+    if (categories.length === 0) return null;
+    const uncategorised = services.filter((s) => !s.category_id);
+    const byCat = new Map<string, Service[]>();
+    for (const s of services) {
+      if (s.category_id) {
+        const list = byCat.get(s.category_id) ?? [];
+        list.push(s);
+        byCat.set(s.category_id, list);
+      }
+    }
+    return { categories, byCat, uncategorised };
+  }, [services, categories]);
+
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1">Service</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required
+        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+      >
+        <option value="">Select</option>
+        {grouped ? (
+          <>
+            {grouped.categories.map((cat) => {
+              const items = grouped.byCat.get(cat.id) ?? [];
+              if (items.length === 0) return null;
+              return (
+                <optgroup key={cat.id} label={cat.name}>
+                  {items.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
+            {grouped.uncategorised.length > 0 && (
+              <optgroup label="Other">
+                {grouped.uncategorised.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </>
+        ) : (
+          services.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))
+        )}
+      </select>
+    </div>
+  );
+}
+
+export function NailGuestBookingForm({
+  salonId,
+  salonName,
+  services,
+  technicians,
+  technicianOverrides = {},
+  categories = [],
+  prefillTechnicianId,
+  prefillStartIso,
+}: {
+  salonId: string;
+  salonName: string;
+  services: Service[];
+  technicians: Technician[];
+  technicianOverrides?: Record<string, Record<string, number>>;
+  categories?: Category[];
+  prefillTechnicianId?: string;
+  prefillStartIso?: string;
+}) {
+  const prefillStart = prefillStartIso ? new Date(prefillStartIso) : null;
+  const validPrefillTechnician =
+    prefillTechnicianId && technicians.some((t) => t.id === prefillTechnicianId)
+      ? prefillTechnicianId
+      : undefined;
+
+  const [serviceId, setServiceId] = useState("");
+  const [technicianId, setTechnicianId] = useState(validPrefillTechnician ?? technicians[0]?.id ?? "");
+  const [date, setDate] = useState(
+    prefillStart && Number.isFinite(prefillStart.getTime()) ? prefillStart.toISOString().slice(0, 10) : ""
+  );
+  const [time, setTime] = useState(
+    prefillStart && Number.isFinite(prefillStart.getTime()) ? prefillStart.toTimeString().slice(0, 5) : "09:00"
+  );
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [confirmationEmailError, setConfirmationEmailError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    const start = new Date(`${date}T${time}:00`);
+    const service = services.find((s) => s.id === serviceId);
+    const overrideDur =
+      technicianId && serviceId ? technicianOverrides[technicianId]?.[serviceId] : undefined;
+    const end = new Date(start.getTime() + (overrideDur ?? service?.duration_minutes ?? 60) * 60 * 1000);
+    const result = await createNailGuestBooking(salonId, {
+      serviceId: serviceId || undefined,
+      technicianId: technicianId || undefined,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      guestName,
+      guestEmail,
+      guestPhone,
+    });
+    setLoading(false);
+    if (result.error) {
+      setConfirmationEmailError(null);
+      setError(result.error);
+    } else {
+      setConfirmationEmailError(result.confirmationEmailError ?? null);
+      setSuccess(true);
+    }
+  }
+
+  if (success) {
+    if (confirmationEmailError) {
+      return (
+        <div className="space-y-2 text-center text-sm">
+          <p className="text-green-400">Booking confirmed at {salonName}.</p>
+          <p className="text-amber-200/90">
+            We couldn&apos;t send the confirmation email ({confirmationEmailError}). Please save your date and time.
+          </p>
+        </div>
+      );
+    }
+    return (
+      <p className="text-green-400 text-center">
+        Booking confirmed. We sent a confirmation to your email.
+      </p>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <ServiceSelect services={services} categories={categories} value={serviceId} onChange={setServiceId} />
+      <div>
+        <label className="block text-sm font-medium mb-1">Preferred technician</label>
+        <select
+          value={technicianId}
+          onChange={(e) => setTechnicianId(e.target.value)}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        >
+          {technicians.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.display_name || "Any"}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+        <div className="flex-1 min-w-0">
+          <label className="block text-sm font-medium mb-1">Date</label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <label className="block text-sm font-medium mb-1">Time</label>
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            required
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Your name</label>
+        <input
+          type="text"
+          value={guestName}
+          onChange={(e) => setGuestName(e.target.value)}
+          required
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Email</label>
+        <input
+          type="email"
+          value={guestEmail}
+          onChange={(e) => setGuestEmail(e.target.value)}
+          required
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Phone</label>
+        <input
+          type="tel"
+          value={guestPhone}
+          onChange={(e) => setGuestPhone(e.target.value)}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        />
+      </div>
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+      >
+        {loading ? "Booking…" : "Confirm booking"}
+      </button>
+    </form>
+  );
+}

@@ -49,6 +49,16 @@
   --border-grid: #56636d;
 }
 
+.nail-marketing {
+  --background: #2D2A32;
+  --canvas: #2D2A32;
+  --foreground: #FAF7F5;
+  --muted: #b8b0a8;
+  --accent: #9B4B6A;
+  --border: #4a4550;
+  --border-grid: #5a5560;
+}
+
 /*
   Native inputs/selects often get a white background from the UA while inheriting light
   --foreground, which makes typed text invisible. Force readable light fields with dark text.
