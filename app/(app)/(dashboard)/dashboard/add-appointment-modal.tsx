@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, type ReactNode } from "react";
 import type { CreateAppointmentInput } from "./actions";
 import { ServicePickerField } from "./service-picker-field";
 import {
@@ -22,6 +22,69 @@ function resolveInitialStylistId(members: Member[], initialStylistId?: string | 
 function resolveInitialClientId(clientsList: Client[], initialClientId?: string | null) {
   if (initialClientId && clientsList.some((c) => c.id === initialClientId)) return initialClientId;
   return "";
+}
+
+const WALK_IN_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+
+/** Expands and fades in walk-in fields when the panel mounts. */
+function WalkInReveal({ children }: { children: ReactNode }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const wrapper = wrapperRef.current;
+    const content = contentRef.current;
+    if (!wrapper || !content) return;
+
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      wrapper.style.gridTemplateRows = "1fr";
+      return;
+    }
+
+    wrapper.style.gridTemplateRows = "0fr";
+    wrapper.style.opacity = "0";
+    content.style.transform = "translateY(-10px)";
+    content.style.opacity = "0";
+
+    let innerRaf = 0;
+    let cleanupTimeout = 0;
+    const outerRaf = requestAnimationFrame(() => {
+      innerRaf = requestAnimationFrame(() => {
+        wrapper.style.transition = `grid-template-rows 0.38s ${WALK_IN_EASING}, opacity 0.32s ${WALK_IN_EASING}`;
+        content.style.transition = `transform 0.38s ${WALK_IN_EASING}, opacity 0.32s ${WALK_IN_EASING}`;
+        wrapper.style.gridTemplateRows = "1fr";
+        wrapper.style.opacity = "1";
+        content.style.transform = "translateY(0)";
+        content.style.opacity = "1";
+        cleanupTimeout = window.setTimeout(() => {
+          wrapper.style.transition = "";
+          content.style.transition = "";
+          wrapper.style.removeProperty("opacity");
+          content.style.removeProperty("transform");
+        }, 450);
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(outerRaf);
+      cancelAnimationFrame(innerRaf);
+      clearTimeout(cleanupTimeout);
+      wrapper.style.transition = "";
+      content.style.transition = "";
+      wrapper.style.removeProperty("opacity");
+      content.style.removeProperty("transform");
+    };
+  }, []);
+
+  return (
+    <div ref={wrapperRef} className="grid overflow-hidden will-change-[grid-template-rows,opacity]">
+      <div className="min-h-0 overflow-hidden">
+        <div ref={contentRef} className="will-change-[transform,opacity] pt-0.5">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function AddAppointmentModal({
@@ -368,10 +431,10 @@ export function AddAppointmentModal({
                 setEmail("");
                 setPhone("");
               }}
-              className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 walkInMode
                   ? "border-accent/60 bg-accent/10 text-accent"
-                  : "border-accent/50 text-accent hover:bg-accent/5"
+                  : "border-accent/50 text-accent hover:bg-accent/5 hover:border-accent/70 active:scale-[0.99]"
               }`}
             >
               Walk-in guest
@@ -401,7 +464,8 @@ export function AddAppointmentModal({
               </div>
             </div>
           ) : walkInMode ? (
-            <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+            <WalkInReveal>
+            <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3 shadow-sm ring-1 ring-accent/10">
               <p className="text-xs font-medium text-muted-foreground leading-snug">
                 Walk-in guest{" "}
                 <span className="font-normal opacity-90">
@@ -446,6 +510,7 @@ export function AddAppointmentModal({
                 </p>
               )}
             </div>
+            </WalkInReveal>
           ) : null}
           {clientId && !hasContact && (
             <p className="text-sm text-amber-600">
