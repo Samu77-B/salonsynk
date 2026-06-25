@@ -12,11 +12,17 @@ export function textFromMessage(m: UIMessage): string {
     .join("");
 }
 
+type SpeechRecognitionResultList = ArrayLike<{
+  isFinal: boolean;
+  0?: { transcript: string };
+}>;
+
 type SpeechRecognitionCtor = new () => {
   lang: string;
+  continuous: boolean;
   interimResults: boolean;
   maxAlternatives: number;
-  onresult: ((event: { results: { [index: number]: { [index: number]: { transcript: string } } } }) => void) | null;
+  onresult: ((event: { resultIndex: number; results: SpeechRecognitionResultList }) => void) | null;
   onerror: (() => void) | null;
   onend: (() => void) | null;
   start: () => void;
@@ -30,6 +36,21 @@ function getSpeechRecognition(): SpeechRecognitionCtor | null {
     webkitSpeechRecognition?: SpeechRecognitionCtor;
   };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+/** Standalone voice command to submit the current question. */
+function isSendCommand(segment: string): boolean {
+  return /^\s*send\s*[.!?,]*\s*$/i.test(segment.trim());
+}
+
+/** Trailing "send" in the same utterance, e.g. "book Emma on Tuesday send". */
+function stripTrailingSendCommand(text: string): { text: string; shouldSend: boolean } {
+  const trimmed = text.trim();
+  if (!/\bsend\b[.!?,]*$/i.test(trimmed)) {
+    return { text: trimmed, shouldSend: false };
+  }
+  const withoutSend = trimmed.replace(/\s*\bsend\b[.!?,]*$/i, "").trim();
+  return { text: withoutSend, shouldSend: true };
 }
 
 export type AiChatUiProps = {
@@ -80,6 +101,8 @@ export function AiChatUi({
   const [voiceHint, setVoiceHint] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<InstanceType<SpeechRecognitionCtor> | null>(null);
+  const voiceAccumulatedRef = useRef("");
+  const inputPrefixRef = useRef("");
 
   const busy = status === "submitted" || status === "streaming";
 
@@ -115,6 +138,26 @@ export function AiChatUi({
     await submitText(input);
   }
 
+  const stopVoiceRecognition = useCallback(() => {
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      /* ignore */
+    }
+    recognitionRef.current = null;
+    voiceAccumulatedRef.current = "";
+  }, []);
+
+  const submitVoiceDraft = useCallback(async () => {
+    const text = [inputPrefixRef.current, voiceAccumulatedRef.current].filter(Boolean).join(" ").trim();
+    stopVoiceRecognition();
+    setVoiceState("idle");
+    setVoiceHint(null);
+    if (text) {
+      await submitText(text);
+    }
+  }, [stopVoiceRecognition, submitText]);
+
   function runSimulatedVoice() {
     setVoiceState("simulated");
     setVoiceHint("Listening… (simulated voice input)");
@@ -122,18 +165,14 @@ export function AiChatUi({
       const phrase = emptyPrompts[0] ?? "Hello";
       setInput(phrase);
       setVoiceState("idle");
-      setVoiceHint("Voice captured — review and send, or edit the message.");
+      setVoiceHint("Say 'send' or tap the mic again to submit, or edit the message.");
     }, 1600);
   }
 
   function toggleVoiceInput() {
     if (!enableVoice) return;
     if (busy || voiceState === "listening" || voiceState === "simulated") {
-      try {
-        recognitionRef.current?.stop();
-      } catch {
-        /* ignore */
-      }
+      stopVoiceRecognition();
       setVoiceState("idle");
       setVoiceHint(null);
       return;
@@ -141,28 +180,69 @@ export function AiChatUi({
 
     const SpeechRecognition = getSpeechRecognition();
     if (!SpeechRecognition) {
+      if (input.trim()) {
+        void submitText(input);
+        return;
+      }
       runSimulatedVoice();
       return;
     }
 
     const recognition = new SpeechRecognition();
     recognition.lang = "en-GB";
-    recognition.interimResults = false;
+    recognition.interimResults = true;
+    recognition.continuous = true;
     recognition.maxAlternatives = 1;
     recognitionRef.current = recognition;
+    inputPrefixRef.current = input.trim();
+    voiceAccumulatedRef.current = "";
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript?.trim();
-      if (transcript) {
-        setInput(transcript);
-        setVoiceHint("Voice captured — review and send, or edit the message.");
-      } else {
-        setVoiceHint("I didn't catch that. Please try again or type your message.");
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const transcript = (result[0]?.transcript ?? "").trim();
+        if (!transcript) continue;
+
+        if (result.isFinal) {
+          if (isSendCommand(transcript)) {
+            void submitVoiceDraft();
+            return;
+          }
+          const { text, shouldSend } = stripTrailingSendCommand(transcript);
+          voiceAccumulatedRef.current = [voiceAccumulatedRef.current, text].filter(Boolean).join(" ").trim();
+          if (shouldSend) {
+            void submitVoiceDraft();
+            return;
+          }
+        } else {
+          interim = transcript;
+        }
       }
-      setVoiceState("idle");
+
+      const combined = [inputPrefixRef.current, voiceAccumulatedRef.current, interim]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      const { text, shouldSend } = stripTrailingSendCommand(combined);
+      if (shouldSend) {
+        stopVoiceRecognition();
+        setVoiceState("idle");
+        setVoiceHint(null);
+        if (text) {
+          void submitText(text);
+        } else {
+          void submitVoiceDraft();
+        }
+        return;
+      }
+
+      setInput(combined);
+      setVoiceHint("Listening… say 'send' when you're ready.");
     };
 
     recognition.onerror = () => {
+      stopVoiceRecognition();
       setVoiceState("idle");
       setVoiceHint("Voice input failed. Try again or type your message.");
     };
@@ -173,9 +253,10 @@ export function AiChatUi({
 
     try {
       setVoiceState("listening");
-      setVoiceHint("Listening… speak your message.");
+      setVoiceHint("Listening… speak your question, then say 'send' when ready.");
       recognition.start();
     } catch {
+      stopVoiceRecognition();
       setVoiceState("idle");
       runSimulatedVoice();
     }
@@ -194,6 +275,12 @@ export function AiChatUi({
         {messages.length === 0 && emptyPrompts.length > 0 && (
           <div className="rounded-lg border border-dashed border-border bg-background/40 p-4 text-sm text-muted">
             <p className="font-medium text-foreground">Try saying or typing:</p>
+            {enableVoice && (
+              <p className="mt-2 text-xs">
+                Use the mic, speak your request, then say <span className="font-medium text-foreground">send</span> to
+                submit.
+              </p>
+            )}
             <ul className="mt-2 list-disc space-y-1 pl-5">
               {emptyPrompts.map((p) => (
                 <li key={p}>{p}</li>
