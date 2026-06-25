@@ -96,6 +96,15 @@ export function formatSalonTimeLabel(instant: Date): string {
   });
 }
 
+export function formatSalonDateLabel(instant: Date): string {
+  return instant.toLocaleDateString("en-GB", {
+    timeZone: SALON_TZ,
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+  });
+}
+
 export function todaySalonDateIso(): string {
   return salonDateIsoFromInstant(new Date());
 }

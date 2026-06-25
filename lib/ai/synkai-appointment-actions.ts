@@ -1,3 +1,4 @@
+import { formatSalonDateLabel, formatSalonTimeLabel } from "@/lib/ai/salon-time";
 import { createClient } from "@/lib/supabase/server";
 import { triggerBookingConfirmation, triggerAftercareOnComplete } from "@/lib/appointment-automation";
 import { sendClientBookingConfirmation } from "@/lib/booking-notifications";
@@ -91,8 +92,8 @@ export async function synkaiSendAppointmentReminder(
   }
 
   const start = new Date(row.start_time);
-  const dateStr = start.toLocaleDateString("en-GB");
-  const timeStr = start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const dateStr = formatSalonDateLabel(start);
+  const timeStr = formatSalonTimeLabel(start);
   const salonName = row.salons?.name ?? "Salon";
   const smsBody = `Reminder: your appointment at ${salonName} is on ${dateStr} at ${timeStr}.`;
 
@@ -175,7 +176,7 @@ export async function synkaiSendRunningLate(
   if (!canSendSms()) return { ok: false, error: "SMS is not configured (Twilio)." };
 
   const start = new Date(row.start_time);
-  const timeStr = start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const timeStr = formatSalonTimeLabel(start);
   const message = `Hi ${contact.name}, we're running a little behind schedule for your ${timeStr} appointment at ${salonName}. We apologise for the delay and will be with you as soon as possible.`;
 
   const result = await sendSms(contact.phone, message);

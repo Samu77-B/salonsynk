@@ -11,7 +11,7 @@ import {
 } from "./salon-time";
 
 const BUFFER_MINS = 10;
-const DAY_START_HOUR = 6;
+const DAY_START_HOUR = 9;
 const DAY_END_HOUR = 19;
 const STEP_MINS = 15;
 
@@ -22,7 +22,7 @@ function intervalOverlaps(aStart: number, aEnd: number, bStart: number, bEnd: nu
 function timePreferenceWindow(pref: TimePreference): { startHour: number; endHour: number } {
   switch (pref) {
     case "morning":
-      return { startHour: 6, endHour: 12 };
+      return { startHour: 9, endHour: 12 };
     case "afternoon":
       return { startHour: 12, endHour: 17 };
     case "evening":
@@ -138,6 +138,8 @@ export async function findAvailableSlots(input: {
   excludeAppointmentId?: string;
   /** When set, this slot is checked first and returned separately even if not in the first N results. */
   prioritizeLocalTime?: string;
+  /** When set, on the first day scanned only start from this local minute (e.g. next slot after a busy time). */
+  minStartMinutes?: number;
 }): Promise<SlotCandidate[]> {
   const daysToScan = input.daysToScan ?? 7;
   const timePreference = input.timePreference ?? "any";
@@ -188,7 +190,10 @@ export async function findAvailableSlots(input: {
     });
 
     for (
-      let startMins = DAY_START_HOUR * 60;
+      let startMins =
+        dayOffset === 0 && input.minStartMinutes != null
+          ? Math.max(input.minStartMinutes, DAY_START_HOUR * 60)
+          : DAY_START_HOUR * 60;
       startMins + durationMinutes <= (DAY_END_HOUR + 1) * 60;
       startMins += STEP_MINS
     ) {

@@ -1,5 +1,6 @@
 import { sendBookingConfirmation } from "./email";
 import { canSendSms, canSendWhatsApp, sendSms, sendWhatsApp } from "./sms";
+import { formatSalonDateLabel, formatSalonTimeLabel } from "@/lib/ai/salon-time";
 
 /**
  * Notify the client that their booking is confirmed.
@@ -18,8 +19,8 @@ export async function sendClientBookingConfirmation(params: {
   const phone = params.phone?.trim() || null;
   if (!email && !phone) return {};
 
-  const date = params.start.toLocaleDateString("en-GB");
-  const time = params.start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const date = formatSalonDateLabel(params.start);
+  const time = formatSalonTimeLabel(params.start);
   const smsBody = `Your appointment at ${params.salonName} is confirmed for ${date} at ${time}.`;
 
   if (email) {

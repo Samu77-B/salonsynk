@@ -12,7 +12,7 @@ import {
   matchServiceForBooking,
 } from "./booking-resolvers";
 import { findAvailableSlots, isSlotAvailable, parseDateIso } from "./slot-finder";
-import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso } from "./salon-time";
+import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso, formatSalonDayLabel, formatSalonTimeLabel } from "./salon-time";
 import type { SalonBookingCatalog, SlotCandidate, SynkAiAccess, TimePreference } from "./booking-types";
 import { formatDurationMinutes } from "@/lib/format-duration";
 import { SYNKAI_AGENT_NAME } from "@/lib/ai/synkai-brand";
@@ -87,7 +87,14 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
       }),
       execute: async ({ description }) => {
         const match = matchServiceForBooking(services, description);
-        if (!match.ok) return errorPayload(match.error, match.suggestions);
+        if (!match.ok) {
+          return {
+            success: false as const,
+            error: match.error,
+            suggestions: match.suggestions,
+            askToClarify: match.askToClarify ?? false,
+          };
+        }
         return successPayload({
           serviceName: match.service.name,
           durationMinutes: match.service.durationMinutes,
@@ -169,32 +176,30 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
         const dateIsoNorm = parseSalonDateIso(dateIso) ?? dateIso;
         let requestedSlotAvailable: boolean | undefined;
         let requestedSlot: SlotCandidate | undefined;
+        const parsedRequested = requestedTime?.trim() ? parseSalonLocalTime(requestedTime.trim()) : null;
 
-        if (requestedTime?.trim()) {
-          const parsedTime = parseSalonLocalTime(requestedTime.trim());
-          if (parsedTime) {
-            const start = salonLocalToUtc(dateIsoNorm, parsedTime.hour, parsedTime.minute);
-            requestedSlotAvailable = await isSlotAvailable({
-              salonId,
-              stylistId: stylistResult.item.id,
-              startTime: start,
-              durationMinutes,
-            });
-            if (requestedSlotAvailable) {
-              requestedSlot = {
-                startIso: start.toISOString(),
-                endIso: new Date(start.getTime() + durationMinutes * 60_000).toISOString(),
-                dayLabel: start.toLocaleDateString("en-GB", {
-                  timeZone: "Europe/London",
-                  weekday: "short",
-                  day: "numeric",
-                  month: "short",
-                }),
-                timeLabel: requestedTime.trim(),
-              };
-            }
+        if (parsedRequested) {
+          const start = salonLocalToUtc(dateIsoNorm, parsedRequested.hour, parsedRequested.minute);
+          requestedSlotAvailable = await isSlotAvailable({
+            salonId,
+            stylistId: stylistResult.item.id,
+            startTime: start,
+            durationMinutes,
+          });
+          if (requestedSlotAvailable) {
+            requestedSlot = {
+              startIso: start.toISOString(),
+              endIso: new Date(start.getTime() + durationMinutes * 60_000).toISOString(),
+              dayLabel: formatSalonDayLabel(start),
+              timeLabel: formatSalonTimeLabel(start),
+            };
           }
         }
+
+        const minStartMinutes =
+          requestedSlotAvailable === false && parsedRequested
+            ? parsedRequested.hour * 60 + parsedRequested.minute + 15
+            : undefined;
 
         const slots = await findAvailableSlots({
           salonId,
@@ -204,13 +209,14 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
           daysToScan: 3,
           timePreference: timePreference ?? "any",
           maxResults: 12,
-          prioritizeLocalTime: requestedTime?.trim(),
+          prioritizeLocalTime: requestedSlotAvailable !== false ? requestedTime?.trim() : undefined,
+          minStartMinutes,
         });
 
         if (requestedSlotAvailable === false) {
           return {
             success: false as const,
-            error: `${stylistResult.item.name} is not free at ${requestedTime} on ${dateIsoNorm} for a ${formatDurationMinutes(durationMinutes)} ${serviceResult.item.name}.`,
+            error: `${stylistResult.item.name} is not free at ${requestedTime} on ${dateIsoNorm} for a ${formatDurationMinutes(durationMinutes)} ${serviceResult.item.name}. Here are the next available times:`,
             requestedSlotAvailable: false,
             suggestions: slots.slice(0, 6).map((s) => `${s.dayLabel} at ${s.timeLabel}`),
             alternativeSlots: slots.slice(0, 6),
@@ -261,8 +267,11 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
         stylistName: string;
         serviceName: string;
         startTimeIso: string;
+        clientId?: string;
         clientName?: string;
         guestName?: string;
+        guestPhone?: string;
+        guestEmail?: string;
         notes?: string;
       }>({
         type: "object",
@@ -270,14 +279,27 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
           stylistName: { type: "string" },
           serviceName: { type: "string" },
           startTimeIso: { type: "string", description: "ISO datetime for appointment start" },
+          clientId: { type: "string", description: "Existing client id from create_client" },
           clientName: { type: "string", description: "Existing client name" },
           guestName: { type: "string", description: "Walk-in guest name if no client record" },
+          guestPhone: { type: "string", description: "Client or guest phone for SMS confirmations" },
+          guestEmail: { type: "string", description: "Client or guest email" },
           notes: { type: "string" },
         },
         required: ["stylistName", "serviceName", "startTimeIso"],
         additionalProperties: false,
       }),
-      execute: async ({ stylistName, serviceName, startTimeIso, clientName, guestName, notes }) => {
+      execute: async ({
+        stylistName,
+        serviceName,
+        startTimeIso,
+        clientId: clientIdInput,
+        clientName,
+        guestName,
+        guestPhone,
+        guestEmail,
+        notes,
+      }) => {
         const stylistResult = resolveStylist(stylists, stylistName);
         if (!stylistResult.ok) {
           return errorPayload(stylistResult.error, stylistResult.suggestions);
@@ -300,19 +322,34 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
         );
         const end = new Date(start.getTime() + durationMinutes * 60_000);
 
-        let clientId: string | null = null;
+        let clientId: string | null = clientIdInput?.trim() || null;
         let resolvedGuestName: string | null = guestName?.trim() || null;
+        let resolvedGuestPhone: string | null = guestPhone?.trim() || null;
+        let resolvedGuestEmail: string | null = guestEmail?.trim() || null;
 
-        if (clientName?.trim()) {
+        if (clientId) {
+          const known = clients.find((c) => c.id === clientId);
+          if (!known) {
+            return errorPayload("That client id is not on file. Use create_client or pick a client name.", []);
+          }
+          resolvedGuestName = known.name;
+          resolvedGuestPhone = resolvedGuestPhone ?? known.phone ?? null;
+          resolvedGuestEmail = resolvedGuestEmail ?? known.email ?? null;
+        } else if (clientName?.trim()) {
           const clientResult = resolveClient(clients, clientName);
           if (!clientResult.ok) {
-            return errorPayload(clientResult.error, clientResult.suggestions);
+            return errorPayload(
+              `${clientResult.error} Use create_client to add them, or book as a walk-in with guestName.`,
+              clientResult.suggestions
+            );
           }
           clientId = clientResult.item.id;
           resolvedGuestName = clientResult.item.name;
+          resolvedGuestPhone = resolvedGuestPhone ?? clientResult.item.phone ?? null;
+          resolvedGuestEmail = resolvedGuestEmail ?? clientResult.item.email ?? null;
         } else if (!resolvedGuestName) {
           return errorPayload(
-            "Who is this appointment for? Please provide a client name or guest name.",
+            "Who is this appointment for? Provide clientName, clientId from create_client, or guestName for a walk-in.",
             clients.slice(0, 5).map((c) => c.name ?? "").filter(Boolean)
           );
         }
@@ -325,6 +362,8 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
           startTime: start.toISOString(),
           endTime: end.toISOString(),
           guestName: clientId ? null : resolvedGuestName,
+          guestPhone: resolvedGuestPhone,
+          guestEmail: resolvedGuestEmail,
           notes: notes?.trim() || null,
           sendReminderSms: true,
         });
@@ -431,7 +470,7 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
               stylistName: member?.display_name || "Stylist",
               serviceName: service?.name || "Appointment",
               startTimeIso: r.start_time,
-              label: `${start.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} at ${start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`,
+              label: `${formatSalonDayLabel(start)} at ${formatSalonTimeLabel(start)}`,
             };
           }),
         });
@@ -533,6 +572,54 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
             category: p.category ?? undefined,
             description: p.description ? p.description.slice(0, 160) : undefined,
           })),
+        });
+      },
+    }),
+
+    create_client: tool({
+      description:
+        "Add a new client to the salon directory. Use when staff confirm they want a new client record before booking.",
+      inputSchema: jsonSchema<{ name: string; phone?: string; email?: string }>({
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Client full name" },
+          phone: { type: "string", description: "Mobile number for SMS reminders" },
+          email: { type: "string", description: "Email address" },
+        },
+        required: ["name"],
+        additionalProperties: false,
+      }),
+      execute: async ({ name, phone, email }) => {
+        const trimmedName = name.trim();
+        if (!trimmedName) return errorPayload("Please provide the client's name.", []);
+
+        const supabase = await createClient();
+        const { data, error } = await supabase
+          .from("clients")
+          .insert({
+            salon_id: salonId,
+            name: trimmedName,
+            phone: phone?.trim() || null,
+            email: email?.trim() || null,
+            marketing_opt_in: true,
+          })
+          .select("id, name, email, phone")
+          .single();
+
+        if (error) return errorPayload(error.message, []);
+
+        const row = data as { id: string; name: string; email: string | null; phone: string | null };
+        clients.push({
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          phone: row.phone,
+        });
+
+        return successPayload({
+          clientId: row.id,
+          name: row.name,
+          message: `Created client ${row.name}. You can now book using clientId or clientName.`,
         });
       },
     }),
@@ -758,11 +845,14 @@ Rules:
 1. Always use tools for live data — never invent services, prices, times, or contact details.
 2. ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
 3. Call match_service when the user describes a treatment loosely; never book using a category name.
-4. Call check_availability before booking when a day/time is given; pass requestedTime as HH:mm for specific times.
-5. Use find_appointments to get appointmentId before cancel/delete/messaging actions.
-6. Confirm before delete_appointment.
-7. For messaging, explain which channel was used (email vs SMS) or why it failed (missing phone/email or Twilio/Resend not configured).
-8. After booking changes, mention the Classic Mode diary will update.
+4. Call check_availability before booking when a day/time is given; pass requestedTime as HH:mm for specific times (e.g. 11:00 for 11am).
+5. When check_availability shows a slot is unavailable, offer the alternativeSlots returned — they are the next realistic openings after the requested time.
+6. If a client is not on file, call create_client with their name and phone, then book_appointment with the returned clientId.
+7. When the user confirms ("yes", "proceed", "go ahead"), continue the booking flow — do not stop without calling the next tool.
+8. Use find_appointments to get appointmentId before cancel/delete/messaging actions.
+9. Confirm before delete_appointment.
+10. For messaging, explain which channel was used (email vs SMS) or why it failed (missing phone/email or Twilio/Resend not configured).
+11. After booking changes, mention the Classic Mode diary will update.
 
 Opening hours: ${catalog.openingHoursNote}
 ${catalog.aftercareMessage ? `Default aftercare copy: ${catalog.aftercareMessage.slice(0, 300)}` : ""}

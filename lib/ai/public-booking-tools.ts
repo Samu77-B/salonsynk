@@ -9,7 +9,7 @@ import {
   matchServiceForBooking,
 } from "./booking-resolvers";
 import { findAvailableSlots, isSlotAvailable } from "./slot-finder";
-import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso } from "./salon-time";
+import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso, formatSalonDayLabel, formatSalonTimeLabel } from "./salon-time";
 import type { PublicSalonContext } from "./load-public-salon-catalog";
 import type { SlotCandidate, TimePreference } from "./booking-types";
 import { SYNKAI_AGENT_NAME } from "@/lib/ai/synkai-brand";
@@ -49,7 +49,12 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
       execute: async ({ description }) => {
         const match = matchServiceForBooking(services, description);
         if (!match.ok) {
-          return errorPayload(match.error, match.suggestions);
+          return {
+            success: false as const,
+            error: match.error,
+            suggestions: match.suggestions,
+            askToClarify: match.askToClarify ?? false,
+          };
         }
         return successPayload({
           serviceName: match.service.name,
@@ -148,6 +153,8 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
 
         const slotRows: Array<SlotCandidate & { stylist: string }> = [];
         let requestedSlot: (SlotCandidate & { stylist: string }) | undefined;
+        const parsedRequested = requestedTime?.trim() ? parseSalonLocalTime(requestedTime.trim()) : null;
+        let requestedUnavailable = false;
 
         for (const stylistResult of stylistCandidates) {
           if (!stylistResult.ok) {
@@ -161,33 +168,31 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
             stylistOverrides
           );
 
-          if (requestedTime?.trim()) {
-            const parsedTime = parseSalonLocalTime(requestedTime.trim());
-            if (parsedTime) {
-              const start = salonLocalToUtc(dateIsoNorm, parsedTime.hour, parsedTime.minute);
-              const ok = await isSlotAvailable({
-                salonId,
-                stylistId: stylistResult.item.id,
-                startTime: start,
-                durationMinutes,
-              });
-              if (ok) {
-                requestedSlot = {
-                  startIso: start.toISOString(),
-                  endIso: new Date(start.getTime() + durationMinutes * 60_000).toISOString(),
-                  dayLabel: start.toLocaleDateString("en-GB", {
-                    timeZone: "Europe/London",
-                    weekday: "short",
-                    day: "numeric",
-                    month: "short",
-                  }),
-                  timeLabel: requestedTime.trim(),
-                  stylist: stylistResult.item.name,
-                };
-                break;
-              }
+          if (parsedRequested) {
+            const start = salonLocalToUtc(dateIsoNorm, parsedRequested.hour, parsedRequested.minute);
+            const ok = await isSlotAvailable({
+              salonId,
+              stylistId: stylistResult.item.id,
+              startTime: start,
+              durationMinutes,
+            });
+            if (ok) {
+              requestedSlot = {
+                startIso: start.toISOString(),
+                endIso: new Date(start.getTime() + durationMinutes * 60_000).toISOString(),
+                dayLabel: formatSalonDayLabel(start),
+                timeLabel: formatSalonTimeLabel(start),
+                stylist: stylistResult.item.name,
+              };
+              break;
             }
+            requestedUnavailable = true;
           }
+
+          const minStartMinutes =
+            requestedUnavailable && parsedRequested
+              ? parsedRequested.hour * 60 + parsedRequested.minute + 15
+              : undefined;
 
           const slots = await findAvailableSlots({
             salonId,
@@ -197,14 +202,18 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
             daysToScan: stylistName?.trim() ? 5 : 3,
             timePreference: timePreference ?? "any",
             maxResults: stylistName?.trim() ? 8 : 4,
-            prioritizeLocalTime: requestedTime?.trim(),
+            prioritizeLocalTime: !requestedUnavailable ? requestedTime?.trim() : undefined,
+            minStartMinutes,
           });
           slotRows.push(...slots.map((slot) => ({ ...slot, stylist: stylistResult.item.name })));
         }
 
         if (requestedTime?.trim() && !requestedSlot) {
           const alt = slotRows.slice(0, 6).map((s) => `${s.stylist}: ${s.dayLabel} at ${s.timeLabel}`);
-          return errorPayload(`Not available at ${requestedTime} on ${dateIsoNorm}.`, alt);
+          return errorPayload(
+            `Not available at ${requestedTime} on ${dateIsoNorm}. Here are the next available times:`,
+            alt
+          );
         }
 
         if (requestedSlot) {
@@ -315,8 +324,11 @@ Opening hours: ${catalog.openingHoursNote}
 Rules:
 - Never mention internal staff tools or client databases
 - ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
+- Always call match_service first when a client describes what they want in everyday language (e.g. "hair trimmed on Saturday", "I need a haircut"). Strip the date from the description if needed — match_service handles that.
+- If match_service returns askToClarify or multiple suggestions, ask a friendly follow-up (e.g. men's or ladies' haircut) using the exact service names returned.
 - Use match_service / list_services / check_availability / book_guest_appointment for bookings
 - When the client confirms with "yes", "that's right", etc., reuse the exact serviceName you already identified — never pass the word "yes" as the service name
+- Resolve "Saturday", "tomorrow", etc. to a YYYY-MM-DD date before calling check_availability
 - For style or colour advice, describe what the salon offers based on service list — do not invent services
 - If asked about opening times, use the opening hours note above; if unsure, suggest calling the salon
 - If asked about salon policy: ${catalog.policyNotes}

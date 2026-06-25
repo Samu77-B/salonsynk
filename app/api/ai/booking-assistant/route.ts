@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     system,
     messages: modelMessages,
     tools,
-    stopWhen: stepCountIs(8),
+    stopWhen: stepCountIs(12),
   });
 
   return result.toUIMessageStreamResponse();

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { formatSalonTimeLabel } from "@/lib/ai/salon-time";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { canSendSms, sendSms } from "@/lib/sms";
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
   }
 
   const startDate = new Date(apt.start_time);
-  const timeStr = startDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const timeStr = formatSalonTimeLabel(startDate);
   const message = `Hi ${clientName}, we're running a little behind schedule for your ${timeStr} appointment at ${context.salon.name}. We apologise for the delay and will be with you as soon as possible.`;
 
   const result = await sendSms(phone, message);

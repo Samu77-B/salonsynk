@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { formatSalonDateLabel, formatSalonTimeLabel } from "@/lib/ai/salon-time";
 import { sendAppointmentReminder } from "./email";
 import { canSendSms, canSendWhatsApp, sendSms, sendWhatsApp } from "./sms";
 
@@ -83,8 +84,8 @@ export async function sendReminders(hoursAhead = 48) {
     const email = a.guest_email ?? a.clients?.email ?? null;
     const phone = a.guest_phone ?? a.clients?.phone ?? null;
     const salonName = a.salons?.name ?? "Salon";
-    const dateStr = start.toLocaleDateString("en-GB");
-    const timeStr = start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    const dateStr = formatSalonDateLabel(start);
+    const timeStr = formatSalonTimeLabel(start);
     const message = `Reminder: your appointment at ${salonName} is on ${dateStr} at ${timeStr}.`;
 
     let sent = false;

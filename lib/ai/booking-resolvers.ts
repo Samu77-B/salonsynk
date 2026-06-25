@@ -7,7 +7,14 @@ export type ServiceMatchResult =
       needsConfirmation: boolean;
       alternatives: string[];
     }
-  | { ok: false; error: string; suggestions: string[]; isCategory?: boolean };
+  | {
+      ok: false;
+      error: string;
+      suggestions: string[];
+      isCategory?: boolean;
+      /** Multiple services matched by keyword — ask a clarifying question. */
+      askToClarify?: boolean;
+    };
 
 function normalizeQuery(value: string): string {
   return value
@@ -16,6 +23,115 @@ function normalizeQuery(value: string): string {
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+const STOP_WORDS = new Set([
+  "i",
+  "need",
+  "want",
+  "like",
+  "would",
+  "get",
+  "my",
+  "a",
+  "an",
+  "the",
+  "for",
+  "on",
+  "at",
+  "this",
+  "next",
+  "just",
+  "please",
+  "book",
+  "booking",
+  "appointment",
+  "ordinary",
+  "some",
+  "any",
+]);
+
+const DAY_TIME_PHRASES =
+  /\b(on |this |next )?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today)\b|\b(at |around |about )?\d{1,2}(:\d{2})?\s*(am|pm)?\b/gi;
+
+const TERM_EXPANSIONS: Record<string, string[]> = {
+  haircut: ["hair", "cut", "haircut", "trim", "grooming"],
+  trimmed: ["hair", "trim"],
+  trim: ["trim", "hair", "fringe"],
+  colour: ["colour", "color", "tint", "dye"],
+  color: ["colour", "color", "tint"],
+  highlight: ["highlight", "highlights", "balayage"],
+  blowdry: ["blow", "dry", "style", "blowdry"],
+  mens: ["men", "male", "barber", "grooming"],
+  ladies: ["ladies", "women", "female", "woman"],
+};
+
+function stripDateTimePhrases(query: string): string {
+  return query
+    .replace(DAY_TIME_PHRASES, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractSearchKeywords(query: string): string[] {
+  const normalized = stripDateTimePhrases(normalizeQuery(query));
+  const tokens = normalized.split(" ").filter((t) => t.length >= 3 && !STOP_WORDS.has(t));
+  const keywords = new Set<string>(tokens);
+
+  for (const token of tokens) {
+    for (const [term, expansions] of Object.entries(TERM_EXPANSIONS)) {
+      if (token.includes(term) || term.includes(token)) {
+        expansions.forEach((e) => keywords.add(e));
+      }
+    }
+  }
+
+  if (normalized.includes("hair cut") || normalized.includes("haircut")) {
+    ["hair", "cut", "haircut", "trim", "grooming", "barber"].forEach((k) => keywords.add(k));
+  }
+
+  return [...keywords].filter((k) => k.length >= 3);
+}
+
+function servicesMatchingKeywords(services: AiBookingService[], keywords: string[]): AiBookingService[] {
+  if (keywords.length === 0) return [];
+  return services.filter((service) => {
+    const blob = normalizeQuery(serviceSearchBlob(service));
+    return keywords.some((kw) => blob.includes(kw));
+  });
+}
+
+function clarifyingQuestionForServices(services: AiBookingService[]): string {
+  const hasMens = services.some((s) => /\b(men|male|barber|gent|grooming)\b/i.test(s.name));
+  const hasLadies = services.some((s) => /\b(ladies|women|female|woman|lady)\b/i.test(s.name));
+  if (hasMens && hasLadies) {
+    return "Would you like a men's haircut or a ladies' service? Pick from the list below.";
+  }
+  return "Which of these would you like?";
+}
+
+function keywordMatchResult(services: AiBookingService[], query: string): ServiceMatchResult | null {
+  const keywords = extractSearchKeywords(query);
+  const hits = servicesMatchingKeywords(services, keywords);
+  if (hits.length === 0) return null;
+
+  const names = [...new Set(hits.map((s) => s.name))];
+  if (names.length === 1) {
+    const service = hits.find((s) => s.name === names[0])!;
+    return {
+      ok: true,
+      service,
+      needsConfirmation: true,
+      alternatives: [],
+    };
+  }
+
+  return {
+    ok: false,
+    error: `I found ${names.length} services that might match. ${clarifyingQuestionForServices(hits)}`,
+    suggestions: names.slice(0, 8),
+    askToClarify: true,
+  };
 }
 
 function queryMatchesCategoryLabel(query: string, categoryName: string): boolean {
@@ -62,10 +178,12 @@ export function matchServiceForBooking(services: AiBookingService[], query: stri
     };
   }
 
+  const serviceIntent = stripDateTimePhrases(trimmed) || trimmed;
+
   const categoryHits = new Map<string, AiBookingService[]>();
   for (const service of services) {
     if (!service.categoryName) continue;
-    if (!queryMatchesCategoryLabel(trimmed, service.categoryName)) continue;
+    if (!queryMatchesCategoryLabel(serviceIntent, service.categoryName)) continue;
     const list = categoryHits.get(service.categoryName) ?? [];
     list.push(service);
     categoryHits.set(service.categoryName, list);
@@ -75,13 +193,13 @@ export function matchServiceForBooking(services: AiBookingService[], query: stri
     const names = [...new Set(grouped.map((s) => s.name))];
     return {
       ok: false,
-      error: `"${trimmed}" matches a service category, not a bookable service. Pick the exact service name:`,
+      error: `"${serviceIntent}" matches a service category, not a bookable service. Pick the exact service name:`,
       suggestions: names,
       isCategory: true,
     };
   }
 
-  if (queryImpliesRootTint(trimmed)) {
+  if (queryImpliesRootTint(serviceIntent)) {
     const rootTint = findRootTintService(services);
     if (rootTint) {
       return { ok: true, service: rootTint, needsConfirmation: true, alternatives: [] };
@@ -89,23 +207,44 @@ export function matchServiceForBooking(services: AiBookingService[], query: stri
   }
 
   const scored = services
-    .map((service) => ({ service, score: scoreServiceMatch(service, trimmed) }))
+    .map((service) => ({
+      service,
+      score: Math.max(scoreServiceMatch(service, serviceIntent), scoreServiceMatch(service, trimmed)),
+    }))
     .filter((row) => row.score > 0)
     .sort((a, b) => b.score - a.score);
 
   if (scored.length === 0) {
+    const keywordMatch = keywordMatchResult(services, serviceIntent);
+    if (keywordMatch) return keywordMatch;
     return {
       ok: false,
-      error: `I couldn't find a service matching "${trimmed}".`,
+      error: `I couldn't find a service matching "${serviceIntent}".`,
       suggestions: services.slice(0, 6).map((s) => s.name),
     };
   }
 
   const best = scored[0];
-  const nameScore = scoreNameMatch(best.service.name, trimmed);
+  const nameScore = scoreNameMatch(best.service.name, serviceIntent);
   const second = scored[1];
   const needsConfirmation =
     Boolean(second && (best.score - second.score < 10 || nameScore < 70)) && best.score < 95;
+
+  if (needsConfirmation && second) {
+    const closeMatches = scored.filter((row) => best.score - row.score < 12).map((row) => row.service);
+    const keywordClarify = keywordMatchResult(services, serviceIntent);
+    if (keywordClarify && !keywordClarify.ok && keywordClarify.askToClarify) {
+      return keywordClarify;
+    }
+    if (closeMatches.length > 1) {
+      return {
+        ok: false,
+        error: `Several services could match "${serviceIntent}". ${clarifyingQuestionForServices(closeMatches)}`,
+        suggestions: closeMatches.map((s) => s.name).slice(0, 8),
+        askToClarify: true,
+      };
+    }
+  }
 
   if (needsConfirmation) {
     return {
@@ -157,11 +296,17 @@ export function scoreServiceMatch(service: AiBookingService, query: string): num
 export function filterServices(services: AiBookingService[], query?: string): AiBookingService[] {
   const q = query?.trim();
   if (!q) return services;
-  return services
-    .map((service) => ({ service, score: scoreServiceMatch(service, q) }))
+  const intent = stripDateTimePhrases(q) || q;
+  const scored = services
+    .map((service) => ({
+      service,
+      score: Math.max(scoreServiceMatch(service, intent), scoreServiceMatch(service, q)),
+    }))
     .filter((row) => row.score > 0)
     .sort((a, b) => b.score - a.score)
     .map((row) => row.service);
+  if (scored.length > 0) return scored;
+  return servicesMatchingKeywords(services, extractSearchKeywords(intent));
 }
 
 export function resolveService(
