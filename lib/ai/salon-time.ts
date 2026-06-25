@@ -1,6 +1,19 @@
 /** UK salon local time — matches diary display for Fab Hair and UK tenants. */
 export const SALON_TZ = "Europe/London";
 
+/** Typical UK salon diary window for booking and reschedule scans. */
+export const SALON_OPEN_HOUR = 9;
+/** Last appointments must finish by this hour (24h, Europe/London). */
+export const SALON_CLOSE_HOUR = 18;
+
+export function salonDayStartMinutes(): number {
+  return SALON_OPEN_HOUR * 60;
+}
+
+export function salonDayEndMinutes(): number {
+  return SALON_CLOSE_HOUR * 60;
+}
+
 type LocalParts = {
   year: number;
   month: number;

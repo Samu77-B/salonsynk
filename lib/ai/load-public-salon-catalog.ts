@@ -13,7 +13,7 @@ function openingHoursFromSettings(settings: Record<string, unknown>): string {
   if (typeof settings.opening_hours_note === "string" && settings.opening_hours_note.trim()) {
     return settings.opening_hours_note.trim();
   }
-  return "Please contact the salon directly for opening hours. Online booking is typically available between 6:00 and 19:00.";
+  return "Please contact the salon directly for opening hours. Online booking is typically available between 9:00 and 18:00.";
 }
 
 export async function loadPublicSalonBySlug(slug: string): Promise<PublicSalonContext | null> {

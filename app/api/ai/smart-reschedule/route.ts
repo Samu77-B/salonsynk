@@ -85,7 +85,7 @@ Goal: Choose the top 3 most efficient new time slots to move the appointment to.
 
 Ranking rules:
 - Prefer slots that sit immediately adjacent to existing appointments (minimise dead gaps).
-- A 10-minute buffer before and after is already enforced in the candidate list.
+- Only suggest slots within salon opening hours (9:00–18:00 local time).
 - Return exactly 3 suggestions, in best-to-worst order.
 - Label the best one as "Optimal Gap-Filler".
 

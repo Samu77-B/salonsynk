@@ -10,9 +10,16 @@ import {
   salonLocalToUtc,
 } from "./salon-time";
 
+import {
+  SALON_OPEN_HOUR,
+  SALON_CLOSE_HOUR,
+  salonDayStartMinutes,
+  salonDayEndMinutes,
+} from "./salon-time";
+
 const BUFFER_MINS = 10;
-const DAY_START_HOUR = 9;
-const DAY_END_HOUR = 19;
+const DAY_START_HOUR = SALON_OPEN_HOUR;
+const DAY_END_HOUR = SALON_CLOSE_HOUR;
 const STEP_MINS = 15;
 
 function intervalOverlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
@@ -22,7 +29,7 @@ function intervalOverlaps(aStart: number, aEnd: number, bStart: number, bEnd: nu
 function timePreferenceWindow(pref: TimePreference): { startHour: number; endHour: number } {
   switch (pref) {
     case "morning":
-      return { startHour: 9, endHour: 12 };
+      return { startHour: SALON_OPEN_HOUR, endHour: 12 };
     case "afternoon":
       return { startHour: 12, endHour: 17 };
     case "evening":
@@ -91,7 +98,7 @@ function slotFreeAtMinutes(
   const slotStartBlocked = startMins - BUFFER_MINS;
   const slotEndBlocked = endMins + BUFFER_MINS;
   if (startMins < DAY_START_HOUR * 60) return false;
-  if (endMins > (DAY_END_HOUR + 1) * 60) return false;
+  if (endMins > salonDayEndMinutes()) return false;
   return !blocked.some((b) => intervalOverlaps(slotStartBlocked, slotEndBlocked, b.startM, b.endM));
 }
 
@@ -192,9 +199,9 @@ export async function findAvailableSlots(input: {
     for (
       let startMins =
         dayOffset === 0 && input.minStartMinutes != null
-          ? Math.max(input.minStartMinutes, DAY_START_HOUR * 60)
-          : DAY_START_HOUR * 60;
-      startMins + durationMinutes <= (DAY_END_HOUR + 1) * 60;
+          ? Math.max(input.minStartMinutes, salonDayStartMinutes())
+          : salonDayStartMinutes();
+      startMins + durationMinutes <= salonDayEndMinutes();
       startMins += STEP_MINS
     ) {
       if (!slotMatchesPreference(startMins, timePreference)) continue;

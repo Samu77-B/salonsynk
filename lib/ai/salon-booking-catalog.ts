@@ -8,7 +8,7 @@ function openingHoursFromSettings(settings: Record<string, unknown>): string {
   if (typeof settings.opening_hours_note === "string" && settings.opening_hours_note.trim()) {
     return settings.opening_hours_note.trim();
   }
-  return "Contact the salon for exact opening hours. Online booking slots are typically available between 9:00 and 19:00.";
+  return "Contact the salon for exact opening hours. Online booking slots are typically available between 9:00 and 18:00.";
 }
 
 export async function loadSalonBookingCatalog(salonId: string, salonName: string): Promise<SalonBookingCatalog> {

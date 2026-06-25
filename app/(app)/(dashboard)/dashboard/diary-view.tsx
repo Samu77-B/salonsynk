@@ -12,6 +12,7 @@ import { dedupeOrderedServiceIds } from "@/lib/appointments/appointment-service-
 import type { UpdateAppointmentInput } from "@/lib/appointments/patch-appointment";
 import { DashboardModeToggle } from "./modes/dashboard-mode-context";
 import { buildServiceDiaryColorMap, DEFAULT_DIARY_COLOR } from "@/lib/service-diary-color";
+import { SALON_OPEN_HOUR, SALON_CLOSE_HOUR } from "@/lib/ai/salon-time";
 
 /** Route Handler + JSON — avoids Next.js server-action digest errors on diary saves (add, delete, status, drag, form). */
 async function createAppointmentViaApi(
@@ -865,8 +866,8 @@ export function DiaryView({
       .sort((a, b) => a.start.getTime() - b.start.getTime());
 
     const bufferMins = 10;
-    const dayStartHour = 6;
-    const dayEndHour = 19;
+    const dayStartHour = SALON_OPEN_HOUR;
+    const dayEndHour = SALON_CLOSE_HOUR;
     const stepMins = 15;
 
     const candidates: {
@@ -887,7 +888,7 @@ export function DiaryView({
       const dayStart = new Date(day);
       dayStart.setHours(dayStartHour, 0, 0, 0);
       const dayEnd = new Date(day);
-      dayEnd.setHours(dayEndHour + 1, 0, 0, 0);
+      dayEnd.setHours(dayEndHour, 0, 0, 0);
 
       const busyToday = busy
         .filter((b) => b.start >= day && b.start < new Date(day.getTime() + 24 * 60 * 60 * 1000))
@@ -904,7 +905,7 @@ export function DiaryView({
 
       for (
         let startMins = dayStartHour * 60;
-        startMins + serviceDurationMins <= (dayEndHour + 1) * 60;
+        startMins + serviceDurationMins <= dayEndHour * 60;
         startMins += stepMins
       ) {
         const endMins = startMins + serviceDurationMins;
@@ -918,7 +919,7 @@ export function DiaryView({
           if (b.endM <= startMins) prevEnd = Math.max(prevEnd, b.endM);
           else break;
         }
-        let nextStart = (dayEndHour + 1) * 60;
+        let nextStart = dayEndHour * 60;
         for (const b of busyToday) {
           if (b.startM >= endMins) {
             nextStart = b.startM;

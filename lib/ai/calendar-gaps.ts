@@ -2,8 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 import { formatDurationMinutes } from "@/lib/format-duration";
 
-const DAY_START_HOUR = 6;
-const DAY_END_HOUR = 19;
+const DAY_START_HOUR = 9;
+const DAY_END_HOUR = 18;
 const MIN_GAP_MINUTES = 30;
 const MAX_GAP_MINUTES = 60;
 
