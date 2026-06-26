@@ -1,12 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { compressImageForUpload } from "@core/storage/compress-image-client";
 import {
   adminUpdateNailSalon,
   adminUploadNailSalonLogo,
   type NailBrandingInput,
 } from "../actions";
+
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+
+function normalizeHexColor(value: string, fallback: string): string {
+  return /^#[0-9A-Fa-f]{6}$/.test(value.trim()) ? value.trim() : fallback;
+}
 
 export function AdminEditNailSalonForm({
   salonId,
@@ -40,6 +47,8 @@ export function AdminEditNailSalonForm({
   const [loading, setLoading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputId = useId();
+  const colorPickerValue = normalizeHexColor(primaryColor, "#D63384");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,10 +81,22 @@ export function AdminEditNailSalonForm({
     const file = e.target.files?.[0];
     if (!file) return;
     setSaveMsg(null);
+    if (file.size > MAX_LOGO_BYTES && (file.type === "image/gif" || file.type === "image/svg+xml")) {
+      setSaveErrorText("Image must be under 2MB");
+      setSaveMsg("error");
+      e.target.value = "";
+      return;
+    }
     setLogoUploading(true);
     try {
+      const prepared = await compressImageForUpload(file);
+      if (prepared.size > MAX_LOGO_BYTES) {
+        setSaveErrorText("Image must be under 2MB after processing. Try a smaller file.");
+        setSaveMsg("error");
+        return;
+      }
       const formData = new FormData();
-      formData.append("logo", file);
+      formData.append("logo", prepared);
       const result = await adminUploadNailSalonLogo(salonId, formData);
       if (result.error) {
         setSaveErrorText(result.error);
@@ -179,7 +200,7 @@ export function AdminEditNailSalonForm({
           <input
             id="primaryColor"
             type="color"
-            value={primaryColor || "#D63384"}
+            value={colorPickerValue}
             onChange={(e) => setPrimaryColor(e.target.value)}
             className="h-10 w-14 cursor-pointer rounded border border-border bg-background"
           />
@@ -208,22 +229,24 @@ export function AdminEditNailSalonForm({
             </button>
           </div>
         ) : null}
-        <button
-          type="button"
-          onClick={() => logoFileInputRef.current?.click()}
-          disabled={logoUploading}
-          className="rounded-lg border border-border px-3 py-2 text-sm font-medium disabled:opacity-50"
-        >
-          {logoUploading ? "Uploading…" : logoUrl ? "Replace logo" : "Upload logo"}
-        </button>
         <input
           ref={logoFileInputRef}
+          id={logoInputId}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
           onChange={handleLogoFileChange}
-          className="hidden"
+          disabled={logoUploading}
+          className="sr-only"
           aria-label="Upload salon logo"
         />
+        <label
+          htmlFor={logoInputId}
+          className={`inline-block rounded-lg border border-border px-3 py-2 text-sm font-medium cursor-pointer ${
+            logoUploading ? "pointer-events-none opacity-50" : ""
+          }`}
+        >
+          {logoUploading ? "Uploading…" : logoUrl ? "Replace logo" : "Upload logo"}
+        </label>
         <p className="text-xs text-muted mt-1">PNG, JPEG, GIF, WebP, or SVG up to 2MB.</p>
       </div>
       {saveMsg === "saved" && <p className="text-sm text-green-400">Saved.</p>}

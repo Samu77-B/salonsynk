@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useId } from "react";
 import { useRouter } from "next/navigation";
+import { compressImageForUpload } from "@core/storage/compress-image-client";
 import { adminCreateNailSalon, adminUploadNailSalonLogo } from "../actions";
 import { NAIL_SITE } from "@core/config/nail-site";
+
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
 function slugFromName(name: string): string {
   return name
@@ -20,6 +23,7 @@ export function AdminNewNailSalonForm() {
   const [primaryColor, setPrimaryColor] = useState("#D63384");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputId = useId();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -62,8 +66,16 @@ export function AdminNewNailSalonForm() {
       return;
     }
     if (result.salonId && logoFile) {
+      const prepared = await compressImageForUpload(logoFile);
+      if (prepared.size > MAX_LOGO_BYTES) {
+        setLoading(false);
+        setWarning("Logo must be under 2MB. Salon was created — upload a smaller logo from the salon page.");
+        router.push(`/admin/nail-salons/${result.salonId}`);
+        router.refresh();
+        return;
+      }
       const formData = new FormData();
-      formData.append("logo", logoFile);
+      formData.append("logo", prepared);
       const uploadResult = await adminUploadNailSalonLogo(result.salonId, formData);
       if (uploadResult.error) {
         setLoading(false);
@@ -153,13 +165,21 @@ export function AdminNewNailSalonForm() {
       <div>
         <label className="block text-sm font-medium mb-1">Logo (optional)</label>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <button
-            type="button"
-            onClick={() => logoFileInputRef.current?.click()}
-            className="rounded-lg border border-border px-3 py-2 text-sm font-medium w-fit"
+          <input
+            ref={logoFileInputRef}
+            id={logoInputId}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+            onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+            className="sr-only"
+            aria-label="Upload salon logo"
+          />
+          <label
+            htmlFor={logoInputId}
+            className="rounded-lg border border-border px-3 py-2 text-sm font-medium w-fit cursor-pointer"
           >
             {logoFile ? logoFile.name : "Choose logo image"}
-          </button>
+          </label>
           {logoFile && (
             <button
               type="button"
@@ -169,14 +189,6 @@ export function AdminNewNailSalonForm() {
               Remove
             </button>
           )}
-          <input
-            ref={logoFileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
-            className="hidden"
-            aria-label="Upload salon logo"
-          />
         </div>
         <p className="text-xs text-muted mt-1">Shown on the walk-in queue page. PNG, JPEG, GIF, WebP, or SVG up to 2MB.</p>
       </div>
