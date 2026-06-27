@@ -43,7 +43,7 @@ const FEATURES = [
   {
     title: "Customer Self-Check-in",
     description:
-      "Share a QR code at your door. Clients scan it, enter their name, and join the queue from their phone — no app download required.",
+      "Every salon gets a free branded window sticker with your unique QR code — clients scan at the door, join the queue in seconds, and never need to download an app.",
   },
   {
     title: "Automatic Text Updates",
