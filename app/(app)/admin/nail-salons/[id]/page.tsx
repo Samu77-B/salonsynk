@@ -6,6 +6,8 @@ import { AdminAddNailOwnerForm } from "./admin-add-owner-form";
 import { AdminAddTechnicianForm } from "./admin-add-technician-form";
 import { AdminNailMemberRow } from "./admin-nail-member-row";
 import { AdminEditNailSalonForm } from "./admin-edit-nail-salon-form";
+import { AdminPlatformOnboardingPanel } from "@/components/admin/admin-platform-onboarding-panel";
+import { formatPlatformPrice } from "@core/billing/platform-billing";
 
 export default async function AdminNailSalonDetailPage({
   params,
@@ -17,7 +19,9 @@ export default async function AdminNailSalonDetailPage({
 
   const { data: salon } = await supabase
     .from("nail_salons")
-    .select("id, name, slug, subscription_status, created_at, settings")
+    .select(
+      "id, name, slug, subscription_status, subscription_required, onboarding_welcome_sent_at, created_at, settings"
+    )
     .eq("id", id)
     .single();
 
@@ -54,6 +58,11 @@ export default async function AdminNailSalonDetailPage({
     return typeof v === "string" ? v : "";
   };
 
+  const ownerEmails = (members ?? [])
+    .filter((m) => (m.role ?? "").toLowerCase() === "owner")
+    .map((m) => profilesMap[m.user_id])
+    .filter((e): e is string => Boolean(e));
+
   return (
     <div className="max-w-2xl space-y-8">
       <div className="flex items-center gap-4">
@@ -76,7 +85,7 @@ export default async function AdminNailSalonDetailPage({
           </div>
           <div>
             <dt className="text-muted">Plan</dt>
-            <dd>£25 pcm (NailSynk)</dd>
+            <dd>{formatPlatformPrice("nail")}</dd>
           </div>
           <div>
             <dt className="text-muted">Created</dt>
@@ -125,6 +134,16 @@ export default async function AdminNailSalonDetailPage({
           </a>
         </p>
       </section>
+
+      <AdminPlatformOnboardingPanel
+        platform="nail"
+        tenantId={salon.id}
+        ownerEmails={ownerEmails}
+        welcomeSentAt={(salon.onboarding_welcome_sent_at as string | null) ?? null}
+        subscriptionRequired={Boolean(salon.subscription_required)}
+        subscriptionStatus={(salon.subscription_status as string) ?? "inactive"}
+        productName="NailSynk"
+      />
 
       <section className="rounded-lg border border-border p-4 space-y-4">
         <h2 className="font-semibold">Branding &amp; queue page</h2>

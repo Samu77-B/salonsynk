@@ -286,6 +286,72 @@ export async function sendSalonWelcomeEmail(params: {
   return { error: normalizeResendError(error) };
 }
 
+/** Welcome email when master admin onboards a BarberSynk shop. */
+export async function sendBarberWelcomeEmail(params: {
+  to: string;
+  ownerName: string;
+  businessName: string;
+  planPrice: string;
+  loginLink: string;
+  paymentLink: string;
+}): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured" };
+  const html = `
+    <p>Hi ${escapeHtmlPlainText(params.ownerName)},</p>
+    <p>Welcome to <strong>BarberSynk</strong> — your account for <strong>${escapeHtmlPlainText(params.businessName)}</strong> is ready.</p>
+    <p>Your plan is <strong>${escapeHtmlPlainText(params.planPrice)}</strong>. Complete these two steps to get started:</p>
+    <ol>
+      <li><strong>Set your password</strong> and create your login</li>
+      <li><strong>Pay for your first month</strong> — your subscription renews monthly after that</li>
+    </ol>
+    ${onboardingEmailButton(params.loginLink, "Set password & log in")}
+    ${onboardingEmailButton(params.paymentLink, `Pay ${params.planPrice} — first month`)}
+    <p style="color:#666;font-size:14px;">Dashboard access opens once payment is complete.</p>
+    <p style="color:#666;font-size:14px;">Questions? Contact <a href="mailto:hello@barbersynk.com">hello@barbersynk.com</a>.</p>
+  `;
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [params.to],
+    replyTo: "hello@barbersynk.com",
+    subject: `Welcome to BarberSynk — ${params.businessName}`,
+    html,
+  });
+  return { error: normalizeResendError(error) };
+}
+
+/** Welcome email when master admin onboards a NailSynk salon. */
+export async function sendNailWelcomeEmail(params: {
+  to: string;
+  ownerName: string;
+  businessName: string;
+  planPrice: string;
+  loginLink: string;
+  paymentLink: string;
+}): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured" };
+  const html = `
+    <p>Hi ${escapeHtmlPlainText(params.ownerName)},</p>
+    <p>Welcome to <strong>NailSynk</strong> — your account for <strong>${escapeHtmlPlainText(params.businessName)}</strong> is ready.</p>
+    <p>Your plan is <strong>${escapeHtmlPlainText(params.planPrice)}</strong>. Complete these two steps to get started:</p>
+    <ol>
+      <li><strong>Set your password</strong> and create your login</li>
+      <li><strong>Pay for your first month</strong> — your subscription renews monthly after that</li>
+    </ol>
+    ${onboardingEmailButton(params.loginLink, "Set password & log in")}
+    ${onboardingEmailButton(params.paymentLink, `Pay ${params.planPrice} — first month`)}
+    <p style="color:#666;font-size:14px;">Dashboard access opens once payment is complete.</p>
+    <p style="color:#666;font-size:14px;">Questions? Contact <a href="mailto:hello@nailsynk.com">hello@nailsynk.com</a>.</p>
+  `;
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [params.to],
+    replyTo: "hello@nailsynk.com",
+    subject: `Welcome to NailSynk — ${params.businessName}`,
+    html,
+  });
+  return { error: normalizeResendError(error) };
+}
+
 /** Sent after first successful subscription payment. */
 export async function sendSalonSetupGuideEmail(params: {
   to: string;

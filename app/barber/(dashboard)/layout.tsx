@@ -4,6 +4,7 @@ import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
 import { isManagerRole } from "@core/auth/dashboard-roles";
 import { BarberDashboardHeader } from "./barber-dashboard-header";
+import { enforceBarberSubscriptionIfRequired } from "@/lib/subscription-gate-platform.server";
 
 export default async function BarberDashboardLayout({
   children,
@@ -20,6 +21,8 @@ export default async function BarberDashboardLayout({
   const isSuperAdmin = await getIsSuperAdmin();
   const shopContext = await getCurrentUserShop();
   if (!shopContext) redirect("/onboarding");
+
+  await enforceBarberSubscriptionIfRequired();
 
   const memberRole = shopContext.member.role ?? null;
   const isManager = isManagerRole(isSuperAdmin, memberRole ?? "");

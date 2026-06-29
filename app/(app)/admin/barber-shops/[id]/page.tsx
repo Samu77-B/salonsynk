@@ -6,6 +6,8 @@ import { AdminAddBarberOwnerForm } from "./admin-add-owner-form";
 import { AdminAddBarberForm } from "./admin-add-barber-form";
 import { AdminBarberMemberRow } from "./admin-barber-member-row";
 import { AdminEditBarberShopForm } from "./admin-edit-barber-shop-form";
+import { AdminPlatformOnboardingPanel } from "@/components/admin/admin-platform-onboarding-panel";
+import { formatPlatformPrice } from "@core/billing/platform-billing";
 
 export default async function AdminBarberShopDetailPage({
   params,
@@ -17,7 +19,9 @@ export default async function AdminBarberShopDetailPage({
 
   const { data: shop } = await supabase
     .from("barber_shops")
-    .select("id, name, slug, subscription_status, created_at, settings")
+    .select(
+      "id, name, slug, subscription_status, subscription_required, onboarding_welcome_sent_at, created_at, settings"
+    )
     .eq("id", id)
     .single();
 
@@ -54,6 +58,11 @@ export default async function AdminBarberShopDetailPage({
     return typeof v === "string" ? v : "";
   };
 
+  const ownerEmails = (members ?? [])
+    .filter((m) => (m.role ?? "").toLowerCase() === "owner")
+    .map((m) => profilesMap[m.user_id])
+    .filter((e): e is string => Boolean(e));
+
   return (
     <div className="max-w-2xl space-y-8">
       <div className="flex items-center gap-4">
@@ -76,7 +85,7 @@ export default async function AdminBarberShopDetailPage({
           </div>
           <div>
             <dt className="text-muted">Plan</dt>
-            <dd>£25 pcm (BarberSynk)</dd>
+            <dd>{formatPlatformPrice("barber")}</dd>
           </div>
           <div>
             <dt className="text-muted">Created</dt>
@@ -125,6 +134,16 @@ export default async function AdminBarberShopDetailPage({
           </a>
         </p>
       </section>
+
+      <AdminPlatformOnboardingPanel
+        platform="barber"
+        tenantId={shop.id}
+        ownerEmails={ownerEmails}
+        welcomeSentAt={(shop.onboarding_welcome_sent_at as string | null) ?? null}
+        subscriptionRequired={Boolean(shop.subscription_required)}
+        subscriptionStatus={(shop.subscription_status as string) ?? "inactive"}
+        productName="BarberSynk"
+      />
 
       <section className="rounded-lg border border-border p-4 space-y-4">
         <h2 className="font-semibold">Branding &amp; queue page</h2>

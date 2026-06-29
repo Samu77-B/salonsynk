@@ -100,8 +100,8 @@ export async function adminCreateBarberShop(
     .insert({
       name: name.trim(),
       slug: finalSlug,
-      subscription_status: "active",
-      plan_tier: "professional",
+      subscription_status: "inactive",
+      subscription_required: false,
       ...(Object.keys(settings).length ? { settings } : {}),
     })
     .select("id")

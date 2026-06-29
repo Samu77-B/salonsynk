@@ -4,6 +4,7 @@ import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { getCurrentUserNailSalon } from "@modules/nail/lib/shop";
 import { isManagerRole } from "@core/auth/dashboard-roles";
 import { NailDashboardHeader } from "./nail-dashboard-header";
+import { enforceNailSubscriptionIfRequired } from "@/lib/subscription-gate-platform.server";
 
 export default async function NailDashboardLayout({
   children,
@@ -20,6 +21,8 @@ export default async function NailDashboardLayout({
   const isSuperAdmin = await getIsSuperAdmin();
   const salonContext = await getCurrentUserNailSalon();
   if (!salonContext) redirect("/nail/onboarding");
+
+  await enforceNailSubscriptionIfRequired();
 
   const memberRole = salonContext.member.role ?? null;
   const isManager = isManagerRole(isSuperAdmin, memberRole ?? "");

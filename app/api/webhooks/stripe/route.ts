@@ -7,6 +7,10 @@ import {
   subscriptionStatusToSalonField,
 } from "@/config/plans";
 import { sendPostPaymentSetupEmailIfNeeded } from "@/lib/onboarding-email.server";
+import {
+  resolveTenantFromStripeMetadata,
+  tenantTable,
+} from "@core/billing/stripe-metadata";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -27,7 +31,13 @@ export async function POST(request: Request) {
 
   type SubscriptionObject = {
     status?: string;
-    metadata?: { salon_id?: string; plan_tier?: string };
+    metadata?: {
+      salon_id?: string;
+      shop_id?: string;
+      nail_salon_id?: string;
+      platform?: string;
+      plan_tier?: string;
+    };
     subscription?: string;
     customer?: string | { id?: string } | null;
     items?: { data?: Array<{ price?: string | { id?: string } | null } | null> | null };
@@ -179,32 +189,35 @@ export async function POST(request: Request) {
     const session = event.data?.object as CheckoutSessionObject | undefined;
     const salonId = session?.metadata?.salon_id;
     const customerId = typeof session?.customer === "string" ? session.customer : null;
-    if (session?.mode === "subscription" && salonId && customerId) {
-      const sessionMeta = session.metadata ?? {};
-      const planTierFromSession = sessionMeta.plan_tier;
-      const customerUpdate: Record<string, unknown> = {
-        stripe_billing_customer_id: customerId,
-      };
-      if (planTierFromSession) {
-        customerUpdate.plan_tier = planTierFromSession;
-      }
-      await supabase.from("salons").update(customerUpdate).eq("id", salonId);
+    if (session?.mode === "subscription" && customerId) {
+      const tenant = resolveTenantFromStripeMetadata(session.metadata ?? null);
+      if (tenant) {
+        const table = tenantTable(tenant.platform);
+        const sessionMeta = session.metadata ?? {};
+        const customerUpdate: Record<string, unknown> = {
+          stripe_billing_customer_id: customerId,
+        };
+        if (tenant.platform === "salon" && sessionMeta.plan_tier) {
+          customerUpdate.plan_tier = sessionMeta.plan_tier;
+        }
+        await supabase.from(table).update(customerUpdate).eq("id", tenant.tenantId);
 
-      const subscriptionId =
-        typeof session.subscription === "string" ? session.subscription : null;
-      if (subscriptionId) {
-        try {
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-          const tier = resolvePlanTierFromSubscription(subscription);
-          const status = subscriptionStatusToSalonField(subscription.status);
-          const subUpdate: Record<string, unknown> = { subscription_status: status };
-          if (tier) subUpdate.plan_tier = tier;
-          await supabase.from("salons").update(subUpdate).eq("id", salonId);
-          if (status === "active") {
-            await sendPostPaymentSetupEmailIfNeeded(salonId);
+        const subscriptionId =
+          typeof session.subscription === "string" ? session.subscription : null;
+        if (subscriptionId) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const tier = resolvePlanTierFromSubscription(subscription);
+            const status = subscriptionStatusToSalonField(subscription.status);
+            const subUpdate: Record<string, unknown> = { subscription_status: status };
+            if (tenant.platform === "salon" && tier) subUpdate.plan_tier = tier;
+            await supabase.from(table).update(subUpdate).eq("id", tenant.tenantId);
+            if (status === "active" && tenant.platform === "salon") {
+              await sendPostPaymentSetupEmailIfNeeded(tenant.tenantId);
+            }
+          } catch (err) {
+            console.error("checkout.session.completed: subscription retrieve failed", err);
           }
-        } catch (err) {
-          console.error("checkout.session.completed: subscription retrieve failed", err);
         }
       }
     }
@@ -231,28 +244,35 @@ export async function POST(request: Request) {
 
   if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated") {
     const sub = event.data?.object as SubscriptionObject | undefined;
-    const salonId = sub?.metadata?.salon_id;
-    if (salonId && sub) {
+    const tenant = resolveTenantFromStripeMetadata(sub?.metadata ?? null);
+    if (tenant && sub) {
+      const table = tenantTable(tenant.platform);
       const payload: Record<string, unknown> = {
         subscription_status: subscriptionStatusToSalonField(sub.status),
       };
-      const tier = resolvePlanTierFromSubscription(sub);
-      if (tier) payload.plan_tier = tier;
+      if (tenant.platform === "salon") {
+        const tier = resolvePlanTierFromSubscription(sub);
+        if (tier) payload.plan_tier = tier;
+      }
       const customerId = typeof sub.customer === "string" ? sub.customer : null;
       if (customerId) payload.stripe_billing_customer_id = customerId;
-      await supabase.from("salons").update(payload).eq("id", salonId);
+      await supabase.from(table).update(payload).eq("id", tenant.tenantId);
       const status = subscriptionStatusToSalonField(sub.status);
-      if (status === "active") {
-        await sendPostPaymentSetupEmailIfNeeded(salonId);
+      if (status === "active" && tenant.platform === "salon") {
+        await sendPostPaymentSetupEmailIfNeeded(tenant.tenantId);
       }
     }
   }
 
   if (event.type === "customer.subscription.deleted") {
     const sub = event.data?.object as SubscriptionObject | undefined;
-    const salonId = sub?.metadata?.salon_id;
-    if (salonId) {
-      await supabase.from("salons").update({ subscription_status: "canceled" }).eq("id", salonId);
+    const tenant = resolveTenantFromStripeMetadata(sub?.metadata ?? null);
+    if (tenant) {
+      const table = tenantTable(tenant.platform);
+      await supabase
+        .from(table)
+        .update({ subscription_status: "canceled" })
+        .eq("id", tenant.tenantId);
     }
   }
 

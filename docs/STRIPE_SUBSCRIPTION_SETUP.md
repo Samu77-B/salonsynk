@@ -23,6 +23,17 @@ Copy each **Price ID** (`price_...`).
 
 Optional: `STRIPE_FLAT_FEE_PRODUCT_ID` = Product ID (`prod_...`) for your records only (not required for Checkout).
 
+### BarberSynk and NailSynk (£25/month each)
+
+Create two more products in **Product catalog**:
+
+| Product    | Amount | Env variable          |
+|------------|--------|-----------------------|
+| BarberSynk | £25/mo | `STRIPE_PRICE_BARBER` |
+| NailSynk   | £25/mo | `STRIPE_PRICE_NAIL`   |
+
+Copy each **Price ID** (`price_...`). One flat price per platform — no tier picker.
+
 ## 2. Environment variables
 
 Add to `.env.local` and **Vercel → Settings → Environment Variables** (Production):
@@ -35,6 +46,9 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRICE_ESSENTIALS=price_...
 STRIPE_PRICE_PROFESSIONAL=price_...
 STRIPE_PRICE_COMPLETE=price_...
+
+STRIPE_PRICE_BARBER=price_...
+STRIPE_PRICE_NAIL=price_...
 
 # Optional legacy (same as Professional if you only had one price before)
 STRIPE_FLAT_FEE_PRICE_ID=price_...
@@ -70,7 +84,15 @@ Owners use **Settings → Manage billing** in the app (`/api/stripe/billing-port
 3. Checkout uses the Stripe Price for that salon’s `plan_tier`
 4. Webhook sets `subscription_status` and syncs `plan_tier` from the paid price
 
-## 6. Test in Stripe test mode
+## 5b. BarberSynk and NailSynk onboarding (master admin)
+
+1. **Admin → Barber shops / Nail salons → Edit** the tenant
+2. **Client onboarding** → enter owner email → **Send welcome + payment email**
+3. Owner sets password and pays **£25/month** via Stripe Checkout
+4. Webhook sets `subscription_status` = `active` on `barber_shops` or `nail_salons`
+5. Dashboard unlocks at `/barber/dashboard` or `/nail/queue`
+
+## 7. Test in Stripe test mode
 
 1. Use test keys (`sk_test_...`, `pk_test_...`)
 2. Create test prices (same three amounts)
@@ -81,8 +103,8 @@ Owners use **Settings → Manage billing** in the app (`/api/stripe/billing-port
 
 | Issue | Fix |
 |-------|-----|
-| “Subscription checkout is not configured for the X plan” | Set `STRIPE_PRICE_*` for that tier in Vercel and redeploy |
-| Paid but status still inactive | Check webhook deliveries in Stripe; verify `STRIPE_WEBHOOK_SECRET` and `salon_id` in subscription metadata |
+| “Subscription checkout is not configured for the X plan” | Set `STRIPE_PRICE_*` for that tier (or `STRIPE_PRICE_BARBER` / `STRIPE_PRICE_NAIL`) in Vercel and redeploy |
+| Paid but status still inactive | Check webhook deliveries in Stripe; verify `STRIPE_WEBHOOK_SECRET` and metadata (`salon_id`, `shop_id`, or `nail_salon_id`) |
 | Wrong tier after payment | Ensure admin saved `plan_tier` before checkout; webhook resolves tier from Price ID |
 | Owner can’t see Subscribe | Must be **owner** role; status must be `inactive` or `canceled` |
 
