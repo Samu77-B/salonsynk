@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { BarberLoginForm } from "./barber-login-form";
+import { SmartSynkLoginBanner } from "@/components/smart/smart-synk-login-banner";
 /* eslint-disable @next/next/no-img-element */
 
 export const metadata: Metadata = {
@@ -37,6 +38,7 @@ export default async function BarberLoginPage() {
           <h1 className="text-2xl font-bold" style={{ color: "#36454F" }}>Sign in</h1>
           <p className="text-sm mt-1" style={{ color: "#5a6a74" }}>Welcome back to BarberSynk</p>
         </div>
+        <SmartSynkLoginBanner from="barber" />
         <BarberLoginForm />
         <p className="text-center text-sm" style={{ color: "#5a6a74" }}>
           Need an account?{" "}

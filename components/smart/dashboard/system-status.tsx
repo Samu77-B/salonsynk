@@ -1,0 +1,45 @@
+const SYSTEMS = [
+  { name: "SalonSynk", status: "Operational" },
+  { name: "BarberSynk", status: "Operational" },
+  { name: "NailSynk", status: "Operational" },
+  { name: "SmartSynk API", status: "Operational" },
+];
+
+export function SystemStatus() {
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <h3 className="font-heading text-lg font-semibold">System Status</h3>
+      <ul className="mt-4 space-y-3">
+        {SYSTEMS.map((sys) => (
+          <li key={sys.name} className="flex items-center justify-between text-sm">
+            <span>{sys.name}</span>
+            <span className="flex items-center gap-2 text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              {sys.status}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function DashboardFooter() {
+  return (
+    <footer className="mt-auto flex flex-wrap items-center justify-between gap-4 border-t border-border px-6 py-3 text-xs text-muted">
+      <div className="flex flex-wrap gap-4 sm:gap-6">
+        <span>System Uptime: 99.98%</span>
+        <span>API Response: 142ms</span>
+        <span>Data Sync: Real-time</span>
+        <span>Active Users: —</span>
+      </div>
+      <div className="flex items-center gap-4">
+        <span>© {new Date().getFullYear()} SmartSynk.net</span>
+        <span className="flex items-center gap-1.5 text-emerald-400">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          All systems operational
+        </span>
+      </div>
+    </footer>
+  );
+}

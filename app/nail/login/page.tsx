@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { NAIL_SITE } from "@core/config/nail-site";
 import { NailLoginForm } from "./nail-login-form";
+import { SmartSynkLoginBanner } from "@/components/smart/smart-synk-login-banner";
 
 const ACCENT = "#9B4B6A";
 const TEXT_DARK = "#2D2A32";
@@ -40,6 +41,7 @@ export default async function NailLoginPage() {
             Welcome back to {NAIL_SITE.name}
           </p>
         </div>
+        <SmartSynkLoginBanner from="nail" />
         <NailLoginForm />
         <p className="text-center text-sm" style={{ color: TEXT_MUTED }}>
           Need an account?{" "}

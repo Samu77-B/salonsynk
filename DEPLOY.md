@@ -58,7 +58,9 @@ git push -u origin main
 
 Your app will then be live at **https://salonsynk.com**.
 
-For **barbersynk.com** and **nailsynk.com**, add each domain in the same Vercel project (**Settings → Domains**). Middleware routes each host to the correct product (`/barber`, `/nail`, or salon routes). Add auth redirect URLs for each domain in Supabase, e.g. `https://nailsynk.com/auth/callback`.
+For **barbersynk.com**, **nailsynk.com**, and **smartsynk.net**, add each domain in the same Vercel project (**Settings → Domains**). Middleware routes each host to the correct product (`/smart`, `/barber`, `/nail`, or salon routes). Add auth redirect URLs for each domain in Supabase, e.g. `https://nailsynk.com/auth/callback` and `https://smartsynk.net/auth/callback`.
+
+**SmartSynk (smartsynk.net)** is the central hub: marketing landing at `/`, unified login at `/login`, and the master admin dashboard at `/overview`. Platform users sign in via SmartSynk and are redirected to their product domain with an active session.
 
 ---
 
@@ -69,6 +71,9 @@ In **Supabase** → **Authentication** → **URL Configuration**:
 - **Site URL:** `https://salonsynk.com`
 - **Redirect URLs:** add:
   - `https://salonsynk.com/auth/callback`
+  - `https://barbersynk.com/auth/callback`
+  - `https://nailsynk.com/auth/callback`
+  - `https://smartsynk.net/auth/callback`
   - Keep `http://localhost:3000/auth/callback` for local dev
 
 ---

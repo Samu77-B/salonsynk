@@ -25,7 +25,14 @@ export function LoginForm() {
       const res = await fetch("/api/auth/me");
       const data = res.ok ? await res.json() : { isSuperAdmin: false };
       router.refresh();
-      router.push(data.isSuperAdmin ? "/admin" : "/dashboard");
+      if (data.isSuperAdmin) {
+        const onSmart =
+          window.location.hostname.includes("smartsynk.net") ||
+          (window.location.hostname === "localhost" && window.location.pathname.startsWith("/smart"));
+        router.push(onSmart ? "/smart/overview" : "/admin");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
       setMessage({ type: "error", text: msg });
