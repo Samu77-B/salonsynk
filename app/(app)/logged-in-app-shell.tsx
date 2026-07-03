@@ -60,10 +60,12 @@ export function LoggedInAppShell({
     });
   }, []);
 
-  const shellClass =
-    theme === "dark" ? "app-shell-dark" : "app-shell-light";
-
   const hideSalonHeader = onSmartHost && pathname.startsWith("/admin");
+  const shellClass = hideSalonHeader
+    ? "smart-dashboard"
+    : theme === "dark"
+      ? "app-shell-dark"
+      : "app-shell-light";
 
   return (
     <div
@@ -82,16 +84,18 @@ export function LoggedInAppShell({
           onToggleTheme={toggleTheme}
         />
       )}
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col text-foreground">
-        <div
-          className={
-            hideSalonHeader
-              ? "mx-auto w-full min-w-0 max-w-[1600px]"
-              : "mx-auto w-full min-w-0 max-w-[1600px] px-3 py-5 sm:px-6 sm:py-6 lg:px-8"
-          }
-        >
-          {children}
-        </div>
+      <main
+        className={`flex min-h-0 min-w-0 flex-1 flex-col text-foreground ${
+          hideSalonHeader ? "min-h-screen" : ""
+        }`}
+      >
+        {hideSalonHeader ? (
+          children
+        ) : (
+          <div className="mx-auto w-full min-w-0 max-w-[1600px] px-3 py-5 sm:px-6 sm:py-6 lg:px-8">
+            {children}
+          </div>
+        )}
       </main>
       {SHOW_AI_HELP_AGENT ? <HelpAgentWidget /> : null}
     </div>

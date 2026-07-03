@@ -34,7 +34,12 @@ export function SmartSidebar({ userName, userEmail }: SmartSidebarProps) {
   const pathname = usePathname();
 
   function isActive(href: string) {
-    if (href === "/smart/overview") return pathname === "/smart/overview";
+    if (href === "/smart/overview") {
+      return pathname === "/smart/overview";
+    }
+    if (href === "/admin") {
+      return pathname === "/admin" || pathname === "/admin/";
+    }
     return pathname.startsWith(href);
   }
 
