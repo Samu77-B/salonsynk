@@ -1,6 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import {
+  salonAdminSwitchUrl,
+  salonBookingUrl,
+  salonShopUrl,
+} from "@core/config/platform-urls";
 import { AdminEditSalonForm } from "./admin-edit-salon-form";
 import { AdminSalonDangerZone } from "./admin-salon-danger-zone";
 import { AdminSalonOnboardingPanel } from "./admin-salon-onboarding-panel";
@@ -120,7 +125,7 @@ export default async function AdminEditSalonPage({
       </section>
       <div className="mb-4 flex flex-wrap gap-3 items-center">
         <a
-          href={`/api/admin/switch-salon?salonId=${salon.id}`}
+          href={salonAdminSwitchUrl(salon.id)}
           className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90"
         >
           Manage salon (Team, Services, Clients…)
@@ -129,23 +134,23 @@ export default async function AdminEditSalonPage({
           <span>
             Booking:{" "}
             <a
-              href={`/book/${salon.slug}`}
+              href={salonBookingUrl(salon.slug)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-accent hover:underline"
             >
-              /book/{salon.slug}
+              {salonBookingUrl(salon.slug).replace(/^https?:\/\//, "")}
             </a>
           </span>
           <span>
             Shop:{" "}
             <a
-              href={`/shop/${salon.slug}`}
+              href={salonShopUrl(salon.slug)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-accent hover:underline"
             >
-              /shop/{salon.slug}
+              {salonShopUrl(salon.slug).replace(/^https?:\/\//, "")}
             </a>
           </span>
         </span>

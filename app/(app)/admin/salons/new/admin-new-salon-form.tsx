@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { salonBookingUrl, salonShopUrl } from "@core/config/platform-urls";
 import { adminCreateSalon, adminUploadSalonLogo } from "../actions";
 
 function slugFromName(name: string): string {
@@ -21,15 +22,11 @@ export function AdminNewSalonForm() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedShop, setCopiedShop] = useState(false);
-  const [origin, setOrigin] = useState("");
   const logoFileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setOrigin(typeof window !== "undefined" ? window.location.origin : "");
-  }, []);
-
-  const bookingPageUrl = origin ? `${origin}/book/${slug || "my-salon"}` : "";
-  const shopPageUrl = origin ? `${origin}/shop/${slug || "my-salon"}` : "";
+  const slugValue = slug || "my-salon";
+  const bookingPageUrl = salonBookingUrl(slugValue);
+  const shopPageUrl = salonShopUrl(slugValue);
 
   function handleCopyBookingUrl() {
     if (bookingPageUrl && typeof navigator?.clipboard?.writeText === "function") {
@@ -114,7 +111,7 @@ export function AdminNewSalonForm() {
               type="text"
               readOnly
               value={bookingPageUrl}
-              placeholder={origin ? "" : "Loading…"}
+              placeholder="https://salonsynk.com/book/…"
               className="flex-1 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground"
               aria-label="Booking page URL"
             />
@@ -133,7 +130,7 @@ export function AdminNewSalonForm() {
               type="text"
               readOnly
               value={shopPageUrl}
-              placeholder={origin ? "" : "Loading…"}
+              placeholder="https://salonsynk.com/book/…"
               className="flex-1 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground"
               aria-label="Shop page URL"
             />

@@ -1,6 +1,13 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { BARBER_SITE } from "@core/config/barber-site";
-import { NAIL_SITE } from "@core/config/nail-site";
+import {
+  barberAdminSwitchUrl,
+  barberJoinUrl,
+  nailAdminSwitchUrl,
+  nailJoinUrl,
+  salonBookingUrl,
+  salonPublicUrlsLabel,
+  salonShopUrl,
+} from "@core/config/platform-urls";
 import Link from "next/link";
 
 export default async function AdminDashboardPage() {
@@ -72,7 +79,7 @@ export default async function AdminDashboardPage() {
                   </span>
                 </div>
                 <p className="text-sm text-muted font-mono truncate" title={s.slug}>
-                  /book/{s.slug} · /shop/{s.slug}
+                  {salonPublicUrlsLabel(s.slug)}
                 </p>
                 <p className="text-xs text-muted">
                   Joined{" "}
@@ -84,7 +91,7 @@ export default async function AdminDashboardPage() {
                 </p>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-auto pt-1">
                   <a
-                    href={`/book/${s.slug}`}
+                    href={salonBookingUrl(s.slug)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-accent hover:underline"
@@ -93,7 +100,7 @@ export default async function AdminDashboardPage() {
                   </a>
                   <span className="text-muted">·</span>
                   <a
-                    href={`/shop/${s.slug}`}
+                    href={salonShopUrl(s.slug)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-accent hover:underline"
@@ -163,7 +170,7 @@ export default async function AdminDashboardPage() {
                 </p>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-auto pt-1">
                   <a
-                    href={`${BARBER_SITE.url}/barber/join/${s.slug}`}
+                    href={barberJoinUrl(s.slug)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-accent hover:underline"
@@ -172,7 +179,7 @@ export default async function AdminDashboardPage() {
                   </a>
                   <span className="text-muted">·</span>
                   <a
-                    href={`${BARBER_SITE.url}/api/admin/switch-barber-shop?shopId=${s.id}`}
+                    href={barberAdminSwitchUrl(s.id)}
                     className="text-sm text-accent hover:underline font-medium"
                   >
                     Manage
@@ -240,7 +247,7 @@ export default async function AdminDashboardPage() {
                 </p>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-auto pt-1">
                   <a
-                    href={`${NAIL_SITE.url}/nail/join/${s.slug}`}
+                    href={nailJoinUrl(s.slug)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-accent hover:underline font-medium"
@@ -249,7 +256,7 @@ export default async function AdminDashboardPage() {
                   </a>
                   <span className="text-muted">·</span>
                   <a
-                    href={`/api/admin/switch-nail-salon?salonId=${s.id}`}
+                    href={nailAdminSwitchUrl(s.id)}
                     className="text-sm text-accent hover:underline font-medium"
                   >
                     Manage

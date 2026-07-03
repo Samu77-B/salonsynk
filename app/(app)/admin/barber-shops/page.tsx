@@ -1,5 +1,5 @@
 import { createAdminClient } from "@core/supabase/admin";
-import { BARBER_SITE } from "@core/config/barber-site";
+import { barberAdminSwitchUrl, barberJoinUrl } from "@core/config/platform-urls";
 import Link from "next/link";
 
 export default async function AdminBarberShopsPage() {
@@ -51,7 +51,7 @@ export default async function AdminBarberShopsPage() {
                   <td className="px-4 py-2 font-mono text-muted">{s.slug}</td>
                   <td className="px-4 py-2">
                     <a
-                      href={`${BARBER_SITE.url}/barber/join/${s.slug}`}
+                      href={barberJoinUrl(s.slug)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-accent hover:underline font-mono text-xs"
@@ -62,7 +62,7 @@ export default async function AdminBarberShopsPage() {
                   <td className="px-4 py-2 capitalize">{s.subscription_status}</td>
                   <td className="px-4 py-2">
                     <a
-                      href={`${BARBER_SITE.url}/api/admin/switch-barber-shop?shopId=${s.id}`}
+                      href={barberAdminSwitchUrl(s.id)}
                       className="text-accent hover:underline mr-3"
                     >
                       Manage

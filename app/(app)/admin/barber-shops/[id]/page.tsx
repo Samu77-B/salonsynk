@@ -1,5 +1,6 @@
 import { createAdminClient } from "@core/supabase/admin";
 import { BARBER_SITE } from "@core/config/barber-site";
+import { barberAdminSwitchUrl, barberJoinUrl } from "@core/config/platform-urls";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AdminAddBarberOwnerForm } from "./admin-add-owner-form";
@@ -49,7 +50,7 @@ export default async function AdminBarberShopDetailPage({
     }
   }
 
-  const joinUrl = `${BARBER_SITE.url}/barber/join/${shop.slug}`;
+  const joinUrl = barberJoinUrl(shop.slug);
   const dashboardUrl = `${BARBER_SITE.url}/barber/dashboard`;
   const settings = (shop.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | boolean | undefined>) ?? {};
@@ -107,7 +108,7 @@ export default async function AdminBarberShopDetailPage({
           </a>
           <span className="text-muted">·</span>
           <a
-            href={`${BARBER_SITE.url}/api/admin/switch-barber-shop?shopId=${shop.id}`}
+            href={barberAdminSwitchUrl(shop.id)}
             className="text-sm text-accent hover:underline font-medium"
           >
             Open barber dashboard
@@ -127,7 +128,7 @@ export default async function AdminBarberShopDetailPage({
         <p className="text-xs text-muted">
           Dashboard:{" "}
           <a
-            href={`${BARBER_SITE.url}/api/admin/switch-barber-shop?shopId=${shop.id}`}
+            href={barberAdminSwitchUrl(shop.id)}
             className="text-accent font-mono break-all underline hover:opacity-80"
           >
             {dashboardUrl}

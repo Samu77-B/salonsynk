@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { salonPublicUrlsLabel } from "@core/config/platform-urls";
 import {
   adminUpdateSalon,
   adminUploadSalonLogo,
@@ -168,7 +169,7 @@ export function AdminEditSalonForm({
             aria-label="URL slug"
           />
           <p className="text-xs text-muted mt-1">
-            /book/{slug || "…"} · /shop/{slug || "…"}
+            {salonPublicUrlsLabel(slug || "…")}
           </p>
         </div>
 

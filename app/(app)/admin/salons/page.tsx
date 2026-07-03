@@ -1,6 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { PLAN_TIERS, formatPlanPrice, isPlanTierId, type PlanTierId } from "@/config/plans";
+import {
+  salonAdminSwitchUrl,
+  salonBookingUrl,
+  salonShopUrl,
+} from "@core/config/platform-urls";
 
 export default async function AdminSalonsPage() {
   const supabase = createAdminClient();
@@ -48,20 +53,20 @@ export default async function AdminSalonsPage() {
                 <td className="px-4 py-2">
                   <div className="flex flex-col gap-0.5">
                     <a
-                      href={`/book/${s.slug}`}
+                      href={salonBookingUrl(s.slug)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-accent hover:underline font-mono text-xs"
                     >
-                      /book/{s.slug}
+                      {salonBookingUrl(s.slug).replace(/^https?:\/\//, "")}
                     </a>
                     <a
-                      href={`/shop/${s.slug}`}
+                      href={salonShopUrl(s.slug)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-accent hover:underline font-mono text-xs"
                     >
-                      /shop/{s.slug}
+                      {salonShopUrl(s.slug).replace(/^https?:\/\//, "")}
                     </a>
                   </div>
                 </td>
@@ -71,12 +76,12 @@ export default async function AdminSalonsPage() {
                 </td>
                 <td className="px-4 py-2 capitalize">{s.subscription_status}</td>
                 <td className="px-4 py-2">
-                  <Link
-                    href={`/api/admin/switch-salon?salonId=${s.id}`}
+                  <a
+                    href={salonAdminSwitchUrl(s.id)}
                     className="text-accent hover:underline mr-3"
                   >
                     Manage
-                  </Link>
+                  </a>
                   <Link
                     href={`/admin/salons/${s.id}`}
                     className="text-accent hover:underline"

@@ -1,5 +1,6 @@
 import { createAdminClient } from "@core/supabase/admin";
 import { NAIL_SITE } from "@core/config/nail-site";
+import { nailAdminSwitchUrl, nailJoinUrl } from "@core/config/platform-urls";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AdminAddNailOwnerForm } from "./admin-add-owner-form";
@@ -49,7 +50,7 @@ export default async function AdminNailSalonDetailPage({
     }
   }
 
-  const joinUrl = `${NAIL_SITE.url}/nail/join/${salon.slug}`;
+  const joinUrl = nailJoinUrl(salon.slug);
   const dashboardUrl = `${NAIL_SITE.url}/nail/queue`;
   const settings = (salon.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | boolean | undefined>) ?? {};
@@ -107,7 +108,7 @@ export default async function AdminNailSalonDetailPage({
           </a>
           <span className="text-muted">·</span>
           <a
-            href={`${NAIL_SITE.url}/api/admin/switch-nail-salon?salonId=${salon.id}`}
+            href={nailAdminSwitchUrl(salon.id)}
             className="text-sm text-accent hover:underline font-medium"
           >
             Open nail dashboard
@@ -127,7 +128,7 @@ export default async function AdminNailSalonDetailPage({
         <p className="text-xs text-muted">
           Dashboard:{" "}
           <a
-            href={`${NAIL_SITE.url}/api/admin/switch-nail-salon?salonId=${salon.id}`}
+            href={nailAdminSwitchUrl(salon.id)}
             className="text-accent font-mono break-all underline hover:opacity-80"
           >
             {dashboardUrl}

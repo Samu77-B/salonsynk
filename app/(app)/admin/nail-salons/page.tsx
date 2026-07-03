@@ -1,5 +1,5 @@
 import { createAdminClient } from "@core/supabase/admin";
-import { NAIL_SITE } from "@core/config/nail-site";
+import { nailAdminSwitchUrl, nailJoinUrl } from "@core/config/platform-urls";
 import Link from "next/link";
 
 export default async function AdminNailSalonsPage() {
@@ -51,7 +51,7 @@ export default async function AdminNailSalonsPage() {
                   <td className="px-4 py-2 font-mono text-muted">{s.slug}</td>
                   <td className="px-4 py-2">
                     <a
-                      href={`${NAIL_SITE.url}/nail/join/${s.slug}`}
+                      href={nailJoinUrl(s.slug)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-accent hover:underline font-mono text-xs"
@@ -62,7 +62,7 @@ export default async function AdminNailSalonsPage() {
                   <td className="px-4 py-2 capitalize">{s.subscription_status}</td>
                   <td className="px-4 py-2">
                     <a
-                      href={`${NAIL_SITE.url}/api/admin/switch-nail-salon?salonId=${s.id}`}
+                      href={nailAdminSwitchUrl(s.id)}
                       className="text-accent hover:underline mr-3"
                     >
                       Manage

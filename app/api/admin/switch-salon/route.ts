@@ -1,15 +1,23 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { SITE } from "@core/config/site";
 
 const ADMIN_SALON_COOKIE = "admin_salon_id";
 
 export async function GET(request: Request) {
+  const requestUrl = new URL(request.url);
+  const salonId = requestUrl.searchParams.get("salonId");
+
+  if (requestUrl.hostname.includes("smartsynk.net")) {
+    const target = new URL("/api/admin/switch-salon", SITE.url);
+    if (salonId) target.searchParams.set("salonId", salonId);
+    return NextResponse.redirect(target);
+  }
+
   const ok = await getIsSuperAdmin();
   if (!ok) return NextResponse.redirect(new URL("/dashboard", request.url));
 
-  const { searchParams } = new URL(request.url);
-  const salonId = searchParams.get("salonId");
   if (!salonId) return NextResponse.redirect(new URL("/admin/salons", request.url));
 
   const cookieStore = await cookies();
