@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { AppHeader } from "./app-header";
 import { HelpAgentWidget } from "./help-agent-widget";
 import type { PlatformFeatureId } from "@/config/plans";
@@ -30,7 +31,13 @@ export function LoggedInAppShell({
   adminSalons?: { id: string; name: string }[];
   enabledFeatures?: PlatformFeatureId[];
 }) {
+  const pathname = usePathname();
   const [theme, setThemeState] = useState<DashboardTheme>("dark");
+  const [onSmartHost, setOnSmartHost] = useState(false);
+
+  useEffect(() => {
+    setOnSmartHost(window.location.hostname.toLowerCase().includes("smartsynk.net"));
+  }, []);
 
   useEffect(() => {
     try {
@@ -56,23 +63,33 @@ export function LoggedInAppShell({
   const shellClass =
     theme === "dark" ? "app-shell-dark" : "app-shell-light";
 
+  const hideSalonHeader = onSmartHost && pathname.startsWith("/admin");
+
   return (
     <div
       className={`${shellClass} min-h-screen flex flex-col overflow-x-hidden bg-canvas text-foreground`}
     >
-      <AppHeader
-        userEmail={userEmail}
-        isSuperAdmin={isSuperAdmin}
-        isManager={isManager}
-        memberRole={memberRole}
-        currentSalon={currentSalon}
-        adminSalons={adminSalons}
-        enabledFeatures={enabledFeatures}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-      />
+      {!hideSalonHeader && (
+        <AppHeader
+          userEmail={userEmail}
+          isSuperAdmin={isSuperAdmin}
+          isManager={isManager}
+          memberRole={memberRole}
+          currentSalon={currentSalon}
+          adminSalons={adminSalons}
+          enabledFeatures={enabledFeatures}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
+      )}
       <main className="flex min-h-0 min-w-0 flex-1 flex-col text-foreground">
-        <div className="mx-auto w-full min-w-0 max-w-[1600px] px-3 py-5 sm:px-6 sm:py-6 lg:px-8">
+        <div
+          className={
+            hideSalonHeader
+              ? "mx-auto w-full min-w-0 max-w-[1600px]"
+              : "mx-auto w-full min-w-0 max-w-[1600px] px-3 py-5 sm:px-6 sm:py-6 lg:px-8"
+          }
+        >
           {children}
         </div>
       </main>

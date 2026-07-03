@@ -4,15 +4,15 @@ import { SMART_SITE, SMART_PLATFORMS } from "@core/config/smart-site";
 
 export default function SmartSignupPage() {
   return (
-    <main className="smart-marketing flex min-h-screen flex-col items-center justify-center bg-canvas px-4">
+    <main className="smart-marketing flex min-h-screen flex-col items-center justify-center bg-canvas px-4 text-foreground">
       <div className="w-full max-w-lg space-y-8 text-center">
         <Link href="/">
           <Image
-            src="/imgs/smart/logo.png"
+            src={SMART_SITE.logo}
             alt={SMART_SITE.name}
-            width={80}
+            width={160}
             height={80}
-            className="mx-auto h-16 w-16 object-contain"
+            className="mx-auto h-20 w-auto object-contain"
           />
         </Link>
         <div>

@@ -110,7 +110,7 @@ export function SmartLoginForm() {
                 type="button"
                 disabled={loading}
                 onClick={() => handlePlatformPick(m.platform)}
-                className="w-full rounded-lg border border-border bg-card px-4 py-3 text-left text-sm hover:border-accent/50 transition-colors disabled:opacity-50"
+                className="w-full rounded-lg border border-border bg-card px-4 py-3 text-left text-sm text-foreground hover:border-accent/50 transition-colors disabled:opacity-50"
               >
                 <span className="font-medium">{PLATFORM_LABELS[m.platform]}</span>
                 <span className="block text-xs text-muted mt-0.5">{m.tenantName}</span>
@@ -125,7 +125,7 @@ export function SmartLoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="email" className="block text-sm font-medium mb-1">
+        <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
           Email
         </label>
         <input
@@ -134,12 +134,12 @@ export function SmartLoginForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
           placeholder="you@example.com"
         />
       </div>
       <div>
-        <label htmlFor="password" className="block text-sm font-medium mb-1">
+        <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
           Password
         </label>
         <input
@@ -148,7 +148,7 @@ export function SmartLoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
         />
       </div>
       {message && (

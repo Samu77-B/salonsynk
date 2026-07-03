@@ -14,6 +14,7 @@ export const SMART_SITE = {
   url: "https://smartsynk.net",
   email: "hello@smartsynk.net",
   studio: "Paradigm Digital Studio",
+  logo: "/imgs/smart/logo-wht.png",
 } as const;
 
 export const SMART_NAV_ITEMS = [

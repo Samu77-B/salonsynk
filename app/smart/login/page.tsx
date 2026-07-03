@@ -19,19 +19,19 @@ export default async function SmartLoginPage() {
   }
 
   return (
-    <main className="smart-marketing flex min-h-screen flex-col items-center justify-center bg-canvas px-4">
+    <main className="smart-marketing flex min-h-screen flex-col items-center justify-center bg-canvas px-4 text-foreground">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <Link href="/" className="inline-block mb-6">
             <Image
-              src="/imgs/smart/logo.png"
+              src={SMART_SITE.logo}
               alt={SMART_SITE.name}
-              width={80}
+              width={160}
               height={80}
-              className="mx-auto h-16 w-16 object-contain"
+              className="mx-auto h-20 w-auto object-contain"
             />
           </Link>
-          <h1 className="font-heading text-2xl font-bold">Sign in to {SMART_SITE.name}</h1>
+          <h1 className="font-heading text-2xl font-bold text-foreground">Sign in to {SMART_SITE.name}</h1>
           <p className="mt-2 text-sm text-muted">
             One login for SalonSynk, BarberSynk, and NailSynk
           </p>

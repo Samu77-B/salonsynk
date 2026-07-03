@@ -42,13 +42,12 @@ export function SmartSidebar({ userName, userEmail }: SmartSidebarProps) {
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-card">
       <div className="flex items-center gap-2 border-b border-border px-4 py-5">
         <Image
-          src="/imgs/smart/logo.png"
+          src={SMART_SITE.logo}
           alt={SMART_SITE.name}
-          width={32}
-          height={32}
-          className="h-8 w-8 object-contain"
+          width={120}
+          height={36}
+          className="h-8 w-auto object-contain"
         />
-        <span className="font-heading text-sm font-semibold">SmartSynk.net</span>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">

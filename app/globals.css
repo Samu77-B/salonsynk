@@ -73,6 +73,18 @@
   --salon: #2dd4bf;
   --barber: #fbbf24;
   --nail: #f472b6;
+  color: var(--foreground);
+}
+
+.smart-marketing input:not([type="checkbox"]):not([type="radio"]),
+.smart-marketing select,
+.smart-marketing textarea {
+  color: var(--foreground);
+}
+
+.smart-marketing input::placeholder,
+.smart-marketing textarea::placeholder {
+  color: var(--muted);
 }
 
 /* SmartSynk dashboard: dark mode, sky-blue accent */

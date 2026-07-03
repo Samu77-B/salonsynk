@@ -36,9 +36,6 @@ export async function middleware(request: NextRequest) {
     if (pathname === "/dashboard" || pathname === "/overview") {
       return NextResponse.rewrite(new URL("/smart/overview", request.url));
     }
-    if (pathname === "/admin" || pathname === "/admin/") {
-      return NextResponse.redirect(new URL("/smart/overview", request.url));
-    }
     const allowed =
       pathname.startsWith("/smart") ||
       pathname.startsWith("/admin") ||
