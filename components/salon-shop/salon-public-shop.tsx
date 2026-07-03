@@ -22,7 +22,38 @@ export async function SalonPublicShop({ slug }: { slug: string }) {
     .single();
 
   if (!salon) notFound();
-  if (!salonRowHasFeature(salon, "products_shop")) notFound();
+
+  const settings = (salon.settings as Record<string, unknown>) ?? {};
+  const branding = (settings.branding as Record<string, string | undefined>) ?? {};
+  const displayName = (branding.company_name?.trim() || salon.name) as string;
+  const primaryColor = branding.primary_color?.trim();
+
+  if (!salonRowHasFeature(salon, "products_shop")) {
+    return (
+      <main
+        className="flex min-h-screen flex-col items-center justify-center px-4 py-12 text-center"
+        style={
+          primaryColor ? ({ ["--accent"]: primaryColor } as React.CSSProperties) : undefined
+        }
+      >
+        <div className="max-w-md space-y-4">
+          <h1 className="text-2xl font-bold text-foreground">Shop not available</h1>
+          <p className="text-sm text-muted">
+            {displayName} does not have an online shop enabled. Retail shop pages are included on
+            the Complete plan.
+          </p>
+          <Link
+            href={`/book/${slug}`}
+            className="inline-flex rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-background hover:opacity-90"
+          >
+            Book an appointment
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  const logoUrl = branding.logo_url?.trim();
 
   const { data: productRows } = await supabase
     .from("products")
@@ -33,12 +64,6 @@ export async function SalonPublicShop({ slug }: { slug: string }) {
     .order("name", { ascending: true });
 
   const products = productRows ?? [];
-
-  const settings = (salon.settings as Record<string, unknown>) ?? {};
-  const branding = (settings.branding as Record<string, string | undefined>) ?? {};
-  const displayName = (branding.company_name?.trim() || salon.name) as string;
-  const primaryColor = branding.primary_color?.trim();
-  const logoUrl = branding.logo_url?.trim();
 
   return (
     <main

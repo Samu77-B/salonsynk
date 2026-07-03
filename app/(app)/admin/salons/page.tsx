@@ -4,7 +4,7 @@ import { PLAN_TIERS, formatPlanPrice, isPlanTierId, type PlanTierId } from "@/co
 import {
   salonAdminSwitchUrl,
   salonBookingUrl,
-  salonShopUrl,
+  salonPublicShopUrl,
 } from "@core/config/platform-urls";
 
 export default async function AdminSalonsPage() {
@@ -60,14 +60,18 @@ export default async function AdminSalonsPage() {
                     >
                       {salonBookingUrl(s.slug).replace(/^https?:\/\//, "")}
                     </a>
-                    <a
-                      href={salonShopUrl(s.slug)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-accent hover:underline font-mono text-xs"
-                    >
-                      {salonShopUrl(s.slug).replace(/^https?:\/\//, "")}
-                    </a>
+                    {salonPublicShopUrl(s) ? (
+                      <a
+                        href={salonPublicShopUrl(s)!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent hover:underline font-mono text-xs"
+                      >
+                        {salonPublicShopUrl(s)!.replace(/^https?:\/\//, "")}
+                      </a>
+                    ) : (
+                      <span className="text-xs text-muted">Shop (Complete plan)</span>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-2">

@@ -6,6 +6,7 @@
 import { SITE } from "@core/config/site";
 import { BARBER_SITE } from "@core/config/barber-site";
 import { NAIL_SITE } from "@core/config/nail-site";
+import { salonRowHasFeature, type SalonPlanRow } from "@/lib/salon-features";
 
 export function salonBookingUrl(slug: string) {
   return `${SITE.url}/book/${slug}`;
@@ -13,6 +14,15 @@ export function salonBookingUrl(slug: string) {
 
 export function salonShopUrl(slug: string) {
   return `${SITE.url}/shop/${slug}`;
+}
+
+export function salonHasPublicShop(row: SalonPlanRow) {
+  return salonRowHasFeature(row, "products_shop");
+}
+
+export function salonPublicShopUrl(row: SalonPlanRow & { slug: string }) {
+  if (!salonHasPublicShop(row)) return null;
+  return salonShopUrl(row.slug);
 }
 
 export function salonAdminSwitchUrl(salonId: string) {
@@ -35,11 +45,15 @@ export function nailAdminSwitchUrl(salonId: string) {
   return `${NAIL_SITE.url}/api/admin/switch-nail-salon?salonId=${salonId}`;
 }
 
-export function salonPublicPathsLabel(slug: string) {
-  return `/book/${slug} · /shop/${slug}`;
+export function salonPublicPathsLabel(slug: string, row?: SalonPlanRow) {
+  const booking = `/book/${slug}`;
+  if (row && !salonHasPublicShop(row)) return booking;
+  return `${booking} · /shop/${slug}`;
 }
 
-export function salonPublicUrlsLabel(slug: string) {
+export function salonPublicUrlsLabel(slug: string, row?: SalonPlanRow) {
   const host = SITE.url.replace(/^https?:\/\//, "");
-  return `${host}/book/${slug} · ${host}/shop/${slug}`;
+  const booking = `${host}/book/${slug}`;
+  if (row && !salonHasPublicShop(row)) return booking;
+  return `${booking} · ${host}/shop/${slug}`;
 }

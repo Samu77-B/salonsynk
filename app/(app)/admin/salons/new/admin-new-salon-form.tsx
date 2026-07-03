@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { salonBookingUrl, salonShopUrl } from "@core/config/platform-urls";
+import { salonBookingUrl } from "@core/config/platform-urls";
 import { adminCreateSalon, adminUploadSalonLogo } from "../actions";
 
 function slugFromName(name: string): string {
@@ -21,27 +21,16 @@ export function AdminNewSalonForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [copiedShop, setCopiedShop] = useState(false);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
 
   const slugValue = slug || "my-salon";
   const bookingPageUrl = salonBookingUrl(slugValue);
-  const shopPageUrl = salonShopUrl(slugValue);
 
   function handleCopyBookingUrl() {
     if (bookingPageUrl && typeof navigator?.clipboard?.writeText === "function") {
       navigator.clipboard.writeText(bookingPageUrl).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-      });
-    }
-  }
-
-  function handleCopyShopUrl() {
-    if (shopPageUrl && typeof navigator?.clipboard?.writeText === "function") {
-      navigator.clipboard.writeText(shopPageUrl).then(() => {
-        setCopiedShop(true);
-        setTimeout(() => setCopiedShop(false), 2000);
       });
     }
   }
@@ -94,7 +83,7 @@ export function AdminNewSalonForm() {
       </div>
       <div>
         <label htmlFor="slug" className="block text-sm font-medium mb-1">
-          URL slug (booking &amp; shop)
+          URL slug (booking page)
         </label>
         <input
           id="slug"
@@ -124,25 +113,9 @@ export function AdminNewSalonForm() {
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>
-          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-            <span className="text-xs text-muted shrink-0 w-16">Shop</span>
-            <input
-              type="text"
-              readOnly
-              value={shopPageUrl}
-              placeholder="https://salonsynk.com/book/…"
-              className="flex-1 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground"
-              aria-label="Shop page URL"
-            />
-            <button
-              type="button"
-              onClick={handleCopyShopUrl}
-              disabled={!shopPageUrl}
-              className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm font-medium disabled:opacity-50"
-            >
-              {copiedShop ? "Copied!" : "Copy"}
-            </button>
-          </div>
+          <p className="text-xs text-muted">
+            Online shop URL is available on the Complete plan after you upgrade the salon.
+          </p>
         </div>
       </div>
       <div>

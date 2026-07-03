@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   salonAdminSwitchUrl,
   salonBookingUrl,
-  salonShopUrl,
+  salonPublicShopUrl,
 } from "@core/config/platform-urls";
 import { AdminEditSalonForm } from "./admin-edit-salon-form";
 import { AdminSalonDangerZone } from "./admin-salon-danger-zone";
@@ -87,6 +87,14 @@ export default async function AdminEditSalonPage({
     { label: "Front desk login (optional)", done: frontDeskDone, hint: "Shared staff login after owner is live" },
   ];
 
+  const shopUrl = salonPublicShopUrl({
+    slug: salon.slug,
+    plan_tier: planTier,
+    feature_overrides: featureOverrides,
+  });
+
+  const hasPublicShop = Boolean(shopUrl);
+
   return (
     <div className="max-w-6xl space-y-8">
       <div className="flex items-center gap-4 mb-6">
@@ -142,17 +150,21 @@ export default async function AdminEditSalonPage({
               {salonBookingUrl(salon.slug).replace(/^https?:\/\//, "")}
             </a>
           </span>
-          <span>
-            Shop:{" "}
-            <a
-              href={salonShopUrl(salon.slug)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent hover:underline"
-            >
-              {salonShopUrl(salon.slug).replace(/^https?:\/\//, "")}
-            </a>
-          </span>
+          {hasPublicShop ? (
+            <span>
+              Shop:{" "}
+              <a
+                href={shopUrl!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent hover:underline"
+              >
+                {shopUrl!.replace(/^https?:\/\//, "")}
+              </a>
+            </span>
+          ) : (
+            <span className="text-muted">Shop: Complete plan only</span>
+          )}
         </span>
       </div>
       <AdminEditSalonForm

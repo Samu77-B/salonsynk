@@ -5,6 +5,7 @@ import {
   nailAdminSwitchUrl,
   nailJoinUrl,
   salonBookingUrl,
+  salonPublicShopUrl,
   salonPublicUrlsLabel,
   salonShopUrl,
 } from "@core/config/platform-urls";
@@ -21,7 +22,7 @@ export default async function AdminDashboardPage() {
       .limit(50),
     supabase
       .from("salons")
-      .select("id, name, slug, subscription_status, created_at")
+      .select("id, name, slug, subscription_status, plan_tier, feature_overrides, created_at")
       .order("created_at", { ascending: false }),
     supabase
       .from("barber_shops")
@@ -79,7 +80,7 @@ export default async function AdminDashboardPage() {
                   </span>
                 </div>
                 <p className="text-sm text-muted font-mono truncate" title={s.slug}>
-                  {salonPublicUrlsLabel(s.slug)}
+                  {salonPublicUrlsLabel(s.slug, s)}
                 </p>
                 <p className="text-xs text-muted">
                   Joined{" "}
@@ -98,15 +99,19 @@ export default async function AdminDashboardPage() {
                   >
                     Booking
                   </a>
-                  <span className="text-muted">·</span>
-                  <a
-                    href={salonShopUrl(s.slug)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-accent hover:underline"
-                  >
-                    Shop
-                  </a>
+                  {salonPublicShopUrl(s) ? (
+                    <>
+                      <span className="text-muted">·</span>
+                      <a
+                        href={salonPublicShopUrl(s)!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-accent hover:underline"
+                      >
+                        Shop
+                      </a>
+                    </>
+                  ) : null}
                   <span className="text-muted">·</span>
                   <Link
                     href={`/admin/salons/${s.id}`}
