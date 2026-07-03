@@ -110,13 +110,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // salonsynk.com: block /barber/* and /nail/* routes; redirect login to SmartSynk
+  // salonsynk.com: block /barber/* and /nail/* routes
   if (isHostMatch(host, SALON_HOSTS)) {
-    if (pathname === "/login") {
-      const loginUrl = smartLoginUrl(request);
-      loginUrl.searchParams.set("from", "salon");
-      return NextResponse.redirect(loginUrl);
-    }
     if (pathname.startsWith("/barber") || pathname.startsWith("/nail")) {
       return NextResponse.redirect(new URL("/", request.url));
     }

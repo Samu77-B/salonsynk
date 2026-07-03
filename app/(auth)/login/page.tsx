@@ -5,7 +5,6 @@ import Image from "next/image";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { Reveal } from "@/components/reveal";
 import { LoginForm } from "./login-form";
-import { SmartSynkLoginBanner } from "@/components/smart/smart-synk-login-banner";
 import siteLogo from "../../../salonsynk_logo.png";
 
 export default async function LoginPage() {
@@ -37,7 +36,6 @@ export default async function LoginPage() {
           <h1 className="text-2xl font-bold">Sign in</h1>
           <p className="text-muted text-sm mt-1">Welcome back to SalonSynk</p>
         </div>
-        <SmartSynkLoginBanner from="salon" />
         <LoginForm />
         <p className="text-center text-sm text-muted">
           Need an account?{" "}
