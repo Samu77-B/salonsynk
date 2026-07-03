@@ -16,6 +16,50 @@ export const SMART_SITE = {
   studio: "Paradigm Digital Studio",
 } as const;
 
+export const SMART_NAV_ITEMS = [
+  { label: "Home", href: "#hero" },
+  { label: "About", href: "#about" },
+  { label: "Platforms", href: "#platforms" },
+  { label: "Contact", href: `mailto:${SMART_SITE.email}` },
+] as const;
+
+export const SMART_ABOUT = {
+  headline: "we turn ideas into seamless operations.",
+  body: "SmartSynk is the central hub connecting salon, barbershop, and nail studio management. One login, one ecosystem, built for the beauty and grooming industry.",
+  specializationLabel: "our platforms:",
+  watermark: "Sy",
+} as const;
+
+export const SMART_HERO_SLIDES = [
+  {
+    id: "salon" as const,
+    headline: "SALON MANAGEMENT REIMAGINED",
+    description:
+      "Complete salon operations — appointments, clients, team, and payments — unified in one elegant platform.",
+    cta: "Explore SalonSynk",
+    href: SITE.url,
+    image: "/imgs/smart/hero-salon.jpg",
+  },
+  {
+    id: "barber" as const,
+    headline: "YOUR SHOP. YOUR QUEUE. YOUR WAY.",
+    description:
+      "Real-time queue management, hybrid booking, and performance analytics built for modern barbershops.",
+    cta: "Explore BarberSynk",
+    href: BARBER_SITE.url,
+    image: "/imgs/smart/hero-barber.jpg",
+  },
+  {
+    id: "nail" as const,
+    headline: "ELEVATE EVERY NAIL EXPERIENCE",
+    description:
+      "Streamline appointments, client records, and team workflows for nail studios that demand excellence.",
+    cta: "Explore NailSynk",
+    href: NAIL_SITE.url,
+    image: "/imgs/smart/hero-nail.jpg",
+  },
+] as const;
+
 export const SMART_PLATFORMS = [
   {
     id: "salon" as const,
@@ -25,6 +69,7 @@ export const SMART_PLATFORMS = [
     dashboardPath: "/dashboard",
     color: "#2dd4bf",
     icon: "scissors",
+    panelImage: "/imgs/smart/panel-salon.jpg",
   },
   {
     id: "barber" as const,
@@ -34,6 +79,7 @@ export const SMART_PLATFORMS = [
     dashboardPath: "/barber/dashboard",
     color: "#fbbf24",
     icon: "barber-pole",
+    panelImage: "/imgs/smart/panel-barber.jpg",
   },
   {
     id: "nail" as const,
@@ -43,6 +89,7 @@ export const SMART_PLATFORMS = [
     dashboardPath: "/nail/queue",
     color: "#f472b6",
     icon: "nail-polish",
+    panelImage: "/imgs/smart/panel-nail.jpg",
   },
 ] as const;
 
