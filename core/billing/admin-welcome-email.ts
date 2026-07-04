@@ -3,7 +3,7 @@
 import { createAdminClient } from "@core/supabase/admin";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
-import { getAuthCallbackUrl } from "@core/auth/auth-redirect";
+import { getAuthCallbackUrl, normalizeAuthActionLink } from "@core/auth/auth-redirect";
 import {
   formatPlatformPrice,
   paymentInviteUrl,
@@ -14,17 +14,17 @@ import { generatePaymentInviteToken } from "@core/billing/platform-onboarding";
 import { sendBarberWelcomeEmail, sendNailWelcomeEmail } from "@/lib/email";
 import { tenantTable } from "@core/billing/stripe-metadata";
 
-function getAuthActionLink(d: unknown): string | null {
+function getAuthActionLink(d: unknown, platform: "barber" | "nail"): string | null {
   if (!d || typeof d !== "object") return null;
   const o = d as Record<string, unknown>;
   const direct = o.action_link;
-  if (typeof direct === "string") return direct;
+  if (typeof direct === "string") return normalizeAuthActionLink(direct, platform);
   const props = o.properties as Record<string, unknown> | undefined;
   const fromProps = props?.action_link;
-  if (typeof fromProps === "string") return fromProps;
+  if (typeof fromProps === "string") return normalizeAuthActionLink(fromProps, platform);
   const user = o.user as Record<string, unknown> | undefined;
   const fromUser = user?.action_link;
-  if (typeof fromUser === "string") return fromUser;
+  if (typeof fromUser === "string") return normalizeAuthActionLink(fromUser, platform);
   return null;
 }
 
@@ -74,7 +74,7 @@ export async function adminSendPlatformWelcomeEmail(
     options: { redirectTo, data: { full_name: ownerName } },
   });
 
-  let loginLink: string | null = getAuthActionLink(linkData);
+  let loginLink: string | null = getAuthActionLink(linkData, platform);
 
   if (linkError) {
     const { data: recoveryData, error: recoveryError } = await supabase.auth.admin.generateLink({
@@ -83,7 +83,7 @@ export async function adminSendPlatformWelcomeEmail(
       options: { redirectTo },
     });
     if (recoveryError) return { error: linkError.message };
-    loginLink = getAuthActionLink(recoveryData);
+    loginLink = getAuthActionLink(recoveryData, platform);
   }
 
   if (!loginLink) return { error: "Could not generate login link for this email." };

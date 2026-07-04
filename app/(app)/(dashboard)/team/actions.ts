@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAuthCallbackUrl } from "@core/auth/auth-redirect";
+import { getAuthCallbackUrl, normalizeAuthActionLink } from "@core/auth/auth-redirect";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { revalidatePath } from "next/cache";
 import { hashPasscode } from "@/lib/passcode";
@@ -16,13 +16,13 @@ function getAuthActionLink(d: unknown): string | null {
   if (!d || typeof d !== "object") return null;
   const o = d as Record<string, unknown>;
   const direct = o.action_link;
-  if (typeof direct === "string") return direct;
+  if (typeof direct === "string") return normalizeAuthActionLink(direct);
   const props = o.properties as Record<string, unknown> | undefined;
   const fromProps = props?.action_link;
-  if (typeof fromProps === "string") return fromProps;
+  if (typeof fromProps === "string") return normalizeAuthActionLink(fromProps);
   const user = o.user as Record<string, unknown> | undefined;
   const fromUser = user?.action_link;
-  if (typeof fromUser === "string") return fromUser;
+  if (typeof fromUser === "string") return normalizeAuthActionLink(fromUser);
   return null;
 }
 

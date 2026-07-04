@@ -17,3 +17,18 @@ const PLATFORM_URLS = {
 export function getAuthCallbackUrl(platform: AuthPlatform = "salon"): string {
   return `${PLATFORM_URLS[platform].replace(/\/$/, "")}/auth/callback`;
 }
+
+/** Ensure Supabase verify links redirect to the correct product domain callback. */
+export function normalizeAuthActionLink(
+  actionLink: string,
+  platform: AuthPlatform = "salon"
+): string {
+  try {
+    const url = new URL(actionLink);
+    const canonical = getAuthCallbackUrl(platform);
+    url.searchParams.set("redirect_to", canonical);
+    return url.toString();
+  } catch {
+    return actionLink;
+  }
+}

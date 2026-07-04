@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import { RegisterSw } from "./register-sw";
+import { AuthHashHandler } from "@/components/auth/auth-hash-handler";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -42,6 +43,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${montserrat.variable}`}>
       <body className="min-h-screen font-sans bg-canvas text-foreground overflow-x-hidden">
         <RegisterSw />
+        <AuthHashHandler />
         {children}
       </body>
     </html>

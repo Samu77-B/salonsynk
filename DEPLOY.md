@@ -68,7 +68,7 @@ For **barbersynk.com**, **nailsynk.com**, and **smartsynk.net**, add each domain
 
 In **Supabase** → **Authentication** → **URL Configuration**:
 
-- **Site URL:** `https://salonsynk.com`
+- **Site URL:** `https://salonsynk.com` (not `*.vercel.app` — wrong Site URL sends reset links to the preview domain)
 - **Redirect URLs:** add exact paths (no query strings on these entries):
   - `https://salonsynk.com/auth/callback`
   - `https://barbersynk.com/auth/callback`
