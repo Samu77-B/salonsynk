@@ -2,6 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import {
   getEnabledFeatures,
   salonHasFeature,
@@ -34,11 +35,13 @@ export async function getEnabledFeaturesForSalon(
   return getEnabledFeatures(state);
 }
 
-/** Redirect to diary when the current salon's plan does not include a feature. */
+/** Redirect to diary when the current salon's plan does not include a feature. Super admins bypass for setup. */
 export async function requireSalonFeature(featureId: PlatformFeatureId) {
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");
   const plan = await fetchSalonPlanState(context.salon.id);
+  const isSuperAdmin = await getIsSuperAdmin();
+  if (isSuperAdmin) return { context, plan };
   if (!salonHasFeature(plan, featureId)) redirect("/dashboard");
   return { context, plan };
 }

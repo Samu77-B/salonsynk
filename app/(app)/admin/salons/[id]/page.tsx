@@ -6,6 +6,7 @@ import {
   salonBookingUrl,
   salonPublicShopUrl,
 } from "@core/config/platform-urls";
+import { AdminTenantSetupLinks } from "@/components/admin/admin-tenant-setup-links";
 import { AdminEditSalonForm } from "./admin-edit-salon-form";
 import { AdminSalonDangerZone } from "./admin-salon-danger-zone";
 import { AdminSalonOnboardingPanel } from "./admin-salon-onboarding-panel";
@@ -131,14 +132,17 @@ export default async function AdminEditSalonPage({
           ))}
         </ol>
       </section>
-      <div className="mb-4 flex flex-wrap gap-3 items-center">
-        <a
-          href={salonAdminSwitchUrl(salon.id)}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90"
-        >
-          Manage salon (Team, Services, Clients…)
-        </a>
-        <span className="text-muted text-sm flex flex-wrap gap-x-3 gap-y-1">
+      <AdminTenantSetupLinks
+        title="Set up salon"
+        links={[
+          { href: salonAdminSwitchUrl(salon.id), label: "Open diary", primary: true },
+          { href: salonAdminSwitchUrl(salon.id, "/services"), label: "Services" },
+          { href: salonAdminSwitchUrl(salon.id, "/products"), label: "Products" },
+          { href: salonAdminSwitchUrl(salon.id, "/team"), label: "Team" },
+          { href: salonAdminSwitchUrl(salon.id, "/settings"), label: "Settings" },
+        ]}
+      />
+      <div className="mb-4 flex flex-wrap gap-3 items-center text-muted text-sm">
           <span>
             Booking:{" "}
             <a
@@ -165,7 +169,6 @@ export default async function AdminEditSalonPage({
           ) : (
             <span className="text-muted">Shop: Complete plan only</span>
           )}
-        </span>
       </div>
       <AdminEditSalonForm
         salonId={salon.id}

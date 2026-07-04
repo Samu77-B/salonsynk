@@ -1,6 +1,7 @@
 import { createAdminClient } from "@core/supabase/admin";
 import { NAIL_SITE } from "@core/config/nail-site";
 import { nailAdminSwitchUrl, nailJoinUrl } from "@core/config/platform-urls";
+import { AdminTenantSetupLinks } from "@/components/admin/admin-tenant-setup-links";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AdminAddNailOwnerForm } from "./admin-add-owner-form";
@@ -72,6 +73,15 @@ export default async function AdminNailSalonDetailPage({
         </Link>
         <h1 className="text-2xl font-bold">{salon.name}</h1>
       </div>
+
+      <AdminTenantSetupLinks
+        title="Set up nail salon"
+        links={[
+          { href: nailAdminSwitchUrl(salon.id), label: "Open queue", primary: true },
+          { href: nailAdminSwitchUrl(salon.id, "/nail/services"), label: "Services" },
+          { href: nailAdminSwitchUrl(salon.id, "/nail/team"), label: "Team" },
+        ]}
+      />
 
       <section className="rounded-lg border border-border p-4 space-y-3">
         <h2 className="font-semibold">Salon details</h2>

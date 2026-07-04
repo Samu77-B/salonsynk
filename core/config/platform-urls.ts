@@ -25,24 +25,34 @@ export function salonPublicShopUrl(row: SalonPlanRow & { slug: string }) {
   return salonShopUrl(row.slug);
 }
 
-export function salonAdminSwitchUrl(salonId: string) {
-  return `${SITE.url}/api/admin/switch-salon?salonId=${salonId}`;
+function appendNextParam(base: string, next?: string): string {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return base;
+  const url = new URL(base);
+  url.searchParams.set("next", next);
+  return url.toString();
+}
+
+export function salonAdminSwitchUrl(salonId: string, next = "/dashboard") {
+  const base = `${SITE.url}/api/admin/switch-salon?salonId=${encodeURIComponent(salonId)}`;
+  return appendNextParam(base, next);
 }
 
 export function barberJoinUrl(slug: string) {
   return `${BARBER_SITE.url}/barber/join/${slug}`;
 }
 
-export function barberAdminSwitchUrl(shopId: string) {
-  return `${BARBER_SITE.url}/api/admin/switch-barber-shop?shopId=${shopId}`;
+export function barberAdminSwitchUrl(shopId: string, next = "/barber/dashboard") {
+  const base = `${BARBER_SITE.url}/api/admin/switch-barber-shop?shopId=${encodeURIComponent(shopId)}`;
+  return appendNextParam(base, next);
 }
 
 export function nailJoinUrl(slug: string) {
   return `${NAIL_SITE.url}/nail/join/${slug}`;
 }
 
-export function nailAdminSwitchUrl(salonId: string) {
-  return `${NAIL_SITE.url}/api/admin/switch-nail-salon?salonId=${salonId}`;
+export function nailAdminSwitchUrl(salonId: string, next = "/nail/queue") {
+  const base = `${NAIL_SITE.url}/api/admin/switch-nail-salon?salonId=${encodeURIComponent(salonId)}`;
+  return appendNextParam(base, next);
 }
 
 export function salonPublicPathsLabel(slug: string, row?: SalonPlanRow) {

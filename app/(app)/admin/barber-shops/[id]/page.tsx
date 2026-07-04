@@ -1,6 +1,7 @@
 import { createAdminClient } from "@core/supabase/admin";
 import { BARBER_SITE } from "@core/config/barber-site";
 import { barberAdminSwitchUrl, barberJoinUrl } from "@core/config/platform-urls";
+import { AdminTenantSetupLinks } from "@/components/admin/admin-tenant-setup-links";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AdminAddBarberOwnerForm } from "./admin-add-owner-form";
@@ -72,6 +73,15 @@ export default async function AdminBarberShopDetailPage({
         </Link>
         <h1 className="text-2xl font-bold">{shop.name}</h1>
       </div>
+
+      <AdminTenantSetupLinks
+        title="Set up barber shop"
+        links={[
+          { href: barberAdminSwitchUrl(shop.id), label: "Open queue", primary: true },
+          { href: barberAdminSwitchUrl(shop.id, "/barber/services"), label: "Services" },
+          { href: barberAdminSwitchUrl(shop.id, "/barber/team"), label: "Team" },
+        ]}
+      />
 
       <section className="rounded-lg border border-border p-4 space-y-3">
         <h2 className="font-semibold">Shop details</h2>

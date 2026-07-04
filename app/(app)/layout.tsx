@@ -5,7 +5,7 @@ import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { isManagerRole } from "@/lib/dashboard-roles";
 import { getEnabledFeaturesForSalon } from "@/lib/salon-features.server";
-import type { PlatformFeatureId } from "@/config/plans";
+import { PLATFORM_FEATURES, type PlatformFeatureId } from "@/config/plans";
 
 export default async function AppLayout({
   children,
@@ -35,7 +35,9 @@ export default async function AppLayout({
 
   let enabledFeatures: PlatformFeatureId[] = [];
   if (salonContext?.salon.id) {
-    enabledFeatures = await getEnabledFeaturesForSalon(salonContext.salon.id);
+    enabledFeatures = isSuperAdmin
+      ? PLATFORM_FEATURES.map((f) => f.id)
+      : await getEnabledFeaturesForSalon(salonContext.salon.id);
   }
 
   return (
