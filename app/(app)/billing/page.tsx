@@ -3,7 +3,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import {
   fetchSalonOnboardingState,
   paymentInviteUrl,
@@ -11,6 +10,7 @@ import {
   salonRequiresPayment,
   salonSubscriptionIsActive,
 } from "@/lib/onboarding";
+import { canBypassSalonSubscriptionGate, getAdminSalonSwitchId } from "@/lib/salon-access.server";
 import { PLAN_TIERS, formatPlanPrice } from "@/config/plans";
 
 export default async function BillingPage({
@@ -24,8 +24,10 @@ export default async function BillingPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const isSuperAdmin = await getIsSuperAdmin();
-  if (isSuperAdmin) redirect("/admin");
+  if (await canBypassSalonSubscriptionGate()) {
+    const switchedSalonId = await getAdminSalonSwitchId();
+    redirect(switchedSalonId ? "/dashboard" : "/admin");
+  }
 
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");

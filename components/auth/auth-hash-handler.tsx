@@ -10,7 +10,8 @@ function hashHasAuthTokens(hash: string): boolean {
   return hash.includes("access_token") || hash.includes("error=");
 }
 
-function passwordSetupPath(type: string | null): string {
+function passwordSetupPath(type: string | null, isSuperAdmin: boolean): string {
+  if (isSuperAdmin) return "/admin";
   const needsPassword = type === "recovery" || type === "invite" || type === "signup";
   return needsPassword ? "/update-password?next=/billing" : "/dashboard";
 }
@@ -72,9 +73,11 @@ export function AuthHashHandler() {
         return;
       }
 
+      const meRes = await fetch("/api/auth/me");
+      const me = meRes.ok ? await meRes.json() : { isSuperAdmin: false };
+
       setStatus("done");
-      // Full navigation so the server sees the new session cookies.
-      window.location.assign(passwordSetupPath(type));
+      window.location.assign(passwordSetupPath(type, me.isSuperAdmin === true));
     })();
   }, []);
 

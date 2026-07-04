@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserNailSalon } from "@modules/nail/lib/shop";
@@ -24,8 +25,10 @@ export default async function NailBillingPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const isSuperAdmin = await getIsSuperAdmin();
-  if (isSuperAdmin) redirect("/admin");
+  if (await getIsSuperAdmin()) {
+    const salonId = (await cookies()).get("admin_nail_salon_id")?.value;
+    redirect(salonId ? "/nail/queue" : "/admin");
+  }
 
   const context = await getCurrentUserNailSalon();
   if (!context) redirect("/nail/onboarding");

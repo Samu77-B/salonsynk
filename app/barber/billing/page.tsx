@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
@@ -24,8 +25,10 @@ export default async function BarberBillingPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const isSuperAdmin = await getIsSuperAdmin();
-  if (isSuperAdmin) redirect("/admin");
+  if (await getIsSuperAdmin()) {
+    const shopId = (await cookies()).get("admin_barber_shop_id")?.value;
+    redirect(shopId ? "/barber/dashboard" : "/admin");
+  }
 
   const context = await getCurrentUserShop();
   if (!context) redirect("/barber/onboarding");

@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+
+function safeNextPath(next: string | null): string | null {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
+  return next;
+}
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -10,6 +15,8 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = safeNextPath(searchParams.get("next"));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,6 +32,12 @@ export function LoginForm() {
       const res = await fetch("/api/auth/me");
       const data = res.ok ? await res.json() : { isSuperAdmin: false };
       router.refresh();
+
+      if (nextPath) {
+        window.location.assign(nextPath);
+        return;
+      }
+
       if (data.isSuperAdmin) {
         const onSmart =
           window.location.hostname.includes("smartsynk.net") ||

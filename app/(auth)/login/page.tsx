@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -7,12 +8,25 @@ import { Reveal } from "@/components/reveal";
 import { LoginForm } from "./login-form";
 import siteLogo from "../../../salonsynk_logo.png";
 
-export default async function LoginPage() {
+function safeNextPath(next: string | undefined): string | null {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
+  return next;
+}
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
+  const nextPath = safeNextPath(next);
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (user) {
+    if (nextPath) redirect(nextPath);
     const isSuperAdmin = await getIsSuperAdmin();
     redirect(isSuperAdmin ? "/admin" : "/dashboard");
   }
@@ -36,7 +50,9 @@ export default async function LoginPage() {
           <h1 className="text-2xl font-bold">Sign in</h1>
           <p className="text-muted text-sm mt-1">Welcome back to SalonSynk</p>
         </div>
-        <LoginForm />
+        <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
+          <LoginForm />
+        </Suspense>
         <p className="text-center text-sm text-muted">
           Need an account?{" "}
           <Link href="/signup" className="text-accent hover:underline">
