@@ -17,6 +17,9 @@ export type SalonOnboardingRow = {
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 
+/** Free access period granted when the welcome email is sent (before Stripe checkout). */
+export const ONBOARDING_FREE_TRIAL_DAYS = 30;
+
 export function salonSubscriptionIsActive(status: string | null | undefined): boolean {
   return ACTIVE_SUBSCRIPTION_STATUSES.has((status ?? "").toLowerCase());
 }

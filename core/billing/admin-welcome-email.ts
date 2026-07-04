@@ -114,7 +114,7 @@ export async function adminSendPlatformWelcomeEmail(
     .update({
       payment_invite_token: paymentToken,
       subscription_required: true,
-      subscription_status: "inactive",
+      subscription_status: "trialing",
       onboarding_welcome_sent_at: new Date().toISOString(),
     })
     .eq("id", tenantId);

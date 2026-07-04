@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { adminSendSalonWelcomeEmail } from "../actions";
+import { adminSendSalonWelcomeEmail, adminStartSalonFreeTrial } from "../actions";
 
 export function AdminSalonOnboardingPanel({
   salonId,
@@ -19,7 +19,12 @@ export function AdminSalonOnboardingPanel({
   const [email, setEmail] = useState(ownerEmails[0] ?? "");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [trialLoading, setTrialLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  const status = subscriptionStatus.toLowerCase();
+  const onFreeTrial = status === "trialing" || status === "active";
+  const canStartTrial = !onFreeTrial && welcomeSentAt;
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -33,7 +38,22 @@ export function AdminSalonOnboardingPanel({
     } else {
       setMsg({
         type: "ok",
-        text: "Welcome email sent with login and payment links. Dashboard access is locked until they pay.",
+        text: "Welcome email sent. The owner gets 30 days free — dashboard opens after they set their password.",
+      });
+    }
+  }
+
+  async function handleStartTrial() {
+    setTrialLoading(true);
+    setMsg(null);
+    const result = await adminStartSalonFreeTrial(salonId);
+    setTrialLoading(false);
+    if (result.error) {
+      setMsg({ type: "err", text: result.error });
+    } else {
+      setMsg({
+        type: "ok",
+        text: "30-day free trial activated. The owner can log in and use the dashboard without paying yet.",
       });
     }
   }
@@ -42,9 +62,9 @@ export function AdminSalonOnboardingPanel({
     <section className="rounded-xl border border-border bg-background/60 p-4 shadow-sm">
       <h2 className="text-lg font-semibold mb-1">Client onboarding</h2>
       <p className="text-sm text-muted mb-4">
-        After you&apos;ve saved the plan tier, send the welcome email. The owner gets a link to set their
-        password and a link to pay their first month. They cannot use the dashboard until payment is
-        complete.
+        Send the welcome email after saving the plan tier. New clients get <strong>30 days free</strong> —
+        they set a password and can use the dashboard straight away. Payment is only required after the
+        free month (optional payment link in the email adds their card with no charge today).
       </p>
 
       <dl className="grid gap-2 text-sm mb-4 sm:grid-cols-3">
@@ -53,14 +73,30 @@ export function AdminSalonOnboardingPanel({
           <dd className="font-medium">{welcomeSentAt ? "Sent" : "Not sent yet"}</dd>
         </div>
         <div>
-          <dt className="text-muted">Payment required</dt>
-          <dd className="font-medium">{subscriptionRequired ? "Yes" : "No"}</dd>
+          <dt className="text-muted">Free trial</dt>
+          <dd className="font-medium capitalize">{onFreeTrial ? status : "Not started"}</dd>
         </div>
         <div>
-          <dt className="text-muted">Subscription</dt>
-          <dd className="font-medium capitalize">{subscriptionStatus}</dd>
+          <dt className="text-muted">Billing after trial</dt>
+          <dd className="font-medium">{subscriptionRequired ? "Required" : "Off"}</dd>
         </div>
       </dl>
+
+      {canStartTrial && (
+        <div className="mb-4">
+          <button
+            type="button"
+            disabled={trialLoading}
+            onClick={() => void handleStartTrial()}
+            className="rounded-lg border border-accent px-4 py-2 text-sm font-medium text-accent hover:bg-accent/10 disabled:opacity-50"
+          >
+            {trialLoading ? "Activating…" : "Start 30-day free trial (existing client)"}
+          </button>
+          <p className="text-xs text-muted mt-1">
+            Use this for salons that already received a welcome email before the free-trial rollout.
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSend} className="space-y-3">
         <div className="flex flex-wrap gap-2 items-end">

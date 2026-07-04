@@ -83,8 +83,8 @@ export default async function AdminEditSalonPage({
   const checklist: { label: string; done: boolean; hint: string }[] = [
     { label: "Platform plan", done: true, hint: "Save Essentials / Professional / Complete below" },
     { label: "Branding", done: brandingDone, hint: "Set company name, logo, primary colour" },
-    { label: "Welcome email sent", done: Boolean(welcomeSentAt), hint: "Owner gets login + payment link" },
-    { label: "Subscription paid", done: paymentActive, hint: "Owner pays via link — unlocks dashboard" },
+    { label: "Welcome email sent", done: Boolean(welcomeSentAt), hint: "Owner gets login link + 30-day free trial" },
+    { label: "Free trial / paid", done: paymentActive, hint: "Dashboard open during trial; billing starts after 30 days" },
     { label: "Front desk login (optional)", done: frontDeskDone, hint: "Shared staff login after owner is live" },
   ];
 

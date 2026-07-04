@@ -266,14 +266,14 @@ export async function sendSalonWelcomeEmail(params: {
   const html = `
     <p>Hi ${escapeHtmlPlainText(params.ownerName)},</p>
     <p>Welcome to <strong>SalonSynk</strong> — your account for <strong>${escapeHtmlPlainText(params.salonName)}</strong> is ready.</p>
-    <p>You chose the <strong>${escapeHtmlPlainText(params.planLabel)}</strong> plan (${escapeHtmlPlainText(params.planPrice)}). Complete these two steps to get started:</p>
+    <p>You chose the <strong>${escapeHtmlPlainText(params.planLabel)}</strong> plan (${escapeHtmlPlainText(params.planPrice)} after your free month). Here&apos;s how to get started:</p>
     <ol>
-      <li><strong>Set your password</strong> and create your login</li>
-      <li><strong>Pay for your first month</strong> — your subscription renews monthly after that</li>
+      <li><strong>Set your password</strong> and log in — your dashboard is open for the first <strong>30 days free</strong></li>
+      <li><strong>Add payment details</strong> (optional now) — we&apos;ll only charge after your free month ends</li>
     </ol>
     ${onboardingEmailButton(params.loginLink, "Set password & log in")}
-    ${onboardingEmailButton(params.paymentLink, `Pay ${params.planPrice} — first month`)}
-    <p style="color:#666;font-size:14px;">You can pay before or after setting your password. Dashboard access opens once payment is complete.</p>
+    ${onboardingEmailButton(params.paymentLink, "Add payment details — first month free")}
+    <p style="color:#666;font-size:14px;">Your dashboard opens as soon as you set your password. No payment is required today.</p>
     <p style="color:#666;font-size:14px;">Questions? Reply to this email or contact <a href="mailto:hello@salonsynk.com">hello@salonsynk.com</a>.</p>
   `;
   const { error } = await resend.emails.send({
@@ -299,14 +299,14 @@ export async function sendBarberWelcomeEmail(params: {
   const html = `
     <p>Hi ${escapeHtmlPlainText(params.ownerName)},</p>
     <p>Welcome to <strong>BarberSynk</strong> — your account for <strong>${escapeHtmlPlainText(params.businessName)}</strong> is ready.</p>
-    <p>Your plan is <strong>${escapeHtmlPlainText(params.planPrice)}</strong>. Complete these two steps to get started:</p>
+    <p>Your plan is <strong>${escapeHtmlPlainText(params.planPrice)}</strong> after your free month. Here&apos;s how to get started:</p>
     <ol>
-      <li><strong>Set your password</strong> and create your login</li>
-      <li><strong>Pay for your first month</strong> — your subscription renews monthly after that</li>
+      <li><strong>Set your password</strong> and log in — your dashboard is open for the first <strong>30 days free</strong></li>
+      <li><strong>Add payment details</strong> (optional now) — we&apos;ll only charge after your free month ends</li>
     </ol>
     ${onboardingEmailButton(params.loginLink, "Set password & log in")}
-    ${onboardingEmailButton(params.paymentLink, `Pay ${params.planPrice} — first month`)}
-    <p style="color:#666;font-size:14px;">Dashboard access opens once payment is complete.</p>
+    ${onboardingEmailButton(params.paymentLink, "Add payment details — first month free")}
+    <p style="color:#666;font-size:14px;">Your dashboard opens as soon as you set your password. No payment is required today.</p>
     <p style="color:#666;font-size:14px;">Questions? Contact <a href="mailto:hello@barbersynk.com">hello@barbersynk.com</a>.</p>
   `;
   const { error } = await resend.emails.send({
@@ -332,14 +332,14 @@ export async function sendNailWelcomeEmail(params: {
   const html = `
     <p>Hi ${escapeHtmlPlainText(params.ownerName)},</p>
     <p>Welcome to <strong>NailSynk</strong> — your account for <strong>${escapeHtmlPlainText(params.businessName)}</strong> is ready.</p>
-    <p>Your plan is <strong>${escapeHtmlPlainText(params.planPrice)}</strong>. Complete these two steps to get started:</p>
+    <p>Your plan is <strong>${escapeHtmlPlainText(params.planPrice)}</strong> after your free month. Here&apos;s how to get started:</p>
     <ol>
-      <li><strong>Set your password</strong> and create your login</li>
-      <li><strong>Pay for your first month</strong> — your subscription renews monthly after that</li>
+      <li><strong>Set your password</strong> and log in — your dashboard is open for the first <strong>30 days free</strong></li>
+      <li><strong>Add payment details</strong> (optional now) — we&apos;ll only charge after your free month ends</li>
     </ol>
     ${onboardingEmailButton(params.loginLink, "Set password & log in")}
-    ${onboardingEmailButton(params.paymentLink, `Pay ${params.planPrice} — first month`)}
-    <p style="color:#666;font-size:14px;">Dashboard access opens once payment is complete.</p>
+    ${onboardingEmailButton(params.paymentLink, "Add payment details — first month free")}
+    <p style="color:#666;font-size:14px;">Your dashboard opens as soon as you set your password. No payment is required today.</p>
     <p style="color:#666;font-size:14px;">Questions? Contact <a href="mailto:hello@nailsynk.com">hello@nailsynk.com</a>.</p>
   `;
   const { error } = await resend.emails.send({

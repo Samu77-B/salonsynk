@@ -67,10 +67,11 @@ export default async function BillingPage({
 
   return (
     <div className="mx-auto max-w-lg py-8">
-      <h1 className="text-2xl font-bold mb-2">Complete your subscription</h1>
+      <h1 className="text-2xl font-bold mb-2">Continue your subscription</h1>
       <p className="text-muted text-sm mb-6">
-        Welcome to SalonSynk for <strong className="text-foreground">{salonRow.name as string}</strong>.
-        Pay for your first month to unlock your dashboard. Your plan renews monthly after that.
+        Your free trial for <strong className="text-foreground">{salonRow.name as string}</strong> has
+        ended. Add payment to keep your SalonSynk dashboard — your plan is{" "}
+        {formatPlanPrice(planTier)} after that.
       </p>
 
       {params.success === "1" && (
@@ -101,7 +102,7 @@ export default async function BillingPage({
           href={payUrl}
           className="inline-flex rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-background"
         >
-          Pay {formatPlanPrice(planTier)} — first month
+          Pay {formatPlanPrice(planTier)} — continue subscription
         </a>
       ) : isOwner ? (
         <p className="text-sm text-red-400">

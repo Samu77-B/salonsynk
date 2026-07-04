@@ -13,7 +13,7 @@ function hashHasAuthTokens(hash: string): boolean {
 function passwordSetupPath(type: string | null, isSuperAdmin: boolean): string {
   if (isSuperAdmin) return "/admin";
   const needsPassword = type === "recovery" || type === "invite" || type === "signup";
-  return needsPassword ? "/update-password?next=/billing" : "/dashboard";
+  return needsPassword ? "/update-password?next=/dashboard" : "/dashboard";
 }
 
 function isSalonHost(hostname: string): boolean {

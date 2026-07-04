@@ -695,6 +695,7 @@ export async function adminSendSalonWelcomeEmail(
     .update({
       payment_invite_token: paymentToken,
       subscription_required: true,
+      subscription_status: "trialing",
       onboarding_welcome_sent_at: new Date().toISOString(),
     })
     .eq("id", salonId);
@@ -719,6 +720,23 @@ export async function adminSendSalonWelcomeEmail(
   });
   if (emailResult.error) return { error: emailResult.error };
 
+  revalidatePath("/admin/salons");
+  revalidatePath(`/admin/salons/${salonId}`);
+  return {};
+}
+
+/** Grant 30-day dashboard access without payment (e.g. existing clients before trial rollout). */
+export async function adminStartSalonFreeTrial(salonId: string): Promise<{ error?: string }> {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("salons")
+    .update({
+      subscription_required: true,
+      subscription_status: "trialing",
+    })
+    .eq("id", salonId);
+  if (error) return { error: error.message };
   revalidatePath("/admin/salons");
   revalidatePath(`/admin/salons/${salonId}`);
   return {};

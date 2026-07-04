@@ -25,6 +25,9 @@ export function AdminPlatformOnboardingPanel({
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
+  const status = subscriptionStatus.toLowerCase();
+  const onFreeTrial = status === "trialing" || status === "active";
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
@@ -42,7 +45,7 @@ export function AdminPlatformOnboardingPanel({
     } else {
       setMsg({
         type: "ok",
-        text: "Welcome email sent with login and payment links. Dashboard access is locked until they pay.",
+        text: "Welcome email sent. The owner gets 30 days free — dashboard opens after they set their password.",
       });
     }
   }
@@ -51,8 +54,8 @@ export function AdminPlatformOnboardingPanel({
     <section className="rounded-xl border border-border bg-background/60 p-4 shadow-sm">
       <h2 className="text-lg font-semibold mb-1">Client onboarding</h2>
       <p className="text-sm text-muted mb-4">
-        Send the welcome email. The owner gets a link to set their password and pay £25/month for{" "}
-        {productName}. They cannot use the dashboard until payment is complete.
+        Send the welcome email. New {productName} clients get <strong>30 days free</strong> — they set a
+        password and can use the dashboard straight away. Payment is only required after the free month.
       </p>
 
       <dl className="grid gap-2 text-sm mb-4 sm:grid-cols-3">
@@ -61,12 +64,12 @@ export function AdminPlatformOnboardingPanel({
           <dd className="font-medium">{welcomeSentAt ? "Sent" : "Not sent yet"}</dd>
         </div>
         <div>
-          <dt className="text-muted">Payment required</dt>
-          <dd className="font-medium">{subscriptionRequired ? "Yes" : "No"}</dd>
+          <dt className="text-muted">Free trial</dt>
+          <dd className="font-medium capitalize">{onFreeTrial ? status : "Not started"}</dd>
         </div>
         <div>
-          <dt className="text-muted">Subscription</dt>
-          <dd className="font-medium capitalize">{subscriptionStatus}</dd>
+          <dt className="text-muted">Billing after trial</dt>
+          <dd className="font-medium">{subscriptionRequired ? "Required" : "Off"}</dd>
         </div>
       </dl>
 
@@ -104,7 +107,7 @@ export function AdminPlatformOnboardingPanel({
             disabled={loading}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
           >
-            {loading ? "Sending…" : "Send welcome + payment email"}
+            {loading ? "Sending…" : "Send welcome email"}
           </button>
         </div>
         {msg?.type === "ok" && <p className="text-sm text-green-400">{msg.text}</p>}

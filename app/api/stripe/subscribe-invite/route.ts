@@ -19,6 +19,7 @@ import {
 } from "@core/billing/platform-billing";
 import { fetchTenantByPaymentToken } from "@core/billing/platform-onboarding";
 import { stripeMetadataForTenant } from "@core/billing/stripe-metadata";
+import { stripeOnboardingTrialPeriod } from "@core/billing/stripe-trial";
 
 function parsePlatform(raw: string | null): BillingPlatform {
   if (raw === "barber" || raw === "nail") return raw;
@@ -100,7 +101,7 @@ export async function GET(request: Request) {
       success_url: `${appUrl}${billingPath}?success=1`,
       cancel_url: `${appUrl}${billingPath}?cancel=1`,
       metadata,
-      subscription_data: { metadata },
+      subscription_data: { metadata, ...stripeOnboardingTrialPeriod() },
     });
 
     if (!session.url) {
