@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAuthCallbackUrl } from "@core/auth/auth-redirect";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { revalidatePath } from "next/cache";
 import { hashPasscode } from "@/lib/passcode";
@@ -51,11 +52,7 @@ export async function inviteOrAddTeamMember(
 
     try {
       const admin = createAdminClient();
-      const baseUrl =
-        process.env.NEXT_PUBLIC_APP_URL ||
-        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-        "https://salonsynk.vercel.app";
-      const redirectTo = `${baseUrl}/auth/callback`;
+      const redirectTo = getAuthCallbackUrl("salon");
       const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
         type: "invite",
         email: trimmedEmail,

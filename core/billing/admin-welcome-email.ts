@@ -3,11 +3,10 @@
 import { createAdminClient } from "@core/supabase/admin";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
+import { getAuthCallbackUrl } from "@core/auth/auth-redirect";
 import {
   formatPlatformPrice,
-  getPlatformAppBaseUrl,
   paymentInviteUrl,
-  platformBillingPath,
   platformProductName,
   type BillingPlatform,
 } from "@core/billing/platform-billing";
@@ -67,9 +66,7 @@ export async function adminSendPlatformWelcomeEmail(
   const productName = platformProductName(platform);
   const planPrice = formatPlatformPrice(platform);
 
-  const baseUrl = getPlatformAppBaseUrl(platform);
-  const billingPath = platformBillingPath(platform);
-  const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent(billingPath)}`;
+  const redirectTo = getAuthCallbackUrl(platform);
 
   const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
     type: "invite",

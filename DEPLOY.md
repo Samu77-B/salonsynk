@@ -69,12 +69,13 @@ For **barbersynk.com**, **nailsynk.com**, and **smartsynk.net**, add each domain
 In **Supabase** → **Authentication** → **URL Configuration**:
 
 - **Site URL:** `https://salonsynk.com`
-- **Redirect URLs:** add:
+- **Redirect URLs:** add exact paths (no query strings on these entries):
   - `https://salonsynk.com/auth/callback`
   - `https://barbersynk.com/auth/callback`
   - `https://nailsynk.com/auth/callback`
   - `https://smartsynk.net/auth/callback`
   - Keep `http://localhost:3000/auth/callback` for local dev
+- Optional wildcards if you add query params to callback URLs later: `https://salonsynk.com/auth/callback**`
 
 ---
 

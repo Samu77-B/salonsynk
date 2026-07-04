@@ -151,7 +151,5 @@ export async function resolveUserPlatform(userId: string): Promise<UserPlatformR
 }
 
 export function getPlatformCallbackUrl(platform: "salon" | "barber" | "nail"): string {
-  const base = PLATFORM_URLS[platform];
-  const next = DASHBOARD_PATHS[platform];
-  return `${base}/auth/callback?next=${encodeURIComponent(next)}`;
+  return `${PLATFORM_URLS[platform].replace(/\/$/, "")}/auth/callback`;
 }

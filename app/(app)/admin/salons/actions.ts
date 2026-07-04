@@ -8,9 +8,9 @@ import { isMissingShowOnDiaryColumnError } from "@/lib/show-on-diary";
 import { isPlanTierId, PLAN_TIERS, formatPlanPrice, type PlanTierId } from "@/config/plans";
 import {
   generatePaymentInviteToken,
-  getAppBaseUrl,
   paymentInviteUrl,
 } from "@/lib/onboarding";
+import { getAuthCallbackUrl } from "@core/auth/auth-redirect";
 import { isPaymentGatewayId, type PaymentGatewayId } from "@/config/payment-gateways";
 
 /**
@@ -349,11 +349,7 @@ export async function adminInviteOwner(
     .single();
   const salonName = (salon?.name as string) || "the salon";
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-    "https://salonsynk.vercel.app";
-  const redirectTo = `${baseUrl}/auth/callback`;
+  const redirectTo = getAuthCallbackUrl("salon");
 
   const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
     type: "invite",
@@ -511,11 +507,7 @@ export async function adminInviteStaff(
     .single();
   const salonName = (salon?.name as string) || "the salon";
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-    "https://salonsynk.vercel.app";
-  const redirectTo = `${baseUrl}/auth/callback`;
+  const redirectTo = getAuthCallbackUrl("salon");
 
   const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
     type: "invite",
@@ -571,11 +563,7 @@ export async function adminResendOwnerInvite(
   if (!salon) return { error: "Salon not found" };
   const salonName = (salon.name as string) || "the salon";
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-    "https://salonsynk.vercel.app";
-  const redirectTo = `${baseUrl}/auth/callback`;
+  const redirectTo = getAuthCallbackUrl("salon");
 
   function getActionLink(d: unknown): string | null {
     if (!d || typeof d !== "object") return null;
@@ -661,8 +649,7 @@ export async function adminSendSalonWelcomeEmail(
   const ownerName = (displayName?.trim() || trimmed.split("@")[0]) || "there";
   const salonName = (salon.name as string) || "your salon";
 
-  const baseUrl = getAppBaseUrl();
-  const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent("/billing")}`;
+  const redirectTo = getAuthCallbackUrl("salon");
 
   const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
     type: "invite",

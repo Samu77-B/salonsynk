@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PlanTierId } from "@/config/plans";
 import { isPlanTierId } from "@/config/plans";
+import { SITE } from "@core/config/site";
 
 export type SalonOnboardingRow = {
   id: string;
@@ -27,9 +28,8 @@ export function salonRequiresPayment(row: SalonOnboardingRow): boolean {
 
 export function getAppBaseUrl(): string {
   return (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-    "https://salonsynk.com"
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    SITE.url
   ).replace(/\/$/, "");
 }
 

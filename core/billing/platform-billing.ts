@@ -1,7 +1,6 @@
 import { BARBER_SITE } from "@core/config/barber-site";
 import { NAIL_SITE } from "@core/config/nail-site";
 import { SITE } from "@core/config/site";
-import { getAppBaseUrl } from "@/lib/onboarding";
 
 export type BillingPlatform = "salon" | "barber" | "nail";
 
@@ -25,7 +24,7 @@ export function formatPlatformPrice(platform: "barber" | "nail"): string {
 export function getPlatformAppBaseUrl(platform: BillingPlatform): string {
   if (platform === "barber") return BARBER_SITE.url.replace(/\/$/, "");
   if (platform === "nail") return NAIL_SITE.url.replace(/\/$/, "");
-  return getAppBaseUrl();
+  return SITE.url.replace(/\/$/, "");
 }
 
 export function platformBillingPath(platform: BillingPlatform): string {
