@@ -35,7 +35,7 @@ export default async function UpdatePasswordPage() {
           </Link>
           <h1 className="text-2xl font-bold">Set your password</h1>
           <p className="text-muted text-sm mt-1">
-            Choose a password for {user.email ?? "your account"} to finish setting up your login.
+            Choose a new password for {user.email ?? "your account"} to finish setting up your login.
           </p>
         </div>
         <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>

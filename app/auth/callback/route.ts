@@ -105,7 +105,17 @@ export async function GET(request: Request) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      const redirectUrl = await resolvePostAuthRedirect(origin, host, next, authType);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const effectiveType =
+        authType ?? (user?.invited_at ? "invite" : null);
+      const redirectUrl = await resolvePostAuthRedirect(
+        origin,
+        host,
+        next,
+        effectiveType
+      );
       return NextResponse.redirect(redirectUrl);
     }
   }

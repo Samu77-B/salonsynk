@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { SITE } from "@core/config/site";
 
@@ -9,11 +8,6 @@ const SALON_HOSTS = ["salonsynk.com", "www.salonsynk.com", "localhost"];
 
 function hashHasAuthTokens(hash: string): boolean {
   return hash.includes("access_token") || hash.includes("error=");
-}
-
-function parseHashType(hash: string): string | null {
-  const params = new URLSearchParams(hash.replace(/^#/, ""));
-  return params.get("type");
 }
 
 function passwordSetupPath(type: string | null): string {
@@ -31,10 +25,17 @@ function isSalonHost(hostname: string): boolean {
  * Also moves auth hashes from preview hosts (e.g. *.vercel.app) to salonsynk.com.
  */
 export function AuthHashHandler() {
-  const router = useRouter();
+  const [status, setStatus] = useState<"idle" | "working" | "done">("idle");
 
   useEffect(() => {
-    const hash = window.location.hash;
+    const { pathname, search, hash } = window.location;
+
+    // Misconfigured redirects sometimes land ?code= on the homepage instead of /auth/callback.
+    if (pathname === "/" && search.includes("code=") && !search.includes("error=")) {
+      window.location.replace(`/auth/callback${search}`);
+      return;
+    }
+
     if (!hash || !hashHasAuthTokens(hash)) return;
 
     if (!isSalonHost(window.location.hostname) && hash.includes("access_token")) {
@@ -44,32 +45,44 @@ export function AuthHashHandler() {
 
     if (hash.includes("error=")) {
       window.history.replaceState(null, "", window.location.pathname);
-      router.replace("/login?error=auth");
+      window.location.assign("/login?error=auth");
       return;
     }
 
-    const type = parseHashType(hash);
-    const supabase = createClient();
+    const params = new URLSearchParams(hash.replace(/^#/, ""));
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+    const type = params.get("type");
 
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) return;
-      if (event !== "SIGNED_IN" && event !== "PASSWORD_RECOVERY" && event !== "TOKEN_REFRESHED") {
+    if (!accessToken || !refreshToken) return;
+
+    setStatus("working");
+
+    void (async () => {
+      const supabase = createClient();
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+
+      if (error) {
+        window.location.assign("/login?error=auth");
         return;
       }
 
-      data.subscription.unsubscribe();
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      router.replace(passwordSetupPath(type));
-    });
+      setStatus("done");
+      // Full navigation so the server sees the new session cookies.
+      window.location.assign(passwordSetupPath(type));
+    })();
+  }, []);
 
-    void supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) return;
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      router.replace(passwordSetupPath(type));
-    });
+  if (status !== "working") return null;
 
-    return () => data.subscription.unsubscribe();
-  }, [router]);
-
-  return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-canvas/95 px-4">
+      <p className="text-sm text-muted">Setting up your login…</p>
+    </div>
+  );
 }
