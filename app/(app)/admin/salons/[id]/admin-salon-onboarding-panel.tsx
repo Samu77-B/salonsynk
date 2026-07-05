@@ -24,7 +24,7 @@ export function AdminSalonOnboardingPanel({
 
   const status = subscriptionStatus.toLowerCase();
   const onFreeTrial = status === "trialing" || status === "active";
-  const canStartTrial = !onFreeTrial && welcomeSentAt;
+  const canStartTrial = !onFreeTrial;
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();

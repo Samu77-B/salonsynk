@@ -7,6 +7,7 @@ import {
   fetchSalonOnboardingState,
   paymentInviteUrl,
   parsePlanTier,
+  salonBillingGateCopy,
   salonRequiresPayment,
   salonSubscriptionIsActive,
 } from "@/lib/onboarding";
@@ -56,6 +57,12 @@ export default async function BillingPage({
 
   const planTier = parsePlanTier(salonRow.plan_tier as string | null);
   const planMeta = PLAN_TIERS[planTier];
+  const planPrice = formatPlanPrice(planTier);
+  const billingCopy = salonBillingGateCopy(
+    salonRow.subscription_status as string | null,
+    salonRow.name as string,
+    planPrice
+  );
   const token = (salonRow.payment_invite_token as string | null)?.trim();
   const payUrl = token ? paymentInviteUrl(token) : null;
   const isOwner = (context.member.role ?? "").toLowerCase() === "owner";
@@ -67,12 +74,8 @@ export default async function BillingPage({
 
   return (
     <div className="mx-auto max-w-lg py-8">
-      <h1 className="text-2xl font-bold mb-2">Continue your subscription</h1>
-      <p className="text-muted text-sm mb-6">
-        Your free trial for <strong className="text-foreground">{salonRow.name as string}</strong> has
-        ended. Add payment to keep your SalonSynk dashboard — your plan is{" "}
-        {formatPlanPrice(planTier)} after that.
-      </p>
+      <h1 className="text-2xl font-bold mb-2">{billingCopy.title}</h1>
+      <p className="text-muted text-sm mb-6">{billingCopy.intro}</p>
 
       {params.success === "1" && (
         <p className="mb-4 rounded-lg border border-green-500/40 bg-green-500/10 px-4 py-3 text-sm text-green-400">
@@ -102,7 +105,7 @@ export default async function BillingPage({
           href={payUrl}
           className="inline-flex rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-background"
         >
-          Pay {formatPlanPrice(planTier)} — continue subscription
+          Pay {planPrice} — {billingCopy.ctaSuffix}
         </a>
       ) : isOwner ? (
         <p className="text-sm text-red-400">

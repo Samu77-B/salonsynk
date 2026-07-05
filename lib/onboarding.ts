@@ -101,6 +101,33 @@ export function parsePlanTier(raw: string | null | undefined): PlanTierId {
   return isPlanTierId(tier) ? tier : "professional";
 }
 
+export type BillingGateCopy = {
+  title: string;
+  intro: string;
+  ctaSuffix: string;
+};
+
+/** Copy for /billing when subscription is required but not active/trialing. */
+export function salonBillingGateCopy(
+  status: string | null | undefined,
+  salonName: string,
+  planPrice: string
+): BillingGateCopy {
+  const s = (status ?? "").toLowerCase();
+  if (s === "canceled" || s === "past_due") {
+    return {
+      title: "Continue your subscription",
+      intro: `Your subscription for ${salonName} needs attention. Add payment to keep your SalonSynk dashboard — your plan is ${planPrice} after that.`,
+      ctaSuffix: "continue subscription",
+    };
+  }
+  return {
+    title: "Complete your subscription",
+    intro: `Welcome to SalonSynk for ${salonName}. Your first ${ONBOARDING_FREE_TRIAL_DAYS} days are free — if you expected dashboard access already, your free trial may not be activated yet (contact hello@salonsynk.com). You can also add payment below; your plan is ${planPrice}/mo after the free month.`,
+    ctaSuffix: "start subscription",
+  };
+}
+
 export function generatePaymentInviteToken(): string {
   return crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 }
