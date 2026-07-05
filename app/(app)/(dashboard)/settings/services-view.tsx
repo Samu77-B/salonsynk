@@ -37,6 +37,23 @@ function defaultProcessingMinutes(durationMin: number): number {
   return Math.min(durationMin, Math.max(15, v));
 }
 
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path
+        fillRule="evenodd"
+        d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Category management strip
 // ---------------------------------------------------------------------------
@@ -368,6 +385,7 @@ function ServiceCard({
   const [description, setDescription] = useState(service.description ?? "");
   const [serviceColor, setServiceColor] = useState(service.color ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(service.category_id ?? null);
+  const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [feedback, setFeedback] = useState<"saved" | "error" | null>(null);
@@ -471,41 +489,38 @@ function ServiceCard({
     }
   }
 
+  const displayCategory = categoryName ?? (categories.length > 0 ? "Uncategorised" : null);
+
   return (
     <article
-      className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-background p-4 shadow-sm overflow-hidden"
-      style={effectiveDiaryColor ? { borderTopWidth: 4, borderTopColor: effectiveDiaryColor } : undefined}
+      className="min-w-0 overflow-hidden rounded-xl border border-border bg-background shadow-sm"
+      style={effectiveDiaryColor ? { borderLeftWidth: 4, borderLeftColor: effectiveDiaryColor } : undefined}
     >
-      {(categoryName || serviceColor.trim() || categoryColor.trim()) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {categoryName ? (
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-accent/15 px-2.5 py-1 text-xs font-medium text-foreground">
-              {categoryColor.trim() ? (
-                <span
-                  className="h-3 w-3 shrink-0 rounded-full border border-border"
-                  style={{ backgroundColor: categoryColor }}
-                  aria-hidden
-                />
-              ) : null}
-              {categoryName}
-            </span>
-          ) : null}
-          {serviceColor.trim() ? (
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        aria-controls={`svc-details-${service.id}`}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-background/80"
+      >
+        <ChevronIcon open={expanded} />
+        <span className="min-w-0 flex-1 truncate font-medium text-foreground">{name || "Unnamed service"}</span>
+        {displayCategory ? (
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
+            {categoryColor.trim() ? (
               <span
                 className="h-3 w-3 shrink-0 rounded-full border border-border"
-                style={{ backgroundColor: serviceColor }}
+                style={{ backgroundColor: categoryColor }}
                 aria-hidden
               />
-              Colour override
-            </span>
-          ) : categoryColor.trim() ? (
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
-              Uses category colour
-            </span>
-          ) : null}
-        </div>
-      )}
+            ) : null}
+            {displayCategory}
+          </span>
+        ) : null}
+      </button>
+
+      {expanded ? (
+        <div id={`svc-details-${service.id}`} className="flex flex-col gap-3 border-t border-border px-4 py-4">
       <div>
         <label htmlFor={`svc-name-${service.id}`} className="mb-1 block text-sm font-medium">
           Service name
@@ -657,6 +672,8 @@ function ServiceCard({
           </span>
         )}
       </div>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -719,7 +736,7 @@ export function ServicesView({
   return (
     <section className="space-y-8">
       <p className="text-sm text-muted">
-        Each service is a card: set timing and price. Services inherit their category&apos;s diary colour — use a per-service override only when one treatment should stand out. Optional: allow{" "}
+        Services are grouped by category. Click a row to expand and edit timing, price, and other details. Services inherit their category&apos;s diary colour — use a per-service override only when one treatment should stand out. Optional: allow{" "}
         <span className="font-medium text-foreground">overlap</span> when the client is processing (e.g. colour developing) so another client can be booked in that gap.
       </p>
 
@@ -953,7 +970,7 @@ export function ServicesView({
               {heading}
             </h2>
             {group.services.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
                 {group.services.map((s) => (
                   <ServiceCard key={s.id} salonId={salonId} service={s} categories={categories} />
                 ))}

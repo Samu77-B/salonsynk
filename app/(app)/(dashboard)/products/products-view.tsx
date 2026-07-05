@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   addProduct,
@@ -83,6 +83,23 @@ const inputClass =
 
 function minorToInputAmount(minor: number) {
   return (minor / 100).toFixed(2);
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path
+        fillRule="evenodd"
+        d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
 }
 
 const CSV_TEMPLATE = `name,price,category,description,image_url,sort_order,is_active
@@ -215,6 +232,7 @@ function ProductCard({
   const [sortOrder, setSortOrder] = useState(String(product.sort_order));
   const [isActive, setIsActive] = useState(product.is_active);
   const [linkedServiceIds, setLinkedServiceIds] = useState(product.linked_service_ids);
+  const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [feedback, setFeedback] = useState<"saved" | "error" | null>(null);
@@ -283,8 +301,27 @@ function ProductCard({
     } else router.refresh();
   }
 
+  const displayCategory = category.trim() || "Uncategorised";
+
   return (
-    <article className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-background p-4 shadow-sm">
+    <article className="min-w-0 overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        aria-controls={`product-details-${product.id}`}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-background/80"
+      >
+        <ChevronIcon open={expanded} />
+        <span className="min-w-0 flex-1 truncate font-medium text-foreground">{name || "Unnamed product"}</span>
+        <span className="shrink-0 text-sm text-muted-foreground">{displayCategory}</span>
+        {!isActive ? (
+          <span className="shrink-0 rounded-md bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">Inactive</span>
+        ) : null}
+      </button>
+
+      {expanded ? (
+        <div id={`product-details-${product.id}`} className="flex flex-col gap-3 border-t border-border px-4 py-4">
       <div>
         <label htmlFor={`product-name-${product.id}`} className="mb-1 block text-sm font-medium">
           Name
@@ -423,6 +460,8 @@ function ProductCard({
           </span>
         )}
       </div>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -456,6 +495,29 @@ export function ProductsView({
   const [csvSummary, setCsvSummary] = useState<string | null>(null);
   const [csvRowErrors, setCsvRowErrors] = useState<{ line: number; message: string }[]>([]);
   const [csvImportCurrency, setCsvImportCurrency] = useState("gbp");
+
+  const grouped = useMemo(() => {
+    const uncategorised: ProductRow[] = [];
+    const byCat = new Map<string, ProductRow[]>();
+    for (const p of products) {
+      const cat = p.category?.trim();
+      if (cat) {
+        const list = byCat.get(cat) ?? [];
+        list.push(p);
+        byCat.set(cat, list);
+      } else {
+        uncategorised.push(p);
+      }
+    }
+    const groups: { category: string | null; products: ProductRow[] }[] = [];
+    for (const cat of [...byCat.keys()].sort((a, b) => a.localeCompare(b))) {
+      groups.push({ category: cat, products: byCat.get(cat)! });
+    }
+    if (uncategorised.length > 0) {
+      groups.push({ category: null, products: uncategorised });
+    }
+    return groups;
+  }, [products]);
 
   if (!canManage) {
     return <p className="text-sm text-muted">Only owners can manage products.</p>;
@@ -710,22 +772,26 @@ export function ProductsView({
         </form>
       </div>
 
-      {products.length > 0 && (
-        <div>
-          <h2 className="mb-3 text-base font-semibold">Your products</h2>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {products.map((p) => (
-              <ProductCard
-                key={p.id}
-                salonId={salonId}
-                salonSlug={salonSlug}
-                servicesForLinks={servicesForLinks}
-                product={p}
-              />
-            ))}
+      {grouped.map((group) => {
+        const key = group.category ?? "__uncategorised";
+        const heading = group.category ?? "Uncategorised";
+        return (
+          <div key={key}>
+            <h2 className="mb-3 text-base font-semibold">{heading}</h2>
+            <div className="space-y-2">
+              {group.products.map((p) => (
+                <ProductCard
+                  key={p.id}
+                  salonId={salonId}
+                  salonSlug={salonSlug}
+                  servicesForLinks={servicesForLinks}
+                  product={p}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })}
 
       {products.length === 0 && <p className="text-sm text-muted">No products yet. Add one above.</p>}
     </section>
