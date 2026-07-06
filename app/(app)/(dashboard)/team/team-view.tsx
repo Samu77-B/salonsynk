@@ -5,6 +5,11 @@ import Image from "next/image";
 import { inviteOrAddTeamMember, updateTeamMember, deleteTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles, upsertStylistServiceOverride, deleteStylistServiceOverride, setMemberPasscode, clearMemberPasscode } from "./actions";
 import { StaffOnboardingWizard } from "./staff-onboarding-wizard";
 import { formatDurationMinutes } from "@/lib/format-duration";
+import {
+  EMPLOYMENT_TYPE_OPTIONS,
+  employmentTypeHint,
+  employmentTypeShortLabel,
+} from "@/config/employment-types";
 
 export type Member = {
   id: string;
@@ -269,7 +274,7 @@ export function TeamView({
                   )}
                   {m.role === "stylist" && (
                     <p className="text-xs text-muted">
-                      {(m.employment_type as string) === "RENTER" ? "Renter" : "Employee"}
+                      {employmentTypeShortLabel(m.employment_type)}
                     </p>
                   )}
                   <p className="mt-2 text-xs text-muted">
@@ -722,9 +727,10 @@ export function TeamView({
                       aria-label="Employment type"
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     >
-                      <option value="EMPLOYEE">Employee (100% to salon)</option>
-                      <option value="RENTER">Renter (split: stylist + admin fee to salon)</option>
+                      <option value="EMPLOYEE">{EMPLOYMENT_TYPE_OPTIONS.EMPLOYEE.selectLabel}</option>
+                      <option value="RENTER">{EMPLOYMENT_TYPE_OPTIONS.RENTER.selectLabel}</option>
                     </select>
+                    <p className="text-xs text-muted mt-1">{employmentTypeHint(editEmploymentType)}</p>
                   </div>
                   <label className="flex cursor-pointer items-start gap-2 text-sm leading-snug">
                     <input

@@ -8,6 +8,7 @@ import {
   adminAssignOwner,
   adminInviteOwner,
   adminCreateOwnerWithPassword,
+  adminSetOwnerPassword,
   adminResendOwnerInvite,
   adminAssignStaff,
   adminInviteStaff,
@@ -61,6 +62,12 @@ export function AdminEditSalonForm({
   const [createMsg, setCreateMsg] = useState<"saved" | "error" | null>(null);
   const [createErrorText, setCreateErrorText] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
+
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetMsg, setResetMsg] = useState<"saved" | "error" | null>(null);
+  const [resetErrorText, setResetErrorText] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   const [staffCreateEmail, setStaffCreateEmail] = useState("");
   const [staffCreatePassword, setStaffCreatePassword] = useState("");
@@ -328,6 +335,65 @@ export function AdminEditSalonForm({
             </form>
             {createMsg === "saved" && <p className="text-sm text-green-400 mt-2">Owner created. They can log in with that email and password.</p>}
             {createMsg === "error" && <p className="text-sm text-red-400 mt-2">{createErrorText || "Could not create."}</p>}
+          </div>
+          <div>
+            <h3 className="text-sm font-medium mb-1">Set owner password (no email)</h3>
+            <p className="text-xs text-muted mb-2">
+              For existing logins — e.g. demo accounts on <code className="text-xs">example.com</code> where password
+              recovery email cannot be received.
+            </p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!resetEmail.trim() || !resetPassword.trim()) return;
+                setResetMsg(null);
+                setResetErrorText("");
+                setResetLoading(true);
+                const result = await adminSetOwnerPassword(salonId, resetEmail, resetPassword);
+                setResetLoading(false);
+                setResetMsg(result.error ? "error" : "saved");
+                if (result.error) setResetErrorText(result.error);
+                else setResetPassword("");
+              }}
+              className="flex flex-wrap gap-2 items-end"
+            >
+              <div>
+                <label htmlFor="reset-email" className="sr-only">Email</label>
+                <input
+                  id="reset-email"
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="admin@example.com"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-64"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="reset-password" className="sr-only">New password</label>
+                <input
+                  id="reset-password"
+                  type="password"
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  placeholder="New password (min 6 chars)"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-44"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={resetLoading || !resetEmail.trim() || !resetPassword.trim()}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium disabled:opacity-50"
+              >
+                {resetLoading ? "Saving…" : "Set password"}
+              </button>
+            </form>
+            {resetMsg === "saved" && (
+              <p className="text-sm text-green-400 mt-2">Password updated. They can sign in with that email and password.</p>
+            )}
+            {resetMsg === "error" && <p className="text-sm text-red-400 mt-2">{resetErrorText || "Could not set password."}</p>}
           </div>
           <div>
             <h3 className="text-sm font-medium mb-1">Invite new owner (sends email)</h3>

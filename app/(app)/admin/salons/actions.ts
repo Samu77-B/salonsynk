@@ -329,6 +329,62 @@ export async function adminCreateOwnerWithPassword(
   return {};
 }
 
+/** Set password for an existing owner (e.g. demo accounts on example.com where email reset cannot be received). */
+export async function adminSetOwnerPassword(
+  salonId: string,
+  email: string,
+  password: string
+): Promise<{ error?: string }> {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) return { error: "Email is required" };
+  if (!password || password.length < 6) return { error: "Password must be at least 6 characters" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("email", trimmed)
+    .maybeSingle();
+
+  let userId = profile?.id as string | undefined;
+  if (!userId) {
+    const { data: listData, error: listError } = await supabase.auth.admin.listUsers({ perPage: 1000, page: 1 });
+    if (listError) return { error: listError.message };
+    userId = listData.users.find((u) => u.email?.toLowerCase() === trimmed)?.id;
+  }
+  if (!userId) return { error: "No user found with that email." };
+
+  const { data: member } = await supabase
+    .from("salon_members")
+    .select("id, role")
+    .eq("salon_id", salonId)
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!member || (member.role ?? "").toLowerCase() !== "owner") {
+    const { error: memberError } = await supabase.from("salon_members").upsert(
+      {
+        salon_id: salonId,
+        user_id: userId,
+        role: "owner",
+        display_name: trimmed.split("@")[0] || "Owner",
+        is_active: true,
+      },
+      { onConflict: "salon_id,user_id" }
+    );
+    if (memberError) return { error: memberError.message };
+  }
+
+  const { error: updateError } = await supabase.auth.admin.updateUserById(userId, { password });
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/admin/salons");
+  revalidatePath(`/admin/salons/${salonId}`);
+  return {};
+}
+
 /** Invite a new user by email and add them as salon owner. Sends invite via Resend. */
 export async function adminInviteOwner(
   salonId: string,

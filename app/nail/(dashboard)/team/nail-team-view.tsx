@@ -13,6 +13,11 @@ import {
   setNailMemberPasscode,
   clearNailMemberPasscode,
 } from "@modules/nail/actions/team";
+import {
+  EMPLOYMENT_TYPE_OPTIONS,
+  employmentTypeHint,
+  employmentTypeShortLabel,
+} from "@/config/employment-types";
 import { formatDurationMinutes } from "@/lib/format-duration";
 
 export type NailMember = {
@@ -296,7 +301,7 @@ export function NailTeamView({
                   )}
                   {m.role !== "owner" && m.role !== "Reception" && (
                     <p className="text-xs text-muted">
-                      {(m.employment_type as string) === "RENTER" ? "Renter" : "Employee"}
+                      {employmentTypeShortLabel(m.employment_type)}
                     </p>
                   )}
                   <p className="mt-2 text-xs text-muted">
@@ -858,9 +863,10 @@ export function NailTeamView({
                         }
                         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                       >
-                        <option value="EMPLOYEE">Employee</option>
-                        <option value="RENTER">Renter</option>
+                        <option value="EMPLOYEE">{EMPLOYMENT_TYPE_OPTIONS.EMPLOYEE.selectLabel}</option>
+                        <option value="RENTER">{EMPLOYMENT_TYPE_OPTIONS.RENTER.selectLabel}</option>
                       </select>
+                      <p className="text-xs text-muted mt-1">{employmentTypeHint(editEmploymentType)}</p>
                     </div>
                     <label className="flex cursor-pointer items-start gap-2 text-sm leading-snug">
                       <input

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { StaffElevationModal } from "@/app/(app)/staff-elevation-modal";
 import type { PaymentGatewayId } from "@/config/payment-gateways";
+import { employmentTypeShortLabel } from "@/config/employment-types";
 
 type Client = { id: string; name: string | null; email: string | null };
 type Service = { id: string; name: string; duration_minutes: number; price_minor: number };
@@ -285,7 +286,7 @@ export function CheckoutView({
         >
           {stylists.map((s) => (
             <option key={s.id} value={s.id}>
-              {s.displayName} ({s.employmentType === "RENTER" ? "Renter" : "Employee"})
+              {s.displayName} ({employmentTypeShortLabel(s.employmentType)})
             </option>
           ))}
         </select>

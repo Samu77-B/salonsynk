@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { PaymentGatewayId } from "@core/config/payment-gateways";
+import { employmentTypeShortLabel } from "@/config/employment-types";
 import { getRelevantNailVisitServices, recordNailCheckoutSale } from "./actions";
 
 type Client = { id: string; name: string | null; email: string | null };
@@ -185,7 +186,7 @@ export function NailCheckoutView({
         >
           {technicians.map((t) => (
             <option key={t.id} value={t.id}>
-              {t.displayName} ({t.employmentType === "RENTER" ? "Renter" : "Employee"})
+              {t.displayName} ({employmentTypeShortLabel(t.employmentType)})
             </option>
           ))}
         </select>
