@@ -284,11 +284,12 @@ export function AddAppointmentModal({
     >
       <div
         ref={panelRef}
-        className="w-full min-w-0 max-w-md max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6"
+        className="w-full min-w-0 max-w-md lg:max-w-4xl max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold mb-4">Add appointment</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-x-8 lg:items-start gap-y-4">
           <div className="space-y-4 min-w-0">
           <div>
             <label className="block text-sm font-medium mb-1">Stylist</label>
@@ -544,6 +545,8 @@ export function AddAppointmentModal({
               />
             </div>
           </div>
+          </div>
+          <div className="space-y-4 min-w-0">
           <ServicePickerField
             id="add-appointment-service-search"
             services={services}
@@ -559,7 +562,6 @@ export function AddAppointmentModal({
               At least one selected service uses processing time — another booking can overlap that window during processing.
             </p>
           )}
-          </div>
           <div ref={errorAndOverlapRef} className="space-y-3 scroll-mt-4">
           {submitError && (
             <p className="text-sm text-red-400" role="alert">
@@ -583,6 +585,8 @@ export function AddAppointmentModal({
                 </span>
               </span>
             </label>
+          </div>
+          </div>
           </div>
           </div>
           <div className="flex gap-2 pt-2">
