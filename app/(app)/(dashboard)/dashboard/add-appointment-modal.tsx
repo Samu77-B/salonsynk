@@ -279,12 +279,13 @@ export function AddAppointmentModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 pb-10 pt-[max(0.125rem,env(safe-area-inset-top))] sm:px-6 sm:pt-2 sm:pb-12"
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/60"
       onClick={onClose}
     >
+      <div className="flex min-h-full items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
       <div
         ref={panelRef}
-        className="w-full min-w-0 max-w-md lg:max-w-4xl max-h-[min(calc(100dvh-0.75rem),100%)] shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6"
+        className="w-full min-w-0 max-w-md lg:max-w-4xl shrink-0 rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold mb-4">Add appointment</h2>
@@ -598,6 +599,7 @@ export function AddAppointmentModal({
             </button>
           </div>
         </form>
+      </div>
       </div>
     </div>
   );
