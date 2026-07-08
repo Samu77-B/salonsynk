@@ -1184,26 +1184,27 @@ export function DiaryView({
                       return (
                         <div
                           key={m.id}
-                          className="flex-1 min-w-[100px] border-l border-border bg-muted/30 flex items-stretch overflow-hidden"
+                          className="flex-1 min-w-[100px] border-l border-border bg-muted/30 flex items-center gap-3 px-2 py-2 min-w-0 overflow-hidden"
                         >
-                          <div className="relative h-14 w-[7.5rem] shrink-0 overflow-hidden bg-muted">
+                          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-muted">
                             {m.avatar_url ? (
                               <Image
                                 src={m.avatar_url}
                                 alt={m.display_name || "Stylist"}
                                 fill
-                                className="object-cover scale-[2] object-[center_38%]"
-                                sizes="120px"
+                                className="object-cover"
+                                sizes="56px"
                               />
                             ) : (
-                              <span className="flex h-full w-full items-center justify-center text-base font-medium text-muted-foreground">
+                              <span className="flex h-full w-full items-center justify-center text-lg font-medium text-muted-foreground">
                                 {initials}
                               </span>
                             )}
                           </div>
-                          <span className="flex flex-1 items-center justify-end truncate px-2 text-sm font-semibold">
-                            {m.display_name || m.role}
-                          </span>
+                          <div className="min-w-0 pt-0.5">
+                            <p className="text-sm font-semibold truncate">{m.display_name || m.role}</p>
+                            <p className="text-xs text-muted capitalize truncate">{m.role}</p>
+                          </div>
                         </div>
                       );
                     })}
