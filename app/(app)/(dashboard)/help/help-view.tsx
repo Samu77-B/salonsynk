@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { DashboardDisclosure, DashboardSection } from "@/components/dashboard/page-layout";
-import { dashboardBtnPrimaryClass, dashboardInputClass, dashboardTextareaClass } from "@/components/dashboard/ui";
+import { dashboardBtnPrimaryClass, dashboardInputClass, dashboardTextareaClass, dashboardFlowClass } from "@/components/dashboard/ui";
 
 const SUPPORT_EMAIL = "hello@salonsynk.com";
 
@@ -45,7 +45,7 @@ export function HelpView({ salonName, userEmail }: { salonName: string; userEmai
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`${dashboardFlowClass} space-y-6`}>
       <DashboardDisclosure title="What SalonSynk does" defaultOpen>
         <p className="text-sm text-muted">
           Flat-fee salon management: diary, team, clients, checkout, online booking, and client communications — no

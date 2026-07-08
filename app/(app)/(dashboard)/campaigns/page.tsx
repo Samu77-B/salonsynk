@@ -5,6 +5,7 @@ import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { canViewReports } from "@/lib/dashboard-roles";
 import { audienceSummaryLine, normalizeCampaignSegment } from "@/lib/campaign-audience";
 import { CampaignComposer } from "./campaign-composer";
+import { dashboardFlowClass, dashboardStaggerClass } from "@/components/dashboard/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export default async function CampaignsPage() {
     .limit(25);
 
   return (
-    <main className="mx-auto w-full min-w-0 max-w-5xl space-y-8 p-4 md:p-6">
+    <main className={`mx-auto w-full min-w-0 max-w-5xl ${dashboardFlowClass} space-y-8 p-4 md:p-6`}>
       <div>
         <h1 className="text-2xl font-bold">Campaigns</h1>
         <p className="text-sm text-muted mt-1 max-w-2xl">
@@ -61,7 +62,7 @@ export default async function CampaignsPage() {
         {!past?.length ? (
           <p className="text-sm text-muted">No campaigns yet.</p>
         ) : (
-          <ul className="space-y-2 text-sm">
+          <ul className={`space-y-2 text-sm ${dashboardStaggerClass}`}>
             {past.map((row) => {
               const r = row as {
                 id: string;

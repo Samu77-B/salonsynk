@@ -11,7 +11,7 @@ import {
   employmentTypeShortLabel,
 } from "@/config/employment-types";
 import { DashboardPageHeader } from "@/components/dashboard/page-layout";
-import { dashboardBtnPrimaryClass, dashboardCardClass } from "@/components/dashboard/ui";
+import { dashboardBtnPrimaryClass, dashboardCardClass, dashboardFlowClass, dashboardStaggerClass } from "@/components/dashboard/ui";
 
 export type Member = {
   id: string;
@@ -209,7 +209,7 @@ export function TeamView({
   const pendingOnboarding = members.filter((m) => m.is_active && !m.onboarding_completed_at);
 
   return (
-    <div className="space-y-6 min-w-0">
+    <div className={`${dashboardFlowClass} space-y-6 min-w-0`}>
       <DashboardPageHeader
         title="Team"
         description="Stylists and staff who appear on your diary and booking page."
@@ -237,7 +237,7 @@ export function TeamView({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className={`grid gap-4 sm:grid-cols-2 xl:grid-cols-3 ${dashboardStaggerClass}`}>
         {members.map((m) => (
           <div
             key={m.id}

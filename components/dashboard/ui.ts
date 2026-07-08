@@ -21,3 +21,12 @@ export const dashboardCardClass =
 
 export const dashboardSectionClass =
   "rounded-xl border border-border bg-card p-4 sm:p-6";
+
+/** Page-level fade-in on route change (use on shell wrapper). */
+export const dashboardPageEnterClass = "dashboard-page-enter";
+
+/** Stagger direct children vertically (headers, sections, panels). */
+export const dashboardFlowClass = "dashboard-flow";
+
+/** Stagger grid/list cards as they appear. */
+export const dashboardStaggerClass = "dashboard-stagger";

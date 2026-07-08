@@ -10,6 +10,7 @@ import {
   importProductsFromCsv,
 } from "./actions";
 import { PRODUCT_CURRENCY_OPTIONS } from "@/lib/product-currency";
+import { dashboardFlowClass, dashboardStaggerClass } from "@/components/dashboard/ui";
 
 const DESCRIPTION_MAX = 2000;
 
@@ -524,7 +525,7 @@ export function ProductsView({
   }
 
   return (
-    <section className="space-y-6">
+    <section className={`${dashboardFlowClass} space-y-6`}>
       <p className="text-sm text-muted">
         Retail items (shampoos, conditioners, etc.) are separate from appointment services. Your public shop uses the same
         slug as booking:{" "}
@@ -778,7 +779,7 @@ export function ProductsView({
         return (
           <div key={key}>
             <h2 className="mb-3 text-base font-semibold">{heading}</h2>
-            <div className="space-y-2">
+            <div className={`space-y-2 ${dashboardStaggerClass}`}>
               {group.products.map((p) => (
                 <ProductCard
                   key={p.id}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Reveal } from "@/components/reveal";
 import { DashboardPage, DashboardPageHeader } from "@/components/dashboard/page-layout";
+import { dashboardFlowClass, dashboardStaggerClass } from "@/components/dashboard/ui";
 import { requireSalonFeature } from "@/lib/salon-features.server";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
@@ -521,7 +522,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const productsOnHref = appendProductsToReportsHref(productsOffHref, true);
 
   return (
-    <DashboardPage width="wide" className="space-y-6">
+    <DashboardPage width="wide" className={`${dashboardFlowClass} space-y-6`}>
       <Reveal>
       <DashboardPageHeader
         title="Reports"
@@ -609,7 +610,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       </Reveal>
 
       <Reveal>
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <section className={`grid gap-3 md:grid-cols-2 xl:grid-cols-4 ${dashboardStaggerClass}`}>
         <div className="rounded-lg border border-border p-4">
           <p className="text-xs uppercase tracking-wide text-muted">{ctx.salesLabel}</p>
           <p className="mt-2 text-2xl font-semibold">{formatMoney(currentSalesAgg.totalSalesMinor)}</p>
@@ -639,7 +640,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
       {includeProducts && (
         <Reveal>
-        <section className="grid gap-3 md:grid-cols-2">
+        <section className={`grid gap-3 md:grid-cols-2 ${dashboardStaggerClass}`}>
           <div className="rounded-lg border border-border p-4">
             <p className="text-xs uppercase tracking-wide text-muted">Product-tagged sales</p>
             <p className="mt-2 text-2xl font-semibold">{formatMoney(currentProductAgg.totalProductSalesMinor)}</p>
@@ -676,7 +677,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       )}
 
       <Reveal>
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className={`grid gap-4 lg:grid-cols-2 ${dashboardStaggerClass}`}>
         <div className="rounded-lg border border-border p-4">
           <h2 className="text-lg font-semibold mb-2">Top services</h2>
           {currentAgg.topServices.length === 0 ? (

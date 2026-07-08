@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition, useEffect, useCallback, useMemo } from "react";
 import { countMarketingRecipientsAction, sendMarketingCampaignAction } from "./actions";
 import { CampaignRichEditor } from "./campaign-rich-editor";
+import { dashboardFlowClass } from "@/components/dashboard/ui";
 import {
   CAMPAIGN_AUDIENCE_LABELS,
   CAMPAIGN_AUDIENCE_SEGMENTS,
@@ -171,7 +172,7 @@ export function CampaignComposer({
         </ol>
       </div>
 
-      <div className="p-4 sm:p-6 space-y-6">
+      <div className={`p-4 sm:p-6 ${dashboardFlowClass} space-y-6`}>
         {step === 1 && (
           <div className="space-y-5">
             <div className="rounded-lg border border-border bg-background/50 p-4 sm:p-5 space-y-4">

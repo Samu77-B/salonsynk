@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, updateDepositSettings, updateReminderSettings, updateSalonMarketingSettings } from "./actions";
 import type { PlatformFeatureId } from "@/config/plans";
-import { dashboardBtnPrimaryClass, dashboardInputClass, dashboardSectionClass } from "@/components/dashboard/ui";
+import { dashboardBtnPrimaryClass, dashboardInputClass, dashboardSectionClass, dashboardFlowClass } from "@/components/dashboard/ui";
 
 export function SettingsView(props: {
   salonId: string;
@@ -131,7 +131,7 @@ export function SettingsView(props: {
   }
 
   return (
-    <div className="space-y-4">
+    <div className={`${dashboardFlowClass} space-y-4`}>
       <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Business</h2>
         <p className="text-muted text-sm">{salonName}</p>

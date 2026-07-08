@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { upsertStaffTarget, deleteStaffTarget, type TargetType, type TargetPeriod } from "./actions";
+import { dashboardFlowClass, dashboardStaggerClass } from "@/components/dashboard/ui";
 
 type Member = { id: string; display_name: string; role: string; avatar_url: string | null };
 type Target = { id: string; member_id: string; target_type: TargetType; target_value: number; period: TargetPeriod; is_active: boolean };
@@ -107,7 +108,7 @@ export function TargetsView({
   ];
 
   return (
-    <div className="space-y-4">
+    <div className={`${dashboardFlowClass} space-y-4`}>
       <div className="flex border-b border-border">
         {tabs.map((t) => (
           <button
@@ -188,7 +189,7 @@ export function TargetsView({
           {members.length === 0 ? (
             <p className="text-sm text-muted py-8 text-center">No active team members.</p>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className={`grid gap-4 sm:grid-cols-2 xl:grid-cols-3 ${dashboardStaggerClass}`}>
               {members.map((m) => {
                 const memberTargets = targets.filter((t) => t.member_id === m.id);
                 const p = progress[m.id];

@@ -6,6 +6,7 @@ import { addService, updateService, deleteService, addCategory, updateCategory, 
 import { formatDurationMinutes } from "@/lib/format-duration";
 import { serviceColorLabel, serviceColorOptions } from "@/lib/service-colors";
 import { resolveDiaryColor } from "@/lib/service-diary-color";
+import { dashboardFlowClass, dashboardStaggerClass } from "@/components/dashboard/ui";
 
 const DESCRIPTION_MAX = 2000;
 
@@ -734,7 +735,7 @@ export function ServicesView({
   }
 
   return (
-    <section className="space-y-8">
+    <section className={`${dashboardFlowClass} space-y-8`}>
       <p className="text-sm text-muted">
         Services are grouped by category. Click a row to expand and edit timing, price, and other details. Services inherit their category&apos;s diary colour — use a per-service override only when one treatment should stand out. Optional: allow{" "}
         <span className="font-medium text-foreground">overlap</span> when the client is processing (e.g. colour developing) so another client can be booked in that gap.
@@ -970,7 +971,7 @@ export function ServicesView({
               {heading}
             </h2>
             {group.services.length > 0 ? (
-              <div className="space-y-2">
+              <div className={`space-y-2 ${dashboardStaggerClass}`}>
                 {group.services.map((s) => (
                   <ServiceCard key={s.id} salonId={salonId} service={s} categories={categories} />
                 ))}

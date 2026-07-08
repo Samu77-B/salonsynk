@@ -12,6 +12,7 @@ import { GapFillerSection } from "./gap-filler-section";
 import { DashboardModeShell } from "./modes/dashboard-mode-shell";
 import { TargetsWidget, type TargetWidgetItem } from "./targets-widget";
 import { isManagerRole } from "@/lib/dashboard-roles";
+import { dashboardFlowClass } from "@/components/dashboard/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -512,7 +513,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
   }
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className={`min-w-0 ${dashboardFlowClass} space-y-6`}>
       <DashboardModeShell
         salonName={context.salon.name}
         classicContent={

@@ -12,6 +12,7 @@ import { dedupeOrderedServiceIds } from "@/lib/appointments/appointment-service-
 import type { UpdateAppointmentInput } from "@/lib/appointments/patch-appointment";
 import { buildServiceDiaryColorMap, DEFAULT_DIARY_COLOR } from "@/lib/service-diary-color";
 import { SALON_OPEN_HOUR, SALON_CLOSE_HOUR } from "@/lib/ai/salon-time";
+import { dashboardFlowClass } from "@/components/dashboard/ui";
 
 /** Route Handler + JSON — avoids Next.js server-action digest errors on diary saves (add, delete, status, drag, form). */
 async function createAppointmentViaApi(
@@ -1060,7 +1061,7 @@ export function DiaryView({
     : "All stylists — ";
 
   return (
-    <div className="space-y-6 min-w-0">
+    <div className={`${dashboardFlowClass} space-y-6 min-w-0`}>
       <div className="flex w-full min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="min-w-0 truncate text-2xl font-bold">{salonName}</h1>
         <div className="flex w-full min-w-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center">

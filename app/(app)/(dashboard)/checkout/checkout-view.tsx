@@ -12,6 +12,8 @@ import {
   dashboardInputClass,
   dashboardSectionClass,
   dashboardSelectClass,
+  dashboardFlowClass,
+  dashboardStaggerClass,
 } from "@/components/dashboard/ui";
 
 type Client = { id: string; name: string | null; email: string | null };
@@ -260,7 +262,7 @@ export function CheckoutView({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={`${dashboardFlowClass} space-y-4`}>
       {!usesStripeCheckout && (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
           <strong>{paymentGatewayLabel}</strong> — take payment on your existing card terminal, then record

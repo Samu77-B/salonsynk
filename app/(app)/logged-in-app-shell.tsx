@@ -93,7 +93,9 @@ export function LoggedInAppShell({
           children
         ) : (
           <div className="mx-auto w-full min-w-0 max-w-[1600px] px-3 py-4 sm:px-5 sm:py-5 lg:px-6">
-            {children}
+            <div key={pathname} className="dashboard-page-enter min-w-0">
+              {children}
+            </div>
           </div>
         )}
       </main>

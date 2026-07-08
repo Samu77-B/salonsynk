@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { canViewReports } from "@/lib/dashboard-roles";
 import { TargetsView } from "./targets-view";
+import { dashboardFlowClass } from "@/components/dashboard/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -155,7 +156,7 @@ export default async function TargetsPage() {
   }));
 
   return (
-    <main className="mx-auto w-full min-w-0 space-y-6 p-4 md:p-6">
+    <main className={`mx-auto w-full min-w-0 ${dashboardFlowClass} space-y-6 p-4 md:p-6`}>
       <Reveal>
         <div>
           <h1 className="text-2xl font-bold">Targets & Incentives</h1>

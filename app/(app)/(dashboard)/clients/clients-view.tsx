@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardDisclosure, DashboardPageHeader } from "@/components/dashboard/page-layout";
-import { dashboardBtnPrimaryClass, dashboardBtnSecondaryClass, dashboardCardClass } from "@/components/dashboard/ui";
+import { dashboardBtnPrimaryClass, dashboardBtnSecondaryClass, dashboardCardClass, dashboardFlowClass, dashboardStaggerClass } from "@/components/dashboard/ui";
 import { ClientForm } from "./client-form";
 import { importClientsFromCsv, type CsvImportRowError } from "./actions";
 
@@ -173,7 +173,7 @@ export function ClientsView({ salonId, clients }: { salonId: string; clients: Cl
   const [addOpen, setAddOpen] = useState(false);
 
   return (
-    <section className="space-y-6">
+    <section className={`${dashboardFlowClass} space-y-6`}>
       <DashboardPageHeader
         title="Clients"
         description="Import a list, add someone new, or open a card to view their record."
@@ -189,7 +189,7 @@ export function ClientsView({ salonId, clients }: { salonId: string; clients: Cl
       {clients.length > 0 ? (
         <div>
           <h2 className="mb-4 text-base font-semibold sm:text-lg">Your clients ({clients.length})</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 ${dashboardStaggerClass}`}>
             {clients.map((c) => (
               <ClientCard key={c.id} client={c} />
             ))}

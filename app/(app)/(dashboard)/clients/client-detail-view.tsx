@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { updateClientAction, addClientNote, deleteClientNote, type ClientNote } from "./actions";
+import { dashboardFlowClass } from "@/components/dashboard/ui";
 
 export type ColorFormula = {
   text?: string;
@@ -145,7 +146,7 @@ export function ClientDetailView({
   }
 
   return (
-    <div className="space-y-8">
+    <div className={`${dashboardFlowClass} space-y-8`}>
       {loyaltyData && (
         <section className="rounded-xl border border-border bg-white/[0.03] p-4">
           <h2 className="text-lg font-semibold mb-2">Loyalty</h2>
