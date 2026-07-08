@@ -6,6 +6,13 @@ import { useSearchParams } from "next/navigation";
 import { StaffElevationModal } from "@/app/(app)/staff-elevation-modal";
 import type { PaymentGatewayId } from "@/config/payment-gateways";
 import { employmentTypeShortLabel } from "@/config/employment-types";
+import { DashboardSection } from "@/components/dashboard/page-layout";
+import {
+  dashboardBtnPrimaryClass,
+  dashboardInputClass,
+  dashboardSectionClass,
+  dashboardSelectClass,
+} from "@/components/dashboard/ui";
 
 type Client = { id: string; name: string | null; email: string | null };
 type Service = { id: string; name: string; duration_minutes: number; price_minor: number };
@@ -255,7 +262,7 @@ export function CheckoutView({
   return (
     <div className="space-y-4">
       {!usesStripeCheckout && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
           <strong>{paymentGatewayLabel}</strong> — take payment on your existing card terminal, then record
           the sale here for reporting.
         </div>
@@ -273,65 +280,70 @@ export function CheckoutView({
         title="Staff verification"
         subtitle="To take payment, select your name and enter your PIN."
       />
-      <div>
-        <label className="block text-sm font-medium mb-1">Stylist</label>
-        <select
-          value={stylistId}
-          onChange={(e) => {
-            setStylistId(e.target.value);
-            setSelectedServiceIds([]);
-          }}
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          aria-label="Stylist"
-        >
-          {stylists.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.displayName} ({employmentTypeShortLabel(s.employmentType)})
-            </option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-1">Client</label>
-        <select
-          value={clientId}
-          onChange={(e) => {
-            setClientId(e.target.value);
-            setSelectedServiceIds([]);
-          }}
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          aria-label="Client"
-        >
-          <option value="">Walk-in</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>{c.name || c.email}</option>
-          ))}
-        </select>
-      </div>
-      {!clientId && (
-        <div>
-          <label className="block text-sm font-medium mb-1">Walk-in name</label>
-          <input
-            type="text"
-            value={walkInName}
-            onChange={(e) => setWalkInName(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            aria-label="Walk-in name"
-          />
-        </div>
-      )}
-      <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <label className="block text-sm font-medium">Services on this bill</label>
-            {visitLoading ? (
-              <span className="text-xs text-muted-foreground">Checking diary…</span>
-            ) : visitServiceIds.length > 0 ? (
-              <span className="text-xs text-muted-foreground">Prefilled from diary visit</span>
-            ) : clientId ? (
-              <span className="text-xs text-muted-foreground">Pick services below or search to add</span>
-            ) : null}
+
+      <DashboardSection title="Who & what">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Stylist</label>
+            <select
+              value={stylistId}
+              onChange={(e) => {
+                setStylistId(e.target.value);
+                setSelectedServiceIds([]);
+              }}
+              className={dashboardSelectClass}
+              aria-label="Stylist"
+            >
+              {stylists.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.displayName} ({employmentTypeShortLabel(s.employmentType)})
+                </option>
+              ))}
+            </select>
           </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Client</label>
+            <select
+              value={clientId}
+              onChange={(e) => {
+                setClientId(e.target.value);
+                setSelectedServiceIds([]);
+              }}
+              className={dashboardSelectClass}
+              aria-label="Client"
+            >
+              <option value="">Walk-in</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.name || c.email}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {!clientId && (
+          <div className="mt-4">
+            <label className="mb-1.5 block text-sm font-medium">Walk-in name</label>
+            <input
+              type="text"
+              value={walkInName}
+              onChange={(e) => setWalkInName(e.target.value)}
+              className={dashboardInputClass}
+              aria-label="Walk-in name"
+            />
+          </div>
+        )}
+      </DashboardSection>
+
+      <div className={`${dashboardSectionClass} space-y-4`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-semibold">Services on this bill</h2>
+          {visitLoading ? (
+            <span className="text-xs text-muted">Checking diary…</span>
+          ) : visitServiceIds.length > 0 ? (
+            <span className="text-xs text-muted">Prefilled from diary visit</span>
+          ) : clientId ? (
+            <span className="text-xs text-muted">Pick services below or search to add</span>
+          ) : null}
+        </div>
           {selectedServiceIds.length === 0 ? (
             <p className="text-sm text-muted-foreground">No services added yet — use the search box to add what was done today.</p>
           ) : (
@@ -372,7 +384,6 @@ export function CheckoutView({
               })}
             </ul>
           )}
-        </div>
         <div className="relative z-20">
           <label className="block text-sm font-medium mb-1" htmlFor="checkout-extra-service">
             Add another service
@@ -433,8 +444,9 @@ export function CheckoutView({
           </Link>
         </div>
       ) : null}
+      <DashboardSection title="Payment">
       <div>
-        <label className="block text-sm font-medium mb-1">Products</label>
+        <label className="mb-1.5 block text-sm font-medium">Products</label>
         {products.length === 0 ? (
           <p className="text-sm text-muted">No active products. Add some under Products.</p>
         ) : (
@@ -494,17 +506,17 @@ export function CheckoutView({
         )}
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">Custom amount (pence) or leave blank</label>
+        <label className="mb-1.5 block text-sm font-medium">Custom amount (pence) or leave blank</label>
         <input
           type="number"
           min={0}
           value={customAmountMinor ?? ""}
           onChange={(e) => setCustomAmountMinor(e.target.value ? Number(e.target.value) : null)}
           placeholder="Override total"
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          className={dashboardInputClass}
         />
       </div>
-      <p className="font-medium">Total: £{(totalMinor / 100).toFixed(2)}</p>
+      <p className="text-lg font-semibold">Total: £{(totalMinor / 100).toFixed(2)}</p>
       <label className="flex items-center gap-2 py-2 cursor-pointer">
         <input
           type="checkbox"
@@ -538,16 +550,16 @@ export function CheckoutView({
             value={terminalReference}
             onChange={(e) => setTerminalReference(e.target.value)}
             placeholder="e.g. last 4 digits or receipt #"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            className={dashboardInputClass}
           />
         </div>
       )}
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
       <button
         type="button"
         onClick={handlePay}
         disabled={loading}
-        className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+        className={`${dashboardBtnPrimaryClass} w-full sm:w-auto`}
       >
         {loading
           ? "Processing…"
@@ -555,6 +567,7 @@ export function CheckoutView({
             ? "Pay with card (Stripe)"
             : `Record sale (${paymentGatewayLabel})`}
       </button>
+      </DashboardSection>
     </div>
   );
 }

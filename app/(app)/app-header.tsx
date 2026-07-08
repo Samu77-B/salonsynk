@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { switchAdminSalon } from "./admin/actions";
 import { DASHBOARD_NAV_FEATURES } from "@/lib/salon-features";
 import type { PlatformFeatureId } from "@/config/plans";
@@ -24,7 +25,7 @@ function ThemeToggleButton({
     <button
       type="button"
       onClick={onToggle}
-      className={`rounded-lg p-2 text-muted hover:text-foreground ${isDark ? "hover:bg-white/5" : "hover:bg-black/[0.06]"} ${className}`}
+      className={`rounded-lg p-2 text-muted transition-colors hover:bg-foreground/5 hover:text-foreground ${className}`}
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       title={isDark ? "Light mode" : "Dark mode"}
     >
@@ -65,6 +66,21 @@ const NAV_LINKS = [
   { href: "/help", label: "Help" },
 ] as const;
 
+const MOBILE_NAV_GROUPS = [
+  {
+    label: "Today",
+    links: ["/dashboard", "/clients", "/checkout"],
+  },
+  {
+    label: "Business",
+    links: ["/reports", "/targets", "/campaigns"],
+  },
+  {
+    label: "Setup",
+    links: ["/team", "/services", "/products", "/settings", "/help"],
+  },
+] as const;
+
 const STAFF_ALLOWED_LINKS = new Set(["/dashboard", "/clients", "/checkout", "/help"]);
 
 function navLinksForPlan(
@@ -82,6 +98,17 @@ function navLinksForPlan(
     if (!feature) return true;
     return enabled.has(feature);
   });
+}
+
+function isNavActive(pathname: string, href: string) {
+  if (href === "/dashboard") return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function navLinkClassName(active: boolean) {
+  return active
+    ? "rounded-lg bg-accent/15 px-2.5 py-1.5 text-sm font-medium text-accent whitespace-nowrap"
+    : "rounded-lg px-2.5 py-1.5 text-sm text-muted whitespace-nowrap transition-colors hover:bg-foreground/5 hover:text-foreground";
 }
 
 export function AppHeader({
@@ -105,16 +132,8 @@ export function AppHeader({
   theme?: DashboardTheme;
   onToggleTheme?: () => void;
 }) {
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const navHover =
-    theme === "dark" ? "hover:bg-white/5" : "hover:bg-white/10";
-
-  const navLinkClass =
-    theme === "light"
-      ? "text-zinc-300 hover:text-white whitespace-nowrap"
-      : "text-muted hover:text-foreground whitespace-nowrap";
-
-  const metaTextClass = theme === "light" ? "text-zinc-400" : "text-muted";
 
   const visibleLinks = navLinksForPlan(
     enabledFeatures,
@@ -123,114 +142,105 @@ export function AppHeader({
   );
 
   return (
-    <header
-      className={`flex min-h-[4.5rem] min-w-0 items-center justify-between gap-2 border-b px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 ${
-        theme === "light"
-          ? "border-zinc-600 bg-zinc-700"
-          : "border-border bg-transparent"
-      }`}
-    >
-      <Link
-        href="/dashboard"
-        className="flex min-w-0 max-w-[min(100%,10.5rem)] shrink items-center gap-2 overflow-hidden sm:max-w-none"
-      >
-        <Image
-          src={theme === "light" ? dashboardLogoWhite : dashboardLogo}
-          alt="SalonSynk logo"
-          width={280}
-          height={80}
-          className="h-9 w-auto sm:h-11"
-          sizes="(max-width: 640px) 120px, 160px"
-          quality={95}
-        />
-        <span className="sr-only">SalonSynk</span>
-      </Link>
-
-      {/* Desktop nav */}
-      <nav className="hidden md:flex items-center gap-4 text-sm shrink-0">
-        {isSuperAdmin && adminSalons.length > 0 && (
-          <ul className="flex items-center gap-2">
-            <li className={`${metaTextClass} text-xs`}>Salon:</li>
-            <li>
-              <select
-                value={currentSalon?.id ?? ""}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  if (id) switchAdminSalon(id);
-                }}
-                className={`rounded border px-2 py-1 text-sm max-w-[160px] truncate ${
-                  theme === "light"
-                    ? "border-zinc-500 bg-white text-zinc-900"
-                    : "border-border bg-background"
-                }`}
-                aria-label="Switch salon"
-              >
-                {adminSalons.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </li>
-          </ul>
-        )}
-        {visibleLinks.map(({ href, label }) => (
-          <Link key={href} href={href} className={navLinkClass}>
-            {label}
-          </Link>
-        ))}
-        {isSuperAdmin && (
-          <Link href="/admin" className="text-accent hover:text-accent/90 whitespace-nowrap font-medium">
-            Admin
-          </Link>
-        )}
-        {userEmail && (
-          <span className={`${metaTextClass} text-xs max-w-[120px] truncate lg:max-w-[180px]`} title={userEmail}>
-            {userEmail}
-          </span>
-        )}
-        {onToggleTheme && (
-          <ThemeToggleButton
-            theme={theme}
-            onToggle={onToggleTheme}
-            className={theme === "light" ? "text-zinc-300 hover:text-white" : ""}
-          />
-        )}
-        <form action="/api/auth/signout" method="post">
-          <button
-            type="submit"
-            className={`text-sm whitespace-nowrap ${
-              theme === "light" ? "text-zinc-300 hover:text-white" : "text-muted hover:text-foreground"
-            }`}
-          >
-            Sign out
-          </button>
-        </form>
-      </nav>
-
-      {/* Mobile: hamburger + overlay */}
-      <div className="flex shrink-0 items-center gap-2 md:hidden">
-        {onToggleTheme && (
-          <ThemeToggleButton
-            theme={theme}
-            onToggle={onToggleTheme}
-            className={theme === "light" ? "text-zinc-300 hover:text-white" : ""}
-          />
-        )}
-        <button
-          type="button"
-          onClick={() => setMenuOpen((o) => !o)}
-          className={`rounded-lg p-2 ${theme === "light" ? "text-zinc-300 hover:text-white" : "text-muted hover:text-foreground"} ${navHover}`}
-          aria-label="Toggle menu"
+    <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur-md">
+      <div className="flex min-h-[3.75rem] min-w-0 items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4">
+        <Link
+          href="/dashboard"
+          className="flex min-w-0 max-w-[min(100%,10.5rem)] shrink items-center gap-2 overflow-hidden sm:max-w-none"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {menuOpen ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            )}
-          </svg>
-        </button>
+          <Image
+            src={theme === "light" ? dashboardLogo : dashboardLogoWhite}
+            alt="SalonSynk logo"
+            width={280}
+            height={80}
+            className="h-8 w-auto sm:h-9"
+            sizes="(max-width: 640px) 120px, 160px"
+            quality={95}
+          />
+          <span className="sr-only">SalonSynk</span>
+        </Link>
+
+        {/* Desktop nav */}
+        <nav
+          className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 overflow-x-auto scrollbar-none md:flex lg:gap-1"
+          aria-label="Main"
+        >
+          {visibleLinks.map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className={navLinkClassName(isNavActive(pathname, href))}
+              aria-current={isNavActive(pathname, href) ? "page" : undefined}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="hidden shrink-0 items-center gap-2 md:flex">
+          {isSuperAdmin && adminSalons.length > 0 && (
+            <select
+              value={currentSalon?.id ?? ""}
+              onChange={(e) => {
+                const id = e.target.value;
+                if (id) switchAdminSalon(id);
+              }}
+              className="dashboard-field max-w-[140px] truncate rounded-lg border border-border bg-background px-2 py-1.5 text-xs lg:max-w-[160px]"
+              aria-label="Switch salon"
+            >
+              {adminSalons.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {isSuperAdmin && (
+            <Link
+              href="/admin"
+              className="rounded-lg px-2 py-1.5 text-sm font-medium text-accent hover:bg-accent/10"
+            >
+              Admin
+            </Link>
+          )}
+          {userEmail && (
+            <span
+              className="hidden max-w-[120px] truncate text-xs text-muted lg:inline xl:max-w-[160px]"
+              title={userEmail}
+            >
+              {userEmail}
+            </span>
+          )}
+          {onToggleTheme && <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />}
+          <form action="/api/auth/signout" method="post">
+            <button
+              type="submit"
+              className="rounded-lg px-2 py-1.5 text-sm text-muted transition-colors hover:bg-foreground/5 hover:text-foreground"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
+
+        {/* Mobile controls */}
+        <div className="flex shrink-0 items-center gap-1 md:hidden">
+          {onToggleTheme && <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />}
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            className="rounded-lg p-2 text-muted transition-colors hover:bg-foreground/5 hover:text-foreground"
+            aria-label="Toggle menu"
+            aria-expanded={menuOpen}
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {menuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
       </div>
 
       {menuOpen && (
@@ -241,69 +251,91 @@ export function AppHeader({
             onClick={() => setMenuOpen(false)}
           />
           <nav
-            className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-xs bg-background border-l border-border p-4 flex flex-col gap-2 md:hidden"
+            className="fixed top-0 right-0 bottom-0 z-50 flex w-full max-w-xs flex-col gap-1 overflow-y-auto border-l border-border bg-card p-4 md:hidden"
             aria-label="Mobile menu"
           >
-            <div className="flex items-center justify-between mb-4">
-              <span className="font-semibold">Menu</span>
-              {isSuperAdmin && adminSalons.length > 0 && (
-                <div className="flex gap-2 items-center">
-                  <select
-                    value={currentSalon?.id ?? ""}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      if (id) switchAdminSalon(id);
-                    }}
-                    className="rounded border border-border bg-background px-2 py-1 text-sm max-w-[140px]"
-                    aria-label="Switch salon"
-                  >
-                    {adminSalons.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+            <div className="mb-3 flex items-center justify-between border-b border-border pb-3">
+              <span className="font-semibold text-foreground">Menu</span>
               <button
                 type="button"
                 onClick={() => setMenuOpen(false)}
                 className="rounded-lg p-2 text-muted hover:text-foreground"
                 aria-label="Close menu"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            {visibleLinks.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setMenuOpen(false)}
-                className={`rounded-lg px-4 py-3 text-muted hover:text-foreground ${navHover}`}
+
+            {isSuperAdmin && adminSalons.length > 0 && (
+              <select
+                value={currentSalon?.id ?? ""}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  if (id) switchAdminSalon(id);
+                }}
+                className="dashboard-field mb-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                aria-label="Switch salon"
               >
-                {label}
-              </Link>
-            ))}
+                {adminSalons.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {MOBILE_NAV_GROUPS.map((group) => {
+              const groupLinks = group.links
+                .map((href) => visibleLinks.find((l) => l.href === href))
+                .filter(Boolean) as (typeof visibleLinks)[number][];
+              if (groupLinks.length === 0) return null;
+              return (
+                <div key={group.label} className="mb-3">
+                  <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                    {group.label}
+                  </p>
+                  {groupLinks.map(({ href, label }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setMenuOpen(false)}
+                      className={`block rounded-lg px-3 py-2.5 text-sm ${
+                        isNavActive(pathname, href)
+                          ? "bg-accent/15 font-medium text-accent"
+                          : "text-foreground hover:bg-foreground/5"
+                      }`}
+                      aria-current={isNavActive(pathname, href) ? "page" : undefined}
+                    >
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              );
+            })}
+
+
             {isSuperAdmin && (
               <Link
                 href="/admin"
                 onClick={() => setMenuOpen(false)}
-                className={`rounded-lg px-4 py-3 text-accent ${navHover} font-medium`}
+                className="rounded-lg px-3 py-2.5 text-sm font-medium text-accent hover:bg-accent/10"
               >
                 Admin
               </Link>
             )}
+
             {userEmail && (
-              <p className="px-4 py-2 text-xs text-muted truncate border-t border-border mt-2 pt-4" title={userEmail}>
+              <p className="mt-2 truncate border-t border-border px-3 pt-3 text-xs text-muted" title={userEmail}>
                 {userEmail}
               </p>
             )}
+
             <form action="/api/auth/signout" method="post" className="mt-auto pt-4">
               <button
                 type="submit"
-                className={`w-full rounded-lg px-4 py-3 text-left text-sm text-muted hover:text-foreground ${navHover}`}
+                className="w-full rounded-lg px-3 py-2.5 text-left text-sm text-muted hover:bg-foreground/5 hover:text-foreground"
               >
                 Sign out
               </button>

@@ -4,6 +4,7 @@ import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { isManagerRole } from "@/lib/dashboard-roles";
 import { redirect } from "next/navigation";
 import { fetchSalonMembersAdaptiveSelect } from "@/lib/show-on-diary";
+import { DashboardPage } from "@/components/dashboard/page-layout";
 import { TeamView, type Member } from "./team-view";
 
 export const dynamic = "force-dynamic";
@@ -101,7 +102,7 @@ export default async function TeamPage() {
   const dbError = membersRes.error?.message ?? invitesRes.error?.message ?? salonRes.error?.message;
 
   return (
-    <main className="mx-auto w-full min-w-0 p-4 md:p-6">
+    <DashboardPage width="wide">
       {dbError && (
         <p className="mb-4 rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-2 text-sm text-red-400">
           Database error: {dbError}
@@ -118,6 +119,6 @@ export default async function TeamPage() {
         salonServices={salonServices}
         overridesByMember={overridesByMember}
       />
-    </main>
+    </DashboardPage>
   );
 }

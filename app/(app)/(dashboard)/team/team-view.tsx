@@ -10,6 +10,8 @@ import {
   employmentTypeHint,
   employmentTypeShortLabel,
 } from "@/config/employment-types";
+import { DashboardPageHeader } from "@/components/dashboard/page-layout";
+import { dashboardBtnPrimaryClass, dashboardCardClass } from "@/components/dashboard/ui";
 
 export type Member = {
   id: string;
@@ -208,19 +210,19 @@ export function TeamView({
 
   return (
     <div className="space-y-6 min-w-0">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold">Team</h1>
-        {isOwner && (
-          <button
-            onClick={() => setAddOpen(true)}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background w-full sm:w-auto"
-          >
-            Add team member
-          </button>
-        )}
-      </div>
+      <DashboardPageHeader
+        title="Team"
+        description="Stylists and staff who appear on your diary and booking page."
+        actions={
+          isOwner ? (
+            <button type="button" onClick={() => setAddOpen(true)} className={dashboardBtnPrimaryClass}>
+              Add team member
+            </button>
+          ) : undefined
+        }
+      />
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
 
       {isOwner && pendingOnboarding.length > 0 && (
         <div className="space-y-3">
@@ -235,11 +237,11 @@ export function TeamView({
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {members.map((m) => (
           <div
             key={m.id}
-            className={`rounded-lg border border-border p-4 ${!m.is_active ? "opacity-60" : ""}`}
+            className={`${dashboardCardClass} ${!m.is_active ? "opacity-60" : ""}`}
           >
             <div className="flex items-start justify-between gap-2 min-w-0">
               <div className="flex gap-3 min-w-0 flex-1">

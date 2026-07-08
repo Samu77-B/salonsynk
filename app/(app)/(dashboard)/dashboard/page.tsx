@@ -30,14 +30,14 @@ export default async function DashboardPage() {
     console.error("[DashboardPage] render failed", e);
     const msg = e instanceof Error ? e.message : "Something went wrong loading the diary.";
     return (
-      <main className="p-4 md:p-6 min-w-0 space-y-4">
+      <div className="min-w-0 space-y-4">
         <h1 className="text-xl font-bold">Diary</h1>
         <p className="text-sm text-red-400 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3">{msg}</p>
         <p className="text-sm text-muted">
           Try reloading the page. If this keeps happening, check Vercel logs for the same timestamp or run locally with{" "}
           <code className="text-xs">npm run dev</code> to see the full error.
         </p>
-      </main>
+      </div>
     );
   }
 }
@@ -512,7 +512,7 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
   }
 
   return (
-    <main className="p-4 md:p-6 min-w-0 space-y-6">
+    <div className="min-w-0 space-y-6">
       <DashboardModeShell
         salonName={context.salon.name}
         classicContent={
@@ -545,6 +545,6 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
           </>
         }
       />
-    </main>
+    </div>
   );
 }

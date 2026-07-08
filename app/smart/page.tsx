@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { SmartHeader } from "@/components/smart/marketing/smart-header";
 import { HeroSlider } from "@/components/smart/marketing/hero-slider";
 import { AboutSection } from "@/components/smart/marketing/about-section";
-import { PlatformsShowcase } from "@/components/smart/marketing/platforms-showcase";
-import { SMART_HERO_SLIDES, SMART_PLATFORMS, SMART_SITE } from "@core/config/smart-site";
+import { PlatformShowcase } from "@/components/smart/marketing/platform-showcase";
+import { SMART_HERO_SLIDES, SMART_SHOWCASE_TABS, SMART_SITE } from "@core/config/smart-site";
 import { fetchLandingStats } from "@core/smart/dashboard-stats";
 
 export const metadata: Metadata = {
@@ -33,7 +33,7 @@ export default async function SmartLandingPage() {
           platforms={stats.platforms}
         />
 
-        <PlatformsShowcase platforms={SMART_PLATFORMS} />
+        <PlatformShowcase tabs={SMART_SHOWCASE_TABS} />
       </main>
 
       <footer className="border-t border-border py-8 pl-14 text-center text-sm text-muted lg:pl-16">

@@ -14,28 +14,26 @@
 
 /* Logged-in app shell: light theme (dashboard toggle) */
 .app-shell-light {
-  /* Raised surfaces (cards, inputs using bg-background) stay light on top of the grey page */
   --background: #ffffff;
-  /* Page chrome: light grey so panels and borders read clearly vs the canvas */
-  --canvas: #e4e4e7; /* zinc-200 */
+  --canvas: #e8e8ec;
+  --card: #ffffff;
   --foreground: #18181b;
   --muted: #71717a;
-  --accent: #15803d; /* green-700 on light bg */
-  /* Darker than zinc-200 so cards, headers, and inputs read clearly */
-  --border: #a1a1aa; /* zinc-400 */
-  /* Diary / calendar grid: extra contrast vs page background */
-  --border-grid: #71717a; /* zinc-500 */
+  --accent: #15803d;
+  --border: #d4d4d8;
+  --border-grid: #a1a1aa;
 }
 
-/* Logged-in app shell: dark theme — aligned with Reports page palette */
+/* Logged-in app shell: dark theme */
 .app-shell-dark {
-  --background: #121212;
+  --background: #1a1a1a;
   --canvas: #121212;
-  --foreground: #ffffff;
-  --muted: #b0b0b0;
-  --accent: #22c55e; /* green-500 — matches Reports CTAs / toggles */
-  --border: #3a3a3a; /* subtle dividers on cards */
-  --border-grid: #4a4a4a; /* diary grid lines */
+  --card: #1e1e1e;
+  --foreground: #f4f4f5;
+  --muted: #a1a1aa;
+  --accent: #22c55e;
+  --border: #3f3f46;
+  --border-grid: #52525b;
 }
 
 /* BarberSynk: charcoal + cream + terracotta palette */
@@ -203,25 +201,35 @@
 }
 
 /*
-  Native inputs/selects often get a white background from the UA while inheriting light
-  --foreground, which makes typed text invisible. Force readable light fields with dark text.
+  Form fields inherit shell tokens so light and dark themes stay cohesive.
 */
+.app-shell-light input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+.app-shell-light select,
+.app-shell-light textarea,
 .app-shell-dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
 .app-shell-dark select,
 .app-shell-dark textarea {
-  background-color: #fafafa;
-  color: #18181b;
-  border-color: #d4d4d8;
+  color: var(--foreground);
 }
 
+.app-shell-light input::placeholder,
+.app-shell-light textarea::placeholder,
 .app-shell-dark input::placeholder,
 .app-shell-dark textarea::placeholder {
-  color: #71717a;
+  color: color-mix(in srgb, var(--muted) 85%, transparent);
 }
 
-.app-shell-dark select option {
-  background-color: #fafafa;
-  color: #18181b;
+@layer components {
+  .dashboard-field:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    outline-offset: 1px;
+  }
+
+  .dashboard-btn-primary:focus-visible,
+  .dashboard-btn-secondary:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+    outline-offset: 2px;
+  }
 }
 
 * {

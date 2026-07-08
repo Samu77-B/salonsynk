@@ -17,8 +17,8 @@ function DashboardModeBody({
 
   return (
     <div className="min-w-0 space-y-4">
-      <div className="sticky top-0 z-20 -mx-1 rounded-xl border border-accent/30 bg-background/95 px-3 py-3 shadow-sm backdrop-blur sm:px-4">
-        <DashboardModeToggle />
+      <div className="sticky top-[3.75rem] z-20 rounded-xl border border-border bg-card/95 px-3 py-2.5 shadow-sm backdrop-blur sm:px-4">
+        <DashboardModeToggle compact />
       </div>
       {mode === "classic" ? (
         <ClassicModeView>{classicContent}</ClassicModeView>

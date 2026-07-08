@@ -4,6 +4,7 @@ import { getSettingsData } from "./data";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { isManagerRole } from "@/lib/dashboard-roles";
 import { redirect } from "next/navigation";
+import { DashboardPage, DashboardPageHeader } from "@/components/dashboard/page-layout";
 
 export default async function SettingsPage() {
   const data = await getSettingsData();
@@ -11,8 +12,11 @@ export default async function SettingsPage() {
   if (!isManagerRole(isSuperAdmin, data.context.member.role ?? "")) redirect("/dashboard");
 
   return (
-    <main className="mx-auto w-full min-w-0 max-w-2xl p-4 md:p-6">
-      <h1 className="text-2xl font-bold mb-2">Settings</h1>
+    <DashboardPage width="narrow">
+      <DashboardPageHeader
+        title="Settings"
+        description="Branding, booking, payments, reminders, and marketing for your salon."
+      />
       <SettingsNav current="general" />
       <SettingsView
         salonId={data.context.salon.id}
@@ -44,6 +48,6 @@ export default async function SettingsPage() {
         paymentGatewayLabel={data.paymentGatewayLabel}
         usesStripeCheckout={data.usesStripeCheckout}
       />
-    </main>
+    </DashboardPage>
   );
 }

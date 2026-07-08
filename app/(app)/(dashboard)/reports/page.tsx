@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Reveal } from "@/components/reveal";
+import { DashboardPage, DashboardPageHeader } from "@/components/dashboard/page-layout";
 import { requireSalonFeature } from "@/lib/salon-features.server";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
@@ -520,33 +521,31 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const productsOnHref = appendProductsToReportsHref(productsOffHref, true);
 
   return (
-    <main className="mx-auto w-full min-w-0 space-y-6 p-4 md:p-6">
+    <DashboardPage width="wide" className="space-y-6">
       <Reveal>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Reports</h1>
-          <p className="text-sm text-muted">
-            {ctx.rangeLabel} performance for {context.salon.name} ({ctx.dateRangeLabel})
-          </p>
-        </div>
-        <div className="flex flex-col items-stretch gap-2 sm:items-end">
-          <ReportPdfDownload payload={pdfPayload} disabled={reportDataError} />
-          <div className="inline-flex flex-wrap justify-end gap-1 rounded-lg border border-border p-1">
-            {(["daily", "weekly", "monthly"] as PresetReportRange[]).map((item) => (
-              <Link
-                key={item}
-                href={appendProductsToReportsHref(`/reports?range=${item}`, includeProducts)}
-                className={!ctx.customRequested && ctx.range === item ? pillActive : pillIdle}
-              >
-                {item === "daily" ? "Daily" : item === "weekly" ? "Weekly" : "Monthly"}
+      <DashboardPageHeader
+        title="Reports"
+        description={`${ctx.rangeLabel} performance for ${context.salon.name} (${ctx.dateRangeLabel})`}
+        actions={
+          <div className="flex flex-col items-stretch gap-2 sm:items-end">
+            <ReportPdfDownload payload={pdfPayload} disabled={reportDataError} />
+            <div className="inline-flex flex-wrap justify-end gap-1 rounded-lg border border-border bg-card p-1">
+              {(["daily", "weekly", "monthly"] as PresetReportRange[]).map((item) => (
+                <Link
+                  key={item}
+                  href={appendProductsToReportsHref(`/reports?range=${item}`, includeProducts)}
+                  className={!ctx.customRequested && ctx.range === item ? pillActive : pillIdle}
+                >
+                  {item === "daily" ? "Daily" : item === "weekly" ? "Weekly" : "Monthly"}
+                </Link>
+              ))}
+              <Link href={customPillHref} className={ctx.customRequested ? pillActive : pillIdle}>
+                Custom
               </Link>
-            ))}
-            <Link href={customPillHref} className={ctx.customRequested ? pillActive : pillIdle}>
-              Custom
-            </Link>
+            </div>
           </div>
-        </div>
-      </div>
+        }
+      />
       </Reveal>
 
       <Reveal>
@@ -782,6 +781,6 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         </div>
       </section>
       </Reveal>
-    </main>
+    </DashboardPage>
   );
 }

@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 import { isPaymentGatewayId, salonUsesStripeCheckout, type PaymentGatewayId } from "@/config/payment-gateways";
 import { PAYMENT_GATEWAYS } from "@/config/payment-gateways";
+import { DashboardPage, DashboardPageHeader } from "@/components/dashboard/page-layout";
 import { CheckoutView } from "./checkout-view";
 
 export default async function CheckoutPage() {
@@ -85,9 +86,12 @@ export default async function CheckoutPage() {
       : stylists[0]?.id ?? "";
 
   return (
-    <main className="mx-auto w-full min-w-0 max-w-lg p-4 md:p-6">
-      <h1 className="text-2xl font-bold mb-6">Checkout</h1>
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading checkout…</p>}>
+    <DashboardPage width="narrow">
+      <DashboardPageHeader
+        title="Checkout"
+        description="Record a sale and take or log payment for today's services."
+      />
+      <Suspense fallback={<p className="text-sm text-muted">Loading checkout…</p>}>
         <CheckoutView
           salonId={context.salon.id}
           clients={clientsRes.data ?? []}
@@ -100,6 +104,6 @@ export default async function CheckoutPage() {
           usesStripeCheckout={usesStripeCheckout}
         />
       </Suspense>
-    </main>
+    </DashboardPage>
   );
 }

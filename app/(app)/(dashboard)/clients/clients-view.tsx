@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DashboardDisclosure, DashboardSection } from "@/components/dashboard/page-layout";
+import { dashboardBtnPrimaryClass, dashboardBtnSecondaryClass, dashboardCardClass } from "@/components/dashboard/ui";
 import { ClientForm } from "./client-form";
 import { importClientsFromCsv, type CsvImportRowError } from "./actions";
 
@@ -41,7 +43,7 @@ function ClientCard({ client }: { client: ClientListRow }) {
   const contact = [client.email, client.phone].filter(Boolean).join(" · ");
 
   return (
-    <article className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-background p-4 shadow-sm">
+    <article className={`flex min-w-0 flex-col gap-3 ${dashboardCardClass}`}>
       <div className="flex items-center gap-3">
         <ClientAvatar client={client} />
         <div className="min-w-0">
@@ -50,20 +52,17 @@ function ClientCard({ client }: { client: ClientListRow }) {
         </div>
       </div>
       {client.patch_test_due_at ? (
-        <p className="text-xs text-amber-400">
+        <p className="text-xs text-amber-500 dark:text-amber-400">
           Patch test due: {new Date(client.patch_test_due_at).toLocaleDateString("en-GB")}
         </p>
       ) : null}
       {client.last_skin_test_at && (() => {
         const monthsSince = Math.floor((Date.now() - new Date(client.last_skin_test_at!).getTime()) / (30.44 * 24 * 60 * 60 * 1000));
-        if (monthsSince >= 12) return <p className="text-xs text-red-400">Skin test expired ({monthsSince} months ago)</p>;
+        if (monthsSince >= 12) return <p className="text-xs text-red-500 dark:text-red-400">Skin test expired ({monthsSince} months ago)</p>;
         return null;
       })()}
       <div className="mt-auto border-t border-border pt-3">
-        <Link
-          href={`/clients/${client.id}`}
-          className="inline-flex rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background"
-        >
+        <Link href={`/clients/${client.id}`} className={dashboardBtnPrimaryClass}>
           View and edit
         </Link>
       </div>
@@ -125,46 +124,39 @@ function ImportClientsPanel({ salonId }: { salonId: string }) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-background/60 p-4 shadow-sm sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <h2 className="text-base font-semibold">Import clients (CSV)</h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={downloadTemplate}
-            className="rounded-lg border border-border px-3 py-1.5 text-sm"
-          >
-            Download template
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            className="sr-only"
-            aria-label="Choose a CSV file to import clients"
-            onChange={handleFile}
-          />
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
-          >
-            {loading ? "Importing…" : "Import CSV"}
-          </button>
-        </div>
+    <DashboardDisclosure
+      title="Import clients (CSV)"
+      summary="Bulk import from a spreadsheet — optional if you add clients one at a time."
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+        <button type="button" onClick={downloadTemplate} className={dashboardBtnSecondaryClass}>
+          Download template
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          className="sr-only"
+          aria-label="Choose a CSV file to import clients"
+          onChange={handleFile}
+        />
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => fileInputRef.current?.click()}
+          className={dashboardBtnPrimaryClass}
+        >
+          {loading ? "Importing…" : "Import CSV"}
+        </button>
       </div>
 
-      <p className="mt-3 text-sm text-muted">
-        Columns: <span className="font-mono text-xs">name</span>, <span className="font-mono text-xs">email</span>,{" "}
-        <span className="font-mono text-xs">phone</span>, <span className="font-mono text-xs">sex</span> (male/female),{" "}
-        <span className="font-mono text-xs">notes</span>, <span className="font-mono text-xs">marketing_opt_in</span>{" "}
-        (yes/no, defaults to yes). Each row needs at least one of name, email, or phone. Up to 2,000 rows. Rows that
-        match an existing email or phone in this salon are skipped.
+      <p className="mt-4 text-sm text-muted">
+        Columns: name, email, phone, sex (male/female), notes, marketing_opt_in (yes/no). Each row needs at least
+        one of name, email, or phone. Up to 2,000 rows.
       </p>
-      {summary ? <p className="mt-2 text-sm text-muted">{summary}</p> : null}
+      {summary ? <p className="mt-2 text-sm text-foreground">{summary}</p> : null}
       {rowErrors.length > 0 ? (
-        <ul className="mt-2 max-h-32 list-inside list-disc overflow-y-auto text-xs text-red-400">
+        <ul className="mt-2 max-h-32 list-inside list-disc overflow-y-auto text-xs text-red-500 dark:text-red-400">
           {rowErrors.slice(0, 20).map((r) => (
             <li key={`${r.line}-${r.message}`}>
               Line {r.line}: {r.message}
@@ -173,7 +165,7 @@ function ImportClientsPanel({ salonId }: { salonId: string }) {
           {rowErrors.length > 20 ? <li>…and {rowErrors.length - 20} more</li> : null}
         </ul>
       ) : null}
-    </div>
+    </DashboardDisclosure>
   );
 }
 
@@ -182,30 +174,22 @@ export function ClientsView({ salonId, clients }: { salonId: string; clients: Cl
     <section className="space-y-6">
       <ImportClientsPanel salonId={salonId} />
 
-      <p className="text-sm text-muted">
-        <span className="font-medium text-foreground">Import CSV</span> brings in many clients at once. You can also add
-        one at a time below, or open a card to edit details, notes, and colour formulas. Each person appears as a{" "}
-        <span className="font-medium text-foreground">card</span> in the grid.
-      </p>
-
-      <div className="rounded-xl border border-dashed border-border bg-background/60 p-4 shadow-sm sm:p-5">
-        <h2 className="mb-3 text-base font-semibold">Add a client</h2>
+      <DashboardSection title="Add a client">
         <ClientForm salonId={salonId} inlineOnCreate />
-      </div>
+      </DashboardSection>
 
       {clients.length > 0 ? (
         <div>
-          <h2 className="mb-3 text-base font-semibold">Your clients</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <h2 className="mb-4 text-base font-semibold sm:text-lg">Your clients ({clients.length})</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {clients.map((c) => (
               <ClientCard key={c.id} client={c} />
             ))}
           </div>
         </div>
       ) : (
-        <p className="text-sm text-muted">
-          No clients yet. Use <span className="font-medium text-foreground">Import CSV</span> at the top of this page, or
-          the form below to add your first client.
+        <p className="rounded-xl border border-dashed border-border bg-card/50 px-4 py-8 text-center text-sm text-muted">
+          No clients yet. Use import above or add your first client in the form.
         </p>
       )}
     </section>

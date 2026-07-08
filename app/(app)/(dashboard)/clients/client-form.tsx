@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 import { createClientAction, uploadClientPhoto } from "./actions";
 import { StaffElevationModal } from "@/app/(app)/staff-elevation-modal";
 import { DefaultAvatar } from "./client-photos";
-
-const inputClass =
-  "min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/60";
+import {
+  dashboardBtnPrimaryClass,
+  dashboardInputClass,
+} from "@/components/dashboard/ui";
 
 export function ClientForm({
   salonId,
@@ -243,7 +244,7 @@ export function ClientForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoComplete="name"
-          className={inputClass}
+          className={dashboardInputClass}
         />
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -257,7 +258,7 @@ export function ClientForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
-            className={inputClass}
+            className={dashboardInputClass}
           />
         </div>
         <div>
@@ -270,7 +271,7 @@ export function ClientForm({
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             autoComplete="tel"
-            className={inputClass}
+            className={dashboardInputClass}
           />
         </div>
         <div>
@@ -281,7 +282,7 @@ export function ClientForm({
             id="client-sex"
             value={sex}
             onChange={(e) => setSex(e.target.value)}
-            className={inputClass}
+            className={dashboardInputClass}
           >
             <option value="">Not set</option>
             <option value="female">Female</option>
@@ -299,7 +300,7 @@ export function ClientForm({
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="Colour history, preferences, or anything your team should know."
-          className={`${inputClass} min-h-[4.5rem] resize-y`}
+          className={`${dashboardInputClass} min-h-[4.5rem] resize-y`}
         />
       </div>
       <label className="flex items-start gap-2 cursor-pointer">

@@ -10,7 +10,6 @@ import { EditAppointmentModal, type EditModalEntryAnchor } from "./edit-appointm
 import { validateMoveWithProcessing, type AppointmentBlockingInput } from "@/lib/diary-rules";
 import { dedupeOrderedServiceIds } from "@/lib/appointments/appointment-service-lines";
 import type { UpdateAppointmentInput } from "@/lib/appointments/patch-appointment";
-import { DashboardModeToggle } from "./modes/dashboard-mode-context";
 import { buildServiceDiaryColorMap, DEFAULT_DIARY_COLOR } from "@/lib/service-diary-color";
 import { SALON_OPEN_HOUR, SALON_CLOSE_HOUR } from "@/lib/ai/salon-time";
 
@@ -1062,7 +1061,6 @@ export function DiaryView({
 
   return (
     <div className="space-y-6 min-w-0">
-      <DashboardModeToggle compact />
       <div className="flex w-full min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="min-w-0 truncate text-2xl font-bold">{salonName}</h1>
         <div className="flex w-full min-w-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center">

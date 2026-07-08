@@ -5,6 +5,7 @@ import { getSettingsData } from "../settings/data";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { isManagerRole } from "@/lib/dashboard-roles";
 import { redirect } from "next/navigation";
+import { DashboardPage, DashboardPageHeader } from "@/components/dashboard/page-layout";
 
 export default async function ServicesPage() {
   await requireSalonFeature("service_catalog");
@@ -13,8 +14,11 @@ export default async function ServicesPage() {
   if (!isManagerRole(isSuperAdmin, data.context.member.role ?? "")) redirect("/dashboard");
 
   return (
-    <main className="mx-auto w-full min-w-0 max-w-7xl p-4 md:p-6">
-      <h1 className="text-2xl font-bold mb-2">Services</h1>
+    <DashboardPage width="wide">
+      <DashboardPageHeader
+        title="Services"
+        description="Categories, durations, prices, and diary colours for your menu."
+      />
       <SettingsNav current="services" />
       <ServicesView
         salonId={data.context.salon.id}
@@ -22,6 +26,6 @@ export default async function ServicesPage() {
         services={data.services}
         categories={data.categories}
       />
-    </main>
+    </DashboardPage>
   );
 }

@@ -1,6 +1,7 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { DashboardPage, DashboardPageHeader } from "@/components/dashboard/page-layout";
 import { HelpView } from "./help-view";
 
 export default async function HelpPage() {
@@ -11,8 +12,12 @@ export default async function HelpPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   return (
-    <main className="mx-auto w-full min-w-0 max-w-3xl p-4 md:p-6">
+    <DashboardPage width="default">
+      <DashboardPageHeader
+        title="Help & Support"
+        description="Quick guides for each area of SalonSynk, plus a direct line to our team."
+      />
       <HelpView salonName={context.salon.name} userEmail={user?.email ?? undefined} />
-    </main>
+    </DashboardPage>
   );
 }

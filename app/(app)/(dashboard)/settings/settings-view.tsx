@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, updateDepositSettings, updateReminderSettings, updateSalonMarketingSettings } from "./actions";
 import type { PlatformFeatureId } from "@/config/plans";
+import { dashboardBtnPrimaryClass, dashboardInputClass, dashboardSectionClass } from "@/components/dashboard/ui";
 
 export function SettingsView(props: {
   salonId: string;
@@ -130,8 +131,8 @@ export function SettingsView(props: {
   }
 
   return (
-    <div className="space-y-8">
-      <section>
+    <div className="space-y-4">
+      <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Business</h2>
         <p className="text-muted text-sm">{salonName}</p>
         <p className="text-muted text-xs mt-1">
@@ -150,7 +151,7 @@ export function SettingsView(props: {
         ) : null}
       </section>
 
-      <section>
+      <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Branding</h2>
         <p className="text-muted text-sm mb-4">
           Customise your public booking{hasProductsShop ? " and shop" : ""} pages so they match your salon. Clients see this when they book online
@@ -236,7 +237,7 @@ export function SettingsView(props: {
       </section>
 
       {isOwner && hasChairRenterSplits && (
-        <section>
+        <section className={dashboardSectionClass}>
           <h2 className="text-lg font-semibold mb-2">Renter admin fee</h2>
           <p className="text-muted text-sm mb-2">
             When a renter receives a payment, this percentage goes to the salon. The rest goes to the stylist.
@@ -278,7 +279,7 @@ export function SettingsView(props: {
       )}
 
       {isOwner && hasDeposits && (
-        <section>
+        <section className={dashboardSectionClass}>
           <h2 className="text-lg font-semibold mb-2">No-Show & Deposit</h2>
           <p className="text-muted text-sm mb-4">
             Require a deposit at booking (percentage or flat fee). Use &quot;Charge No-Show Fee&quot; in the appointment details to capture it if the client doesn&apos;t show.
@@ -351,7 +352,7 @@ export function SettingsView(props: {
       )}
 
       {hasStripeConnect ? (
-      <section>
+      <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Payments (Stripe Connect)</h2>
         <p className="text-muted text-sm mb-2">
           Your salon uses <span className="font-medium text-foreground">{paymentGatewayLabel}</span> for
@@ -372,7 +373,7 @@ export function SettingsView(props: {
         )}
       </section>
       ) : (
-      <section>
+      <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Card payments</h2>
         <p className="text-muted text-sm">
           Your salon uses <span className="font-medium text-foreground">{paymentGatewayLabel}</span> on
@@ -386,7 +387,7 @@ export function SettingsView(props: {
       </section>
       )}
 
-      <section>
+      <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Subscription</h2>
         <p className="text-muted text-sm mb-2">
           Your plan: <span className="font-medium text-foreground">{planLabel}</span> ({planPriceLabel}). Billed to
@@ -442,7 +443,7 @@ export function SettingsView(props: {
       </section>
 
       {isOwner && hasReminders && (
-        <section>
+        <section className={dashboardSectionClass}>
           <h2 className="text-lg font-semibold mb-2">Appointment Reminders</h2>
           <p className="text-muted text-sm mb-4">
             Choose when to send appointment reminders. Clients with a phone number or email will receive a message before their appointment.
@@ -495,7 +496,7 @@ export function SettingsView(props: {
       )}
 
       {isOwner && (hasReviewRequests || hasWeMissYou) && (
-        <section>
+        <section className={dashboardSectionClass}>
           <h2 className="text-lg font-semibold mb-2">Marketing &amp; Reviews</h2>
           <p className="text-muted text-sm mb-4">
             Google review link is sent in post-appointment review requests. We Miss You: optional discount code for lapsed-client campaigns.
