@@ -1,7 +1,7 @@
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { DashboardPage, DashboardPageHeader } from "@/components/dashboard/page-layout";
+import { DashboardPage } from "@/components/dashboard/page-layout";
 import { ClientsView, type ClientListRow } from "./clients-view";
 
 export default async function ClientsPage() {
@@ -61,10 +61,6 @@ export default async function ClientsPage() {
 
   return (
     <DashboardPage width="wide">
-      <DashboardPageHeader
-        title="Clients"
-        description="Import a list, add someone new, or open a card to view their record."
-      />
       <ClientsView salonId={context.salon.id} clients={rows} />
     </DashboardPage>
   );

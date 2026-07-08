@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DashboardDisclosure, DashboardSection } from "@/components/dashboard/page-layout";
+import { DashboardDisclosure, DashboardPageHeader } from "@/components/dashboard/page-layout";
 import { dashboardBtnPrimaryClass, dashboardBtnSecondaryClass, dashboardCardClass } from "@/components/dashboard/ui";
 import { ClientForm } from "./client-form";
 import { importClientsFromCsv, type CsvImportRowError } from "./actions";
@@ -170,13 +170,21 @@ function ImportClientsPanel({ salonId }: { salonId: string }) {
 }
 
 export function ClientsView({ salonId, clients }: { salonId: string; clients: ClientListRow[] }) {
+  const [addOpen, setAddOpen] = useState(false);
+
   return (
     <section className="space-y-6">
-      <ImportClientsPanel salonId={salonId} />
+      <DashboardPageHeader
+        title="Clients"
+        description="Import a list, add someone new, or open a card to view their record."
+        actions={
+          <button type="button" onClick={() => setAddOpen(true)} className={dashboardBtnPrimaryClass}>
+            Add client
+          </button>
+        }
+      />
 
-      <DashboardSection title="Add a client">
-        <ClientForm salonId={salonId} inlineOnCreate />
-      </DashboardSection>
+      <ImportClientsPanel salonId={salonId} />
 
       {clients.length > 0 ? (
         <div>
@@ -189,8 +197,25 @@ export function ClientsView({ salonId, clients }: { salonId: string; clients: Cl
         </div>
       ) : (
         <p className="rounded-xl border border-dashed border-border bg-card/50 px-4 py-8 text-center text-sm text-muted">
-          No clients yet. Use import above or add your first client in the form.
+          No clients yet. Use import above or add your first client.
         </p>
+      )}
+
+      {addOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setAddOpen(false)}>
+          <div
+            className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-lg border border-border bg-background p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold mb-4">Add client</h2>
+            <ClientForm
+              salonId={salonId}
+              inlineOnCreate
+              onCancel={() => setAddOpen(false)}
+              onCreated={() => setAddOpen(false)}
+            />
+          </div>
+        </div>
       )}
     </section>
   );

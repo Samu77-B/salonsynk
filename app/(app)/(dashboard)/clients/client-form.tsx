@@ -17,6 +17,10 @@ export function ClientForm({
   initial,
   /** On the clients list: reset form and refresh instead of navigating away. */
   inlineOnCreate,
+  /** Called when Cancel is pressed (e.g. closing a modal). */
+  onCancel,
+  /** Called after a successful inline create. */
+  onCreated,
 }: {
   salonId: string;
   clientId?: string;
@@ -29,6 +33,8 @@ export function ClientForm({
     marketing_opt_in?: boolean;
   };
   inlineOnCreate?: boolean;
+  onCancel?: () => void;
+  onCreated?: () => void;
 }) {
   const router = useRouter();
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -45,7 +51,7 @@ export function ClientForm({
   const [elevateOpen, setElevateOpen] = useState(false);
   const [pendingClientUpdate, setPendingClientUpdate] = useState(false);
 
-  const showCancel = Boolean(clientId) || !inlineOnCreate;
+  const showCancel = Boolean(clientId) || !inlineOnCreate || Boolean(onCancel);
   const isCreate = !clientId;
 
   function clearProfileSelection() {
@@ -158,6 +164,7 @@ export function ClientForm({
         setSex("");
         setMarketingOptIn(true);
         router.refresh();
+        onCreated?.();
       } else {
         router.push(`/clients/${newId}`);
       }
@@ -324,7 +331,11 @@ export function ClientForm({
       )}
       <div className="flex flex-wrap gap-2 border-t border-border pt-3">
         {showCancel && (
-          <button type="button" onClick={() => router.back()} className="rounded-lg border border-border px-4 py-2 text-sm">
+          <button
+            type="button"
+            onClick={() => (onCancel ? onCancel() : router.back())}
+            className="rounded-lg border border-border px-4 py-2 text-sm"
+          >
             Cancel
           </button>
         )}
