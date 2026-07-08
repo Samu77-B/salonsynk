@@ -1186,14 +1186,14 @@ export function DiaryView({
                           key={m.id}
                           className="flex-1 min-w-[100px] border-l border-border bg-muted/30 flex items-stretch overflow-hidden"
                         >
-                          <div className="relative h-16 w-24 shrink-0 overflow-hidden bg-muted">
+                          <div className="relative h-14 w-[7.5rem] shrink-0 overflow-hidden bg-muted">
                             {m.avatar_url ? (
                               <Image
                                 src={m.avatar_url}
                                 alt={m.display_name || "Stylist"}
                                 fill
-                                className="object-cover"
-                                sizes="96px"
+                                className="object-cover scale-[2] object-[center_38%]"
+                                sizes="120px"
                               />
                             ) : (
                               <span className="flex h-full w-full items-center justify-center text-base font-medium text-muted-foreground">
