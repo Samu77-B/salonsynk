@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { CreateAppointmentInput } from "./actions";
 import { ServicePickerField } from "./service-picker-field";
 import {
@@ -142,6 +143,19 @@ export function AddAppointmentModal({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const errorAndOverlapRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (entryAnimation !== "from-top") return;
@@ -277,18 +291,27 @@ export function AddAppointmentModal({
     }
   };
 
-  return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/60"
-      onClick={onClose}
-    >
-      <div className="flex min-h-full items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
-      <div
-        ref={panelRef}
-        className="w-full min-w-0 max-w-md lg:max-w-4xl shrink-0 rounded-lg border border-border bg-background p-4 shadow-xl sm:p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold mb-4">Add appointment</h2>
+  return mounted
+    ? createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-appointment-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 cursor-default backdrop-blur-lg"
+            aria-label="Close add appointment dialog"
+            onClick={onClose}
+          />
+          <div
+            ref={panelRef}
+            className="relative z-10 flex max-h-[min(90dvh,calc(100vh-2rem))] w-full min-w-0 max-w-md shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl ring-1 ring-border/80 lg:max-w-4xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="overflow-y-auto overscroll-contain p-4 sm:p-6">
+        <h2 id="add-appointment-title" className="text-lg font-semibold mb-4">Add appointment</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-x-8 lg:items-start gap-y-4">
           <div className="space-y-4 min-w-0">
@@ -599,8 +622,10 @@ export function AddAppointmentModal({
             </button>
           </div>
         </form>
-      </div>
-      </div>
-    </div>
-  );
+            </div>
+          </div>
+        </div>,
+        document.body
+      )
+    : null;
 }
