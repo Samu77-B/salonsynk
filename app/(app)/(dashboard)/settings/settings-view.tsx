@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, updateDepositSettings, updateReminderSettings, updateSalonMarketingSettings } from "./actions";
 import type { PlatformFeatureId } from "@/config/plans";
-import { dashboardBtnPrimaryClass, dashboardInputClass, dashboardSectionClass, dashboardFlowClass, dashboardGrid2ColClass } from "@/components/dashboard/ui";
+import { dashboardBtnPrimaryClass, dashboardInputClass, dashboardSectionClass, dashboardFlowClass, dashboardGrid2ColClass, dashboardStackColClass } from "@/components/dashboard/ui";
 
 export function SettingsView(props: {
   salonId: string;
@@ -133,6 +133,7 @@ export function SettingsView(props: {
   return (
     <div className={`${dashboardFlowClass} space-y-4`}>
       <div className={dashboardGrid2ColClass}>
+        <div className={dashboardStackColClass}>
       <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Business</h2>
         <p className="text-muted text-sm">{salonName}</p>
@@ -151,133 +152,6 @@ export function SettingsView(props: {
           </p>
         ) : null}
       </section>
-
-      <section className={dashboardSectionClass}>
-        <h2 className="text-lg font-semibold mb-2">Branding</h2>
-        <p className="text-muted text-sm mb-4">
-          Customise your public booking{hasProductsShop ? " and shop" : ""} pages so they match your salon. Clients see this when they book online
-          {hasProductsShop ? " or browse products" : ""}.
-        </p>
-        <form onSubmit={handleBrandingSubmit} className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium mb-1">Logo</label>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <input
-                type="url"
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://..."
-                className="w-full sm:flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => logoFileInputRef.current?.click()}
-                  className="rounded-lg border border-border px-3 py-2 text-xs font-medium"
-                  disabled={logoUploading}
-                >
-                  {logoUploading ? "Uploading…" : "Upload logo"}
-                </button>
-              </div>
-              <input
-                ref={logoFileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleLogoFileChange}
-                className="hidden"
-                aria-label="Upload logo image"
-              />
-            </div>
-            <p className="text-xs text-muted mt-1">
-              Paste a URL or upload an image file. PNG, JPEG, GIF, WebP, or SVG up to 2MB.
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Primary colour (hex)</label>
-            <input
-              type="text"
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-              placeholder="#a78bfa"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Display name (optional)</label>
-            <input
-              type="text"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Defaults to business name"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Booking page heading (optional)</label>
-            <input
-              type="text"
-              value={bookingHeading}
-              onChange={(e) => setBookingHeading(e.target.value)}
-              placeholder={`Book at ${companyName || salonName}`}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-            <p className="text-xs text-muted mt-1">
-              Custom heading shown on your booking page. Leave blank to hide it entirely.
-            </p>
-          </div>
-          {brandingMsg === "saved" && <p className="text-sm text-green-400">Branding saved.</p>}
-          {brandingMsg === "error" && <p className="text-sm text-red-400">Failed to save.</p>}
-          <button
-            type="submit"
-            disabled={brandingLoading}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
-          >
-            {brandingLoading ? "Saving…" : "Save branding"}
-          </button>
-        </form>
-      </section>
-
-      {isOwner && hasChairRenterSplits && (
-        <section className={dashboardSectionClass}>
-          <h2 className="text-lg font-semibold mb-2">Renter admin fee</h2>
-          <p className="text-muted text-sm mb-2">
-            When a renter receives a payment, this percentage goes to the salon. The rest goes to the stylist.
-          </p>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setAdminFeeMsg(null);
-              setAdminFeeLoading(true);
-              const result = await updateRenterAdminFee(salonId, Number(adminFee));
-              setAdminFeeLoading(false);
-              setAdminFeeMsg(result.error ? "error" : "saved");
-            }}
-            className="flex flex-wrap items-end gap-2"
-          >
-            <div>
-              <label className="block text-sm font-medium mb-1">Admin fee (%)</label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={adminFee}
-                onChange={(e) => setAdminFee(e.target.value)}
-                className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                aria-label="Admin fee percentage"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={adminFeeLoading}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
-            >
-              {adminFeeLoading ? "Saving…" : "Save"}
-            </button>
-            {adminFeeMsg === "saved" && <span className="text-sm text-green-400">Saved.</span>}
-            {adminFeeMsg === "error" && <span className="text-sm text-red-400">Failed.</span>}
-          </form>
-        </section>
-      )}
 
       {isOwner && hasDeposits && (
         <section className={dashboardSectionClass}>
@@ -443,6 +317,135 @@ export function SettingsView(props: {
           )}
       </section>
 
+      {isOwner && hasChairRenterSplits && (
+        <section className={dashboardSectionClass}>
+          <h2 className="text-lg font-semibold mb-2">Renter admin fee</h2>
+          <p className="text-muted text-sm mb-2">
+            When a renter receives a payment, this percentage goes to the salon. The rest goes to the stylist.
+          </p>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setAdminFeeMsg(null);
+              setAdminFeeLoading(true);
+              const result = await updateRenterAdminFee(salonId, Number(adminFee));
+              setAdminFeeLoading(false);
+              setAdminFeeMsg(result.error ? "error" : "saved");
+            }}
+            className="flex flex-wrap items-end gap-2"
+          >
+            <div>
+              <label className="block text-sm font-medium mb-1">Admin fee (%)</label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={adminFee}
+                onChange={(e) => setAdminFee(e.target.value)}
+                className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                aria-label="Admin fee percentage"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={adminFeeLoading}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+            >
+              {adminFeeLoading ? "Saving…" : "Save"}
+            </button>
+            {adminFeeMsg === "saved" && <span className="text-sm text-green-400">Saved.</span>}
+            {adminFeeMsg === "error" && <span className="text-sm text-red-400">Failed.</span>}
+          </form>
+        </section>
+      )}
+        </div>
+
+        <div className={dashboardStackColClass}>
+      <section className={dashboardSectionClass}>
+        <h2 className="text-lg font-semibold mb-2">Branding</h2>
+        <p className="text-muted text-sm mb-4">
+          Customise your public booking{hasProductsShop ? " and shop" : ""} pages so they match your salon. Clients see this when they book online
+          {hasProductsShop ? " or browse products" : ""}.
+        </p>
+        <form onSubmit={handleBrandingSubmit} className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">Logo</label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="url"
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full sm:flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => logoFileInputRef.current?.click()}
+                  className="rounded-lg border border-border px-3 py-2 text-xs font-medium"
+                  disabled={logoUploading}
+                >
+                  {logoUploading ? "Uploading…" : "Upload logo"}
+                </button>
+              </div>
+              <input
+                ref={logoFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleLogoFileChange}
+                className="hidden"
+                aria-label="Upload logo image"
+              />
+            </div>
+            <p className="text-xs text-muted mt-1">
+              Paste a URL or upload an image file. PNG, JPEG, GIF, WebP, or SVG up to 2MB.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Primary colour (hex)</label>
+            <input
+              type="text"
+              value={primaryColor}
+              onChange={(e) => setPrimaryColor(e.target.value)}
+              placeholder="#a78bfa"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Display name (optional)</label>
+            <input
+              type="text"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="Defaults to business name"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Booking page heading (optional)</label>
+            <input
+              type="text"
+              value={bookingHeading}
+              onChange={(e) => setBookingHeading(e.target.value)}
+              placeholder={`Book at ${companyName || salonName}`}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+            <p className="text-xs text-muted mt-1">
+              Custom heading shown on your booking page. Leave blank to hide it entirely.
+            </p>
+          </div>
+          {brandingMsg === "saved" && <p className="text-sm text-green-400">Branding saved.</p>}
+          {brandingMsg === "error" && <p className="text-sm text-red-400">Failed to save.</p>}
+          <button
+            type="submit"
+            disabled={brandingLoading}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+          >
+            {brandingLoading ? "Saving…" : "Save branding"}
+          </button>
+        </form>
+      </section>
+
       {isOwner && hasReminders && (
         <section className={dashboardSectionClass}>
           <h2 className="text-lg font-semibold mb-2">Appointment Reminders</h2>
@@ -573,6 +576,7 @@ export function SettingsView(props: {
         </section>
       )}
 
+        </div>
       </div>
     </div>
   );

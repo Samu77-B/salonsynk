@@ -33,3 +33,6 @@ export const dashboardStaggerClass = "dashboard-stagger";
 
 /** Two-column dashboard layout on large screens. */
 export const dashboardGrid2ColClass = "grid gap-4 lg:grid-cols-2 lg:items-start";
+
+/** Vertical stack inside a dashboard grid column. */
+export const dashboardStackColClass = "flex min-w-0 flex-col gap-4";
