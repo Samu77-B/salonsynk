@@ -30,3 +30,6 @@ export const dashboardFlowClass = "dashboard-flow";
 
 /** Stagger grid/list cards as they appear. */
 export const dashboardStaggerClass = "dashboard-stagger";
+
+/** Two-column dashboard layout on large screens. */
+export const dashboardGrid2ColClass = "grid gap-4 lg:grid-cols-2 lg:items-start";

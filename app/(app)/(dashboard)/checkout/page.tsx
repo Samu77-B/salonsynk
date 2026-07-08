@@ -86,7 +86,7 @@ export default async function CheckoutPage() {
       : stylists[0]?.id ?? "";
 
   return (
-    <DashboardPage width="narrow">
+    <DashboardPage width="wide">
       <DashboardPageHeader
         title="Checkout"
         description="Record a sale and take or log payment for today's services."

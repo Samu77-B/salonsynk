@@ -13,7 +13,7 @@ import {
   dashboardSectionClass,
   dashboardSelectClass,
   dashboardFlowClass,
-  dashboardStaggerClass,
+  dashboardGrid2ColClass,
 } from "@/components/dashboard/ui";
 
 type Client = { id: string; name: string | null; email: string | null };
@@ -283,6 +283,8 @@ export function CheckoutView({
         subtitle="To take payment, select your name and enter your PIN."
       />
 
+      <div className={dashboardGrid2ColClass}>
+        <div className="space-y-4">
       <DashboardSection title="Who & what">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -446,6 +448,9 @@ export function CheckoutView({
           </Link>
         </div>
       ) : null}
+        </div>
+
+        <div className="space-y-4 lg:sticky lg:top-4">
       <DashboardSection title="Payment">
       <div>
         <label className="mb-1.5 block text-sm font-medium">Products</label>
@@ -570,6 +575,8 @@ export function CheckoutView({
             : `Record sale (${paymentGatewayLabel})`}
       </button>
       </DashboardSection>
+        </div>
+      </div>
     </div>
   );
 }

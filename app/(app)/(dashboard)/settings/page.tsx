@@ -12,7 +12,7 @@ export default async function SettingsPage() {
   if (!isManagerRole(isSuperAdmin, data.context.member.role ?? "")) redirect("/dashboard");
 
   return (
-    <DashboardPage width="narrow">
+    <DashboardPage width="wide">
       <DashboardPageHeader
         title="Settings"
         description="Branding, booking, payments, reminders, and marketing for your salon."
