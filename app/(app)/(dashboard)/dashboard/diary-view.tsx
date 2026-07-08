@@ -1184,24 +1184,24 @@ export function DiaryView({
                       return (
                         <div
                           key={m.id}
-                          className="flex-1 min-w-[100px] border-l border-border px-2 py-2 flex flex-col items-center gap-1"
+                          className="flex-1 min-w-[100px] border-l border-border bg-muted/30 flex items-stretch overflow-hidden"
                         >
-                          <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted">
+                          <div className="relative h-16 w-24 shrink-0 overflow-hidden bg-muted">
                             {m.avatar_url ? (
                               <Image
                                 src={m.avatar_url}
                                 alt={m.display_name || "Stylist"}
                                 fill
                                 className="object-cover"
-                                sizes="32px"
+                                sizes="96px"
                               />
                             ) : (
-                              <span className="flex h-full w-full items-center justify-center text-xs font-medium text-muted-foreground">
+                              <span className="flex h-full w-full items-center justify-center text-base font-medium text-muted-foreground">
                                 {initials}
                               </span>
                             )}
                           </div>
-                          <span className="text-xs font-semibold truncate max-w-full">
+                          <span className="flex flex-1 items-center justify-end truncate px-2 text-sm font-semibold">
                             {m.display_name || m.role}
                           </span>
                         </div>

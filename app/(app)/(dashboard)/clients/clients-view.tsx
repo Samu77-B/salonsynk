@@ -26,13 +26,13 @@ function ClientAvatar({ client }: { client: ClientListRow }) {
   const hasPhoto = !!client.profile_photo_url;
 
   return (
-    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-border bg-background/50">
+    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-border bg-background/50">
       <Image
         src={src}
         alt={client.name || "Client"}
         fill
         className={`object-cover ${hasPhoto ? "" : "opacity-40"}`}
-        sizes="40px"
+        sizes="56px"
       />
     </div>
   );
@@ -43,7 +43,7 @@ function ClientCard({ client }: { client: ClientListRow }) {
   const contact = [client.email, client.phone].filter(Boolean).join(" · ");
 
   return (
-    <article className={`flex min-w-0 flex-col gap-3 ${dashboardCardClass}`}>
+    <article className={`flex min-w-0 flex-col ${dashboardCardClass}`}>
       <div className="flex items-center gap-3">
         <ClientAvatar client={client} />
         <div className="min-w-0">
@@ -52,17 +52,17 @@ function ClientCard({ client }: { client: ClientListRow }) {
         </div>
       </div>
       {client.patch_test_due_at ? (
-        <p className="text-xs text-amber-500 dark:text-amber-400">
+        <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
           Patch test due: {new Date(client.patch_test_due_at).toLocaleDateString("en-GB")}
         </p>
       ) : null}
       {client.last_skin_test_at && (() => {
         const monthsSince = Math.floor((Date.now() - new Date(client.last_skin_test_at!).getTime()) / (30.44 * 24 * 60 * 60 * 1000));
-        if (monthsSince >= 12) return <p className="text-xs text-red-500 dark:text-red-400">Skin test expired ({monthsSince} months ago)</p>;
+        if (monthsSince >= 12) return <p className="mt-3 text-sm text-red-500 dark:text-red-400">Skin test expired ({monthsSince} months ago)</p>;
         return null;
       })()}
-      <div className="mt-auto border-t border-border pt-3">
-        <Link href={`/clients/${client.id}`} className={dashboardBtnPrimaryClass}>
+      <div className="mt-4 border-t border-border pt-4">
+        <Link href={`/clients/${client.id}`} className={`${dashboardBtnPrimaryClass} self-start`}>
           View and edit
         </Link>
       </div>

@@ -241,18 +241,18 @@ export function TeamView({
         {members.map((m) => (
           <div
             key={m.id}
-            className={`${dashboardCardClass} ${!m.is_active ? "opacity-60" : ""}`}
+            className={`${dashboardCardClass} flex flex-col gap-3 ${!m.is_active ? "opacity-60" : ""}`}
           >
-            <div className="flex items-start justify-between gap-2 min-w-0">
+            <div className="flex items-start justify-between gap-3 min-w-0">
               <div className="flex gap-3 min-w-0 flex-1">
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-muted">
                   {m.avatar_url ? (
                     <Image
                       src={m.avatar_url}
                       alt={m.display_name || "Team member"}
                       fill
                       className="object-cover"
-                      sizes="48px"
+                      sizes="56px"
                     />
                   ) : (
                     <span className="flex h-full w-full items-center justify-center text-lg font-medium text-muted-foreground">
@@ -260,64 +260,13 @@ export function TeamView({
                     </span>
                   )}
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium truncate">{m.display_name || m.role}</p>
-                  </div>
+                <div className="min-w-0 pt-0.5">
+                  <p className="font-semibold truncate">{m.display_name || m.role}</p>
                   <p className="text-sm text-muted capitalize">{m.role}</p>
-                  {m.show_on_diary === false ? (
-                    <p className="text-xs text-muted-foreground">Hidden from diary &amp; online booking as a stylist</p>
-                  ) : null}
-                  {m.user_id && memberEmails[m.user_id] && (
-                    <p className="text-xs text-muted" title="Has login">Login: {memberEmails[m.user_id]}</p>
-                  )}
-                  {!m.user_id && (
-                    <p className="text-xs text-muted">No account (display only)</p>
-                  )}
-                  {m.role === "stylist" && (
-                    <p className="text-xs text-muted">
-                      {employmentTypeShortLabel(m.employment_type)}
-                    </p>
-                  )}
-                  <p className="mt-2 text-xs text-muted">
-                    Appointments (last 30 days): {appointmentCountByStylist[m.id] ?? 0}
-                  </p>
-                  {m.is_active && salonServices.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setTimingsId(m.id)}
-                      className="mt-1 text-xs text-accent hover:underline"
-                    >
-                      Service timings
-                      {localOverrides[m.id] && Object.keys(localOverrides[m.id]).length > 0 && (
-                        <span className="ml-1 text-muted">({Object.keys(localOverrides[m.id]).length} custom)</span>
-                      )}
-                    </button>
-                  )}
-                  {isOwner && m.is_active && (
-                    <span className="text-xs text-muted mt-0.5">
-                      PIN: {m.has_passcode ? (
-                        <>
-                          <span className="text-green-400">set</span>
-                          {" · "}
-                          <button type="button" onClick={() => { setPasscodeId(m.id); setPinDigits(["", "", "", ""]); }} className="text-accent hover:underline">change</button>
-                          {" · "}
-                          <button type="button" onClick={async () => {
-                            if (!confirm("Remove this member's PIN?")) return;
-                            setError(null);
-                            const result = await clearMemberPasscode(salonId, m.id);
-                            if (result.error) setError(result.error);
-                          }} className="text-red-400 hover:underline">remove</button>
-                        </>
-                      ) : (
-                        <button type="button" onClick={() => { setPasscodeId(m.id); setPinDigits(["", "", "", ""]); }} className="text-accent hover:underline">set PIN</button>
-                      )}
-                    </span>
-                  )}
                 </div>
               </div>
               {isOwner && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex shrink-0 flex-wrap justify-end gap-x-2 gap-y-1">
                   {m.is_active && (
                     <>
                       <button
@@ -361,6 +310,80 @@ export function TeamView({
                 </div>
               )}
             </div>
+
+            <div className="space-y-0.5 text-sm text-muted">
+              {m.show_on_diary === false ? (
+                <p>Hidden from diary &amp; online booking as a stylist</p>
+              ) : null}
+              {m.user_id && memberEmails[m.user_id] && (
+                <p title="Has login">Login: {memberEmails[m.user_id]}</p>
+              )}
+              {!m.user_id && <p>No account (display only)</p>}
+              {m.role === "stylist" && <p>{employmentTypeShortLabel(m.employment_type)}</p>}
+              <p>Appointments (last 30 days): {appointmentCountByStylist[m.id] ?? 0}</p>
+            </div>
+
+            {m.is_active && (salonServices.length > 0 || isOwner) && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                {salonServices.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setTimingsId(m.id)}
+                    className="text-accent hover:underline"
+                  >
+                    Service timings
+                    {localOverrides[m.id] && Object.keys(localOverrides[m.id]).length > 0 && (
+                      <span className="ml-1 text-muted">({Object.keys(localOverrides[m.id]).length} custom)</span>
+                    )}
+                  </button>
+                )}
+                {isOwner && (
+                  <span className="text-muted">
+                    PIN:{" "}
+                    {m.has_passcode ? (
+                      <>
+                        <span className="text-green-500">set</span>
+                        {" · "}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPasscodeId(m.id);
+                            setPinDigits(["", "", "", ""]);
+                          }}
+                          className="text-accent hover:underline"
+                        >
+                          change
+                        </button>
+                        {" · "}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!confirm("Remove this member's PIN?")) return;
+                            setError(null);
+                            const result = await clearMemberPasscode(salonId, m.id);
+                            if (result.error) setError(result.error);
+                          }}
+                          className="text-red-400 hover:underline"
+                        >
+                          remove
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPasscodeId(m.id);
+                          setPinDigits(["", "", "", ""]);
+                        }}
+                        className="text-accent hover:underline"
+                      >
+                        set PIN
+                      </button>
+                    )}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
