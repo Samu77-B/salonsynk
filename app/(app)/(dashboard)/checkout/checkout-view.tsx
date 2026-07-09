@@ -15,6 +15,8 @@ import {
   dashboardFlowClass,
   dashboardGrid2ColClass,
 } from "@/components/dashboard/ui";
+import { computeLoyaltyCheckoutTotals, maxRedeemableProductPoints } from "@/lib/loyalty/calculate";
+import { DEFAULT_LOYALTY_SETTINGS, formatMoneyMinor, type LoyaltySettings } from "@/lib/loyalty/settings";
 
 type Client = { id: string; name: string | null; email: string | null };
 type Service = { id: string; name: string; duration_minutes: number; price_minor: number };
@@ -43,6 +45,8 @@ export function CheckoutView({
   paymentGateway,
   paymentGatewayLabel,
   usesStripeCheckout,
+  loyaltyEnabled = false,
+  loyaltySettings = DEFAULT_LOYALTY_SETTINGS,
 }: {
   salonId: string;
   clients: Client[];
@@ -53,6 +57,8 @@ export function CheckoutView({
   paymentGateway: PaymentGatewayId;
   paymentGatewayLabel: string;
   usesStripeCheckout: boolean;
+  loyaltyEnabled?: boolean;
+  loyaltySettings?: LoyaltySettings;
 }) {
   const searchParams = useSearchParams();
   const appliedFromUrlRef = useRef(false);
@@ -76,6 +82,13 @@ export function CheckoutView({
   const [extraOpen, setExtraOpen] = useState(false);
   const extraBlurTimer = useRef<number | null>(null);
   const [terminalReference, setTerminalReference] = useState("");
+  const [joinLoyalty, setJoinLoyalty] = useState(false);
+  const [walkInEmail, setWalkInEmail] = useState("");
+  const [walkInPhone, setWalkInPhone] = useState("");
+  const [redeemServicePoints, setRedeemServicePoints] = useState(0);
+  const [redeemProductPoints, setRedeemProductPoints] = useState(0);
+  const [loyaltyBalance, setLoyaltyBalance] = useState<{ servicePoints: number; productPoints: number } | null>(null);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
 
   /** Diary "Make Sale" passes ?clientId=&serviceId=&serviceIds=&stylistId=&walkInName= for walk-ins */
   useEffect(() => {
@@ -140,6 +153,40 @@ export function CheckoutView({
     };
   }, [clientId, stylistId]);
 
+  useEffect(() => {
+    setRedeemServicePoints(0);
+    setRedeemProductPoints(0);
+    if (!loyaltyEnabled || !clientId?.trim()) {
+      setLoyaltyBalance(null);
+      return;
+    }
+    let cancelled = false;
+    setLoyaltyLoading(true);
+    fetch(`/api/checkout/loyalty-balance?clientId=${encodeURIComponent(clientId)}`, { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((data: { enrolled?: boolean; servicePoints?: number; productPoints?: number }) => {
+        if (cancelled) return;
+        if (data.enrolled) {
+          setLoyaltyBalance({
+            servicePoints: data.servicePoints ?? 0,
+            productPoints: data.productPoints ?? 0,
+          });
+        } else {
+          setLoyaltyBalance({ servicePoints: 0, productPoints: 0 });
+        }
+        setLoyaltyLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLoyaltyBalance(null);
+          setLoyaltyLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, loyaltyEnabled]);
+
   const lineServicesMinor = selectedServiceIds.reduce((sum, id) => {
     const s = services.find((x) => x.id === id);
     return sum + (s?.price_minor ?? 0);
@@ -149,7 +196,36 @@ export function CheckoutView({
     return sum + (p?.price_minor ?? 0);
   }, 0);
   const lineTotalMinor = lineServicesMinor + lineProductsMinor;
-  const totalMinor = customAmountMinor ?? lineTotalMinor;
+  const loyaltyEligible = loyaltyEnabled && (Boolean(clientId) || joinLoyalty);
+  const useCustomAmount = customAmountMinor != null && customAmountMinor >= 50;
+
+  const loyaltyTotals = useMemo(() => {
+    if (!loyaltyEligible || useCustomAmount) return null;
+    const balances = loyaltyBalance ?? { servicePoints: 0, productPoints: 0 };
+    return computeLoyaltyCheckoutTotals(
+      loyaltySettings,
+      balances,
+      lineServicesMinor,
+      lineProductsMinor,
+      { redeemServicePoints, redeemProductPoints }
+    );
+  }, [
+    loyaltyEligible,
+    useCustomAmount,
+    loyaltyBalance,
+    loyaltySettings,
+    lineServicesMinor,
+    lineProductsMinor,
+    redeemServicePoints,
+    redeemProductPoints,
+  ]);
+
+  const totalMinor = useCustomAmount
+    ? customAmountMinor!
+    : loyaltyTotals?.totals.totalMinor ?? lineTotalMinor;
+  const loyaltyDiscountMinor = loyaltyTotals
+    ? loyaltyTotals.totals.serviceDiscountMinor + loyaltyTotals.totals.productDiscountMinor
+    : 0;
 
   const extraServiceMatches = useMemo(() => {
     const q = extraSearch.trim().toLowerCase();
@@ -179,6 +255,20 @@ export function CheckoutView({
       setError("Please accept the cancellation policy to proceed.");
       return;
     }
+    if (loyaltyTotals?.error) {
+      setError(loyaltyTotals.error);
+      return;
+    }
+    if (joinLoyalty && !clientId) {
+      if (!walkInName.trim()) {
+        setError("Walk-in name is required to join the loyalty programme.");
+        return;
+      }
+      if (!walkInEmail.trim() && !walkInPhone.trim()) {
+        setError("Phone or email is required to join the loyalty programme.");
+        return;
+      }
+    }
     if (totalMinor < 50) {
       setError("Minimum amount is £0.50");
       return;
@@ -194,6 +284,12 @@ export function CheckoutView({
         serviceIds: selectedServiceIds,
         productIds: selectedProductIds,
         customAmountMinor: customAmountMinor != null ? customAmountMinor : null,
+        redeemServicePoints: loyaltyTotals?.totals.redeemServicePoints ?? 0,
+        redeemProductPoints: loyaltyTotals?.totals.redeemProductPoints ?? 0,
+        joinLoyalty: joinLoyalty || undefined,
+        walkInName: walkInName.trim() || undefined,
+        walkInEmail: walkInEmail.trim() || undefined,
+        walkInPhone: walkInPhone.trim() || undefined,
       };
 
       if (usesStripeCheckout) {
@@ -213,6 +309,9 @@ export function CheckoutView({
           setError(data.error ?? "Failed");
           setLoading(false);
           return;
+        }
+        if (data.clientId && typeof data.clientId === "string") {
+          setClientId(data.clientId);
         }
         setDone(true);
       } else {
@@ -235,6 +334,9 @@ export function CheckoutView({
           setError(data.error ?? "Failed");
           setLoading(false);
           return;
+        }
+        if (data.clientId && typeof data.clientId === "string") {
+          setClientId(data.clientId);
         }
         setDone(true);
       }
@@ -324,15 +426,54 @@ export function CheckoutView({
           </div>
         </div>
         {!clientId && (
-          <div className="mt-4">
-            <label className="mb-1.5 block text-sm font-medium">Walk-in name</label>
-            <input
-              type="text"
-              value={walkInName}
-              onChange={(e) => setWalkInName(e.target.value)}
-              className={dashboardInputClass}
-              aria-label="Walk-in name"
-            />
+          <div className="mt-4 space-y-3">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Walk-in name</label>
+              <input
+                type="text"
+                value={walkInName}
+                onChange={(e) => setWalkInName(e.target.value)}
+                className={dashboardInputClass}
+                aria-label="Walk-in name"
+              />
+            </div>
+            {loyaltyEnabled && (
+              <>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={joinLoyalty}
+                    onChange={(e) => setJoinLoyalty(e.target.checked)}
+                    className="mt-1 rounded border-border"
+                  />
+                  <span className="text-sm">
+                    Join loyalty programme — earn points on this visit (requires phone or email).
+                  </span>
+                </label>
+                {joinLoyalty && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">Phone</label>
+                      <input
+                        type="tel"
+                        value={walkInPhone}
+                        onChange={(e) => setWalkInPhone(e.target.value)}
+                        className={dashboardInputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">Email</label>
+                      <input
+                        type="email"
+                        value={walkInEmail}
+                        onChange={(e) => setWalkInEmail(e.target.value)}
+                        className={dashboardInputClass}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </DashboardSection>
@@ -524,6 +665,56 @@ export function CheckoutView({
         />
       </div>
       <p className="text-lg font-semibold">Total: £{(totalMinor / 100).toFixed(2)}</p>
+      {loyaltyDiscountMinor > 0 && (
+        <p className="text-sm text-accent">
+          Loyalty discount: −{formatMoneyMinor(loyaltyDiscountMinor)}
+        </p>
+      )}
+      {loyaltyEnabled && clientId && (
+        <div className="rounded-lg border border-border bg-background/50 p-3 space-y-3">
+          <p className="text-sm font-medium">Loyalty points</p>
+          {loyaltyLoading ? (
+            <p className="text-xs text-muted">Loading balance…</p>
+          ) : (
+            <p className="text-xs text-muted">
+              Balance: {loyaltyBalance?.servicePoints ?? 0} service pts · {loyaltyBalance?.productPoints ?? 0} product pts
+              {" "}(1 pt = {formatMoneyMinor(loyaltySettings.servicePointValueMinor)} off services;{" "}
+              {loyaltySettings.productPointsPerBlock} pts = {formatMoneyMinor(loyaltySettings.productBlockValueMinor)} off products)
+            </p>
+          )}
+          {!useCustomAmount && lineServicesMinor > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium">Redeem service points</label>
+              <input
+                type="number"
+                min={0}
+                max={loyaltyBalance?.servicePoints ?? 0}
+                value={redeemServicePoints}
+                onChange={(e) => setRedeemServicePoints(Math.max(0, Number(e.target.value) || 0))}
+                className={dashboardInputClass}
+              />
+            </div>
+          )}
+          {!useCustomAmount && lineProductsMinor > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium">Redeem product points</label>
+              <input
+                type="number"
+                min={0}
+                max={maxRedeemableProductPoints(
+                  loyaltyBalance ?? { servicePoints: 0, productPoints: 0 },
+                  loyaltySettings
+                )}
+                step={loyaltySettings.productPointsPerBlock}
+                value={redeemProductPoints}
+                onChange={(e) => setRedeemProductPoints(Math.max(0, Number(e.target.value) || 0))}
+                className={dashboardInputClass}
+              />
+            </div>
+          )}
+          {loyaltyTotals?.error && <p className="text-xs text-red-400">{loyaltyTotals.error}</p>}
+        </div>
+      )}
       <label className="flex items-center gap-2 py-2 cursor-pointer">
         <input
           type="checkbox"

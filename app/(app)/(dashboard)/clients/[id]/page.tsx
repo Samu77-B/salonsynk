@@ -174,17 +174,18 @@ export default async function ClientDetailPage({
     ? Math.ceil((patchDue.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
     : null;
 
-  let loyaltyData: { points: number; total_visits: number; tier: string } | null = null;
+  let loyaltyData: { servicePoints: number; productPoints: number; total_visits: number; tier: string } | null = null;
   try {
     const { data: inc } = await supabase
       .from("client_incentives")
-      .select("points, total_visits, tier")
+      .select("points, service_points, product_points, total_visits, tier")
       .eq("salon_id", context.salon.id)
       .eq("client_id", id)
       .maybeSingle();
     if (inc) {
       loyaltyData = {
-        points: inc.points as number,
+        servicePoints: (inc.service_points as number | null) ?? (inc.points as number),
+        productPoints: (inc.product_points as number | null) ?? 0,
         total_visits: inc.total_visits as number,
         tier: inc.tier as string,
       };

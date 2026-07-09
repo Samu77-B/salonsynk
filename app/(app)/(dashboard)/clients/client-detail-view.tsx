@@ -49,7 +49,7 @@ export function ClientDetailView({
   onPatchTestDueAt: string | null;
   onLastSkinTestAt?: string | null;
   clientNotes?: ClientNote[];
-  loyaltyData?: { points: number; total_visits: number; tier: string } | null;
+  loyaltyData?: { servicePoints: number; productPoints: number; total_visits: number; tier: string } | null;
 }) {
   const [patchDate, setPatchDate] = useState(onPatchTestDueAt?.slice(0, 10) ?? "");
   const [lastSkinTestDate, setLastSkinTestDate] = useState(onLastSkinTestAt?.slice(0, 10) ?? "");
@@ -159,7 +159,12 @@ export function ClientDetailView({
               {loyaltyData.tier}
             </span>
             <div className="text-sm">
-              <span className="font-semibold">{loyaltyData.points}</span> <span className="text-muted">points</span>
+              <span className="font-semibold">{loyaltyData.servicePoints}</span>{" "}
+              <span className="text-muted">service pts</span>
+            </div>
+            <div className="text-sm">
+              <span className="font-semibold">{loyaltyData.productPoints}</span>{" "}
+              <span className="text-muted">product pts</span>
             </div>
             <div className="text-sm">
               <span className="font-semibold">{loyaltyData.total_visits}</span> <span className="text-muted">visits</span>

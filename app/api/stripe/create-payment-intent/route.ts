@@ -3,6 +3,12 @@ import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/server";
 import { requireStaffElevationOrError } from "@/lib/staff-elevation";
+import {
+  loyaltyMetadata,
+  resolveCheckoutAmounts,
+  resolveCheckoutLineTotals,
+} from "@/lib/loyalty/checkout-server";
+import { resolveCheckoutClientId } from "@/lib/loyalty/resolve-client";
 
 export async function POST(request: Request) {
   const context = await getCurrentUserSalon();
@@ -17,12 +23,18 @@ export async function POST(request: Request) {
   const body = await request.json();
   const {
     salonId,
-    clientId,
+    clientId: rawClientId,
     stylistId,
     silentAppointment,
     serviceIds,
     productIds,
     customAmountMinor,
+    redeemServicePoints,
+    redeemProductPoints,
+    joinLoyalty,
+    walkInName,
+    walkInEmail,
+    walkInPhone,
   } = body as {
     salonId: string;
     clientId?: string;
@@ -30,8 +42,13 @@ export async function POST(request: Request) {
     silentAppointment?: boolean;
     serviceIds?: string[];
     productIds?: string[];
-    /** When set, overrides line total (pence). */
     customAmountMinor?: number | null;
+    redeemServicePoints?: number;
+    redeemProductPoints?: number;
+    joinLoyalty?: boolean;
+    walkInName?: string;
+    walkInEmail?: string;
+    walkInPhone?: string;
   };
 
   if (!salonId || context.salon.id !== salonId) {
@@ -40,6 +57,14 @@ export async function POST(request: Request) {
 
   const supabase = await createClient();
   const memberId = stylistId ?? context.member.id;
+
+  const clientResult = await resolveCheckoutClientId(supabase, salonId, rawClientId, {
+    joinLoyalty,
+    walkInName,
+    walkInEmail,
+    walkInPhone,
+  });
+  if (clientResult.error) return NextResponse.json({ error: clientResult.error }, { status: 400 });
 
   const { data: stylist } = await supabase
     .from("salon_members")
@@ -80,51 +105,30 @@ export async function POST(request: Request) {
     ? [...new Set(productIds.filter((id): id is string => typeof id === "string" && id.length > 0))]
     : [];
 
-  let allowedServiceIds: string[] = [];
-  if (normalizedServiceIds.length > 0) {
-    const { data: matchedServices } = await supabase
-      .from("services")
-      .select("id, price_minor")
-      .eq("salon_id", salonId)
-      .in("id", normalizedServiceIds);
-    allowedServiceIds = (matchedServices ?? []).map((s) => s.id);
-  }
+  const lines = await resolveCheckoutLineTotals(supabase, salonId, {
+    serviceIds: normalizedServiceIds,
+    productIds: normalizedProductIds,
+  });
 
-  let allowedProductIds: string[] = [];
-  let productSum = 0;
-  if (normalizedProductIds.length > 0) {
-    const { data: matchedProducts } = await supabase
-      .from("products")
-      .select("id, price_minor")
-      .eq("salon_id", salonId)
-      .eq("is_active", true)
-      .in("id", normalizedProductIds);
-    for (const p of matchedProducts ?? []) {
-      allowedProductIds.push(p.id);
-      productSum += Number(p.price_minor ?? 0);
-    }
-  }
+  const resolved = await resolveCheckoutAmounts(supabase, salonId, clientResult.clientId, {
+    serviceIds: normalizedServiceIds,
+    productIds: normalizedProductIds,
+    customAmountMinor,
+    redeemServicePoints,
+    redeemProductPoints,
+  });
+  if (resolved.error) return NextResponse.json({ error: resolved.error }, { status: 400 });
 
-  let serviceSum = 0;
-  if (allowedServiceIds.length > 0) {
-    const { data: svcRows } = await supabase
-      .from("services")
-      .select("price_minor")
-      .eq("salon_id", salonId)
-      .in("id", allowedServiceIds);
-    serviceSum = (svcRows ?? []).reduce((acc, s) => acc + Number(s.price_minor ?? 0), 0);
-  }
-
-  const lineTotalMinor = serviceSum + productSum;
-  const useCustom =
-    typeof customAmountMinor === "number" && !Number.isNaN(customAmountMinor) && customAmountMinor >= 50;
-  const amountMinor = useCustom ? Math.round(customAmountMinor) : lineTotalMinor;
+  const { amounts } = resolved;
+  const amountMinor = amounts.amountMinor;
 
   if (amountMinor < 50) {
     return NextResponse.json({ error: "Minimum amount is £0.50" }, { status: 400 });
   }
 
-  if (!useCustom && lineTotalMinor < 50) {
+  const useCustom =
+    typeof customAmountMinor === "number" && !Number.isNaN(customAmountMinor) && customAmountMinor >= 50;
+  if (!useCustom && lines.serviceSum + lines.productSum < 50) {
     return NextResponse.json(
       { error: "Select services and/or products, or enter a custom amount of at least £0.50" },
       { status: 400 }
@@ -137,12 +141,13 @@ export async function POST(request: Request) {
     const stripe = getStripe();
     const metadata: Record<string, string> = {
       salon_id: salonId,
-      client_id: clientId ?? "",
+      client_id: clientResult.clientId ?? "",
       employment_type: employmentType,
       stylist_id: stylist.id,
       silent_appointment: silentAppointment === true ? "true" : "false",
-      service_ids: allowedServiceIds.join(",").slice(0, 450),
-      product_ids: allowedProductIds.join(",").slice(0, 450),
+      service_ids: lines.allowedServiceIds.join(",").slice(0, 450),
+      product_ids: lines.allowedProductIds.join(",").slice(0, 450),
+      ...loyaltyMetadata(amounts),
     };
 
     if (employmentType === "EMPLOYEE") {
@@ -152,7 +157,10 @@ export async function POST(request: Request) {
         transfer_data: { destination: salon.stripe_connect_account_id },
         metadata,
       });
-      return NextResponse.json({ clientSecret: paymentIntent.client_secret });
+      return NextResponse.json({
+        clientSecret: paymentIntent.client_secret,
+        clientId: clientResult.clientId ?? undefined,
+      });
     }
 
     if (!stylist.stripe_connect_account_id) {
@@ -173,7 +181,10 @@ export async function POST(request: Request) {
       application_fee_amount: Math.min(Math.max(0, applicationFeeAmount), amountMinor),
       metadata,
     });
-    return NextResponse.json({ clientSecret: paymentIntent.client_secret });
+    return NextResponse.json({
+      clientSecret: paymentIntent.client_secret,
+      clientId: clientResult.clientId ?? undefined,
+    });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Payment failed" }, { status: 500 });

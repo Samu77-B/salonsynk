@@ -79,7 +79,7 @@ export default async function TargetsPage() {
       .lt("start_time", monthEnd.toISOString()),
     supabase
       .from("client_incentives")
-      .select("id, client_id, points, total_visits, tier, last_reward_at")
+      .select("id, client_id, points, service_points, product_points, total_visits, tier, last_reward_at")
       .eq("salon_id", context.salon.id)
       .order("points", { ascending: false })
       .limit(50),
@@ -150,6 +150,8 @@ export default async function TargetsPage() {
     id: i.id as string,
     client_id: i.client_id as string,
     points: i.points as number,
+    service_points: (i.service_points as number | null) ?? (i.points as number),
+    product_points: (i.product_points as number | null) ?? 0,
     total_visits: i.total_visits as number,
     tier: i.tier as string,
     last_reward_at: i.last_reward_at as string | null,

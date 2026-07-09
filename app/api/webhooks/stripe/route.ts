@@ -11,6 +11,7 @@ import {
   resolveTenantFromStripeMetadata,
   tenantTable,
 } from "@core/billing/stripe-metadata";
+import { applyLoyaltyForCompletedSale } from "@/lib/loyalty/process-sale";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -55,6 +56,10 @@ export async function POST(request: Request) {
       employment_type?: string;
       service_ids?: string;
       product_ids?: string;
+      loyalty_redeem_service_pts?: string;
+      loyalty_redeem_product_pts?: string;
+      loyalty_service_paid_minor?: string;
+      loyalty_product_paid_minor?: string;
     };
   };
   type CheckoutSessionObject = {
@@ -182,6 +187,25 @@ export async function POST(request: Request) {
         paidAt: pi.created ? new Date(pi.created * 1000) : undefined,
         metadata: pi.metadata,
       });
+
+      const meta = pi.metadata;
+      const clientId = meta?.client_id?.trim();
+      const salonId = meta?.salon_id?.trim();
+      if (clientId && salonId) {
+        const loyaltyResult = await applyLoyaltyForCompletedSale(supabase, {
+          salonId,
+          clientId,
+          saleReference: pi.id,
+          servicePaidMinor: Number(meta?.loyalty_service_paid_minor ?? 0) || 0,
+          productPaidMinor: Number(meta?.loyalty_product_paid_minor ?? 0) || 0,
+          redeemServicePoints: Number(meta?.loyalty_redeem_service_pts ?? 0) || 0,
+          redeemProductPoints: Number(meta?.loyalty_redeem_product_pts ?? 0) || 0,
+          memberId: meta?.stylist_id?.trim() || null,
+        });
+        if (loyaltyResult.error) {
+          console.error("[stripe webhook] loyalty apply failed", loyaltyResult.error, pi.id);
+        }
+      }
     }
   }
 

@@ -7,6 +7,8 @@ import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
 import { isMissingDescriptionColumnError, isMissingProcessingColumnError, isMissingColorColumnError, isMissingCategoryColumnError, isMissingSortOrderColumnError, isMissingCategoryColorColumnError } from "@/lib/db/service-schema";
 import { pickNextCategoryColor } from "@/lib/service-diary-color";
+import { serializeLoyaltySettings, type LoyaltySettings } from "@/lib/loyalty/settings";
+import { isManagerRole } from "@/lib/dashboard-roles";
 
 const SERVICE_DESCRIPTION_MAX_LEN = 2000;
 
@@ -180,6 +182,27 @@ export async function updateSalonMarketingSettings(
   const { error } = await supabase.from("salons").update({ settings: next }).eq("id", salonId);
   if (error) return { error: error.message };
   revalidatePath("/settings");
+  return {};
+}
+
+export async function updateLoyaltySettings(salonId: string, loyalty: LoyaltySettings) {
+  const context = await getCurrentUserSalon();
+  const isSuperAdmin = await getIsSuperAdmin();
+  if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
+  if (!isManagerRole(isSuperAdmin, context.member.role ?? "")) return { error: "Unauthorized" };
+
+  const supabase = await createClient();
+  const { data: existing } = await supabase.from("salons").select("settings").eq("id", salonId).single();
+  if (!existing) return { error: "Salon not found" };
+  const current = (existing.settings as Record<string, unknown>) ?? {};
+  const { error } = await supabase
+    .from("salons")
+    .update({ settings: { ...current, loyalty: serializeLoyaltySettings(loyalty) } })
+    .eq("id", salonId);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  revalidatePath("/checkout");
+  revalidatePath("/targets");
   return {};
 }
 

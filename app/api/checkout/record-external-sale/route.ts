@@ -8,6 +8,13 @@ import {
   type PaymentGatewayId,
 } from "@/config/payment-gateways";
 import { requireStaffElevationOrError } from "@/lib/staff-elevation";
+import {
+  loyaltyMetadata,
+  resolveCheckoutAmounts,
+  resolveCheckoutLineTotals,
+} from "@/lib/loyalty/checkout-server";
+import { resolveCheckoutClientId } from "@/lib/loyalty/resolve-client";
+import { applyLoyaltyForCompletedSale } from "@/lib/loyalty/process-sale";
 
 /**
  * Record a sale paid on the salon's existing terminal (Worldpay, Dojo, other POS).
@@ -31,6 +38,12 @@ export async function POST(request: Request) {
     productIds?: string[];
     customAmountMinor?: number | null;
     terminalReference?: string;
+    redeemServicePoints?: number;
+    redeemProductPoints?: number;
+    joinLoyalty?: boolean;
+    walkInName?: string;
+    walkInEmail?: string;
+    walkInPhone?: string;
   };
   try {
     body = await request.json();
@@ -61,6 +74,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid payment gateway on salon." }, { status: 400 });
   }
 
+  const clientResult = await resolveCheckoutClientId(admin, salonId, body.clientId, {
+    joinLoyalty: body.joinLoyalty,
+    walkInName: body.walkInName,
+    walkInEmail: body.walkInEmail,
+    walkInPhone: body.walkInPhone,
+  });
+  if (clientResult.error) return NextResponse.json({ error: clientResult.error }, { status: 400 });
+
   const memberId = body.stylistId ?? context.member.id;
   const { data: stylist } = await admin
     .from("salon_members")
@@ -77,28 +98,17 @@ export async function POST(request: Request) {
   const serviceIds = [...new Set((body.serviceIds ?? []).filter(Boolean))];
   const productIds = [...new Set((body.productIds ?? []).filter(Boolean))];
 
-  let amountMinor = 0;
-  if (body.customAmountMinor != null && body.customAmountMinor >= 50) {
-    amountMinor = Math.round(body.customAmountMinor);
-  } else {
-    if (serviceIds.length) {
-      const { data: svc } = await admin
-        .from("services")
-        .select("id, price_minor")
-        .eq("salon_id", salonId)
-        .in("id", serviceIds);
-      amountMinor += (svc ?? []).reduce((s, r) => s + Number(r.price_minor ?? 0), 0);
-    }
-    if (productIds.length) {
-      const { data: prods } = await admin
-        .from("products")
-        .select("id, price_minor")
-        .eq("salon_id", salonId)
-        .in("id", productIds);
-      amountMinor += (prods ?? []).reduce((s, r) => s + Number(r.price_minor ?? 0), 0);
-    }
-  }
+  const lines = await resolveCheckoutLineTotals(admin, salonId, { serviceIds, productIds });
+  const resolved = await resolveCheckoutAmounts(admin, salonId, clientResult.clientId, {
+    serviceIds,
+    productIds,
+    customAmountMinor: body.customAmountMinor,
+    redeemServicePoints: body.redeemServicePoints,
+    redeemProductPoints: body.redeemProductPoints,
+  });
+  if (resolved.error) return NextResponse.json({ error: resolved.error }, { status: 400 });
 
+  const amountMinor = resolved.amounts.amountMinor;
   if (amountMinor < 50) {
     return NextResponse.json(
       { error: "Minimum amount is £0.50 — select items or enter a custom amount." },
@@ -114,19 +124,41 @@ export async function POST(request: Request) {
   const { error: insertError } = await admin.from("sales_transactions").insert({
     salon_id: salonId,
     stylist_id: stylist.id,
-    client_id: body.clientId?.trim() || null,
+    client_id: clientResult.clientId?.trim() || null,
     stripe_payment_intent_id: syntheticId.slice(0, 255),
     payment_gateway: gateway,
     amount_minor: amountMinor,
     currency: "gbp",
     employment_type: employmentType,
-    service_ids: serviceIds,
-    product_ids: productIds,
+    service_ids: lines.allowedServiceIds,
+    product_ids: lines.allowedProductIds,
   });
 
   if (insertError) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, amountMinor, paymentGateway: gateway });
+  if (clientResult.clientId) {
+    const loyaltyResult = await applyLoyaltyForCompletedSale(admin, {
+      salonId,
+      clientId: clientResult.clientId,
+      saleReference: syntheticId.slice(0, 255),
+      servicePaidMinor: resolved.amounts.servicePaidMinor,
+      productPaidMinor: resolved.amounts.productPaidMinor,
+      redeemServicePoints: resolved.amounts.redeemServicePoints,
+      redeemProductPoints: resolved.amounts.redeemProductPoints,
+      memberId: context.member.id,
+    });
+    if (loyaltyResult.error) {
+      return NextResponse.json({ error: loyaltyResult.error }, { status: 500 });
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    amountMinor,
+    paymentGateway: gateway,
+    clientId: clientResult.clientId ?? undefined,
+    loyalty: loyaltyMetadata(resolved.amounts),
+  });
 }

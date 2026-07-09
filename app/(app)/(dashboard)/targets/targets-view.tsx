@@ -8,7 +8,16 @@ import { dashboardFlowClass, dashboardStaggerClass } from "@/components/dashboar
 type Member = { id: string; display_name: string; role: string; avatar_url: string | null };
 type Target = { id: string; member_id: string; target_type: TargetType; target_value: number; period: TargetPeriod; is_active: boolean };
 type MemberProgress = { weeklyRevenue: number; monthlyRevenue: number; weeklyAppts: number; monthlyAppts: number };
-type Incentive = { id: string; client_id: string; points: number; total_visits: number; tier: string; last_reward_at: string | null };
+type Incentive = {
+  id: string;
+  client_id: string;
+  points: number;
+  service_points: number;
+  product_points: number;
+  total_visits: number;
+  tier: string;
+  last_reward_at: string | null;
+};
 
 type Tab = "staff" | "loyalty";
 
@@ -282,7 +291,8 @@ export function TargetsView({
           <div className="rounded-xl border border-border bg-white/[0.03] p-4">
             <h3 className="text-sm font-semibold mb-2">Client Loyalty Programme</h3>
             <p className="text-xs text-muted mb-3">
-              Clients earn points per visit. Tiers upgrade automatically: Bronze (0-9 visits), Silver (10-19), Gold (20+).
+              Clients earn points when they pay at checkout: £1 on services = 1 service point, £1 on products = 2 product points.
+              Redemption values are set in Settings. Tiers upgrade by visits: Bronze (0–9), Silver (10–19), Gold (20+).
             </p>
             <div className="grid grid-cols-3 gap-3 text-center text-xs">
               <div className="rounded-lg bg-orange-500/10 border border-orange-500/20 p-2">
@@ -302,7 +312,7 @@ export function TargetsView({
 
           {incentives.length === 0 ? (
             <p className="text-sm text-muted py-8 text-center">
-              No client loyalty data yet. Points are awarded when appointments are completed.
+              No client loyalty data yet. Points are awarded when enrolled clients pay at checkout.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -311,7 +321,8 @@ export function TargetsView({
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
                     <th className="pb-2 pr-4">Client</th>
                     <th className="pb-2 pr-4 text-center">Tier</th>
-                    <th className="pb-2 pr-4 text-right">Points</th>
+                    <th className="pb-2 pr-4 text-right">Service pts</th>
+                    <th className="pb-2 pr-4 text-right">Product pts</th>
                     <th className="pb-2 pr-4 text-right">Visits</th>
                     <th className="pb-2 text-right">Last reward</th>
                   </tr>
@@ -323,7 +334,8 @@ export function TargetsView({
                       <tr key={inc.id} className="border-b border-border/50 last:border-0">
                         <td className="py-2.5 pr-4 font-medium">{client?.name || "Unknown"}</td>
                         <td className="py-2.5 pr-4 text-center"><TierBadge tier={inc.tier} /></td>
-                        <td className="py-2.5 pr-4 text-right font-semibold">{inc.points}</td>
+                        <td className="py-2.5 pr-4 text-right font-semibold">{inc.service_points}</td>
+                        <td className="py-2.5 pr-4 text-right font-semibold">{inc.product_points}</td>
                         <td className="py-2.5 pr-4 text-right">{inc.total_visits}</td>
                         <td className="py-2.5 text-right text-muted">
                           {inc.last_reward_at

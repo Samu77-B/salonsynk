@@ -7,6 +7,9 @@ import { isPaymentGatewayId, salonUsesStripeCheckout, type PaymentGatewayId } fr
 import { PAYMENT_GATEWAYS } from "@/config/payment-gateways";
 import { DashboardPage, DashboardPageHeader } from "@/components/dashboard/page-layout";
 import { CheckoutView } from "./checkout-view";
+import { fetchSalonPlanState } from "@/lib/salon-features.server";
+import { getEnabledFeatures } from "@/config/plans";
+import { parseLoyaltySettings } from "@/lib/loyalty/settings";
 
 export default async function CheckoutPage() {
   const { context } = await requireSalonFeature("checkout");
@@ -14,7 +17,7 @@ export default async function CheckoutPage() {
   const admin = createAdminClient();
   const { data: salonRow } = await admin
     .from("salons")
-    .select("payment_gateway")
+    .select("payment_gateway, settings")
     .eq("id", context.salon.id)
     .single();
 
@@ -85,6 +88,11 @@ export default async function CheckoutPage() {
       ? context.member.id
       : stylists[0]?.id ?? "";
 
+  const planState = await fetchSalonPlanState(context.salon.id);
+  const enabledFeatures = getEnabledFeatures(planState);
+  const loyaltySettings = parseLoyaltySettings((salonRow?.settings as Record<string, unknown>) ?? {});
+  const loyaltyEnabled = enabledFeatures.includes("targets_loyalty") && loyaltySettings.enabled;
+
   return (
     <DashboardPage width="wide">
       <DashboardPageHeader
@@ -102,6 +110,8 @@ export default async function CheckoutPage() {
           paymentGateway={paymentGateway}
           paymentGatewayLabel={gatewayMeta.shortLabel}
           usesStripeCheckout={usesStripeCheckout}
+          loyaltyEnabled={loyaltyEnabled}
+          loyaltySettings={loyaltySettings}
         />
       </Suspense>
     </DashboardPage>

@@ -12,6 +12,7 @@ import {
 } from "@/config/plans";
 import { fetchSalonPlanState } from "@/lib/salon-features.server";
 import { isPaymentGatewayId, PAYMENT_GATEWAYS, salonUsesStripeCheckout } from "@/config/payment-gateways";
+import { parseLoyaltySettings } from "@/lib/loyalty/settings";
 import { redirect } from "next/navigation";
 
 const SERVICE_SELECT_ATTEMPTS = [
@@ -200,6 +201,7 @@ export async function getSettingsData() {
   const weMissYouWeeksMin = Number(settings.we_miss_you_weeks_min) || 6;
   const weMissYouWeeksMax = Number(settings.we_miss_you_weeks_max) || 10;
   const weMissYouDiscountCode = String(settings.we_miss_you_discount_code ?? "");
+  const loyaltySettings = parseLoyaltySettings(settings);
   const isOwner = context.member.role === "owner";
   const canManageServices = isOwner || isSuperAdmin;
   const employmentType = (member?.employment_type as string) ?? "EMPLOYEE";
@@ -267,6 +269,7 @@ export async function getSettingsData() {
     weMissYouWeeksMin,
     weMissYouWeeksMax,
     weMissYouDiscountCode,
+    loyaltySettings,
     isOwner,
     canManageServices,
     showSalonTaxVault,

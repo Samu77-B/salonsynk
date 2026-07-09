@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, updateDepositSettings, updateReminderSettings, updateSalonMarketingSettings } from "./actions";
+import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, updateDepositSettings, updateReminderSettings, updateSalonMarketingSettings, updateLoyaltySettings } from "./actions";
 import type { PlatformFeatureId } from "@/config/plans";
+import { DEFAULT_LOYALTY_SETTINGS, type LoyaltySettings } from "@/lib/loyalty/settings";
 import { dashboardBtnPrimaryClass, dashboardInputClass, dashboardSectionClass, dashboardFlowClass, dashboardGrid2ColClass, dashboardStackColClass } from "@/components/dashboard/ui";
 
 export function SettingsView(props: {
@@ -28,6 +29,7 @@ export function SettingsView(props: {
   weMissYouWeeksMin?: number;
   weMissYouWeeksMax?: number;
   weMissYouDiscountCode?: string;
+  loyaltySettings?: LoyaltySettings;
   subscriptionCheckoutAvailable?: boolean;
   hasBillingCustomer?: boolean;
   enabledFeatures?: PlatformFeatureId[];
@@ -54,6 +56,7 @@ export function SettingsView(props: {
     weMissYouWeeksMin = 6,
     weMissYouWeeksMax = 10,
     weMissYouDiscountCode = "",
+    loyaltySettings = DEFAULT_LOYALTY_SETTINGS,
     subscriptionCheckoutAvailable = false,
     hasBillingCustomer = false,
     enabledFeatures = [],
@@ -67,6 +70,7 @@ export function SettingsView(props: {
   const hasReminders = features.has("email_reminders");
   const hasReviewRequests = features.has("review_requests");
   const hasWeMissYou = features.has("we_miss_you");
+  const hasLoyalty = features.has("targets_loyalty");
   const hasChairRenterSplits = features.has("chair_renter_splits");
   const connectUrl = `/api/stripe/connect?salonId=${encodeURIComponent(salonId)}`;
   const subscribeUrl = `/api/stripe/create-subscription-checkout?salonId=${encodeURIComponent(salonId)}`;
@@ -98,6 +102,12 @@ export function SettingsView(props: {
   const [wmDiscountCode, setWmDiscountCode] = useState(weMissYouDiscountCode);
   const [marketingMsg, setMarketingMsg] = useState<"saved" | "error" | null>(null);
   const [marketingLoading, setMarketingLoading] = useState(false);
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(loyaltySettings.enabled);
+  const [servicePointValuePence, setServicePointValuePence] = useState(String(loyaltySettings.servicePointValueMinor));
+  const [productBlockPoints, setProductBlockPoints] = useState(String(loyaltySettings.productPointsPerBlock));
+  const [productBlockValuePence, setProductBlockValuePence] = useState(String(loyaltySettings.productBlockValueMinor));
+  const [loyaltyMsg, setLoyaltyMsg] = useState<"saved" | "error" | null>(null);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
 
   async function handleBrandingSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -222,6 +232,88 @@ export function SettingsView(props: {
             </button>
             {depositMsg === "saved" && <span className="text-sm text-green-400">Saved.</span>}
             {depositMsg === "error" && <span className="text-sm text-red-400">Failed.</span>}
+          </form>
+        </section>
+      )}
+
+      {hasLoyalty && (
+        <section className={dashboardSectionClass}>
+          <h2 className="text-lg font-semibold mb-2">Loyalty points</h2>
+          <p className="text-muted text-sm mb-4">
+            Optional programme for clients on your books (or walk-ins who sign up at checkout). Default earn: £1 on
+            services = 1 point, £1 on products = 2 points.
+          </p>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setLoyaltyMsg(null);
+              setLoyaltyLoading(true);
+              const result = await updateLoyaltySettings(salonId, {
+                enabled: loyaltyEnabled,
+                servicePointsPerGbp: DEFAULT_LOYALTY_SETTINGS.servicePointsPerGbp,
+                productPointsPerGbp: DEFAULT_LOYALTY_SETTINGS.productPointsPerGbp,
+                servicePointValueMinor: Math.max(1, Math.round(Number(servicePointValuePence) || 25)),
+                productPointsPerBlock: Math.max(1, Math.round(Number(productBlockPoints) || 2)),
+                productBlockValueMinor: Math.max(1, Math.round(Number(productBlockValuePence) || 25)),
+              });
+              setLoyaltyLoading(false);
+              setLoyaltyMsg(result.error ? "error" : "saved");
+            }}
+            className="space-y-3"
+          >
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={loyaltyEnabled}
+                onChange={(e) => setLoyaltyEnabled(e.target.checked)}
+                className="rounded border-border"
+              />
+              <span className="text-sm font-medium">Enable loyalty points at checkout</span>
+            </label>
+            {loyaltyEnabled && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Service point value (pence)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={servicePointValuePence}
+                    onChange={(e) => setServicePointValuePence(e.target.value)}
+                    className={dashboardInputClass}
+                  />
+                  <p className="mt-1 text-xs text-muted">Default 25p off services per point redeemed.</p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Product points per block</label>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={productBlockPoints}
+                    onChange={(e) => setProductBlockPoints(e.target.value)}
+                    className={dashboardInputClass}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Product block value (pence)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={productBlockValuePence}
+                    onChange={(e) => setProductBlockValuePence(e.target.value)}
+                    className={dashboardInputClass}
+                  />
+                  <p className="mt-1 text-xs text-muted">Default: 2 product points = 25p off retail.</p>
+                </div>
+              </div>
+            )}
+            <button type="submit" disabled={loyaltyLoading} className={dashboardBtnPrimaryClass}>
+              {loyaltyLoading ? "Saving…" : "Save loyalty settings"}
+            </button>
+            {loyaltyMsg === "saved" && <span className="text-sm text-green-400">Saved.</span>}
+            {loyaltyMsg === "error" && <span className="text-sm text-red-400">Failed.</span>}
           </form>
         </section>
       )}
