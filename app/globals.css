@@ -271,7 +271,8 @@ body {
   transform-origin: top;
 }
 .app-shell-light .diary-grid-line-hour {
-  background-color: color-mix(in srgb, var(--border-grid) 92%, transparent);
+  transform: scaleY(1);
+  background-color: var(--border-grid);
 }
 .app-shell-light .diary-grid-line-half {
   background-color: color-mix(in srgb, var(--border-grid) 72%, transparent);
@@ -280,7 +281,8 @@ body {
   background-color: color-mix(in srgb, var(--border-grid) 58%, transparent);
 }
 .app-shell-dark .diary-grid-line-hour {
-  background-color: color-mix(in srgb, var(--border-grid) 65%, transparent);
+  transform: scaleY(1);
+  background-color: color-mix(in srgb, var(--border-grid) 88%, transparent);
 }
 .app-shell-dark .diary-grid-line-half {
   background-color: color-mix(in srgb, var(--border-grid) 45%, transparent);
