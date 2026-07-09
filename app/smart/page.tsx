@@ -36,7 +36,7 @@ export default async function SmartLandingPage() {
         <PlatformShowcase tabs={SMART_SHOWCASE_TABS} />
       </main>
 
-      <footer className="border-t border-border py-8 pl-14 text-center text-sm text-muted lg:pl-16">
+      <footer className="border-t border-border py-8 text-center text-sm text-muted">
         <p>© {new Date().getFullYear()} {SMART_SITE.url.replace("https://", "")}</p>
       </footer>
     </div>

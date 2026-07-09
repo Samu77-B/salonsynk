@@ -87,7 +87,7 @@ export function OutcomeShowcase({
       id={id}
       className={
         isSmart
-          ? "relative bg-canvas py-20 pl-14 lg:pl-16 lg:py-28"
+          ? "relative bg-canvas py-20 lg:py-28"
           : "relative border-t border-zinc-200 bg-white py-16 sm:py-20"
       }
     >

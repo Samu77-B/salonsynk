@@ -46,7 +46,7 @@ export function AboutSection({
   const values = { businesses, appointments, transactions, platforms };
 
   return (
-    <section id="about" className="relative bg-canvas py-20 pl-14 lg:pl-16 lg:py-28">
+    <section id="about" className="relative bg-canvas py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
         <h2 className="smart-section-title mb-16 text-center">
           About {SMART_SITE.name}

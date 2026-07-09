@@ -30,7 +30,7 @@ export function PlatformsShowcase({ platforms }: PlatformsShowcaseProps) {
   const next = () => scrollToIndex(activeIndex + 1);
 
   return (
-    <section id="platforms" className="relative bg-canvas py-20 pl-14 lg:pl-16 lg:py-28">
+    <section id="platforms" className="relative bg-canvas py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
         <h2 className="smart-section-title mb-12 text-center lg:mb-16">
           Our Platforms

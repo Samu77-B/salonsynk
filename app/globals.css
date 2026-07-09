@@ -135,10 +135,10 @@
 
 .smart-hero-overlay {
   background: linear-gradient(
-    90deg,
-    rgba(26, 26, 26, 0.85) 0%,
-    rgba(26, 26, 26, 0.55) 45%,
-    rgba(26, 26, 26, 0.25) 100%
+    to top,
+    rgba(26, 26, 26, 0.88) 0%,
+    rgba(26, 26, 26, 0.45) 45%,
+    rgba(26, 26, 26, 0.15) 100%
   );
 }
 
@@ -180,6 +180,22 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.smart-glass-nav {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.05) 45%,
+    rgba(255, 255, 255, 0.09) 100%
+  );
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .smart-glow-salon {
