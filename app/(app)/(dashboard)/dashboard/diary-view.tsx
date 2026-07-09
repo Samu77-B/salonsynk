@@ -1222,7 +1222,7 @@ export function DiaryView({
                             </div>
                           </div>
                           <div
-                            className="absolute left-0 right-0 border-t border-borderGrid"
+                            className="diary-grid-line diary-grid-line-hour absolute left-0 right-0"
                             style={{ marginLeft: `${gutterW}px` }}
                           />
                         </div>
@@ -1240,8 +1240,8 @@ export function DiaryView({
                           style={{ top: `${top}px` }}
                         >
                           <div
-                            className={`absolute left-0 right-0 border-t ${
-                              isHalfHour ? "border-borderGrid/60" : "border-borderGrid/35"
+                            className={`diary-grid-line absolute left-0 right-0 ${
+                              isHalfHour ? "diary-grid-line-half" : "diary-grid-line-quarter"
                             }`}
                             style={{ marginLeft: `${gutterW}px` }}
                           />

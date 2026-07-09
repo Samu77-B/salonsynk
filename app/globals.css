@@ -21,7 +21,7 @@
   --muted: #71717a;
   --accent: #15803d;
   --border: #d4d4d8;
-  --border-grid: #a1a1aa;
+  --border-grid: #b8b8be;
 }
 
 /* Logged-in app shell: dark theme */
@@ -33,7 +33,7 @@
   --muted: #a1a1aa;
   --accent: #22c55e;
   --border: #3f3f46;
-  --border-grid: #52525b;
+  --border-grid: #3f3f46;
 }
 
 /* BarberSynk: charcoal + cream + terracotta palette */
@@ -262,6 +262,31 @@ body {
 
 .page-enter-opacity {
   animation: page-enter-opacity 0.18s ease-out forwards;
+}
+
+/* Diary day-view grid lines — thin grey, visible in light and dark themes */
+.diary-grid-line {
+  height: 1px;
+  transform: scaleY(0.5);
+  transform-origin: top;
+}
+.app-shell-light .diary-grid-line-hour {
+  background-color: color-mix(in srgb, var(--border-grid) 92%, transparent);
+}
+.app-shell-light .diary-grid-line-half {
+  background-color: color-mix(in srgb, var(--border-grid) 72%, transparent);
+}
+.app-shell-light .diary-grid-line-quarter {
+  background-color: color-mix(in srgb, var(--border-grid) 58%, transparent);
+}
+.app-shell-dark .diary-grid-line-hour {
+  background-color: color-mix(in srgb, var(--border-grid) 65%, transparent);
+}
+.app-shell-dark .diary-grid-line-half {
+  background-color: color-mix(in srgb, var(--border-grid) 45%, transparent);
+}
+.app-shell-dark .diary-grid-line-quarter {
+  background-color: color-mix(in srgb, var(--border-grid) 32%, transparent);
 }
 
 /* --- Dashboard load-in: subtle fade-up, staggered children --- */
