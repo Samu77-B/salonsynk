@@ -160,24 +160,25 @@ export function AppHeader({
           <span className="sr-only">SalonSynk</span>
         </Link>
 
-        {/* Desktop nav */}
-        <nav
-          className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 overflow-x-auto scrollbar-none md:flex lg:gap-1"
-          aria-label="Main"
-        >
-          {visibleLinks.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className={navLinkClassName(isNavActive(pathname, href))}
-              aria-current={isNavActive(pathname, href) ? "page" : undefined}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
+        {/* Desktop nav + account */}
+        <div className="hidden min-w-0 items-center justify-end gap-2 md:flex lg:gap-3">
+          <nav
+            className="flex min-w-0 items-center justify-end gap-0.5 overflow-x-auto scrollbar-none lg:gap-1"
+            aria-label="Main"
+          >
+            {visibleLinks.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className={navLinkClassName(isNavActive(pathname, href))}
+                aria-current={isNavActive(pathname, href) ? "page" : undefined}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
 
-        <div className="hidden shrink-0 items-center gap-2 md:flex">
+          <div className="flex shrink-0 items-center gap-2 border-l border-border pl-2 lg:pl-3">
           {isSuperAdmin && adminSalons.length > 0 && (
             <select
               value={currentSalon?.id ?? ""}
@@ -220,6 +221,7 @@ export function AppHeader({
               Sign out
             </button>
           </form>
+          </div>
         </div>
 
         {/* Mobile controls */}
