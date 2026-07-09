@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardDisclosure, DashboardPageHeader } from "@/components/dashboard/page-layout";
-import { dashboardBtnPrimaryClass, dashboardBtnSecondaryClass, dashboardCardClass, dashboardFlowClass, dashboardStaggerClass } from "@/components/dashboard/ui";
+import { dashboardBtnPrimaryClass, dashboardBtnSecondaryClass, dashboardCardClass, dashboardFlowClass, dashboardInputClass, dashboardStaggerClass } from "@/components/dashboard/ui";
 import { ClientForm } from "./client-form";
 import { importClientsFromCsv, type CsvImportRowError } from "./actions";
 
@@ -171,6 +171,16 @@ function ImportClientsPanel({ salonId }: { salonId: string }) {
 
 export function ClientsView({ salonId, clients }: { salonId: string; clients: ClientListRow[] }) {
   const [addOpen, setAddOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredClients = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return clients;
+    return clients.filter((c) => {
+      const haystack = [c.name, c.email, c.phone].filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [clients, search]);
 
   return (
     <section className={`${dashboardFlowClass} space-y-6`}>
@@ -184,17 +194,42 @@ export function ClientsView({ salonId, clients }: { salonId: string; clients: Cl
         }
       />
 
+      {clients.length > 0 && (
+        <div className="max-w-md">
+          <label htmlFor="clients-search" className="mb-1.5 block text-sm font-medium">
+            Search clients
+          </label>
+          <input
+            id="clients-search"
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, email, or phone…"
+            className={dashboardInputClass}
+            autoComplete="off"
+          />
+        </div>
+      )}
+
       <ImportClientsPanel salonId={salonId} />
 
       {clients.length > 0 ? (
+        filteredClients.length > 0 ? (
         <div>
-          <h2 className="mb-4 text-base font-semibold sm:text-lg">Your clients ({clients.length})</h2>
+          <h2 className="mb-4 text-base font-semibold sm:text-lg">
+            Your clients ({filteredClients.length}{search.trim() ? ` of ${clients.length}` : ""})
+          </h2>
           <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 ${dashboardStaggerClass}`}>
-            {clients.map((c) => (
+            {filteredClients.map((c) => (
               <ClientCard key={c.id} client={c} />
             ))}
           </div>
         </div>
+        ) : (
+          <p className="rounded-xl border border-dashed border-border bg-card/50 px-4 py-8 text-center text-sm text-muted">
+            No clients match &quot;{search.trim()}&quot;.
+          </p>
+        )
       ) : (
         <p className="rounded-xl border border-dashed border-border bg-card/50 px-4 py-8 text-center text-sm text-muted">
           No clients yet. Use import above or add your first client.

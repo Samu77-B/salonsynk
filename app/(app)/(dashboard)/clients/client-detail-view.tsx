@@ -39,7 +39,7 @@ export function ClientDetailView({
   onPatchTestDueAt,
   onLastSkinTestAt,
   clientNotes = [],
-  loyaltyData = null,
+  loyaltyPoints = null,
 }: {
   clientId: string;
   salonId: string;
@@ -49,7 +49,12 @@ export function ClientDetailView({
   onPatchTestDueAt: string | null;
   onLastSkinTestAt?: string | null;
   clientNotes?: ClientNote[];
-  loyaltyData?: { servicePoints: number; productPoints: number; total_visits: number; tier: string } | null;
+  loyaltyPoints?: {
+    servicePoints: number;
+    productPoints: number;
+    totalVisits: number;
+    tier: string;
+  } | null;
 }) {
   const [patchDate, setPatchDate] = useState(onPatchTestDueAt?.slice(0, 10) ?? "");
   const [lastSkinTestDate, setLastSkinTestDate] = useState(onLastSkinTestAt?.slice(0, 10) ?? "");
@@ -147,27 +152,35 @@ export function ClientDetailView({
 
   return (
     <div className={`${dashboardStackColClass}`}>
-      {loyaltyData && (
+      {loyaltyPoints && (
         <section className={dashboardSectionClass}>
-          <h2 className="text-lg font-semibold mb-2">Loyalty</h2>
+          <h2 className="text-lg font-semibold mb-2">Loyalty points</h2>
+          {loyaltyPoints.servicePoints === 0 && loyaltyPoints.productPoints === 0 ? (
+            <p className="text-sm text-muted mb-3">
+              This client has no points yet. Points are earned when they pay at checkout (services and retail).
+            </p>
+          ) : (
+            <p className="text-sm text-muted mb-3">Current balance from the loyalty programme.</p>
+          )}
           <div className="flex items-center gap-4 flex-wrap">
             <span className={`inline-block rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wide border ${
-              loyaltyData.tier === "gold" ? "bg-yellow-500/15 text-yellow-300 border-yellow-500/30"
-              : loyaltyData.tier === "silver" ? "bg-zinc-400/15 text-zinc-300 border-zinc-400/30"
-              : "bg-orange-500/15 text-orange-300 border-orange-500/30"
+              loyaltyPoints.tier === "gold" ? "bg-yellow-500/15 text-yellow-700 border-yellow-500/30 dark:text-yellow-300"
+              : loyaltyPoints.tier === "silver" ? "bg-zinc-400/15 text-zinc-700 border-zinc-400/30 dark:text-zinc-300"
+              : "bg-orange-500/15 text-orange-700 border-orange-500/30 dark:text-orange-300"
             }`}>
-              {loyaltyData.tier}
+              {loyaltyPoints.tier}
             </span>
             <div className="text-sm">
-              <span className="font-semibold">{loyaltyData.servicePoints}</span>{" "}
+              <span className="font-semibold">{loyaltyPoints.servicePoints}</span>{" "}
               <span className="text-muted">service pts</span>
             </div>
             <div className="text-sm">
-              <span className="font-semibold">{loyaltyData.productPoints}</span>{" "}
+              <span className="font-semibold">{loyaltyPoints.productPoints}</span>{" "}
               <span className="text-muted">product pts</span>
             </div>
             <div className="text-sm">
-              <span className="font-semibold">{loyaltyData.total_visits}</span> <span className="text-muted">visits</span>
+              <span className="font-semibold">{loyaltyPoints.totalVisits}</span>{" "}
+              <span className="text-muted">loyalty visits</span>
             </div>
           </div>
         </section>

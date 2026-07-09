@@ -8,6 +8,9 @@ import { ClientDetailView } from "../client-detail-view";
 import { ClientBillingSummary } from "../client-billing-summary";
 import { ClientPhotos } from "../client-photos";
 import { computeBalanceDueMinor } from "@/lib/appointment-billing";
+import { fetchSalonPlanState } from "@/lib/salon-features.server";
+import { getEnabledFeatures } from "@/config/plans";
+import { parseLoyaltySettings } from "@/lib/loyalty/settings";
 import {
   dashboardFlowClass,
   dashboardGrid2ColClass,
@@ -200,6 +203,20 @@ export default async function ClientDetailPage({
     // table may not exist yet
   }
 
+  const { data: salonRow } = await supabase.from("salons").select("settings").eq("id", context.salon.id).maybeSingle();
+  const planState = await fetchSalonPlanState(context.salon.id);
+  const enabledFeatures = getEnabledFeatures(planState);
+  const loyaltySettings = parseLoyaltySettings((salonRow?.settings as Record<string, unknown>) ?? {});
+  const loyaltyEnabled = enabledFeatures.includes("targets_loyalty") && loyaltySettings.enabled;
+  const loyaltyPoints = loyaltyEnabled
+    ? {
+        servicePoints: loyaltyData?.servicePoints ?? 0,
+        productPoints: loyaltyData?.productPoints ?? 0,
+        totalVisits: loyaltyData?.total_visits ?? 0,
+        tier: loyaltyData?.tier ?? "bronze",
+      }
+    : null;
+
   const profilePhoto = clientPhotos.find((p) => p.slot === "profile");
   const avatarSrc = profilePhoto
     ? profilePhoto.url
@@ -299,7 +316,7 @@ export default async function ClientDetailPage({
             onPatchTestDueAt={client.patch_test_due_at}
             onLastSkinTestAt={client.last_skin_test_at ?? null}
             clientNotes={clientNotes}
-            loyaltyData={loyaltyData}
+            loyaltyPoints={loyaltyPoints}
           />
         </div>
       </div>

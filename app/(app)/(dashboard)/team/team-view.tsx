@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { inviteOrAddTeamMember, updateTeamMember, deleteTeamMember, deleteInvite, uploadTeamMemberAvatar, updateSalonTeamRoles, upsertStylistServiceOverride, deleteStylistServiceOverride, setMemberPasscode, clearMemberPasscode } from "./actions";
 import { StaffOnboardingWizard } from "./staff-onboarding-wizard";
@@ -12,7 +12,7 @@ import {
 } from "@/config/employment-types";
 import { DashboardPageHeader } from "@/components/dashboard/page-layout";
 import { DashboardModal } from "@/components/dashboard/modal";
-import { dashboardBtnPrimaryClass, dashboardCardClass, dashboardFlowClass, dashboardStaggerClass } from "@/components/dashboard/ui";
+import { dashboardBtnPrimaryClass, dashboardCardClass, dashboardFlowClass, dashboardInputClass, dashboardStaggerClass } from "@/components/dashboard/ui";
 
 export type Member = {
   id: string;
@@ -86,6 +86,7 @@ export function TeamView({
   const [timingsSaving, setTimingsSaving] = useState(false);
   const editAvatarInputRef = useRef<HTMLInputElement>(null);
   const addAvatarInputRef = useRef<HTMLInputElement>(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     setLocalCustomRoles(customRoles);
@@ -209,6 +210,16 @@ export function TeamView({
 
   const pendingOnboarding = members.filter((m) => m.is_active && !m.onboarding_completed_at);
 
+  const filteredMembers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return members;
+    return members.filter((m) => {
+      const email = memberEmails[m.id] ?? "";
+      const haystack = [m.display_name, m.role, email].filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [members, memberEmails, search]);
+
   return (
     <div className={`${dashboardFlowClass} space-y-6 min-w-0`}>
       <DashboardPageHeader
@@ -225,6 +236,23 @@ export function TeamView({
 
       {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
 
+      {members.length > 0 && (
+        <div className="max-w-md">
+          <label htmlFor="team-search" className="mb-1.5 block text-sm font-medium">
+            Search team
+          </label>
+          <input
+            id="team-search"
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, role, or email…"
+            className={dashboardInputClass}
+            autoComplete="off"
+          />
+        </div>
+      )}
+
       {isOwner && pendingOnboarding.length > 0 && (
         <div className="space-y-3">
           {pendingOnboarding.slice(0, 2).map((m) => (
@@ -238,8 +266,9 @@ export function TeamView({
         </div>
       )}
 
+      {filteredMembers.length > 0 ? (
       <div className={`grid gap-4 sm:grid-cols-2 xl:grid-cols-3 ${dashboardStaggerClass}`}>
-        {members.map((m) => (
+        {filteredMembers.map((m) => (
           <div
             key={m.id}
             className={`${dashboardCardClass} flex flex-col gap-3 ${!m.is_active ? "opacity-60" : ""}`}
@@ -388,6 +417,11 @@ export function TeamView({
           </div>
         ))}
       </div>
+      ) : members.length > 0 ? (
+        <p className="rounded-xl border border-dashed border-border bg-card/50 px-4 py-8 text-center text-sm text-muted">
+          No team members match &quot;{search.trim()}&quot;.
+        </p>
+      ) : null}
 
       {invites.length > 0 && (
         <section>
