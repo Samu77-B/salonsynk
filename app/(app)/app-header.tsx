@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -135,6 +135,19 @@ export function AppHeader({
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [menuOpen]);
+
   const visibleLinks = navLinksForPlan(
     enabledFeatures,
     Boolean(isManager),
@@ -142,7 +155,8 @@ export function AppHeader({
   );
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur-md">
+    <>
+    <header className="app-header sticky top-0 z-30 border-b border-border backdrop-blur-md">
       <div className="flex min-h-[3.75rem] min-w-0 items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4">
         <Link
           href="/dashboard"
@@ -244,16 +258,17 @@ export function AppHeader({
           </button>
         </div>
       </div>
+    </header>
 
       {menuOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            className="fixed inset-0 z-[100] bg-black/50 md:hidden"
             aria-hidden
             onClick={() => setMenuOpen(false)}
           />
           <nav
-            className="fixed top-0 right-0 bottom-0 z-50 flex w-full max-w-xs flex-col gap-1 overflow-y-auto border-l border-border bg-card p-4 md:hidden"
+            className="fixed top-0 right-0 bottom-0 z-[110] flex w-full max-w-xs flex-col gap-1 overflow-y-auto border-l border-border bg-card p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl md:hidden"
             aria-label="Mobile menu"
           >
             <div className="mb-3 flex items-center justify-between border-b border-border pb-3">
@@ -345,6 +360,6 @@ export function AppHeader({
           </nav>
         </>
       )}
-    </header>
+    </>
   );
 }

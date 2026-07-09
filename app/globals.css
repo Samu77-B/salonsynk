@@ -16,12 +16,21 @@
 .app-shell-light {
   --background: #ffffff;
   --canvas: #e8e8ec;
+  --header: #dedee3;
   --card: #ffffff;
   --foreground: #18181b;
   --muted: #71717a;
   --accent: #15803d;
   --border: #d4d4d8;
   --border-grid: #b8b8be;
+}
+
+.app-shell-light .app-header {
+  background-color: color-mix(in srgb, var(--header) 92%, transparent);
+}
+
+.app-shell-dark .app-header {
+  background-color: color-mix(in srgb, var(--card) 95%, transparent);
 }
 
 /* Logged-in app shell: dark theme */
