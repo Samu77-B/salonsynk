@@ -11,6 +11,7 @@ import {
   employmentTypeShortLabel,
 } from "@/config/employment-types";
 import { DashboardPageHeader } from "@/components/dashboard/page-layout";
+import { DashboardModal } from "@/components/dashboard/modal";
 import { dashboardBtnPrimaryClass, dashboardCardClass, dashboardFlowClass, dashboardStaggerClass } from "@/components/dashboard/ui";
 
 export type Member = {
@@ -411,9 +412,7 @@ export function TeamView({
       )}
 
       {addOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setAddOpen(false)}>
-          <div className="w-full max-w-md rounded-lg border border-border bg-background p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4">Add team member</h2>
+        <DashboardModal open={addOpen} onClose={() => setAddOpen(false)} title="Add team member" maxWidthClass="max-w-md">
             <form onSubmit={handleInvite} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Display name</label>
@@ -495,20 +494,20 @@ export function TeamView({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </DashboardModal>
       )}
 
       {timingsId && (() => {
         const member = members.find((m) => m.id === timingsId);
         const memberOverrides = localOverrides[timingsId] ?? {};
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setTimingsId(null)}>
-            <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-lg border border-border bg-background p-6" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-semibold mb-1">Service timings</h2>
-              <p className="text-sm text-muted mb-4">
-                Custom durations for {member?.display_name || "this stylist"}. Leave blank to use the default.
-              </p>
+          <DashboardModal
+            open
+            onClose={() => setTimingsId(null)}
+            title="Service timings"
+            description={`Custom durations for ${member?.display_name || "this stylist"}. Leave blank to use the default.`}
+            maxWidthClass="max-w-lg"
+          >
               {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
               <div className="space-y-3">
                 {salonServices.map((svc) => {
@@ -583,8 +582,7 @@ export function TeamView({
                   {timingsSaving ? "Saving…" : "Save timings"}
                 </button>
               </div>
-            </div>
-          </div>
+          </DashboardModal>
         );
       })()}
 
@@ -592,12 +590,13 @@ export function TeamView({
         const pinMember = members.find((m) => m.id === passcodeId);
         const pinComplete = pinDigits.every((d) => d !== "");
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setPasscodeId(null)}>
-            <div className="w-full max-w-xs rounded-lg border border-border bg-background p-6 text-center" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-semibold mb-1">{pinMember?.has_passcode ? "Change" : "Set"} PIN</h2>
-              <p className="text-sm text-muted mb-4">
-                Enter a 4-digit PIN for {pinMember?.display_name || "this member"}
-              </p>
+          <DashboardModal
+            open
+            onClose={() => setPasscodeId(null)}
+            title={`${pinMember?.has_passcode ? "Change" : "Set"} PIN`}
+            description={`Enter a 4-digit PIN for ${pinMember?.display_name || "this member"}`}
+            maxWidthClass="max-w-xs"
+          >
               <div className="flex justify-center gap-3 mb-4">
                 {pinDigits.map((d, i) => (
                   <input
@@ -650,8 +649,7 @@ export function TeamView({
                   {pinSaving ? "Saving…" : "Save PIN"}
                 </button>
               </div>
-            </div>
-          </div>
+          </DashboardModal>
         );
       })()}
 
@@ -662,9 +660,7 @@ export function TeamView({
           ? [...baseEditRoleOptions, { value: member.role, label: member.role }, { value: ADD_ROLE_VALUE, label: "(add role)" }]
           : roleOptions;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setEditId(null)}>
-            <div className="w-full max-w-md rounded-lg border border-border bg-background p-6" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-semibold mb-4">Edit member</h2>
+          <DashboardModal open onClose={() => setEditId(null)} title="Edit member" maxWidthClass="max-w-md">
               <form onSubmit={handleUpdateMember} className="space-y-4">
                 {isOwner && (
                   <div>
@@ -780,8 +776,7 @@ export function TeamView({
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
+          </DashboardModal>
         );
       })()}
     </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { updateClientAction, addClientNote, deleteClientNote, type ClientNote } from "./actions";
-import { dashboardFlowClass } from "@/components/dashboard/ui";
+import { dashboardSectionClass, dashboardStackColClass } from "@/components/dashboard/ui";
 
 export type ColorFormula = {
   text?: string;
@@ -146,9 +146,9 @@ export function ClientDetailView({
   }
 
   return (
-    <div className={`${dashboardFlowClass} space-y-8`}>
+    <div className={`${dashboardStackColClass}`}>
       {loyaltyData && (
-        <section className="rounded-xl border border-border bg-white/[0.03] p-4">
+        <section className={dashboardSectionClass}>
           <h2 className="text-lg font-semibold mb-2">Loyalty</h2>
           <div className="flex items-center gap-4 flex-wrap">
             <span className={`inline-block rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wide border ${
@@ -173,7 +173,7 @@ export function ClientDetailView({
         </section>
       )}
 
-      <section>
+      <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Notes</h2>
         <div className="space-y-3 mb-4">
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -235,7 +235,7 @@ export function ClientDetailView({
         )}
       </section>
 
-      <section>
+      <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Color history</h2>
         <ul className="space-y-2 mb-4">
           {formulas.map((f, i) => (
@@ -290,7 +290,7 @@ export function ClientDetailView({
         </div>
       </section>
 
-      <section>
+      <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Skin &amp; Patch Testing</h2>
         <div className="space-y-3">
           <div>
@@ -345,7 +345,7 @@ export function ClientDetailView({
         </div>
       </section>
 
-      <section>
+      <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Purchase history</h2>
         <p className="text-xs text-muted mb-2">Successful Stripe payments linked to this client (services and retail).</p>
         {sales.length === 0 ? (
@@ -379,7 +379,7 @@ export function ClientDetailView({
         )}
       </section>
 
-      <section>
+      <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Appointment history</h2>
         <ul className="space-y-2">
           {(appointments as Appointment[]).map((a) => (

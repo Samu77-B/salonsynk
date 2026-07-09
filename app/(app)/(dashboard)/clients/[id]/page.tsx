@@ -8,6 +8,12 @@ import { ClientDetailView } from "../client-detail-view";
 import { ClientBillingSummary } from "../client-billing-summary";
 import { ClientPhotos } from "../client-photos";
 import { computeBalanceDueMinor } from "@/lib/appointment-billing";
+import {
+  dashboardFlowClass,
+  dashboardGrid2ColClass,
+  dashboardSectionClass,
+  dashboardStackColClass,
+} from "@/components/dashboard/ui";
 
 export default async function ClientDetailPage({
   params,
@@ -202,7 +208,7 @@ export default async function ClientDetailPage({
       : "/imgs/Her.png";
 
   return (
-    <main className="mx-auto w-full min-w-0 max-w-3xl p-4 md:p-6">
+    <main className={`mx-auto w-full min-w-0 max-w-[1600px] p-4 md:p-6 ${dashboardFlowClass}`}>
       <Link href="/clients" className="text-sm text-muted hover:text-foreground mb-4 inline-block">
         Back to clients
       </Link>
@@ -228,67 +234,75 @@ export default async function ClientDetailPage({
         </div>
       </div>
 
-      {daysUntilPatch !== null && (
-        <div
-          className={
-            daysUntilPatch <= 0
-              ? "rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 mb-6"
-              : "rounded-lg border border-border p-4 mb-6"
-          }
-        >
-          <p className="text-sm font-medium">Patch test</p>
-          <p className={daysUntilPatch <= 0 ? "text-amber-400" : "text-muted"}>
-            {daysUntilPatch > 0
-              ? `${daysUntilPatch} day${daysUntilPatch === 1 ? "" : "s"} until patch test due`
-              : "Patch test due"}
-          </p>
-          <p className="text-xs text-muted mt-1">
-            Due: {patchDue?.toLocaleDateString("en-GB")}
-          </p>
+      <div className={dashboardGrid2ColClass}>
+        <div className={dashboardStackColClass}>
+          {daysUntilPatch !== null && (
+            <div
+              className={
+                daysUntilPatch <= 0
+                  ? `${dashboardSectionClass} border-amber-500/50 bg-amber-500/10`
+                  : dashboardSectionClass
+              }
+            >
+              <p className="text-sm font-medium">Patch test</p>
+              <p className={daysUntilPatch <= 0 ? "text-amber-600 dark:text-amber-400" : "text-muted"}>
+                {daysUntilPatch > 0
+                  ? `${daysUntilPatch} day${daysUntilPatch === 1 ? "" : "s"} until patch test due`
+                  : "Patch test due"}
+              </p>
+              <p className="text-xs text-muted mt-1">
+                Due: {patchDue?.toLocaleDateString("en-GB")}
+              </p>
+            </div>
+          )}
+
+          <div className={dashboardSectionClass}>
+            <ClientBillingSummary
+              totalDepositsMinor={totalDepositsMinor}
+              totalPaidMinor={totalPaidMinor}
+              balanceDueMinor={balanceDueMinor}
+            />
+          </div>
+
+          <section className={dashboardSectionClass}>
+            <ClientPhotos
+              clientId={client.id}
+              photos={clientPhotos}
+              sex={client.sex ?? null}
+            />
+          </section>
+
+          <section className={dashboardSectionClass}>
+            <h2 className="text-lg font-semibold mb-3">Details</h2>
+            <ClientForm
+              salonId={context.salon.id}
+              clientId={client.id}
+              initial={{
+                name: client.name ?? "",
+                email: client.email ?? "",
+                phone: client.phone ?? "",
+                notes: client.notes ?? "",
+                sex: client.sex ?? "",
+                marketing_opt_in: client.marketing_opt_in !== false,
+              }}
+            />
+          </section>
         </div>
-      )}
 
-      <ClientBillingSummary
-        totalDepositsMinor={totalDepositsMinor}
-        totalPaidMinor={totalPaidMinor}
-        balanceDueMinor={balanceDueMinor}
-      />
-
-      <section className="mb-8">
-        <ClientPhotos
-          clientId={client.id}
-          photos={clientPhotos}
-          sex={client.sex ?? null}
-        />
-      </section>
-
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold mb-2">Details</h2>
-        <ClientForm
-          salonId={context.salon.id}
-          clientId={client.id}
-          initial={{
-            name: client.name ?? "",
-            email: client.email ?? "",
-            phone: client.phone ?? "",
-            notes: client.notes ?? "",
-            sex: client.sex ?? "",
-            marketing_opt_in: client.marketing_opt_in !== false,
-          }}
-        />
-      </section>
-
-      <ClientDetailView
-        clientId={client.id}
-        salonId={context.salon.id}
-        formulas={formulas}
-        appointments={appointments ?? []}
-        sales={salesHistory}
-        onPatchTestDueAt={client.patch_test_due_at}
-        onLastSkinTestAt={client.last_skin_test_at ?? null}
-        clientNotes={clientNotes}
-        loyaltyData={loyaltyData}
-      />
+        <div className={dashboardStackColClass}>
+          <ClientDetailView
+            clientId={client.id}
+            salonId={context.salon.id}
+            formulas={formulas}
+            appointments={appointments ?? []}
+            sales={salesHistory}
+            onPatchTestDueAt={client.patch_test_due_at}
+            onLastSkinTestAt={client.last_skin_test_at ?? null}
+            clientNotes={clientNotes}
+            loyaltyData={loyaltyData}
+          />
+        </div>
+      </div>
     </main>
   );
 }
