@@ -1229,6 +1229,26 @@ export function DiaryView({
                       );
                     })}
 
+                    {Array.from({ length: gridSpanMins / 15 }, (_, qi) => {
+                      if (qi === 0 || qi % 4 === 0) return null;
+                      const top = qi * 15 * pxPerMin;
+                      const isHalfHour = qi % 2 === 0;
+                      return (
+                        <div
+                          key={`quarter-${qi}`}
+                          className="absolute left-0 right-0 pointer-events-none"
+                          style={{ top: `${top}px` }}
+                        >
+                          <div
+                            className={`absolute left-0 right-0 border-t ${
+                              isHalfHour ? "border-borderGrid/60" : "border-borderGrid/35"
+                            }`}
+                            style={{ marginLeft: `${gutterW}px` }}
+                          />
+                        </div>
+                      );
+                    })}
+
                     {nowLineTopPx !== null && (
                       <div
                         className="pointer-events-none absolute left-0 right-0 z-20 flex items-center"
@@ -1285,18 +1305,7 @@ export function DiaryView({
                             key={member.id}
                             className="relative flex-1 min-w-[100px] border-l border-border first:border-l-0"
                           >
-                            <div
-                              className="pointer-events-none absolute inset-0 z-[1]"
-                              aria-hidden
-                            >
-                              {Array.from({ length: gridSpanMins / 15 }).map((_, qi) => (
-                                <div
-                                  key={qi}
-                                  className={`absolute left-0 right-0 ${qi % 2 === 1 ? "bg-muted/25 dark:bg-white/[0.04]" : "bg-transparent"}`}
-                                  style={{ top: `${qi * 15 * pxPerMin}px`, height: `${15 * pxPerMin}px` }}
-                                />
-                              ))}
-                            </div>
+                            <div className="pointer-events-none absolute inset-0 z-[1]" aria-hidden />
                             <div
                               className="absolute inset-0 z-[3] cursor-crosshair"
                               onDragOver={(e) => {
