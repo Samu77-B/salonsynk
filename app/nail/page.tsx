@@ -89,7 +89,7 @@ export default function NailHomePage() {
             <img
               src="/imgs/nail/nailsynk_logo_blk.png"
               alt="NailSynk"
-              className="h-10 w-auto md:h-12"
+              className="h-12 w-auto max-w-[min(100%,18rem)] sm:h-14"
             />
           </Link>
           <nav className="flex items-center gap-3 sm:gap-5 shrink-0">
@@ -281,7 +281,7 @@ export default function NailHomePage() {
             <img
               src="/imgs/nail/nailsynk_logo_wht.png"
               alt="NailSynk"
-              className="h-8 w-auto"
+              className="h-10 w-auto max-w-[min(100%,16rem)]"
             />
             <p className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
               © {new Date().getFullYear()} {NAIL_SITE.studio}. All rights reserved.

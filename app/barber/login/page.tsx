@@ -25,14 +25,9 @@ export default async function BarberLoginPage() {
         <div className="text-center">
           <Link href="/barber" className="inline-block mb-6">
             <img
-              src="/imgs/barber/barbersynk_logo_blk-Mobile.png"
-              alt="BarberSynk"
-              className="mx-auto h-14 w-auto md:hidden"
-            />
-            <img
               src="/imgs/barber/barbersynk_logo_blk.png"
               alt="BarberSynk"
-              className="mx-auto hidden md:block h-16 w-auto"
+              className="mx-auto h-12 w-auto max-w-[min(100%,18rem)] sm:h-14"
             />
           </Link>
           <h1 className="text-2xl font-bold" style={{ color: "#36454F" }}>Sign in</h1>

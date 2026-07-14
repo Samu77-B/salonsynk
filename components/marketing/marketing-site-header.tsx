@@ -32,11 +32,11 @@ export function MarketingSiteHeader({ variant = "static", activeNav = "none" }: 
           <Image
             src={siteLogo}
             alt={SITE.name}
-            width={560}
-            height={160}
-            className="h-14 w-auto sm:h-16"
-            sizes="(min-width: 640px) 128px, 112px"
-            quality={95}
+            width={1024}
+            height={224}
+            className="h-12 w-auto max-w-[min(100%,18rem)] sm:h-14"
+            sizes="(min-width: 640px) 280px, 220px"
+            quality={100}
             priority={fixed}
           />
         </Link>
