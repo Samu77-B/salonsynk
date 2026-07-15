@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   description: NAIL_SITE.description,
   icons: {
     icon: "/imgs/nail/favicon.png",
+    shortcut: "/imgs/nail/favicon.png",
+    apple: "/imgs/nail/favicon.png",
   },
 };
 

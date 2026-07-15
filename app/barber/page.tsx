@@ -66,11 +66,16 @@ export default function BarberHomePage() {
       {/* Header — matches SalonSynk marketing header */}
       <header className="sticky top-0 z-50 border-b border-zinc-200/80 bg-white">
         <div className="flex h-20 w-full items-center justify-between gap-4 px-4 sm:px-6">
-          <Link href="/" className="flex items-center shrink-0 min-w-0">
+          <Link href="/barber" className="flex items-center shrink-0 min-w-0">
+            <img
+              src="/imgs/barber/barbersynk-icon.png"
+              alt="BarberSynk"
+              className="h-10 w-auto md:hidden"
+            />
             <img
               src="/imgs/barber/barbersynk-logo.png"
               alt="BarberSynk"
-              className="h-12 w-auto max-w-[min(100%,18rem)] sm:h-14"
+              className="hidden h-12 w-auto max-w-[min(100%,18rem)] md:block sm:h-14"
             />
           </Link>
           <nav className="flex items-center gap-3 sm:gap-5 shrink-0">

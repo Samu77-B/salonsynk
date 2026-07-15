@@ -29,12 +29,18 @@ export function MarketingSiteHeader({ variant = "static", activeNav = "none" }: 
     >
       <div className="flex h-20 w-full items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" className="flex items-center shrink-0 min-w-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/salonsynk-icon.png"
+            alt={SITE.name}
+            className="h-10 w-auto md:hidden"
+          />
           <Image
             src={siteLogo}
             alt={SITE.name}
             width={1024}
             height={224}
-            className="h-12 w-auto max-w-[min(100%,18rem)] sm:h-14"
+            className="hidden h-12 w-auto max-w-[min(100%,18rem)] md:block sm:h-14"
             sizes="(min-width: 640px) 280px, 220px"
             quality={100}
             priority={fixed}
