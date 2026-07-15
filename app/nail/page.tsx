@@ -87,7 +87,7 @@ export default function NailHomePage() {
         <div className="flex h-20 w-full items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/nail" className="flex items-center shrink-0 min-w-0">
             <img
-              src="/imgs/nail/nailsynk-icon.png"
+              src="/imgs/nail/nailsynk-icon-v2.png"
               alt="NailSynk"
               className="h-10 w-auto md:hidden"
             />
