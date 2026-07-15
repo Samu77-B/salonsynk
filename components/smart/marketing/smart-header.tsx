@@ -1,72 +1,47 @@
 import Link from "next/link";
-import Image from "next/image";
 import { SMART_NAV_ITEMS, SMART_SITE } from "@core/config/smart-site";
-
-const loginButtonClass =
-  "rounded-full border border-white/30 bg-white/10 px-5 py-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-foreground shadow-sm backdrop-blur-sm transition-all hover:border-white/45 hover:bg-white/15";
-
-const signupButtonClass =
-  "rounded-full bg-accent px-6 py-2.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-background shadow-[0_4px_16px_rgba(197,164,126,0.4)] transition-all hover:brightness-110";
+/* eslint-disable @next/next/no-img-element */
 
 export function SmartHeader() {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 px-4 pt-4 sm:px-6 lg:px-8">
-      <div className="smart-glass-nav mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-2xl px-4 py-3 sm:px-6 lg:px-8">
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <Image
+    <header className="sticky top-0 z-50 border-b border-zinc-200/80 bg-white">
+      <div className="flex h-20 w-full items-center justify-between gap-4 px-4 sm:px-6">
+        <Link href="/" className="flex items-center shrink-0 min-w-0">
+          <img
+            src={SMART_SITE.icon}
+            alt={SMART_SITE.name}
+            className="h-10 w-auto md:hidden"
+          />
+          <img
             src={SMART_SITE.logo}
             alt={SMART_SITE.name}
-            width={140}
-            height={40}
-            className="h-8 w-auto object-contain"
-            priority
+            className="hidden h-12 w-auto max-w-[min(100%,18rem)] md:block sm:h-14"
           />
         </Link>
 
-        <div className="hidden flex-1 items-center justify-center gap-8 lg:flex">
+        <nav className="flex items-center gap-3 sm:gap-5 shrink-0">
+          {SMART_NAV_ITEMS.map((item) => (
+            <a
+              key={item.label}
+              href={item.href}
+              className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors hidden sm:inline"
+            >
+              {item.label}
+            </a>
+          ))}
           <a
             href={`mailto:${SMART_SITE.email}`}
-            className="text-xs tracking-wider text-foreground/70 transition-colors hover:text-foreground"
+            className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors hidden md:inline"
           >
-            {SMART_SITE.email}
+            Contact
           </a>
-
-          <nav className="flex items-center gap-6">
-            {SMART_NAV_ITEMS.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="text-[10px] font-medium uppercase tracking-[0.25em] text-foreground/90 transition-colors hover:text-accent"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Link href="/login" className={`${loginButtonClass} hidden lg:inline-flex`}>
-            Log in
-          </Link>
-          <Link
-            href="/signup"
-            className={`${signupButtonClass} hidden px-5 py-2 lg:inline-flex`}
-          >
-            Get started
-          </Link>
           <Link
             href="/login"
-            className={`${loginButtonClass} px-4 py-1.5 lg:hidden`}
+            className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 sm:px-5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-400 transition-colors"
           >
-            Log in
+            Sign in
           </Link>
-          <Link
-            href="/signup"
-            className={`${signupButtonClass} px-4 py-2 lg:hidden`}
-          >
-            Start
-          </Link>
-        </div>
+        </nav>
       </div>
     </header>
   );

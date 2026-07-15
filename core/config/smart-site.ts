@@ -14,14 +14,34 @@ export const SMART_SITE = {
   url: "https://smartsynk.net",
   email: "hello@smartsynk.net",
   studio: "Paradigm Digital Studio",
-  logo: "/imgs/smart/logo-wht.png",
+  logo: "/imgs/smart/smartsynk-logo-v1.png",
+  icon: "/imgs/smart/smartsynk-icon-v1.png",
+  logoWht: "/imgs/smart/smartsynk-logo-wht-v1.png",
 } as const;
 
 export const SMART_NAV_ITEMS = [
-  { label: "Home", href: "#hero" },
-  { label: "About", href: "#about" },
   { label: "Platforms", href: "#platforms" },
-  { label: "Contact", href: `mailto:${SMART_SITE.email}` },
+  { label: "About", href: "#about" },
+  { label: "FAQ", href: "#faq" },
+] as const;
+
+export const SMART_FAQ_ITEMS = [
+  {
+    q: "What is SmartSynk?",
+    a: "SmartSynk is the central hub for SalonSynk, BarberSynk, and NailSynk. One login gives platform owners and admins access across all three products.",
+  },
+  {
+    q: "Do I need a separate account for each platform?",
+    a: "No. Sign in once at smartsynk.net and you'll be routed to the right dashboard for your business — salon, barber shop, or nail studio.",
+  },
+  {
+    q: "Which platform should I use?",
+    a: "SalonSynk for hair salons, BarberSynk for barber shops with walk-in queues, and NailSynk for nail studios. Visit each product site to learn more and sign up.",
+  },
+  {
+    q: "How do I get help or request a demo?",
+    a: `Email us at ${SMART_SITE.email} and we'll point you to the right Synk platform for your business.`,
+  },
 ] as const;
 
 export const SMART_ABOUT = {

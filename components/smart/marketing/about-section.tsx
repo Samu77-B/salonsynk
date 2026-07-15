@@ -46,29 +46,27 @@ export function AboutSection({
   const values = { businesses, appointments, transactions, platforms };
 
   return (
-    <section id="about" className="relative bg-canvas py-20 lg:py-28">
-      <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
-        <h2 className="smart-section-title mb-16 text-center">
+    <section id="about" className="py-20 sm:py-24" style={{ backgroundColor: "#141414" }}>
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <h2 className="text-center text-2xl font-bold sm:text-3xl text-white">
           About {SMART_SITE.name}
         </h2>
+        <p className="mx-auto mt-4 max-w-2xl text-center text-sm sm:text-base text-white/70">
+          {SMART_SITE.description}
+        </p>
 
-        <div className="grid gap-12 lg:grid-cols-3 lg:gap-8">
-          {/* Left — copy */}
-          <div className="relative">
-            <span className="smart-watermark" aria-hidden>
-              {SMART_ABOUT.watermark}
-            </span>
-            <h3 className="relative font-heading text-2xl font-bold lowercase leading-snug text-foreground sm:text-3xl">
+        <div className="mt-14 grid gap-12 lg:grid-cols-3 lg:gap-8">
+          <div>
+            <h3 className="text-xl font-bold leading-snug text-white sm:text-2xl">
               {SMART_ABOUT.headline}
             </h3>
-            <p className="relative mt-6 text-sm leading-relaxed text-muted sm:text-base">
+            <p className="mt-4 text-sm leading-relaxed text-white/70 sm:text-base">
               {SMART_ABOUT.body}
             </p>
           </div>
 
-          {/* Middle — platforms */}
           <div>
-            <p className="mb-6 font-heading text-sm font-bold lowercase text-foreground">
+            <p className="mb-6 text-sm font-semibold uppercase tracking-wide text-white/90">
               {SMART_ABOUT.specializationLabel}
             </p>
             <ul className="space-y-5">
@@ -76,14 +74,15 @@ export function AboutSection({
                 const Icon = PLATFORM_ICONS[platform.id];
                 return (
                   <li key={platform.id} className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center text-accent">
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: "rgba(255,107,44,0.15)", color: "#FF6B2C" }}
+                    >
                       <Icon />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
-                        {platform.name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted">{platform.description}</p>
+                      <p className="text-sm font-semibold text-white">{platform.name}</p>
+                      <p className="mt-0.5 text-xs text-white/60">{platform.description}</p>
                     </div>
                   </li>
                 );
@@ -91,32 +90,32 @@ export function AboutSection({
             </ul>
           </div>
 
-          {/* Right — stats + accent image */}
           <div className="flex flex-col gap-8">
             <div className="grid grid-cols-2 gap-4">
               {STATS.map((stat) => (
                 <div
                   key={stat.key}
-                  className="border border-border/60 bg-card/30 px-4 py-5 text-center"
+                  className="rounded-lg border px-4 py-5 text-center"
+                  style={{ borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(255,255,255,0.04)" }}
                 >
-                  <p className="font-heading text-2xl font-bold text-foreground sm:text-3xl">
+                  <p className="text-2xl font-bold text-white sm:text-3xl">
                     {stat.key === "platforms"
                       ? platforms
                       : formatCount(values[stat.key])}
                   </p>
-                  <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-muted">
+                  <p className="mt-1 text-xs uppercase tracking-wide text-white/50">
                     {stat.label}
                   </p>
                 </div>
               ))}
             </div>
 
-            <div className="relative aspect-square overflow-hidden">
+            <div className="relative aspect-square overflow-hidden rounded-lg">
               <Image
                 src="/imgs/smart/about-accent.jpg"
                 alt=""
                 fill
-                className="object-cover grayscale"
+                className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 33vw"
               />
             </div>

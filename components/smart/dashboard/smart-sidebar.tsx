@@ -47,7 +47,7 @@ export function SmartSidebar({ userName, userEmail }: SmartSidebarProps) {
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-card">
       <div className="flex items-center gap-2 border-b border-border px-4 py-5">
         <Image
-          src={SMART_SITE.logo}
+          src={SMART_SITE.logoWht}
           alt={SMART_SITE.name}
           width={120}
           height={36}

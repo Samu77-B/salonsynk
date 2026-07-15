@@ -26,12 +26,9 @@ export function HeroSlider({ slides }: HeroSliderProps) {
   const next = () => goTo(current + 1);
 
   const slide = slides[current];
-  const slideNum = String(current + 1).padStart(2, "0");
-  const totalNum = String(total).padStart(2, "0");
 
   return (
-    <section id="hero" className="relative min-h-screen">
-      {/* Background slides */}
+    <section id="hero" className="relative w-full min-h-[480px] sm:min-h-[600px] lg:min-h-[700px] overflow-hidden">
       <div className="absolute inset-0">
         {slides.map((s, i) => (
           <div
@@ -51,38 +48,34 @@ export function HeroSlider({ slides }: HeroSliderProps) {
         ))}
       </div>
 
-      {/* Content */}
-      <div className="relative flex min-h-screen flex-col justify-end px-6 pb-16 pt-32 sm:px-10 sm:pb-20 lg:px-16 lg:pb-24">
-        <div className="mb-8 flex items-center gap-6">
+      <div className="relative mx-auto flex min-h-[480px] sm:min-h-[600px] lg:min-h-[700px] max-w-6xl flex-col justify-end px-4 pb-16 pt-12 sm:px-6 sm:pb-20 lg:pb-24">
+        <div className="mb-6 flex items-center gap-4 text-sm text-white/70">
           <button
             type="button"
             onClick={prev}
-            className="group flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.25em] text-foreground/70 transition-colors hover:text-accent"
+            className="font-medium transition-colors hover:text-white"
             aria-label="Previous slide"
           >
-            <span className="transition-transform group-hover:-translate-x-0.5">←</span>
-            Prev
+            ← Prev
           </button>
-          <span className="font-heading text-sm font-bold text-accent">
-            {slideNum}
-            <span className="text-[10px] font-normal text-muted"> / {totalNum}</span>
+          <span className="text-white/90">
+            {current + 1} / {total}
           </span>
           <button
             type="button"
             onClick={next}
-            className="group flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.25em] text-foreground/70 transition-colors hover:text-accent"
+            className="font-medium transition-colors hover:text-white"
             aria-label="Next slide"
           >
-            Next
-            <span className="transition-transform group-hover:translate-x-0.5">→</span>
+            Next →
           </button>
         </div>
 
-        <h1 className="max-w-3xl font-heading text-3xl font-bold uppercase leading-tight tracking-wide text-foreground sm:text-4xl md:text-5xl lg:text-6xl">
+        <h1 className="max-w-3xl text-3xl font-bold leading-tight text-white sm:text-4xl md:text-5xl lg:text-6xl">
           {slide.headline}
         </h1>
 
-        <p className="mt-5 max-w-lg text-sm leading-relaxed text-foreground/80 sm:text-base">
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-white/80 sm:text-base">
           {slide.description}
         </p>
 
@@ -90,10 +83,10 @@ export function HeroSlider({ slides }: HeroSliderProps) {
           href={slide.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-8 inline-flex w-fit items-center gap-2 rounded-full bg-accent px-7 py-3 text-[11px] font-semibold uppercase tracking-[0.15em] text-background transition-opacity hover:opacity-90"
+          className="mt-8 inline-flex w-fit items-center justify-center rounded-lg px-8 py-4 text-base font-bold text-white transition-colors shadow-lg hover:brightness-110"
+          style={{ backgroundColor: "#FF6B2C" }}
         >
           {slide.cta}
-          <span aria-hidden>→</span>
         </Link>
       </div>
     </section>

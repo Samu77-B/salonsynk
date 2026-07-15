@@ -17,7 +17,7 @@ export function HubGraphic() {
       <div className="absolute bottom-8 left-1/2 h-4 w-32 -translate-x-1/2 rounded-full bg-accent/30 blur-xl" />
       <div className="relative z-10 flex h-24 w-24 items-center justify-center rounded-full bg-card border border-accent/50 shadow-[0_0_60px_rgba(126,184,218,0.4)]">
         <Image
-          src="/imgs/smart/logo.png"
+          src="/imgs/smart/smartsynk-icon-v1.png"
           alt="SmartSynk"
           width={64}
           height={64}
