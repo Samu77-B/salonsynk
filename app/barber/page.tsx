@@ -68,12 +68,12 @@ export default function BarberHomePage() {
         <div className="flex h-20 w-full items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/barber" className="flex items-center shrink-0 min-w-0">
             <img
-              src="/imgs/barber/barbersynk-icon.png"
+              src="/imgs/barber/barbersynk-icon-v2.png"
               alt="BarberSynk"
               className="h-10 w-auto md:hidden"
             />
             <img
-              src="/imgs/barber/barbersynk-logo.png"
+              src="/imgs/barber/barbersynk-logo-v2.png"
               alt="BarberSynk"
               className="hidden h-12 w-auto max-w-[min(100%,18rem)] md:block sm:h-14"
             />
@@ -310,7 +310,7 @@ export default function BarberHomePage() {
         <footer className="border-t py-10" style={{ borderColor: "rgba(245,241,232,0.1)", backgroundColor: "#2b373f" }}>
           <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <img
-              src="/imgs/barber/barbersynk-logo-wht.png"
+              src="/imgs/barber/barbersynk-logo-wht-v2.png"
               alt="BarberSynk"
               className="h-10 w-auto max-w-[min(100%,16rem)]"
             />

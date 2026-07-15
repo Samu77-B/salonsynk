@@ -22,9 +22,9 @@ export const metadata: Metadata = {
     "Flat-fee salon management for salons and barbers. Diary, team, clients, payments. No commissions.",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/favicon.png",
-    shortcut: "/favicon.png",
-    apple: "/favicon.png",
+    icon: "/favicon-v2.png",
+    shortcut: "/favicon-v2.png",
+    apple: "/favicon-v2.png",
   },
 };
 

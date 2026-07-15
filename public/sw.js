@@ -1,4 +1,4 @@
-const CACHE_NAME = "salonsynk-v5";
+const CACHE_NAME = "salonsynk-v6";
 
 function shouldCache(request, response) {
   if (!response || !response.ok || response.type !== "basic") return false;
@@ -7,6 +7,15 @@ function shouldCache(request, response) {
   // Only cache non-Next static assets; skip documents, APIs, and build chunks.
   if (request.mode === "navigate" || request.destination === "document") return false;
   if (u.pathname.startsWith("/_next/") || u.pathname.startsWith("/api/")) return false;
+  // Never cache brand logos/favicons — they change often and stale SW cache is confusing.
+  if (
+    u.pathname.startsWith("/imgs/") ||
+    u.pathname.startsWith("/favicon") ||
+    u.pathname.includes("logo") ||
+    u.pathname.includes("icon")
+  ) {
+    return false;
+  }
   if (!["style", "image", "font"].includes(request.destination)) return false;
   return true;
 }
@@ -21,6 +30,8 @@ function shouldBypassServiceWorker(request) {
   // Never intercept Next.js internals/chunks to avoid stale deploy asset mismatches.
   if (u.pathname.startsWith("/_next/")) return true;
   if (u.pathname.startsWith("/favicon")) return true;
+  if (u.pathname.startsWith("/imgs/")) return true;
+  if (u.pathname.includes("logo") || u.pathname.includes("-icon")) return true;
   const h = request.headers;
   // Next.js RSC / router refresh / prefetch (GET to same URL as the page)
   if (h.get("RSC") === "1") return true;
