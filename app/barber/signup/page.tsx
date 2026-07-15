@@ -24,12 +24,12 @@ export default async function BarberSignupPage() {
         <div className="text-center">
           <Link href="/barber" className="inline-block mb-6">
             <img
-              src="/imgs/barber/barbersynk-icon-v3.png"
+              src="/imgs/barber/barbersynk-icon-v5.png"
               alt="BarberSynk"
               className="mx-auto h-12 w-auto md:hidden"
             />
             <img
-              src="/imgs/barber/barbersynk-logo-v4.png"
+              src="/imgs/barber/barbersynk-logo-v5.png"
               alt="BarberSynk"
               className="mx-auto hidden h-12 w-auto max-w-[min(100%,18rem)] md:block sm:h-14"
             />
