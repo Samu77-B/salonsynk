@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
+import { SynkPlatformFooter } from "@/components/marketing/synk-platform-footer";
 import { NAIL_SITE } from "@core/config/nail-site";
 import heroImage from "../../imgs/nail/hero.png";
 /* eslint-disable @next/next/no-img-element */
@@ -281,25 +282,19 @@ export default function NailHomePage() {
           </section>
         </Reveal>
 
-        <footer className="border-t py-10" style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: BLACK }}>
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <SynkPlatformFooter
+          backgroundColor={BLACK}
+          studio={NAIL_SITE.studio}
+          email={NAIL_SITE.email}
+          linkAccent={ACCENT}
+          logo={
             <img
               src="/imgs/nail/nailsynk_logo_wht.png"
               alt="NailSynk"
               className="h-10 w-auto max-w-[min(100%,16rem)]"
             />
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
-              © {new Date().getFullYear()} {NAIL_SITE.studio}. All rights reserved.
-            </p>
-            <a
-              href={`mailto:${NAIL_SITE.email}`}
-              className="text-xs transition-opacity hover:opacity-100"
-              style={{ color: ACCENT }}
-            >
-              {NAIL_SITE.email}
-            </a>
-          </div>
-        </footer>
+          }
+        />
       </main>
     </div>
   );

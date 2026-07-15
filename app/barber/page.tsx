@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
+import { SynkPlatformFooter } from "@/components/marketing/synk-platform-footer";
 import { BARBER_SITE } from "@core/config/barber-site";
 import heroImage from "../../imgs/barber/hero.png";
 import scanIcon from "../../imgs/barber/scan.png";
@@ -306,26 +307,19 @@ export default function BarberHomePage() {
           </section>
         </Reveal>
 
-        {/* Footer */}
-        <footer className="border-t py-10" style={{ borderColor: "rgba(245,241,232,0.1)", backgroundColor: "#2b373f" }}>
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <SynkPlatformFooter
+          borderColor="rgba(245,241,232,0.1)"
+          backgroundColor="#2b373f"
+          studio={BARBER_SITE.studio}
+          email={BARBER_SITE.email}
+          logo={
             <img
               src="/imgs/barber/barbersynk-logo-wht-v5.png"
               alt="BarberSynk"
               className="h-10 w-auto max-w-[min(100%,16rem)]"
             />
-            <p className="text-xs" style={{ color: "rgba(245,241,232,0.4)" }}>
-              © {new Date().getFullYear()} {BARBER_SITE.studio}. All rights reserved.
-            </p>
-            <a
-              href={`mailto:${BARBER_SITE.email}`}
-              className="text-xs transition-opacity hover:opacity-100"
-              style={{ color: "rgba(245,241,232,0.4)" }}
-            >
-              {BARBER_SITE.email}
-            </a>
-          </div>
-        </footer>
+          }
+        />
       </main>
     </div>
   );
