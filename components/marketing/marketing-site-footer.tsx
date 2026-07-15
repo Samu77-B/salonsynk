@@ -10,9 +10,9 @@ export function MarketingSiteFooter() {
       email={SITE.email}
       logo={
         <img
-          src="/imgs/salon/salonsynk-footer-logo-light.png"
+          src="/imgs/salon/salonsynk-footer-logo-v2.png"
           alt={SITE.name}
-          className="h-28 w-auto object-contain sm:h-32"
+          className="h-14 w-auto max-w-full object-contain sm:h-16"
         />
       }
     />
