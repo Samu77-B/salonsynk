@@ -1,4 +1,4 @@
-const CACHE_NAME = "salonsynk-v7";
+const CACHE_NAME = "salonsynk-v8";
 
 function shouldCache(request, response) {
   if (!response || !response.ok || response.type !== "basic") return false;

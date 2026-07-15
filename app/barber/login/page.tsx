@@ -30,7 +30,7 @@ export default async function BarberLoginPage() {
               className="mx-auto h-12 w-auto md:hidden"
             />
             <img
-              src="/imgs/barber/barbersynk-logo-v3.png"
+              src="/imgs/barber/barbersynk-logo-v4.png"
               alt="BarberSynk"
               className="mx-auto hidden h-12 w-auto max-w-[min(100%,18rem)] md:block sm:h-14"
             />
