@@ -5,14 +5,15 @@ import { SITE } from "@/config/site";
 export function MarketingSiteFooter() {
   return (
     <SynkPlatformFooter
-      variant="light"
+      borderColor="rgba(255,255,255,0.1)"
+      backgroundColor="#2b373f"
       studio={SITE.studio}
       email={SITE.email}
       logo={
         <img
-          src="/imgs/salon/salonsynk-footer-logo-v2.png"
+          src="/imgs/salon/salonsynk-logo-wht.png"
           alt={SITE.name}
-          className="h-14 w-auto max-w-full object-contain sm:h-16"
+          className="h-10 w-auto max-w-[min(100%,16rem)]"
         />
       }
     />
