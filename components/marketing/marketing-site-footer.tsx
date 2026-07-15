@@ -1,7 +1,6 @@
-import Image from "next/image";
 import { SynkPlatformFooter } from "@/components/marketing/synk-platform-footer";
 import { SITE } from "@/config/site";
-import siteLogo from "@/salonsynk_logo.png";
+/* eslint-disable @next/next/no-img-element */
 
 export function MarketingSiteFooter() {
   return (
@@ -10,11 +9,10 @@ export function MarketingSiteFooter() {
       studio={SITE.studio}
       email={SITE.email}
       logo={
-        <Image
-          src={siteLogo}
+        <img
+          src="/imgs/salon/salonsynk-footer-logo-light.png"
           alt={SITE.name}
-          className="h-10 w-auto max-w-[min(100%,16rem)]"
-          priority={false}
+          className="h-28 w-auto object-contain sm:h-32"
         />
       }
     />
