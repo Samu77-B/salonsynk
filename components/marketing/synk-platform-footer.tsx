@@ -14,7 +14,7 @@ type PlatformFooterLogo = {
 };
 
 type SynkPlatformFooterProps = {
-  logo: ReactNode;
+  logo?: ReactNode;
   platformFooterLogos?: readonly PlatformFooterLogo[];
   variant?: "dark" | "light";
   email?: string;
@@ -78,7 +78,7 @@ export function SynkPlatformFooter({
         }}
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col items-center gap-5 text-center">
-          <div>{logo}</div>
+          {logo && <div>{logo}</div>}
 
           {platformFooterLogos && platformFooterLogos.length > 0 && (
             <div className="flex flex-wrap items-end justify-center gap-8 sm:gap-10">

@@ -1,6 +1,5 @@
 import { SynkPlatformFooter } from "@/components/marketing/synk-platform-footer";
 import { SITE } from "@/config/site";
-/* eslint-disable @next/next/no-img-element */
 
 export function MarketingSiteFooter() {
   return (
@@ -9,13 +8,6 @@ export function MarketingSiteFooter() {
       backgroundColor="#2b373f"
       studio={SITE.studio}
       email={SITE.email}
-      logo={
-        <img
-          src="/imgs/salon/salonsynk-logo-wht.png"
-          alt={SITE.name}
-          className="h-10 w-auto max-w-[min(100%,16rem)]"
-        />
-      }
     />
   );
 }
