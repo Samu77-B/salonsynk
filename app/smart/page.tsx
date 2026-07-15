@@ -5,9 +5,11 @@ import { SmartHeader } from "@/components/smart/marketing/smart-header";
 import { HeroSlider } from "@/components/smart/marketing/hero-slider";
 import { AboutSection } from "@/components/smart/marketing/about-section";
 import { PlatformShowcase } from "@/components/smart/marketing/platform-showcase";
+import { SynkPlatformFooter } from "@/components/marketing/synk-platform-footer";
 import {
   SMART_FAQ_ITEMS,
   SMART_HERO_SLIDES,
+  SMART_PLATFORM_FOOTER_LOGOS,
   SMART_SHOWCASE_TABS,
   SMART_SITE,
 } from "@core/config/smart-site";
@@ -100,28 +102,19 @@ export default async function SmartLandingPage() {
           </section>
         </Reveal>
 
-        <footer
-          className="border-t py-10"
-          style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "#141414" }}
-        >
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <SynkPlatformFooter
+          backgroundColor="#141414"
+          studio={SMART_SITE.studio}
+          email={SMART_SITE.email}
+          platformFooterLogos={SMART_PLATFORM_FOOTER_LOGOS}
+          logo={
             <img
               src={SMART_SITE.logoWht}
               alt={SMART_SITE.name}
-              className="h-10 w-auto max-w-[min(100%,16rem)]"
+              className="h-10 w-auto object-contain max-w-none"
             />
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-              © {new Date().getFullYear()} {SMART_SITE.studio}. All rights reserved.
-            </p>
-            <a
-              href={`mailto:${SMART_SITE.email}`}
-              className="text-xs transition-opacity hover:opacity-100"
-              style={{ color: "rgba(255,255,255,0.4)" }}
-            >
-              {SMART_SITE.email}
-            </a>
-          </div>
-        </footer>
+          }
+        />
       </main>
     </div>
   );

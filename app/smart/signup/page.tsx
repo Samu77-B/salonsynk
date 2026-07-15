@@ -10,12 +10,12 @@ export default function SmartSignupPage() {
           <img
             src={SMART_SITE.icon}
             alt={SMART_SITE.name}
-            className="mx-auto h-12 w-auto md:hidden"
+            className="mx-auto h-12 w-auto object-contain md:hidden"
           />
           <img
             src={SMART_SITE.logo}
             alt={SMART_SITE.name}
-            className="mx-auto hidden h-12 w-auto max-w-[min(100%,18rem)] md:block sm:h-14"
+            className="mx-auto hidden h-12 w-auto object-contain md:block sm:h-14"
           />
         </Link>
         <div>

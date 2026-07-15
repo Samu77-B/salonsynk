@@ -7,8 +7,15 @@ export const SYNK_PLATFORM_LINKS = [
   { label: "barbersynk.com", href: "https://barbersynk.com" },
 ] as const;
 
+type PlatformFooterLogo = {
+  href: string;
+  src: string;
+  alt: string;
+};
+
 type SynkPlatformFooterProps = {
   logo: ReactNode;
+  platformFooterLogos?: readonly PlatformFooterLogo[];
   variant?: "dark" | "light";
   email?: string;
   studio?: string;
@@ -19,6 +26,7 @@ type SynkPlatformFooterProps = {
 
 export function SynkPlatformFooter({
   logo,
+  platformFooterLogos,
   variant = "dark",
   email,
   studio,
@@ -71,6 +79,21 @@ export function SynkPlatformFooter({
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col items-center gap-5 text-center">
           <div>{logo}</div>
+
+          {platformFooterLogos && platformFooterLogos.length > 0 && (
+            <div className="flex flex-wrap items-end justify-center gap-8 sm:gap-10">
+              {platformFooterLogos.map((item) => (
+                <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.src}
+                    alt={item.alt}
+                    className="h-24 w-auto object-contain sm:h-28"
+                  />
+                </a>
+              ))}
+            </div>
+          )}
 
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             {SYNK_PLATFORM_LINKS.map((link) => (
