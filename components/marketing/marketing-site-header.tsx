@@ -31,7 +31,7 @@ export function MarketingSiteHeader({ variant = "static", activeNav = "none" }: 
         <Link href="/" className="flex items-center shrink-0 min-w-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/salonsynk-icon-v2.png"
+            src="/salonsynk-icon-v3.png"
             alt={SITE.name}
             className="h-10 w-auto md:hidden"
           />
