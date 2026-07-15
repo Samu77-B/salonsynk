@@ -19,27 +19,6 @@ export const SMART_SITE = {
   logoWht: "/imgs/smart/smartsynk-logo-wht-v2.png",
 } as const;
 
-export const SMART_PLATFORM_FOOTER_LOGOS = [
-  {
-    id: "salon" as const,
-    href: "https://salonsynk.com",
-    src: "/imgs/salon/salonsynk-footer-logo.png",
-    alt: "SalonSynk",
-  },
-  {
-    id: "barber" as const,
-    href: "https://barbersynk.com",
-    src: "/imgs/barber/barbersynk-footer-logo.png",
-    alt: "BarberSynk",
-  },
-  {
-    id: "nail" as const,
-    href: "https://nailsynk.com",
-    src: "/imgs/nail/nailsynk-footer-logo.png",
-    alt: "NailSynk",
-  },
-] as const;
-
 export const SMART_NAV_ITEMS = [
   { label: "Platforms", href: "#platforms" },
   { label: "About", href: "#about" },

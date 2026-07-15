@@ -1,10 +1,14 @@
 import Image from "next/image";
 import {
   SMART_ABOUT,
-  SMART_PLATFORM_FOOTER_LOGOS,
   SMART_PLATFORMS,
   SMART_SITE,
 } from "@core/config/smart-site";
+import {
+  ScissorsIcon,
+  BarberPoleIcon,
+  NailPolishIcon,
+} from "@/components/smart/marketing/platform-card";
 
 type AboutSectionProps = {
   businesses: number;
@@ -27,9 +31,11 @@ const STATS = [
   { key: "platforms" as const, label: "Platforms" },
 ];
 
-const FOOTER_LOGO_BY_ID = Object.fromEntries(
-  SMART_PLATFORM_FOOTER_LOGOS.map((logo) => [logo.id, logo]),
-) as Record<(typeof SMART_PLATFORM_FOOTER_LOGOS)[number]["id"], (typeof SMART_PLATFORM_FOOTER_LOGOS)[number]>;
+const PLATFORM_ICONS = {
+  salon: ScissorsIcon,
+  barber: BarberPoleIcon,
+  nail: NailPolishIcon,
+} as const;
 
 export function AboutSection({
   businesses,
@@ -65,22 +71,15 @@ export function AboutSection({
             </p>
             <ul className="space-y-5">
               {SMART_PLATFORMS.map((platform) => {
-                const footerLogo = FOOTER_LOGO_BY_ID[platform.id];
+                const Icon = PLATFORM_ICONS[platform.id];
                 return (
                   <li key={platform.id} className="flex items-center gap-4">
-                    <a
-                      href={platform.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex h-16 w-16 shrink-0 items-center justify-center"
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: "rgba(255,107,44,0.15)", color: "#FF6B2C" }}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={footerLogo.src}
-                        alt={footerLogo.alt}
-                        className="max-h-16 w-auto object-contain"
-                      />
-                    </a>
+                      <Icon />
+                    </div>
                     <div>
                       <p className="text-sm font-semibold text-white">{platform.name}</p>
                       <p className="mt-0.5 text-xs text-white/60">{platform.description}</p>

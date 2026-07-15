@@ -9,7 +9,6 @@ import { SynkPlatformFooter } from "@/components/marketing/synk-platform-footer"
 import {
   SMART_FAQ_ITEMS,
   SMART_HERO_SLIDES,
-  SMART_PLATFORM_FOOTER_LOGOS,
   SMART_SHOWCASE_TABS,
   SMART_SITE,
 } from "@core/config/smart-site";
@@ -106,7 +105,6 @@ export default async function SmartLandingPage() {
           backgroundColor="#141414"
           studio={SMART_SITE.studio}
           email={SMART_SITE.email}
-          platformFooterLogos={SMART_PLATFORM_FOOTER_LOGOS}
           logo={
             <img
               src={SMART_SITE.logoWht}
