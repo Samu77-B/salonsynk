@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { SMART_HERO_SLIDES } from "@core/config/smart-site";
@@ -11,9 +11,17 @@ type HeroSliderProps = {
   slides: readonly HeroSlide[];
 };
 
+const AUTO_ADVANCE_MS = 6000;
+
 export function HeroSlider({ slides }: HeroSliderProps) {
   const [current, setCurrent] = useState(0);
+  const [paused, setPaused] = useState(false);
   const total = slides.length;
+  const currentRef = useRef(current);
+
+  useEffect(() => {
+    currentRef.current = current;
+  }, [current]);
 
   const goTo = useCallback(
     (index: number) => {
@@ -25,10 +33,25 @@ export function HeroSlider({ slides }: HeroSliderProps) {
   const prev = () => goTo(current - 1);
   const next = () => goTo(current + 1);
 
+  useEffect(() => {
+    if (total <= 1 || paused) return;
+
+    const id = window.setInterval(() => {
+      goTo(currentRef.current + 1);
+    }, AUTO_ADVANCE_MS);
+
+    return () => window.clearInterval(id);
+  }, [current, goTo, paused, total]);
+
   const slide = slides[current];
 
   return (
-    <section id="hero" className="relative w-full min-h-[480px] sm:min-h-[600px] lg:min-h-[700px] overflow-hidden">
+    <section
+      id="hero"
+      className="relative w-full min-h-[480px] sm:min-h-[600px] lg:min-h-[700px] overflow-hidden"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
       <div className="absolute inset-0">
         {slides.map((s, i) => (
           <div
