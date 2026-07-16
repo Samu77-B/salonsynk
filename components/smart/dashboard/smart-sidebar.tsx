@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { SMART_SITE } from "@core/config/smart-site";
+import { SmartSynkLogo } from "@/components/smart/smart-synk-logo";
+import { PlatformIcon } from "@/components/smart/marketing/platform-icons";
+import type { SmartPlatformId } from "@core/config/smart-site";
 
 type NavItem = {
   label: string;
@@ -13,10 +14,10 @@ type NavItem = {
 
 const MAIN_NAV: NavItem[] = [{ label: "Overview", href: "/smart/overview" }];
 
-const PLATFORM_NAV: NavItem[] = [
-  { label: "SalonSynk", href: "/admin/salons" },
-  { label: "BarberSynk", href: "/admin/barber-shops" },
-  { label: "NailSynk", href: "/admin/nail-salons" },
+const PLATFORM_NAV: (NavItem & { platform: SmartPlatformId })[] = [
+  { label: "SalonSynk", href: "/admin/salons", platform: "salon" },
+  { label: "BarberSynk", href: "/admin/barber-shops", platform: "barber" },
+  { label: "NailSynk", href: "/admin/nail-salons", platform: "nail" },
 ];
 
 const TOOLS_NAV: NavItem[] = [
@@ -46,13 +47,7 @@ export function SmartSidebar({ userName, userEmail }: SmartSidebarProps) {
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-card">
       <div className="flex items-center gap-2 border-b border-border px-4 py-5">
-        <Image
-          src={SMART_SITE.logoWht}
-          alt={SMART_SITE.name}
-          width={120}
-          height={36}
-          className="h-8 w-auto object-contain"
-        />
+        <SmartSynkLogo variant="sidebar" href="/smart/overview" />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">
@@ -81,13 +76,14 @@ export function SmartSidebar({ userName, userEmail }: SmartSidebarProps) {
             <li key={item.href}>
               <Link
                 href={item.href}
-                className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
                   isActive(item.href)
                     ? "bg-accent/10 text-foreground"
                     : "text-muted hover:bg-foreground/5 hover:text-foreground"
                 }`}
               >
-                {item.label}
+                <PlatformIcon platform={item.platform} className="h-4 w-4 shrink-0 text-accent" />
+                <span className="flex-1">{item.label}</span>
                 <svg className="h-3 w-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>

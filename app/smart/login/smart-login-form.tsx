@@ -4,6 +4,8 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { PlatformMembership } from "@core/auth/resolve-user-platform";
+import { PlatformIcon } from "@/components/smart/marketing/platform-icons";
+import type { SmartPlatformId } from "@core/config/smart-site";
 
 type SmartRedirectResponse =
   | { type: "redirect"; url: string }
@@ -110,10 +112,17 @@ export function SmartLoginForm() {
                 type="button"
                 disabled={loading}
                 onClick={() => handlePlatformPick(m.platform)}
-                className="w-full rounded-lg border border-border bg-card px-4 py-3 text-left text-sm text-foreground hover:border-accent/50 transition-colors disabled:opacity-50"
+                className="flex w-full items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-left text-sm text-foreground hover:border-accent/50 transition-colors disabled:opacity-50"
               >
-                <span className="font-medium">{PLATFORM_LABELS[m.platform]}</span>
-                <span className="block text-xs text-muted mt-0.5">{m.tenantName}</span>
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent"
+                >
+                  <PlatformIcon platform={m.platform as SmartPlatformId} className="h-5 w-5" />
+                </div>
+                <span>
+                  <span className="font-medium">{PLATFORM_LABELS[m.platform]}</span>
+                  <span className="block text-xs text-muted mt-0.5">{m.tenantName}</span>
+                </span>
               </button>
             </li>
           ))}

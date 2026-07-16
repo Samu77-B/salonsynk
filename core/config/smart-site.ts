@@ -17,6 +17,11 @@ export const SMART_SITE = {
   logo: "/imgs/smart/smartsynk-logo-v2.png",
   icon: "/imgs/smart/smartsynk-icon-v2.png",
   logoWht: "/imgs/smart/smartsynk-logo-wht-v2.png",
+  platformIcons: {
+    salon: "/imgs/smart/salonsynk-platform-icon.png",
+    barber: "/imgs/smart/barbersynk-platform-icon.png",
+    nail: "/imgs/smart/nailsynk-platform-icon.png",
+  },
 } as const;
 
 export const SMART_NAV_ITEMS = [

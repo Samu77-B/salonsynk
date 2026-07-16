@@ -1,23 +1,13 @@
 import Link from "next/link";
-import { SMART_SITE, SMART_PLATFORMS } from "@core/config/smart-site";
-/* eslint-disable @next/next/no-img-element */
+import { SMART_PLATFORMS } from "@core/config/smart-site";
+import { SmartSynkLogo } from "@/components/smart/smart-synk-logo";
+import { PlatformIcon } from "@/components/smart/marketing/platform-icons";
 
 export default function SmartSignupPage() {
   return (
     <main className="smart-marketing flex min-h-screen flex-col items-center justify-center bg-white px-4 text-zinc-900">
       <div className="w-full max-w-lg space-y-8 text-center">
-        <Link href="/">
-          <img
-            src={SMART_SITE.icon}
-            alt={SMART_SITE.name}
-            className="mx-auto h-12 w-auto object-contain md:hidden"
-          />
-          <img
-            src={SMART_SITE.logo}
-            alt={SMART_SITE.name}
-            className="mx-auto hidden h-12 w-auto object-contain md:block sm:h-14"
-          />
-        </Link>
+        <SmartSynkLogo variant="centered" />
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Request an account</h1>
           <p className="mt-2 text-sm text-zinc-600">
@@ -29,8 +19,14 @@ export default function SmartSignupPage() {
             <Link
               key={p.id}
               href={`${p.url}/signup`}
-              className="rounded-lg border border-zinc-200 bg-white p-4 text-sm font-medium text-zinc-800 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+              className="flex flex-col items-center gap-3 rounded-lg border border-zinc-200 bg-white p-4 text-sm font-medium text-zinc-800 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
             >
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-lg"
+                style={{ backgroundColor: "rgba(255,107,44,0.15)", color: "#FF6B2C" }}
+              >
+                <PlatformIcon platform={p.id} className="h-5 w-5" />
+              </div>
               {p.name}
             </Link>
           ))}

@@ -6,6 +6,7 @@ import { HeroSlider } from "@/components/smart/marketing/hero-slider";
 import { AboutSection } from "@/components/smart/marketing/about-section";
 import { PlatformShowcase } from "@/components/smart/marketing/platform-showcase";
 import { SynkPlatformFooter } from "@/components/marketing/synk-platform-footer";
+import { SmartSynkLogo } from "@/components/smart/smart-synk-logo";
 import {
   SMART_FAQ_ITEMS,
   SMART_HERO_SLIDES,
@@ -13,7 +14,6 @@ import {
   SMART_SITE,
 } from "@core/config/smart-site";
 import { fetchLandingStats } from "@core/smart/dashboard-stats";
-/* eslint-disable @next/next/no-img-element */
 
 const ACCENT = "#FF6B2C";
 const BG = "#1a1a1a";
@@ -105,13 +105,7 @@ export default async function SmartLandingPage() {
           backgroundColor="#141414"
           studio={SMART_SITE.studio}
           email={SMART_SITE.email}
-          logo={
-            <img
-              src={SMART_SITE.logoWht}
-              alt={SMART_SITE.name}
-              className="h-10 w-auto object-contain max-w-none"
-            />
-          }
+          logo={<SmartSynkLogo variant="footer" />}
         />
       </main>
     </div>

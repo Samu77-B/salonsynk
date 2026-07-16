@@ -4,11 +4,7 @@ import {
   SMART_PLATFORMS,
   SMART_SITE,
 } from "@core/config/smart-site";
-import {
-  ScissorsIcon,
-  BarberPoleIcon,
-  NailPolishIcon,
-} from "@/components/smart/marketing/platform-card";
+import { PlatformIcon } from "@/components/smart/marketing/platform-icons";
 
 type AboutSectionProps = {
   businesses: number;
@@ -30,12 +26,6 @@ const STATS = [
   { key: "transactions" as const, label: "Transactions" },
   { key: "platforms" as const, label: "Platforms" },
 ];
-
-const PLATFORM_ICONS = {
-  salon: ScissorsIcon,
-  barber: BarberPoleIcon,
-  nail: NailPolishIcon,
-} as const;
 
 export function AboutSection({
   businesses,
@@ -70,23 +60,20 @@ export function AboutSection({
               {SMART_ABOUT.specializationLabel}
             </p>
             <ul className="space-y-5">
-              {SMART_PLATFORMS.map((platform) => {
-                const Icon = PLATFORM_ICONS[platform.id];
-                return (
+              {SMART_PLATFORMS.map((platform) => (
                   <li key={platform.id} className="flex items-center gap-4">
                     <div
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
                       style={{ backgroundColor: "rgba(255,107,44,0.15)", color: "#FF6B2C" }}
                     >
-                      <Icon />
+                      <PlatformIcon platform={platform.id} className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-white">{platform.name}</p>
                       <p className="mt-0.5 text-xs text-white/60">{platform.description}</p>
                     </div>
                   </li>
-                );
-              })}
+              ))}
             </ul>
           </div>
 

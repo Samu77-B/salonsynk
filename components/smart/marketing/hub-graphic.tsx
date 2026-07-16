@@ -19,9 +19,9 @@ export function HubGraphic() {
         <Image
           src="/imgs/smart/smartsynk-icon-v2.png"
           alt="SmartSynk"
-          width={64}
-          height={64}
-          className="h-14 w-14 object-contain"
+          width={51}
+          height={51}
+          className="h-11 w-11 object-contain"
         />
       </div>
       {/* Light beams */}

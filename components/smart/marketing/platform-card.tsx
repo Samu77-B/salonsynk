@@ -48,41 +48,12 @@ export function PlatformCard({
   );
 }
 
-export function ScissorsIcon() {
-  return (
-    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 0a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0 0L9.121 14.879m0 0a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243"
-      />
-    </svg>
-  );
-}
-
-export function BarberPoleIcon() {
-  return (
-    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M9 3v18M15 3v18M9 3h6M9 21h6M12 3v18"
-      />
-    </svg>
-  );
-}
-
-export function NailPolishIcon() {
-  return (
-    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M8 4h8l1 14H7L8 4zM10 4V2h4v2M12 18v2"
-      />
-    </svg>
-  );
-}
+export {
+  PlatformIcon,
+  SalonSynkIcon,
+  BarberSynkIcon,
+  NailSynkIcon,
+  ScissorsIcon,
+  BarberPoleIcon,
+  NailPolishIcon,
+} from "@/components/smart/marketing/platform-icons";
