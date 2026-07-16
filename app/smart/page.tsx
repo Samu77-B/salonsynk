@@ -12,6 +12,7 @@ import {
   SMART_HERO_SLIDES,
   SMART_SHOWCASE_TABS,
   SMART_SITE,
+  displayLandingStats,
 } from "@core/config/smart-site";
 import { fetchLandingStats } from "@core/smart/dashboard-stats";
 
@@ -26,9 +27,10 @@ export const metadata: Metadata = {
 };
 
 export default async function SmartLandingPage() {
-  let stats = { businesses: 0, appointments: 0, transactions: 0, platforms: 3 };
+  let stats = displayLandingStats({ businesses: 0, appointments: 0, transactions: 0, platforms: 3 });
   try {
-    stats = await fetchLandingStats();
+    const raw = await fetchLandingStats();
+    stats = displayLandingStats(raw);
   } catch {
     // DB unavailable in dev without credentials
   }

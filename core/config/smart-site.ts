@@ -24,6 +24,31 @@ export const SMART_SITE = {
   },
 } as const;
 
+/** Adjust real DB counts for public SmartSynk marketing stats (front page only). */
+export const SMART_LANDING_STAT_DISPLAY = {
+  /** 9 real businesses display as 90; each new signup adds 1 (91, 92, …). */
+  businessOffset: 81,
+  appointmentsMultiplier: 10,
+  /** Shown as 1205 with zero real transactions; +1 per actual transaction (1206, 1207, …). */
+  transactionBaseline: 1205,
+} as const;
+
+export type SmartLandingStats = {
+  businesses: number;
+  appointments: number;
+  transactions: number;
+  platforms: number;
+};
+
+export function displayLandingStats(raw: SmartLandingStats): SmartLandingStats {
+  return {
+    businesses: raw.businesses + SMART_LANDING_STAT_DISPLAY.businessOffset,
+    appointments: raw.appointments * SMART_LANDING_STAT_DISPLAY.appointmentsMultiplier,
+    transactions: SMART_LANDING_STAT_DISPLAY.transactionBaseline + raw.transactions,
+    platforms: raw.platforms,
+  };
+}
+
 export const SMART_NAV_ITEMS = [
   { label: "Platforms", href: "#platforms" },
   { label: "About", href: "#about" },
