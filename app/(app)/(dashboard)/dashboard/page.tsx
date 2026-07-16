@@ -142,6 +142,17 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
         salon_members(display_name),
         appointment_services(sort_order, service_id, price_override_minor, assigned_stylist_id, services(name, duration_minutes, processing_time_minutes, price_minor))
       `;
+      /** When billing columns are missing, still load junction rows so multi-service visits display correctly. */
+      const junctionSelect = `
+        id, start_time, end_time, status, notes,
+        client_id, guest_name, guest_email, guest_phone,
+        stylist_id, service_id, send_reminder_sms, send_review_request, send_aftercare,
+        deposit_payment_intent_id, before_photo_url, after_photo_url, change_charge_minor,
+        clients(name, email, phone),
+        services(name, duration_minutes, processing_time_minutes, price_minor),
+        salon_members(display_name),
+        appointment_services(sort_order, service_id, services(name, duration_minutes, processing_time_minutes, price_minor))
+      `;
       const minimalSelect = `
         id, start_time, end_time, status, notes,
         client_id, guest_name, guest_email, guest_phone,
@@ -161,6 +172,8 @@ async function renderDashboardPage(context: NonNullable<Awaited<ReturnType<typeo
 
       const full = await query(fullSelect);
       if (!full.error) return full;
+      const withJunction = await query(junctionSelect);
+      if (!withJunction.error) return withJunction;
       return query(minimalSelect);
     })(),
     categoriesPromise,

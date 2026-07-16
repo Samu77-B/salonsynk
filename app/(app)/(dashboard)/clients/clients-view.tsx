@@ -6,7 +6,7 @@ import { useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardDisclosure, DashboardPageHeader } from "@/components/dashboard/page-layout";
 import { dashboardBtnPrimaryClass, dashboardBtnSecondaryClass, dashboardCardClass, dashboardFlowClass, dashboardInputClass, dashboardStaggerClass } from "@/components/dashboard/ui";
-import { ClientForm } from "./client-form";
+import { AddClientModal } from "./add-client-modal";
 import { importClientsFromCsv, type CsvImportRowError } from "./actions";
 
 export type ClientListRow = {
@@ -236,22 +236,7 @@ export function ClientsView({ salonId, clients }: { salonId: string; clients: Cl
         </p>
       )}
 
-      {addOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setAddOpen(false)}>
-          <div
-            className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-lg border border-border bg-background p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-lg font-semibold mb-4">Add client</h2>
-            <ClientForm
-              salonId={salonId}
-              inlineOnCreate
-              onCancel={() => setAddOpen(false)}
-              onCreated={() => setAddOpen(false)}
-            />
-          </div>
-        </div>
-      )}
+      {addOpen && <AddClientModal salonId={salonId} onClose={() => setAddOpen(false)} />}
     </section>
   );
 }

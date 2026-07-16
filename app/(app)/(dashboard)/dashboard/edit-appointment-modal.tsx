@@ -390,6 +390,24 @@ export function EditAppointmentModal({
     setSendAftercare(appointment.send_aftercare ?? false);
     setBeforePhotoUrl(appointment.before_photo_url ?? "");
     setAfterPhotoUrl(appointment.after_photo_url ?? "");
+    setBillLines(
+      initialAppointmentServiceIds(appointment).map((serviceId) => {
+        const row = appointment.service_line_bill?.find((l) => l.service_id === serviceId);
+        const overrideMinor = row?.price_override_minor;
+        return {
+          serviceId,
+          priceOverridePounds:
+            overrideMinor != null && Number.isFinite(overrideMinor) ? (overrideMinor / 100).toFixed(2) : "",
+          assignedStylistId: row?.assigned_stylist_id ?? "",
+        };
+      })
+    );
+    setBillTotalOverridePounds(
+      appointment.bill_total_minor != null ? (appointment.bill_total_minor / 100).toFixed(2) : ""
+    );
+    setDepositPounds(
+      appointment.deposit_amount_minor != null ? (appointment.deposit_amount_minor / 100).toFixed(2) : ""
+    );
     setAllowScheduleOverlap(false);
     setSubmitError(null);
   }, [appointment, clients]);

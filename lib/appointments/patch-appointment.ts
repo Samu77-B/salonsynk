@@ -248,6 +248,18 @@ export async function executeAppointmentPatch(
 
   if (Object.keys(payload).length === 0 && updates.serviceIds === undefined && updates.serviceBillLines === undefined) return { error: null };
 
+  const needsJunctionSync = updates.serviceIds !== undefined || updates.serviceBillLines !== undefined;
+  let appointmentSnapshot: Record<string, unknown> | null = null;
+  if (needsJunctionSync && Object.keys(payload).length > 0) {
+    const { data: beforeRow } = await db
+      .from("appointments")
+      .select("*")
+      .eq("id", id)
+      .eq("salon_id", salonId)
+      .single();
+    if (beforeRow) appointmentSnapshot = beforeRow as Record<string, unknown>;
+  }
+
   let { error } = await db
     .from("appointments")
     .update(payload)
@@ -271,12 +283,30 @@ export async function executeAppointmentPatch(
 
   if (error) return { error: error.message };
 
-  if (updates.serviceIds !== undefined) {
-    const syncRes = await syncAppointmentServices(db, id, dedupeOrderedServiceIds(updates.serviceIds));
-    if (syncRes.error) return { error: syncRes.error };
-  } else if (updates.serviceBillLines !== undefined) {
+  if (updates.serviceBillLines !== undefined) {
     const syncRes = await syncAppointmentServiceBillLines(db, id, updates.serviceBillLines);
-    if (syncRes.error) return { error: syncRes.error };
+    if (syncRes.error) {
+      if (appointmentSnapshot) {
+        const revertPayload = { ...appointmentSnapshot };
+        delete revertPayload.id;
+        delete revertPayload.salon_id;
+        delete revertPayload.created_at;
+        await db.from("appointments").update(revertPayload).eq("id", id).eq("salon_id", salonId);
+      }
+      return { error: syncRes.error };
+    }
+  } else if (updates.serviceIds !== undefined) {
+    const syncRes = await syncAppointmentServices(db, id, dedupeOrderedServiceIds(updates.serviceIds));
+    if (syncRes.error) {
+      if (appointmentSnapshot) {
+        const revertPayload = { ...appointmentSnapshot };
+        delete revertPayload.id;
+        delete revertPayload.salon_id;
+        delete revertPayload.created_at;
+        await db.from("appointments").update(revertPayload).eq("id", id).eq("salon_id", salonId);
+      }
+      return { error: syncRes.error };
+    }
   }
 
   if (nextStatus === "completed") {

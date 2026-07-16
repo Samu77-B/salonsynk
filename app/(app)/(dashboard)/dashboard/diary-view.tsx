@@ -194,6 +194,113 @@ function buildRescheduledAppointment(
   };
 }
 
+/** Local merge after edit save — keeps multi-service labels in sync before router.refresh(). */
+function buildUpdatedAppointment(
+  existing: Appointment,
+  data: UpdateAppointmentInput,
+  membersList: Member[],
+  servicesList: Service[],
+  clientsList: Client[],
+  stylistOverrides: Record<string, Record<string, number>>
+): Appointment {
+  const orderedSvc = dedupeOrderedServiceIds(
+    data.serviceBillLines && data.serviceBillLines.length > 0
+      ? data.serviceBillLines.map((l) => l.serviceId)
+      : data.serviceIds && data.serviceIds.length > 0
+        ? data.serviceIds
+        : data.service_id
+          ? [data.service_id]
+          : existing.service_line_ids?.length
+            ? existing.service_line_ids
+            : existing.service_id
+              ? [existing.service_id]
+              : []
+  );
+
+  const clientId = data.client_id !== undefined ? data.client_id : existing.client_id;
+  const client = clientId ? clientsList.find((c) => c.id === clientId) : undefined;
+  const stylistId = data.stylist_id ?? existing.stylist_id;
+  const stylist = membersList.find((m) => m.id === stylistId);
+  const svcList = orderedSvc
+    .map((sid) => servicesList.find((s) => s.id === sid))
+    .filter((s): s is Service => s !== undefined);
+
+  let servicesBlock: Appointment["services"] = existing.services;
+  if (svcList.length === 1) {
+    servicesBlock = {
+      name: svcList[0].name,
+      duration_minutes: svcList[0].duration_minutes,
+      processing_time_minutes: svcList[0].processing_time_minutes ?? 0,
+    };
+  } else if (svcList.length > 1) {
+    const durSum = svcList.reduce((acc, s) => {
+      const ov = stylistOverrides[stylistId]?.[s.id];
+      return acc + (ov ?? s.duration_minutes);
+    }, 0);
+    servicesBlock = {
+      name: svcList.map((s) => s.name).join(" · "),
+      duration_minutes: durSum,
+      processing_time_minutes: Math.max(...svcList.map((s) => s.processing_time_minutes ?? 0)),
+    };
+  }
+
+  const service_line_bill =
+    data.serviceBillLines?.map((l) => ({
+      service_id: l.serviceId,
+      price_override_minor: l.priceOverrideMinor ?? null,
+      assigned_stylist_id: l.assignedStylistId ?? null,
+    })) ?? existing.service_line_bill;
+
+  return {
+    ...existing,
+    start_time: data.start_time ?? existing.start_time,
+    end_time: data.end_time ?? existing.end_time,
+    stylist_id: stylistId,
+    client_id: clientId,
+    service_id: orderedSvc[0] ?? data.service_id ?? existing.service_id,
+    service_line_ids: orderedSvc.length > 0 ? orderedSvc : existing.service_line_ids,
+    service_line_bill,
+    guest_name: data.guest_name !== undefined ? data.guest_name : existing.guest_name,
+    guest_email: data.guest_email !== undefined ? data.guest_email : existing.guest_email,
+    guest_phone: data.guest_phone !== undefined ? data.guest_phone : existing.guest_phone,
+    notes: data.notes !== undefined ? data.notes : existing.notes,
+    send_reminder_sms: data.send_reminder_sms ?? existing.send_reminder_sms,
+    send_review_request: data.send_review_request ?? existing.send_review_request,
+    send_aftercare: data.send_aftercare ?? existing.send_aftercare,
+    before_photo_url: data.before_photo_url !== undefined ? data.before_photo_url : existing.before_photo_url,
+    after_photo_url: data.after_photo_url !== undefined ? data.after_photo_url : existing.after_photo_url,
+    bill_total_minor: data.bill_total_minor !== undefined ? data.bill_total_minor : existing.bill_total_minor,
+    deposit_amount_minor:
+      data.deposit_amount_minor !== undefined ? data.deposit_amount_minor : existing.deposit_amount_minor,
+    change_charge_minor:
+      data.change_charge_minor !== undefined ? data.change_charge_minor : existing.change_charge_minor,
+    clients: client
+      ? { name: client.name, email: client.email, phone: client.phone }
+      : clientId === null
+        ? null
+        : existing.clients,
+    services: servicesBlock,
+    salon_members: stylist ? { display_name: stylist.display_name } : existing.salon_members,
+  };
+}
+
+function diaryServiceLabel(appointment: Appointment, servicesList: Service[]): string {
+  const lineIds =
+    appointment.service_line_ids && appointment.service_line_ids.length > 0
+      ? appointment.service_line_ids
+      : appointment.service_id
+        ? [appointment.service_id]
+        : [];
+  if (lineIds.length > 1) {
+    const names = lineIds
+      .map((id) => servicesList.find((s) => s.id === id)?.name)
+      .filter((n): n is string => Boolean(n));
+    if (names.length > 0) return names.join(" · ");
+  }
+  const svc = Array.isArray(appointment.services) ? appointment.services[0] : appointment.services;
+  return svc?.name || "Service";
+}
+
 const DIARY_VISIBLE_STATUSES = ["scheduled", "completed", "canceled", "no_show"] as const;
 
 function isDiaryVisibleStatus(status: string): boolean {
@@ -1387,11 +1494,10 @@ export function DiaryView({
                               const durMins = (end.getTime() - start.getTime()) / 60000;
                               const top = Math.max(0, topMins) * pxPerMin;
                               const height = Math.max(44, durMins * pxPerMin);
-                              const svc = Array.isArray(a.services) ? a.services[0] : a.services;
                               const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
                               const phone = client?.phone ?? a.guest_phone ?? "";
                               const label = client?.name || a.guest_name || "Walk-in";
-                              const serviceName = svc?.name || "Service";
+                              const serviceName = diaryServiceLabel(a, services);
                               const color = (a.service_id && serviceColorMap[a.service_id]) || DEFAULT_DIARY_COLOR;
                               const lane = lanes.get(a.id) ?? { lane: 0, laneCount: 1 };
                               const { lane: li, laneCount: lc } = lane;
@@ -1537,10 +1643,9 @@ export function DiaryView({
                         const start = parseDate(a.start_time);
                         const end = parseDate(a.end_time);
                         if (!start || !end) return null;
-                        const svc = Array.isArray(a.services) ? a.services[0] : a.services;
                         const client = Array.isArray(a.clients) ? a.clients[0] : a.clients;
                         const label = client?.name || a.guest_name || "Walk-in";
-                        const serviceName = svc?.name || "Service";
+                        const serviceName = diaryServiceLabel(a, services);
                         const color = (a.service_id && serviceColorMap[a.service_id]) || DEFAULT_DIARY_COLOR;
                         const stylistName =
                           members.find((m) => m.id === a.stylist_id)?.display_name ||
@@ -1725,9 +1830,23 @@ export function DiaryView({
             stylistOverrides={stylistOverrides}
             entryAnchor={editEntryAnchor}
             onUpdate={async (id, data) => {
+              const existing = appointments.find((a) => a.id === id);
               const result = await patchAppointmentViaApi(id, data);
               if (result.error) setError(result.error);
               else {
+                if (existing) {
+                  setAppointmentPatches((prev) => ({
+                    ...prev,
+                    [id]: buildUpdatedAppointment(
+                      existing,
+                      data,
+                      members,
+                      services,
+                      clients,
+                      stylistOverrides
+                    ),
+                  }));
+                }
                 closeEditModal();
                 scheduleRouterRefresh(router);
               }
