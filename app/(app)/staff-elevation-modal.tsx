@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DashboardModalShell, dashboardModalPanelClass } from "@/components/dashboard/modal";
 
 type MemberRow = { id: string; display_name: string | null; has_passcode: boolean };
 
@@ -90,18 +91,16 @@ export function StaffElevationModal({
     if (e.key === "Enter") void handleSubmit();
   }
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <DashboardModalShell open={open} onClose={onClose} ariaLabelledBy="staff-elevation-title">
       <div
-        className="w-full max-w-sm rounded-2xl border border-border bg-background p-5 shadow-xl"
+        className={`${dashboardModalPanelClass("max-w-sm")} p-5`}
         onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
       >
         <div className="mb-4">
-          <h2 className="text-lg font-semibold">{title}</h2>
+          <h2 id="staff-elevation-title" className="text-lg font-semibold">
+            {title}
+          </h2>
           <p className="text-sm text-muted mt-1">{subtitle}</p>
         </div>
 
@@ -162,7 +161,6 @@ export function StaffElevationModal({
           </button>
         </div>
       </div>
-    </div>
+    </DashboardModalShell>
   );
 }
-

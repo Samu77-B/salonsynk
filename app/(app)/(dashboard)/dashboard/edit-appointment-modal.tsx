@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import {
+  DashboardModalShell,
+  dashboardModalBackdropClass,
+  dashboardModalOverlayClass,
+  dashboardModalPanelClass,
+} from "@/components/dashboard/modal";
 import type { AppointmentDbStatus, UpdateAppointmentInput } from "./actions";
 import { uploadAppointmentPhoto } from "./actions";
 import { ServicePickerField } from "./service-picker-field";
@@ -281,21 +286,8 @@ export function EditAppointmentModal({
   );
   const errorAndOverlapRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
   const currentStatus = appointment.status ?? "scheduled";
   const canChargeNoShow = currentStatus === "scheduled";
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
 
   useEffect(() => {
     if (submitError) {
@@ -518,23 +510,11 @@ export function EditAppointmentModal({
     await executeUpdate(data);
   };
 
-  return mounted
-    ? createPortal(
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="edit-appointment-title"
-        >
-          <button
-            type="button"
-            className="absolute inset-0 cursor-default backdrop-blur-lg"
-            aria-label="Close edit appointment dialog"
-            onClick={onClose}
-          />
+  return (
+    <DashboardModalShell open onClose={onClose} ariaLabelledBy="edit-appointment-title">
           <div
             ref={panelRef}
-            className="relative z-10 flex max-h-[min(90dvh,calc(100vh-2rem))] w-full min-w-0 max-w-md shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl ring-1 ring-border/80 xl:max-w-4xl"
+            className={dashboardModalPanelClass("max-w-md xl:max-w-4xl")}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="overflow-y-auto overscroll-contain p-4 sm:p-6">
@@ -865,14 +845,14 @@ export function EditAppointmentModal({
         </form>
 
         {chargePrompt && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className={`${dashboardModalOverlayClass} z-[110]`}>
             <button
               type="button"
-              className="absolute inset-0 cursor-default backdrop-blur-md"
+              className={dashboardModalBackdropClass}
               aria-label="Dismiss chargeable change dialog"
               onClick={() => setChargePrompt(null)}
             />
-            <div className="relative z-10 w-full max-w-sm rounded-xl border border-border bg-background p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className={`${dashboardModalPanelClass("max-w-sm")} p-5`} onClick={(e) => e.stopPropagation()}>
               <h3 className="text-lg font-semibold mb-2">Chargeable change?</h3>
               <p className="text-sm text-muted mb-4">
                 You&apos;ve changed the time or service for this appointment. Is this change chargeable to the client?
@@ -926,8 +906,6 @@ export function EditAppointmentModal({
         )}
             </div>
           </div>
-        </div>,
-        document.body
-      )
-    : null;
+    </DashboardModalShell>
+  );
 }

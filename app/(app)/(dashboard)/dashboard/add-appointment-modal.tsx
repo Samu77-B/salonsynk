@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { DashboardModalShell, dashboardModalPanelClass } from "@/components/dashboard/modal";
 import type { CreateAppointmentInput } from "./actions";
 import { ServicePickerField } from "./service-picker-field";
 import {
@@ -143,19 +143,6 @@ export function AddAppointmentModal({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const errorAndOverlapRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
 
   useLayoutEffect(() => {
     if (entryAnimation !== "from-top") return;
@@ -291,23 +278,11 @@ export function AddAppointmentModal({
     }
   };
 
-  return mounted
-    ? createPortal(
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="add-appointment-title"
-        >
-          <button
-            type="button"
-            className="absolute inset-0 cursor-default backdrop-blur-lg"
-            aria-label="Close add appointment dialog"
-            onClick={onClose}
-          />
+  return (
+    <DashboardModalShell open onClose={onClose} ariaLabelledBy="add-appointment-title">
           <div
             ref={panelRef}
-            className="relative z-10 flex max-h-[min(90dvh,calc(100vh-2rem))] w-full min-w-0 max-w-md shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl ring-1 ring-border/80 lg:max-w-4xl"
+            className={`${dashboardModalPanelClass("max-w-md lg:max-w-4xl")}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="overflow-y-auto overscroll-contain p-4 sm:p-6">
@@ -624,8 +599,6 @@ export function AddAppointmentModal({
         </form>
             </div>
           </div>
-        </div>,
-        document.body
-      )
-    : null;
+    </DashboardModalShell>
+  );
 }

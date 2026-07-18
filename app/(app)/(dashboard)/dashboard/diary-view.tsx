@@ -13,6 +13,11 @@ import type { UpdateAppointmentInput } from "@/lib/appointments/patch-appointmen
 import { buildServiceDiaryColorMap, DEFAULT_DIARY_COLOR } from "@/lib/service-diary-color";
 import { SALON_OPEN_HOUR, SALON_CLOSE_HOUR } from "@/lib/ai/salon-time";
 import { dashboardFlowClass } from "@/components/dashboard/ui";
+import {
+  dashboardModalBackdropClass,
+  dashboardModalOverlayClass,
+  dashboardModalPanelClass,
+} from "@/components/dashboard/modal";
 
 /** Route Handler + JSON — avoids Next.js server-action digest errors on diary saves (add, delete, status, drag, form). */
 async function createAppointmentViaApi(
@@ -1885,12 +1890,16 @@ export function DiaryView({
         const client = apt ? (Array.isArray(apt.clients) ? apt.clients[0] : apt.clients) : null;
         const clientName = client?.name || apt?.guest_name || "the client";
         return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-            onClick={() => !smartReschedule.loading && setSmartReschedule(null)}
-          >
+          <div className={`${dashboardModalOverlayClass} z-[100]`}>
+            <button
+              type="button"
+              className={dashboardModalBackdropClass}
+              aria-label="Close smart reschedule dialog"
+              onClick={() => !smartReschedule.loading && setSmartReschedule(null)}
+              disabled={smartReschedule.loading}
+            />
             <div
-              className="w-full max-w-lg rounded-xl border border-zinc-700/90 bg-zinc-950 p-5 shadow-2xl shadow-black/50 ring-1 ring-black/40 text-zinc-100"
+              className="relative z-10 flex max-h-[min(90dvh,calc(100vh-2rem))] w-full min-w-0 max-w-lg shrink-0 flex-col overflow-hidden rounded-xl border border-zinc-700/90 bg-zinc-950 p-5 shadow-2xl shadow-black/50 ring-1 ring-black/40 text-zinc-100"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-3">
@@ -1991,12 +2000,15 @@ export function DiaryView({
         const client = apt ? (Array.isArray(apt.clients) ? apt.clients[0] : apt.clients) : null;
         const clientName = client?.name || apt?.guest_name || "the client";
         return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            onClick={() => setRunningLateId(null)}
-          >
+          <div className={`${dashboardModalOverlayClass} z-[100]`}>
+            <button
+              type="button"
+              className={dashboardModalBackdropClass}
+              aria-label="Close running late dialog"
+              onClick={() => setRunningLateId(null)}
+            />
             <div
-              className="w-full max-w-sm rounded-lg border border-border bg-background p-6"
+              className={`${dashboardModalPanelClass("max-w-sm")} p-6`}
               onClick={(e) => e.stopPropagation()}
             >
               <h2 className="text-lg font-semibold mb-2">Running late</h2>
@@ -2025,8 +2037,14 @@ export function DiaryView({
       })()}
 
       {dragChargePrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setDragChargePrompt(null)}>
-          <div className="w-full max-w-sm rounded-xl border border-border bg-background p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className={`${dashboardModalOverlayClass} z-[100]`}>
+          <button
+            type="button"
+            className={dashboardModalBackdropClass}
+            aria-label="Close chargeable change dialog"
+            onClick={() => setDragChargePrompt(null)}
+          />
+          <div className={`${dashboardModalPanelClass("max-w-sm")} p-5`} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-2">Chargeable change?</h3>
             <p className="text-sm text-muted mb-4">
               You moved this appointment. Is this change chargeable to the client?
