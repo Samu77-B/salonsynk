@@ -3,7 +3,7 @@ import Link from "next/link";
 import { SITE } from "@/config/site";
 import siteLogo from "@/salonsynk_logo.png";
 
-type ActiveNav = "home" | "features" | "none";
+type ActiveNav = "home" | "features" | "how-it-works" | "none";
 
 type Props = {
   /** Homepage uses fixed header over hero */
@@ -49,6 +49,9 @@ export function MarketingSiteHeader({ variant = "static", activeNav = "none" }: 
         <nav className="flex items-center gap-3 sm:gap-5 shrink-0">
           <Link href="/features" className={navClass(activeNav === "features")}>
             Features
+          </Link>
+          <Link href="/how-it-works" className={navClass(activeNav === "how-it-works")}>
+            How it works
           </Link>
           <Link
             href="/login"

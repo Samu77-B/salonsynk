@@ -231,15 +231,23 @@ export default function HomePage() {
               See SalonSynk in action
             </h2>
             <p className="mt-3 text-zinc-600">
-              Book a short demo and we’ll walk you through the diary, bookings,
+              Watch short walkthrough videos or book a demo — diary, bookings,
               and how to get started.
             </p>
-            <a
-              href={`mailto:${SITE.email}?subject=Demo%20request`}
-              className="mt-6 inline-flex items-center justify-center rounded-xl bg-black px-8 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
-            >
-              Book a demo
-            </a>
+            <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/how-it-works"
+                className="inline-flex items-center justify-center rounded-xl bg-black px-8 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
+              >
+                How it works
+              </Link>
+              <a
+                href={`mailto:${SITE.email}?subject=Demo%20request`}
+                className="inline-flex items-center justify-center rounded-xl border-2 border-zinc-300 bg-white px-8 py-3.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 transition-colors"
+              >
+                Book a demo
+              </a>
+            </div>
           </div>
         </section>
         </Reveal>
