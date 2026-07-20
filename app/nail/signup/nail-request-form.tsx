@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { NAIL_MONTHLY_GBP } from "@core/billing/platform-billing";
 import { NAIL_SITE } from "@core/config/nail-site";
 
 const ACCENT = "#9B4B6A";
@@ -58,10 +59,14 @@ export function NailRequestForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="rounded-lg border p-4" style={{ borderColor: ACCENT, backgroundColor: "rgba(155,75,106,0.05)" }}>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold" style={{ color: TEXT_DARK }}>{NAIL_SITE.name}</p>
             <p className="text-xs" style={{ color: TEXT_MUTED }}>Walk-in queue for nail bars</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-2xl font-bold" style={{ color: TEXT_DARK }}>£{NAIL_MONTHLY_GBP}</p>
+            <p className="text-xs" style={{ color: TEXT_MUTED }}>per month</p>
           </div>
         </div>
       </div>

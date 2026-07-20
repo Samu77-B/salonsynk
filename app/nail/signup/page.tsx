@@ -13,7 +13,7 @@ const BG_LIGHT = "#FAF7F5";
 
 export const metadata: Metadata = {
   title: `Sign up — ${NAIL_SITE.name}`,
-  description: `Request a ${NAIL_SITE.name} account. Walk-in queue management for nail bars.`,
+  description: `Request a ${NAIL_SITE.name} account. Walk-in queue management for nail bars, £25/mo.`,
 };
 
 export default async function NailSignupPage() {

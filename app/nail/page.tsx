@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { SynkPlatformFooter } from "@/components/marketing/synk-platform-footer";
+import { NAIL_MONTHLY_GBP } from "@core/billing/platform-billing";
 import { NAIL_SITE } from "@core/config/nail-site";
 import heroImage from "../../imgs/nail/hero.png";
 /* eslint-disable @next/next/no-img-element */
@@ -11,6 +12,7 @@ const ACCENT = "#E8B5C2";
 const WHITE = "#FFFFFF";
 const BLACK = "#000000";
 const TEXT_MUTED = "#5c5c5c";
+const PRICE_LABEL = `£${NAIL_MONTHLY_GBP}`;
 
 const HOW_IT_WORKS = [
   {
@@ -61,7 +63,7 @@ const FEATURES = [
 const FAQ_ITEMS = [
   {
     q: "How much does NailSynk cost?",
-    a: "Simple monthly pricing per salon. No per-service commissions — you keep what you earn.",
+    a: `${PRICE_LABEL} per calendar month, per salon. No per-service commissions, no hidden fees — you keep 100% of what you take.`,
   },
   {
     q: "Do my clients need to download an app?",
@@ -105,6 +107,9 @@ export default function NailHomePage() {
             <a href="#how-it-works" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors hidden sm:inline">
               How it works
             </a>
+            <a href="#pricing" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors">
+              Pricing
+            </a>
             <a href="#faq" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors">
               FAQ
             </a>
@@ -146,7 +151,8 @@ export default function NailHomePage() {
                   <span style={{ color: ACCENT }}>Your way.</span>
                 </h1>
                 <p className="mt-5 text-lg leading-relaxed" style={{ color: "rgba(255,255,255,0.85)" }}>
-                  {NAIL_SITE.description}
+                  Walk-in queue for nail bars. Clients scan to join, your team sees the live queue, and waiting
+                  customers get a text when it&apos;s their turn. From just {PRICE_LABEL}/mo.
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row gap-4">
                   <Link
@@ -227,9 +233,64 @@ export default function NailHomePage() {
         </Reveal>
 
         <Reveal>
-          <section id="faq" className="py-20 sm:py-24" style={{ backgroundColor: WHITE, color: BLACK }}>
+          <section id="pricing" className="py-20 sm:py-24" style={{ backgroundColor: WHITE, color: BLACK }}>
+            <div className="mx-auto max-w-4xl px-4 sm:px-6 text-center">
+              <h2 className="text-2xl font-bold sm:text-3xl" style={{ color: BLACK }}>
+                Simple pricing. No surprises.
+              </h2>
+              <p className="mt-3" style={{ color: TEXT_MUTED }}>
+                One flat fee per salon. No commissions, no per-service charges, no contracts.
+              </p>
+              <div
+                className="mx-auto mt-12 max-w-md rounded border p-6 sm:p-10"
+                style={{ borderColor: ACCENT, backgroundColor: WHITE }}
+              >
+                <p className="text-sm font-semibold uppercase tracking-wider" style={{ color: "#9B4B6A" }}>
+                  Per salon / per month
+                </p>
+                <p className="mt-3 text-6xl font-black" style={{ color: BLACK }}>
+                  {PRICE_LABEL}
+                  <span className="text-xl font-normal" style={{ color: TEXT_MUTED }}>
+                    {" "}
+                    pcm
+                  </span>
+                </p>
+                <ul className="mt-8 space-y-4 text-sm text-left" style={{ color: TEXT_MUTED }}>
+                  {[
+                    "Live walk-in queue management",
+                    "Customer self-check-in via QR code",
+                    "Automatic text updates when it is their turn",
+                    "Unlimited technicians and stations",
+                    "Team-wide real-time queue view",
+                    "Works on any device — tablet, phone, laptop",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <span className="mt-0.5 text-base" style={{ color: "#9B4B6A" }}>
+                        ✓
+                      </span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/nail/signup"
+                  className="mt-10 block w-full rounded py-4 text-center text-base font-bold transition-colors"
+                  style={{ backgroundColor: ACCENT, color: BLACK }}
+                >
+                  Request Access
+                </Link>
+                <p className="mt-3 text-xs" style={{ color: "#8a8278" }}>
+                  No card required to request access. Cancel anytime once live.
+                </p>
+              </div>
+            </div>
+          </section>
+        </Reveal>
+
+        <Reveal>
+          <section id="faq" className="py-20 sm:py-24" style={{ backgroundColor: BLACK }}>
             <div className="mx-auto max-w-3xl px-4 sm:px-6">
-              <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: BLACK }}>
+              <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: WHITE }}>
                 Frequently asked questions
               </h2>
               <dl className="mt-10 space-y-4">
@@ -237,10 +298,10 @@ export default function NailHomePage() {
                   <div
                     key={item.q}
                     className="rounded border p-6"
-                    style={{ borderColor: "#e8e8e8", backgroundColor: WHITE }}
+                    style={{ borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)" }}
                   >
-                    <dt className="font-semibold" style={{ color: BLACK }}>{item.q}</dt>
-                    <dd className="mt-2 text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
+                    <dt className="font-semibold" style={{ color: WHITE }}>{item.q}</dt>
+                    <dd className="mt-2 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>
                       {item.a}
                     </dd>
                   </div>
@@ -251,14 +312,14 @@ export default function NailHomePage() {
         </Reveal>
 
         <Reveal>
-          <section className="py-20 sm:py-24" style={{ backgroundColor: BLACK }}>
+          <section className="py-20 sm:py-24" style={{ backgroundColor: WHITE, color: BLACK }}>
             <div className="mx-auto max-w-3xl px-4 sm:px-6 text-center">
-              <h2 className="text-2xl font-bold sm:text-3xl" style={{ color: WHITE }}>
+              <h2 className="text-2xl font-bold sm:text-3xl" style={{ color: BLACK }}>
                 Ready to streamline your salon?
               </h2>
-              <p className="mt-3" style={{ color: "rgba(255,255,255,0.7)" }}>
+              <p className="mt-3" style={{ color: TEXT_MUTED }}>
                 Request access or email{" "}
-                <a href={`mailto:${NAIL_SITE.email}`} className="underline hover:opacity-80" style={{ color: ACCENT }}>
+                <a href={`mailto:${NAIL_SITE.email}`} className="underline hover:opacity-80" style={{ color: "#9B4B6A" }}>
                   {NAIL_SITE.email}
                 </a>
               </p>
@@ -273,7 +334,7 @@ export default function NailHomePage() {
                 <a
                   href={`mailto:${NAIL_SITE.email}?subject=Demo%20request`}
                   className="inline-flex items-center justify-center rounded border px-8 py-4 text-base font-semibold transition-colors"
-                  style={{ borderColor: "rgba(255,255,255,0.35)", color: WHITE }}
+                  style={{ borderColor: BLACK, color: BLACK }}
                 >
                   Book a Demo
                 </a>

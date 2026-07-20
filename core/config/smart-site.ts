@@ -267,7 +267,7 @@ export const SMART_SHOWCASE_TABS: readonly SmartShowcaseTab[] = [
         bullets: [
           "SMS when you start the next client",
           "Clients wait nearby until notified",
-          "Simple monthly pricing — no per-service commissions",
+          "From £25/mo per salon — no per-service commissions",
         ],
       },
     ],
