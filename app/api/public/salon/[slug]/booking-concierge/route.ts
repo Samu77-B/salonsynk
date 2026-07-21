@@ -52,7 +52,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     system,
     messages: modelMessages,
     tools,
-    stopWhen: stepCountIs(10),
+    stopWhen: stepCountIs(6),
   });
 
   return result.toUIMessageStreamResponse();

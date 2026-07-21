@@ -7,6 +7,10 @@ export type PublicSalonContext = SalonBookingCatalog & {
   policyNotes: string;
 };
 
+/** Short in-memory TTL so public SynkAI turns skip reloading the catalogue. */
+const PUBLIC_CATALOG_TTL_MS = 45_000;
+const publicCatalogCache = new Map<string, { expiresAt: number; catalog: PublicSalonContext }>();
+
 function openingHoursFromSettings(settings: Record<string, unknown>): string {
   const custom = settings.opening_hours;
   if (typeof custom === "string" && custom.trim()) return custom.trim();
@@ -17,11 +21,25 @@ function openingHoursFromSettings(settings: Record<string, unknown>): string {
 }
 
 export async function loadPublicSalonBySlug(slug: string): Promise<PublicSalonContext | null> {
+  const key = slug.trim().toLowerCase();
+  const cached = publicCatalogCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.catalog;
+  }
+
+  const catalog = await fetchPublicSalonBySlug(key);
+  if (catalog) {
+    publicCatalogCache.set(key, { expiresAt: Date.now() + PUBLIC_CATALOG_TTL_MS, catalog });
+  }
+  return catalog;
+}
+
+async function fetchPublicSalonBySlug(slug: string): Promise<PublicSalonContext | null> {
   const supabase = createAdminClient();
   const { data: salon } = await supabase
     .from("salons")
     .select("id, name, slug, settings")
-    .eq("slug", slug.trim().toLowerCase())
+    .eq("slug", slug)
     .maybeSingle();
 
   if (!salon) return null;

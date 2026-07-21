@@ -77,7 +77,7 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
 
     match_service: tool({
       description:
-        "Resolve casual wording to an exact bookable service name before checking availability or booking.",
+        "Optional: resolve ambiguous casual wording to an exact service name. Prefer check_availability with the user's words first — only use this when availability fails with multiple matches or askToClarify.",
       inputSchema: jsonSchema<{ description: string }>({
         type: "object",
         properties: {
@@ -126,7 +126,7 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
 
     check_availability: tool({
       description:
-        "Check available appointment slots for a service on a given date. stylistName is optional — omit it (or pass any/anyone/doesn't matter) for walk-ins to search all stylists and auto-pick who is free.",
+        "Check available appointment slots for a service on a given date. Accepts casual service wording (fuzzy match). stylistName is optional — omit it (or pass any/anyone/doesn't matter) for walk-ins to search all stylists and auto-pick who is free.",
       inputSchema: jsonSchema<{
         serviceName: string;
         dateIso: string;
@@ -141,7 +141,10 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
             description:
               "Optional stylist display name. Omit for walk-ins / 'anyone' / 'doesn't matter who'.",
           },
-          serviceName: { type: "string", description: "Service name" },
+          serviceName: {
+            type: "string",
+            description: "Exact or casual service name (e.g. 'Root Tint' or 'roots coloured')",
+          },
           dateIso: { type: "string", description: "Date in YYYY-MM-DD format" },
           timePreference: {
             type: "string",
@@ -990,9 +993,9 @@ You can:
 ${isManager ? "- List all team members and roles\n- Answer how-to questions about SalonSynk using the help context below" : ""}
 
 Rules:
-1. Always use tools for live data — never invent services, prices, times, or contact details.
+1. Always use tools for live data — never invent prices, times, or contact details. For service lists already in this prompt, answer from the prompt without calling list_services.
 2. ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
-3. Call match_service when the user describes a treatment loosely; never book using a category name.
+3. Never book using a category name.
 4. Call check_availability before booking when a day/time is given; pass requestedTime as HH:mm for specific times (e.g. 11:00 for 11am, 16:00 for 4pm).
 5. When the user does not name a stylist (walk-in, "anyone", "doesn't matter who", "whoever is free"), omit stylistName on check_availability and book_appointment. The tools will auto-assign the next free stylist, or pick a random stylist if everyone is free — do not ask which stylist unless they want a specific person.
 6. When check_availability shows a slot is unavailable, offer the alternativeSlots returned — they are the next realistic openings after the requested time.
@@ -1002,6 +1005,7 @@ Rules:
 10. Confirm before delete_appointment.
 11. For messaging, explain which channel was used (email vs SMS) or why it failed (missing phone/email or Twilio/Resend not configured).
 12. After booking changes, mention the Classic Mode diary will update.
+13. Keep replies short; prefer fewer tool calls over exhaustive lookups.
 
 Opening hours: ${catalog.openingHoursNote}
 ${catalog.aftercareMessage ? `Default aftercare copy: ${catalog.aftercareMessage.slice(0, 300)}` : ""}

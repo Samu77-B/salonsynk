@@ -35,7 +35,7 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
   return {
     match_service: tool({
       description:
-        "Resolve casual wording to an exact bookable service name. Call this before check_availability when the client describes a treatment in plain English.",
+        "Optional: resolve ambiguous casual wording to an exact service name. Prefer check_availability with the client's words first — only use this when availability fails with multiple matches or askToClarify.",
       inputSchema: jsonSchema<{ description: string }>({
         type: "object",
         properties: {
@@ -123,7 +123,7 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
 
     check_availability: tool({
       description:
-        "Check open appointment times for a service on a given date. stylistName is optional — omit it to search all stylists.",
+        "Check open appointment times for a service on a given date. Accepts casual service wording (fuzzy match). stylistName is optional — omit it to search all stylists.",
       inputSchema: jsonSchema<{
         serviceName: string;
         dateIso: string;
@@ -134,7 +134,10 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
         type: "object",
         properties: {
           stylistName: { type: "string", description: "Optional stylist name" },
-          serviceName: { type: "string", description: "Exact service name from match_service or list_services" },
+          serviceName: {
+            type: "string",
+            description: "Exact or casual service name (e.g. 'Root Tint' or 'roots coloured')",
+          },
           dateIso: { type: "string", description: "Date YYYY-MM-DD (resolve tomorrow from today before calling)" },
           timePreference: { type: "string", enum: ["morning", "afternoon", "evening", "any"] },
           requestedTime: { type: "string", description: "Specific time HH:mm when client asks for a slot" },
@@ -350,15 +353,14 @@ Opening hours: ${catalog.openingHoursNote}
 Rules:
 - Never mention internal staff tools or client databases
 - ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
-- Always call match_service first when a client describes what they want in everyday language (e.g. "hair trimmed on Saturday", "I need a haircut"). Strip the date from the description if needed — match_service handles that.
-- If match_service returns askToClarify or multiple suggestions, ask a friendly follow-up (e.g. men's or ladies' haircut) using the exact service names returned.
-- Use match_service / list_services / check_availability / book_guest_appointment for bookings
+- If check_availability / match_service returns askToClarify or multiple suggestions, ask a friendly follow-up (e.g. men's or ladies' haircut) using the exact service names returned.
+- Prefer check_availability then book_guest_appointment — skip list_services / match_service when the catalogue above is enough
 - When the client confirms with "yes", "that's right", etc., reuse the exact serviceName you already identified — never pass the word "yes" as the service name
 - Resolve "Saturday", "tomorrow", etc. to a YYYY-MM-DD date before calling check_availability
 - For style or colour advice, describe what the salon offers based on service list — do not invent services
 - If asked about opening times, use the opening hours note above; if unsure, suggest calling the salon
 - If asked about salon policy: ${catalog.policyNotes}
-- Be concise and welcoming
+- Be concise and welcoming; minimise tool calls
 
 Services (use descriptions to explain cuts, colour, highlights, etc.):
 ${serviceLines || "(contact salon)"}

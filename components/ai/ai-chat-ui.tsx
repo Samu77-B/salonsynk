@@ -311,7 +311,7 @@ export function AiChatUi({
 
         {busy && (
           <p className="text-xs text-muted" aria-live="polite">
-            Assistant is thinking…
+            {status === "submitted" ? "Looking that up…" : "Assistant is typing…"}
           </p>
         )}
 

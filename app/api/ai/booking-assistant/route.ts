@@ -34,11 +34,13 @@ export async function POST(req: Request) {
     return Response.json({ error: "Missing messages" }, { status: 400 });
   }
 
-  const isSuperAdmin = await getIsSuperAdmin();
-  const isManager = isManagerRole(isSuperAdmin, salonContext.member.role ?? "");
   const pathname = typeof raw.pathname === "string" ? raw.pathname : "/dashboard";
 
-  const catalog = await loadSalonBookingCatalog(salonContext.salon.id, salonContext.salon.name);
+  const [isSuperAdmin, catalog] = await Promise.all([
+    getIsSuperAdmin(),
+    loadSalonBookingCatalog(salonContext.salon.id, salonContext.salon.name),
+  ]);
+  const isManager = isManagerRole(isSuperAdmin, salonContext.member.role ?? "");
   const access = {
     isManager,
     memberRole: salonContext.member.role ?? "staff",
@@ -53,7 +55,7 @@ export async function POST(req: Request) {
     system,
     messages: modelMessages,
     tools,
-    stopWhen: stepCountIs(12),
+    stopWhen: stepCountIs(6),
   });
 
   return result.toUIMessageStreamResponse();

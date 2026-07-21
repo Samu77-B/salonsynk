@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 import type { SalonBookingCatalog } from "./booking-types";
 
+/** Short in-memory TTL so repeated SynkAI turns skip reloading the full catalog. */
+const CATALOG_TTL_MS = 45_000;
+const catalogCache = new Map<string, { expiresAt: number; catalog: SalonBookingCatalog }>();
+
 function openingHoursFromSettings(settings: Record<string, unknown>): string {
   const custom = settings.opening_hours;
   if (typeof custom === "string" && custom.trim()) return custom.trim();
@@ -12,6 +16,17 @@ function openingHoursFromSettings(settings: Record<string, unknown>): string {
 }
 
 export async function loadSalonBookingCatalog(salonId: string, salonName: string): Promise<SalonBookingCatalog> {
+  const cached = catalogCache.get(salonId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { ...cached.catalog, salonName };
+  }
+
+  const catalog = await fetchSalonBookingCatalog(salonId, salonName);
+  catalogCache.set(salonId, { expiresAt: Date.now() + CATALOG_TTL_MS, catalog });
+  return catalog;
+}
+
+async function fetchSalonBookingCatalog(salonId: string, salonName: string): Promise<SalonBookingCatalog> {
   const supabase = await createClient();
 
   const servicesPromise = (async () => {
