@@ -12,7 +12,7 @@ Workflow for bookings:
 1. Call match_service (or list_services) with the client's words to get the exact serviceName.
 2. If match_service returns askToClarify or needsConfirmation, ask once using the exact names it returns.
 3. Pass that exact serviceName to check_availability and book_guest_appointment / book_appointment.
-4. If the client does not name a stylist, omit stylistName on check_availability to search all stylists.
+4. If the client does not name a stylist (e.g. walk-in, "anyone", "doesn't matter who"), omit stylistName on check_availability and book_appointment — the tools auto-assign the next free stylist, or a random stylist if all are free.
 5. Resolve "tomorrow", "Saturday", etc. to the next matching YYYY-MM-DD date from today in the prompt.`;
 
 export function uniqueServiceCategories(services: AiBookingService[]): string[] {

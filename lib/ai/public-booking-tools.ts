@@ -8,6 +8,7 @@ import {
   filterServices,
   matchServiceForBooking,
 } from "./booking-resolvers";
+import { assignFreeStylist, meansAnyStylist } from "./assign-stylist";
 import { findAvailableSlots, isSlotAvailable } from "./slot-finder";
 import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso, formatSalonDayLabel, formatSalonTimeLabel } from "./salon-time";
 import type { PublicSalonContext } from "./load-public-salon-catalog";
@@ -239,46 +240,71 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
     }),
 
     book_guest_appointment: tool({
-      description: "Book a guest appointment after confirming name, email, stylist, service, and start time.",
+      description:
+        "Book a guest appointment after confirming name, email, service, and start time. stylistName is optional — omit to auto-assign the next free stylist (or random if all free).",
       inputSchema: jsonSchema<{
-        stylistName: string;
         serviceName: string;
         startTimeIso: string;
         guestName: string;
         guestEmail: string;
+        stylistName?: string;
         guestPhone?: string;
       }>({
         type: "object",
         properties: {
-          stylistName: { type: "string" },
+          stylistName: {
+            type: "string",
+            description: "Optional. Omit for any available stylist.",
+          },
           serviceName: { type: "string" },
           startTimeIso: { type: "string" },
           guestName: { type: "string" },
           guestEmail: { type: "string" },
           guestPhone: { type: "string" },
         },
-        required: ["stylistName", "serviceName", "startTimeIso", "guestName", "guestEmail"],
+        required: ["serviceName", "startTimeIso", "guestName", "guestEmail"],
         additionalProperties: false,
       }),
       execute: async ({ stylistName, serviceName, startTimeIso, guestName, guestEmail, guestPhone }) => {
-        const stylistResult = resolveStylist(stylists, stylistName);
-        if (!stylistResult.ok) return errorPayload(stylistResult.error, stylistResult.suggestions);
         const serviceResult = resolveService(services, serviceName);
         if (!serviceResult.ok) return errorPayload(serviceResult.error, serviceResult.suggestions);
 
         const start = new Date(startTimeIso);
         if (!Number.isFinite(start.getTime())) return errorPayload("Invalid start time.", []);
 
-        const durationMinutes = serviceDurationForStylist(
-          serviceResult.item,
-          stylistResult.item.id,
-          stylistOverrides
-        );
+        let stylistId: string;
+        let stylistDisplayName: string;
+        let durationMinutes: number;
+
+        if (meansAnyStylist(stylistName)) {
+          const assigned = await assignFreeStylist({
+            salonId,
+            stylists,
+            service: serviceResult.item,
+            stylistOverrides,
+            startTime: start,
+          });
+          if (!assigned.ok) return errorPayload(assigned.error, assigned.suggestions);
+          stylistId = assigned.result.stylist.id;
+          stylistDisplayName = assigned.result.stylist.name;
+          durationMinutes = assigned.result.durationMinutes;
+        } else {
+          const stylistResult = resolveStylist(stylists, stylistName!);
+          if (!stylistResult.ok) return errorPayload(stylistResult.error, stylistResult.suggestions);
+          stylistId = stylistResult.item.id;
+          stylistDisplayName = stylistResult.item.name;
+          durationMinutes = serviceDurationForStylist(
+            serviceResult.item,
+            stylistResult.item.id,
+            stylistOverrides
+          );
+        }
+
         const end = new Date(start.getTime() + durationMinutes * 60_000);
 
         const result = await executeGuestBooking({
           salonId,
-          stylistId: stylistResult.item.id,
+          stylistId,
           serviceId: serviceResult.item.id,
           startTime: start.toISOString(),
           endTime: end.toISOString(),
@@ -292,7 +318,7 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
         return successPayload({
           bookingChanged: true,
           appointmentId: "appointmentId" in result ? result.appointmentId : undefined,
-          message: `Your ${serviceResult.item.name} with ${stylistResult.item.name} is confirmed. A confirmation email will be sent to ${guestEmail}.`,
+          message: `Your ${serviceResult.item.name} with ${stylistDisplayName} is confirmed. A confirmation email will be sent to ${guestEmail}.`,
           bookingUrl: `/book/${slug}`,
         });
       },

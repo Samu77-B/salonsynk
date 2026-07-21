@@ -11,6 +11,7 @@ import {
   filterServices,
   matchServiceForBooking,
 } from "./booking-resolvers";
+import { assignFreeStylist, meansAnyStylist } from "./assign-stylist";
 import { findAvailableSlots, isSlotAvailable, parseDateIso } from "./slot-finder";
 import { parseSalonDateIso, parseSalonLocalTime, salonLocalToUtc, todaySalonDateIso, formatSalonDayLabel, formatSalonTimeLabel } from "./salon-time";
 import type { SalonBookingCatalog, SlotCandidate, SynkAiAccess, TimePreference } from "./booking-types";
@@ -125,17 +126,21 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
 
     check_availability: tool({
       description:
-        "Check available appointment slots for a stylist and service on a given date. Use before booking or when the user asks about openings.",
+        "Check available appointment slots for a service on a given date. stylistName is optional — omit it (or pass any/anyone/doesn't matter) for walk-ins to search all stylists and auto-pick who is free.",
       inputSchema: jsonSchema<{
-        stylistName: string;
         serviceName: string;
         dateIso: string;
+        stylistName?: string;
         timePreference?: TimePreference;
         requestedTime?: string;
       }>({
         type: "object",
         properties: {
-          stylistName: { type: "string", description: "Stylist display name" },
+          stylistName: {
+            type: "string",
+            description:
+              "Optional stylist display name. Omit for walk-ins / 'anyone' / 'doesn't matter who'.",
+          },
           serviceName: { type: "string", description: "Service name" },
           dateIso: { type: "string", description: "Date in YYYY-MM-DD format" },
           timePreference: {
@@ -145,18 +150,13 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
           },
           requestedTime: {
             type: "string",
-            description: "Optional specific time to verify, 24h HH:mm (e.g. 15:00 for 3pm). Always pass when the user asks for a specific time.",
+            description: "Optional specific time to verify, 24h HH:mm (e.g. 15:00 for 3pm / 16:00 for 4pm). Always pass when the user asks for a specific time.",
           },
         },
-        required: ["stylistName", "serviceName", "dateIso"],
+        required: ["serviceName", "dateIso"],
         additionalProperties: false,
       }),
       execute: async ({ stylistName, serviceName, dateIso, timePreference, requestedTime }) => {
-        const stylistResult = resolveStylist(stylists, stylistName);
-        if (!stylistResult.ok) {
-          return errorPayload(stylistResult.error, stylistResult.suggestions);
-        }
-
         const serviceResult = resolveService(services, serviceName);
         if (!serviceResult.ok) {
           return errorPayload(serviceResult.error, serviceResult.suggestions);
@@ -167,16 +167,127 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
           return errorPayload("I couldn't understand that date. Please use a date like 2026-06-24.", []);
         }
 
+        const dateIsoNorm = parseSalonDateIso(dateIso) ?? dateIso;
+        const anyStylist = meansAnyStylist(stylistName);
+        const parsedRequested = requestedTime?.trim() ? parseSalonLocalTime(requestedTime.trim()) : null;
+
+        if (anyStylist) {
+          const slotRows: Array<SlotCandidate & { stylist: string }> = [];
+          let requestedSlot: (SlotCandidate & { stylist: string }) | undefined;
+          let assignedStylist: string | undefined;
+          let assignment: string | undefined;
+          let freeAtRequested: string[] = [];
+
+          if (parsedRequested) {
+            const start = salonLocalToUtc(dateIsoNorm, parsedRequested.hour, parsedRequested.minute);
+            const assigned = await assignFreeStylist({
+              salonId,
+              stylists,
+              service: serviceResult.item,
+              stylistOverrides,
+              startTime: start,
+            });
+            if (assigned.ok) {
+              freeAtRequested = assigned.result.freeStylistNames;
+              assignedStylist = assigned.result.stylist.name;
+              assignment = assigned.result.assignment;
+              requestedSlot = {
+                startIso: start.toISOString(),
+                endIso: new Date(start.getTime() + assigned.result.durationMinutes * 60_000).toISOString(),
+                dayLabel: formatSalonDayLabel(start),
+                timeLabel: formatSalonTimeLabel(start),
+                stylist: assigned.result.stylist.name,
+              };
+            }
+          }
+
+          for (const stylist of stylists) {
+            const durationMinutes = serviceDurationForStylist(
+              serviceResult.item,
+              stylist.id,
+              stylistOverrides
+            );
+            const minStartMinutes =
+              parsedRequested && !requestedSlot
+                ? parsedRequested.hour * 60 + parsedRequested.minute + 15
+                : undefined;
+            const slots = await findAvailableSlots({
+              salonId,
+              stylistId: stylist.id,
+              durationMinutes,
+              fromDate: dateIsoNorm,
+              daysToScan: 3,
+              timePreference: timePreference ?? "any",
+              maxResults: 4,
+              prioritizeLocalTime: requestedSlot ? requestedTime?.trim() : undefined,
+              minStartMinutes,
+            });
+            slotRows.push(...slots.map((slot) => ({ ...slot, stylist: stylist.name })));
+          }
+
+          slotRows.sort((a, b) => a.startIso.localeCompare(b.startIso));
+
+          if (parsedRequested && !requestedSlot) {
+            return {
+              success: false as const,
+              error: `No stylist is free at ${requestedTime} on ${dateIsoNorm} for ${serviceResult.item.name}. Here are the next available times:`,
+              requestedSlotAvailable: false,
+              suggestions: slotRows.slice(0, 6).map((s) => `${s.stylist}: ${s.dayLabel} at ${s.timeLabel}`),
+              alternativeSlots: slotRows.slice(0, 6),
+            };
+          }
+
+          if (requestedSlot) {
+            return successPayload({
+              stylist: assignedStylist,
+              assignedAutomatically: true,
+              assignment,
+              freeStylists: freeAtRequested,
+              service: serviceResult.item.name,
+              durationMinutes: Math.round(
+                (new Date(requestedSlot.endIso).getTime() - new Date(requestedSlot.startIso).getTime()) /
+                  60_000
+              ),
+              price: formatPriceMinor(serviceResult.item.priceMinor),
+              requestedSlot,
+              requestedSlotAvailable: true,
+              slots: slotRows.slice(0, 8),
+              message:
+                assignment === "random_all_free"
+                  ? `All stylists are free — assigned ${assignedStylist} at random.`
+                  : `Assigned next free stylist: ${assignedStylist}.`,
+            });
+          }
+
+          if (slotRows.length === 0) {
+            return errorPayload(
+              `No openings for ${serviceResult.item.name} around ${dateIso}. Try another day.`,
+              stylists.slice(0, 4).map((s) => s.name)
+            );
+          }
+
+          return successPayload({
+            service: serviceResult.item.name,
+            price: formatPriceMinor(serviceResult.item.priceMinor),
+            slots: slotRows.slice(0, 8),
+            assignedAutomatically: true,
+            message: "Showing openings across all stylists. Omit stylistName again when booking to auto-assign.",
+          });
+        }
+
+        const stylistResult = resolveStylist(stylists, stylistName!);
+        if (!stylistResult.ok) {
+          return errorPayload(stylistResult.error, stylistResult.suggestions);
+        }
+
         const durationMinutes = serviceDurationForStylist(
           serviceResult.item,
           stylistResult.item.id,
           stylistOverrides
         );
 
-        const dateIsoNorm = parseSalonDateIso(dateIso) ?? dateIso;
         let requestedSlotAvailable: boolean | undefined;
         let requestedSlot: SlotCandidate | undefined;
-        const parsedRequested = requestedTime?.trim() ? parseSalonLocalTime(requestedTime.trim()) : null;
 
         if (parsedRequested) {
           const start = salonLocalToUtc(dateIsoNorm, parsedRequested.hour, parsedRequested.minute);
@@ -262,11 +373,11 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
 
     book_appointment: tool({
       description:
-        "Create a new appointment after confirming stylist, service, client, and start time. Requires an ISO start time from check_availability.",
+        "Create a new appointment after confirming service, client, and start time. stylistName is optional — omit for walk-ins / 'anyone' to auto-assign the next free stylist (or a random stylist if everyone is free). Requires an ISO start time from check_availability.",
       inputSchema: jsonSchema<{
-        stylistName: string;
         serviceName: string;
         startTimeIso: string;
+        stylistName?: string;
         clientId?: string;
         clientName?: string;
         guestName?: string;
@@ -276,7 +387,11 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
       }>({
         type: "object",
         properties: {
-          stylistName: { type: "string" },
+          stylistName: {
+            type: "string",
+            description:
+              "Optional stylist. Omit for walk-ins / 'doesn't matter who' — auto-assigns next free (or random if all free).",
+          },
           serviceName: { type: "string" },
           startTimeIso: { type: "string", description: "ISO datetime for appointment start" },
           clientId: { type: "string", description: "Existing client id from create_client" },
@@ -286,7 +401,7 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
           guestEmail: { type: "string", description: "Client or guest email" },
           notes: { type: "string" },
         },
-        required: ["stylistName", "serviceName", "startTimeIso"],
+        required: ["serviceName", "startTimeIso"],
         additionalProperties: false,
       }),
       execute: async ({
@@ -300,11 +415,6 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
         guestEmail,
         notes,
       }) => {
-        const stylistResult = resolveStylist(stylists, stylistName);
-        if (!stylistResult.ok) {
-          return errorPayload(stylistResult.error, stylistResult.suggestions);
-        }
-
         const serviceResult = resolveService(services, serviceName);
         if (!serviceResult.ok) {
           return errorPayload(serviceResult.error, serviceResult.suggestions);
@@ -315,11 +425,40 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
           return errorPayload("That start time is not valid. Please pick a slot from availability.", []);
         }
 
-        const durationMinutes = serviceDurationForStylist(
-          serviceResult.item,
-          stylistResult.item.id,
-          stylistOverrides
-        );
+        let stylistId: string;
+        let stylistDisplayName: string;
+        let durationMinutes: number;
+        let assignment: "named" | "next_free" | "random_all_free" = "named";
+
+        if (meansAnyStylist(stylistName)) {
+          const assigned = await assignFreeStylist({
+            salonId,
+            stylists,
+            service: serviceResult.item,
+            stylistOverrides,
+            startTime: start,
+          });
+          if (!assigned.ok) {
+            return errorPayload(assigned.error, assigned.suggestions);
+          }
+          stylistId = assigned.result.stylist.id;
+          stylistDisplayName = assigned.result.stylist.name;
+          durationMinutes = assigned.result.durationMinutes;
+          assignment = assigned.result.assignment;
+        } else {
+          const stylistResult = resolveStylist(stylists, stylistName!);
+          if (!stylistResult.ok) {
+            return errorPayload(stylistResult.error, stylistResult.suggestions);
+          }
+          stylistId = stylistResult.item.id;
+          stylistDisplayName = stylistResult.item.name;
+          durationMinutes = serviceDurationForStylist(
+            serviceResult.item,
+            stylistResult.item.id,
+            stylistOverrides
+          );
+        }
+
         const end = new Date(start.getTime() + durationMinutes * 60_000);
 
         let clientId: string | null = clientIdInput?.trim() || null;
@@ -356,7 +495,7 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
 
         const result = await executeCreateAppointment({
           salonId,
-          stylistId: stylistResult.item.id,
+          stylistId,
           clientId,
           serviceId: serviceResult.item.id,
           startTime: start.toISOString(),
@@ -377,17 +516,26 @@ export function createBookingTools(catalog: SalonBookingCatalog, access?: SynkAi
           return errorPayload("Booking was created but the appointment id could not be read.", []);
         }
 
+        const autoNote =
+          assignment === "random_all_free"
+            ? ` (auto-assigned at random — all stylists were free)`
+            : assignment === "next_free"
+              ? ` (auto-assigned as next free stylist)`
+              : "";
+
         return successPayload({
           bookingChanged: true,
           appointmentId,
           salonName,
-          stylist: stylistResult.item.name,
+          stylist: stylistDisplayName,
+          assignedAutomatically: assignment !== "named",
+          assignment,
           service: serviceResult.item.name,
           client: resolvedGuestName,
           startTimeIso: start.toISOString(),
           endTimeIso: end.toISOString(),
           price: formatPriceMinor(serviceResult.item.priceMinor),
-          message: `Booked ${serviceResult.item.name} with ${stylistResult.item.name} for ${resolvedGuestName}.`,
+          message: `Booked ${serviceResult.item.name} with ${stylistDisplayName} for ${resolvedGuestName}${autoNote}.`,
         });
       },
     }),
@@ -845,14 +993,15 @@ Rules:
 1. Always use tools for live data — never invent services, prices, times, or contact details.
 2. ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
 3. Call match_service when the user describes a treatment loosely; never book using a category name.
-4. Call check_availability before booking when a day/time is given; pass requestedTime as HH:mm for specific times (e.g. 11:00 for 11am).
-5. When check_availability shows a slot is unavailable, offer the alternativeSlots returned — they are the next realistic openings after the requested time.
-6. If a client is not on file, call create_client with their name and phone, then book_appointment with the returned clientId.
-7. When the user confirms ("yes", "proceed", "go ahead"), continue the booking flow — do not stop without calling the next tool.
-8. Use find_appointments to get appointmentId before cancel/delete/messaging actions.
-9. Confirm before delete_appointment.
-10. For messaging, explain which channel was used (email vs SMS) or why it failed (missing phone/email or Twilio/Resend not configured).
-11. After booking changes, mention the Classic Mode diary will update.
+4. Call check_availability before booking when a day/time is given; pass requestedTime as HH:mm for specific times (e.g. 11:00 for 11am, 16:00 for 4pm).
+5. When the user does not name a stylist (walk-in, "anyone", "doesn't matter who", "whoever is free"), omit stylistName on check_availability and book_appointment. The tools will auto-assign the next free stylist, or pick a random stylist if everyone is free — do not ask which stylist unless they want a specific person.
+6. When check_availability shows a slot is unavailable, offer the alternativeSlots returned — they are the next realistic openings after the requested time.
+7. If a client is not on file, call create_client with their name and phone, then book_appointment with the returned clientId. For a named walk-in with no client record, use guestName.
+8. When the user confirms ("yes", "proceed", "go ahead"), continue the booking flow — do not stop without calling the next tool.
+9. Use find_appointments to get appointmentId before cancel/delete/messaging actions.
+10. Confirm before delete_appointment.
+11. For messaging, explain which channel was used (email vs SMS) or why it failed (missing phone/email or Twilio/Resend not configured).
+12. After booking changes, mention the Classic Mode diary will update.
 
 Opening hours: ${catalog.openingHoursNote}
 ${catalog.aftercareMessage ? `Default aftercare copy: ${catalog.aftercareMessage.slice(0, 300)}` : ""}
