@@ -76,13 +76,15 @@ export const SALON_HOW_IT_WORKS_VIDEOS: HowItWorksVideo[] = [
       "Bookings land on the shared diary",
       "Your branding, your URL",
     ],
-    comingSoon: true,
+    src: "/videos/tour-05-booking.mp4",
+    durationLabel: "~1 min",
   },
   {
     id: "theme",
     title: "Light or dark dashboard",
     summary: "Switch the dashboard theme to suit your salon.",
     bullets: ["Light mode for bright floors", "Dark mode if you prefer it", "One click in the header"],
-    comingSoon: true,
+    src: "/videos/tour-06-theme.mp4",
+    durationLabel: "~1 min",
   },
 ];
