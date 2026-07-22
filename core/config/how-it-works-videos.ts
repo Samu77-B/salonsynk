@@ -36,14 +36,12 @@ export const SALON_HOW_IT_WORKS_VIDEOS: HowItWorksVideo[] = [
     summary:
       "Switch to SynkAI Mode to book by chat, fill empty gaps, and smart-reschedule appointments.",
     bullets: [
-      "Book and manage appointments with SynkAI chat",
-      "Quick Fill for 30–60 minute calendar gaps",
+      "Book and manage appointments with SynkAI chat (great for phone calls)",
+      "Quick Fill finds 30–60 minute gaps and suggests services that fit",
       "Smart Reschedule suggestions from any booking",
-      "Suitable services matched to each open slot",
     ],
     src: "/videos/tour-02-synkai.mp4",
     durationLabel: "~1 min",
-    comingSoon: true,
   },
   {
     id: "team",
