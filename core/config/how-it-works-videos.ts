@@ -52,7 +52,8 @@ export const SALON_HOW_IT_WORKS_VIDEOS: HowItWorksVideo[] = [
       "Show or hide columns on the diary",
       "Mix employees and renters in one salon",
     ],
-    comingSoon: true,
+    src: "/videos/tour-03-team.mp4",
+    durationLabel: "~1 min",
   },
   {
     id: "payments",
@@ -63,7 +64,8 @@ export const SALON_HOW_IT_WORKS_VIDEOS: HowItWorksVideo[] = [
       "Record sales in checkout",
       "You are not processing anyone's money",
     ],
-    comingSoon: true,
+    src: "/videos/tour-04-payments.mp4",
+    durationLabel: "~1 min",
   },
   {
     id: "booking",

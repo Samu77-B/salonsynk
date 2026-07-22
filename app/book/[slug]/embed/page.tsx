@@ -8,16 +8,18 @@ import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-
 /**
  * Embeddable booking page for use in iframes on salon websites.
  * Use ?primary=HEX to override accent color to match the host site (e.g. ?primary=%23000 or ?primary=000).
+ * Use ?neutral=1 to hide logo and show a generic "Your Salon" name (marketing / filming demos).
  */
 export default async function BookEmbedPage({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ primary?: string }>;
+  searchParams: Promise<{ primary?: string; neutral?: string }>;
 }) {
   const { slug } = await params;
-  const { primary: primaryOverride } = await searchParams;
+  const { primary: primaryOverride, neutral: neutralRaw } = await searchParams;
+  const neutral = neutralRaw === "1" || neutralRaw === "true";
 
   let supabase: ReturnType<typeof createAdminClient>;
   try {
@@ -94,15 +96,19 @@ export default async function BookEmbedPage({
 
   const settings = (salon.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | undefined>) ?? {};
-  const displayName = (branding.company_name?.trim() || salon.name) as string;
-  const bookingHeading = branding.booking_heading?.trim() ?? "";
+  const displayName = neutral
+    ? "Your Salon"
+    : ((branding.company_name?.trim() || salon.name) as string);
+  const bookingHeading = neutral
+    ? "Book an appointment"
+    : branding.booking_heading?.trim() ?? "";
   const brandingColor = branding.primary_color?.trim();
   // Allow host page to override accent via ?primary=hex (e.g. ?primary=000 or ?primary=%23000)
   const hex = primaryOverride?.trim();
   const primaryColor = hex
     ? (hex.startsWith("#") ? hex : `#${hex}`)
     : brandingColor;
-  const logoUrl = branding.logo_url?.trim();
+  const logoUrl = neutral ? undefined : branding.logo_url?.trim();
 
   return (
     <main
