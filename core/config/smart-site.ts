@@ -10,7 +10,7 @@ export const SMART_SITE = {
   name: "SmartSynk",
   tagline: "One platform. Three worlds.",
   description:
-    "SmartSynk unifies SalonSynk, BarberSynk, and NailSynk in one powerful platform.",
+    "The ultimate all-in-one management ecosystem for independent hair, barber, and nail businesses",
   url: "https://smartsynk.net",
   email: "hello@smartsynk.net",
   studio: "Paradigm Digital Studio",
@@ -75,8 +75,8 @@ export const SMART_FAQ_ITEMS = [
 ] as const;
 
 export const SMART_ABOUT = {
-  headline: "we turn ideas into seamless operations.",
-  body: "SmartSynk is the central hub connecting salon, barbershop, and nail studio management. One login, one ecosystem, built for the beauty and grooming industry.",
+  headline: "One unified ecosystem. Zero commission fees.",
+  body: "SmartSynk is the central hub built to scale the local beauty and grooming industry. With one login, you can seamlessly power multiple branches or distinct verticals—keeping your diaries packed, your queues managed, and 100% of your earnings in your pocket.",
   specializationLabel: "our platforms:",
   watermark: "Sy",
 } as const;
