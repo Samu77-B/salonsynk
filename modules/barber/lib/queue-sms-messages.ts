@@ -1,5 +1,15 @@
 export const AVG_SERVICE_MINUTES = 20;
 
+/** Appended to queue SMS when the client is waiting. */
+const WAITING_CAFE_NOTE =
+  " While you wait, why not grab a coffee in 'Sweet Life Cafe' just down the road.";
+
+export function formatEstimatedWait(position: number): string {
+  if (position <= 1) return "Up next";
+  const mins = estimatedWaitMinutes(position);
+  return mins === 1 ? "~1 min" : `~${mins} mins`;
+}
+
 export type QueueSmsTemplate = "next" | "almost_next" | "ready" | "running_late";
 
 export function estimatedWaitMinutes(position: number): number {
@@ -17,15 +27,15 @@ export function queueJoinedSmsBody(opts: {
   const position = opts.position;
 
   if (position <= 1) {
-    return `Hi ${name}, you're #1 in the queue at ${shop}. You'll be up next — please stay nearby.`;
+    return `Hi ${name}, you're #1 in the queue at ${shop}. You'll be up next — please stay nearby.${WAITING_CAFE_NOTE}`;
   }
 
   if (position === 2) {
-    return `Hi ${name}, you're #2 in the queue at ${shop}. Around 20 minutes until it's your turn.`;
+    return `Hi ${name}, you're #2 in the queue at ${shop}. Around 20 mins until it's your turn.${WAITING_CAFE_NOTE}`;
   }
 
   const wait = estimatedWaitMinutes(position);
-  return `Hi ${name}, you're #${position} in the queue at ${shop}. Around ${wait} minutes until it's your turn.`;
+  return `Hi ${name}, you're #${position} in the queue at ${shop}. Around ${wait} mins until it's your turn.${WAITING_CAFE_NOTE}`;
 }
 
 export function queueSmsBody(
@@ -39,7 +49,7 @@ export function queueSmsBody(
     case "next":
       return `Hi ${name}, you'll be up next at ${shop}. Please head over — we'll call you when your chair is ready.`;
     case "almost_next":
-      return `Hi ${name}, you're now 2nd in the queue at ${shop}. Around 20 minutes until it's your turn — please stay nearby.`;
+      return `Hi ${name}, you're now 2nd in the queue at ${shop}. Around 20 mins until it's your turn — please stay nearby.${WAITING_CAFE_NOTE}`;
     case "ready":
       return `Hi ${name}, your barber is ready for you at ${shop}. Please take a seat now.`;
     case "running_late":

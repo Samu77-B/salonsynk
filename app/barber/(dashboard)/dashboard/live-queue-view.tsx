@@ -3,7 +3,7 @@
 import { useTransition, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@core/supabase/client";
-import { phoneHref, queueSmsBody } from "@modules/barber/lib/queue-sms-messages";
+import { phoneHref, queueSmsBody, formatEstimatedWait } from "@modules/barber/lib/queue-sms-messages";
 import {
   startService,
   completeService,
@@ -30,13 +30,6 @@ type Props = {
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
-function waitTime(joinedAt: string): string {
-  const mins = Math.round((Date.now() - new Date(joinedAt).getTime()) / 60_000);
-  if (mins < 1) return "Just now";
-  if (mins === 1) return "1 min";
-  return `${mins} mins`;
-}
-
 function formatPrice(minor: number): string {
   return `£${(minor / 100).toFixed(2)}`;
 }
@@ -501,7 +494,7 @@ function WaitingCard({
               {service ? service.name : "Any service"}
               {preferred ? ` · ${preferred.display_name ?? "Barber"}` : ""}
             </p>
-            <p className="text-[11px] text-muted/80 mt-0.5">{waitTime(entry.joined_at)}</p>
+            <p className="text-[11px] text-muted/80 mt-0.5">{formatEstimatedWait(position)}</p>
           </div>
         </div>
         <div className="shrink-0 text-right">
