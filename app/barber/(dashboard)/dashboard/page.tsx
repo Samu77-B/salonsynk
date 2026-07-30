@@ -20,14 +20,6 @@ export default async function BarberDashboardPage() {
           })}
         </p>
       </div>
-      <p className="text-xs text-muted -mt-2">
-        Walk-in customers from the join queue page appear here. Pre-booked appointments are on{" "}
-        <a href="/barber/appointments" className="text-blue-400 hover:underline">
-          Bookings
-        </a>
-        .
-      </p>
-
       <LiveQueueView
         shopId={data.shop.id}
         shopName={data.shop.name}
