@@ -76,6 +76,7 @@ const ACTIVE_STATUSES = ["waiting", "in_chair"];
 
 const fieldClass =
   "w-full h-11 rounded border border-border px-3 text-sm leading-5 focus:outline-none focus:ring-1 focus:ring-accent box-border";
+const selectClass = fieldClass;
 const messageInputClass =
   "flex-1 rounded border border-border px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-accent box-border";
 const btnPrimary = "btn-accent px-3 py-2 text-xs sm:text-sm disabled:opacity-50";
