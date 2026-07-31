@@ -40,6 +40,25 @@ export type BarberService = {
   price_minor: number;
 };
 
+export type TodayAppointment = {
+  id: string;
+  barber_id: string;
+  service_id: string | null;
+  start_time: string;
+  end_time: string;
+  status: "scheduled" | "in_chair" | "completed" | "no_show" | "canceled";
+  guest_name: string | null;
+  guest_phone: string | null;
+  notes: string | null;
+};
+
+function todayBounds() {
+  const today = new Date().toISOString().slice(0, 10);
+  const start = new Date(today + "T00:00:00");
+  const end = new Date(today + "T23:59:59");
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
 export async function getBarberDashboardData() {
   const context = await getCurrentUserShop();
   if (!context) return null;
@@ -54,7 +73,9 @@ export async function getBarberDashboardData() {
     supabase = await createClient();
   }
 
-  const [queueResult, membersResult, servicesResult, todayStatsResult] =
+  const { start: todayStart, end: todayEnd } = todayBounds();
+
+  const [queueResult, membersResult, servicesResult, todayStatsResult, todayAppointmentsResult, futureBookingsResult] =
     await Promise.all([
       supabase
         .from("barber_queue")
@@ -82,6 +103,22 @@ export async function getBarberDashboardData() {
         .eq("shop_id", shopId)
         .eq("status", "completed")
         .gte("completed_at", new Date().toISOString().slice(0, 10)),
+
+      supabase
+        .from("barber_appointments")
+        .select("id, barber_id, service_id, start_time, end_time, status, guest_name, guest_phone, notes")
+        .eq("shop_id", shopId)
+        .gte("start_time", todayStart)
+        .lte("start_time", todayEnd)
+        .in("status", ["scheduled", "in_chair"])
+        .order("start_time"),
+
+      supabase
+        .from("barber_appointments")
+        .select("id", { count: "exact", head: true })
+        .eq("shop_id", shopId)
+        .eq("status", "scheduled")
+        .gt("start_time", todayEnd),
     ]);
 
   const queue = (queueResult.data ?? []) as QueueEntry[];
@@ -103,12 +140,17 @@ export async function getBarberDashboardData() {
     if (resolved.barberId) actingMemberId = resolved.barberId;
   }
 
+  const todayAppointments = (todayAppointmentsResult.data ?? []) as TodayAppointment[];
+  const futureBookingsCount = futureBookingsResult.count ?? 0;
+
   return {
     shop: context.shop,
     member: { ...context.member, id: actingMemberId },
     queue,
     members,
     services,
+    todayAppointments,
+    futureBookingsCount,
     stats: { todayServed, todayCash, todayCard, todayRevenue },
   };
 }

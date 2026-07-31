@@ -12,17 +12,26 @@ import {
   notifyQueueCustomer,
   sendQueueCustomMessage,
 } from "./actions";
-import type { QueueEntry, BarberMember, BarberService } from "./data";
+import {
+  updateBarberAppointmentStatus,
+  deleteBarberAppointment,
+} from "../appointments/actions";
+import type { QueueEntry, BarberMember, BarberService, TodayAppointment } from "./data";
 
 type Props = {
   shopId: string;
   shopName: string;
   queue: QueueEntry[];
+  todayAppointments: TodayAppointment[];
   members: BarberMember[];
   services: BarberService[];
   currentMemberId: string;
   stats: { todayServed: number; todayCash: number; todayCard: number; todayRevenue: number };
 };
+
+function formatBookingTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
 
 function formatPrice(minor: number): string {
   return `£${(minor / 100).toFixed(2)}`;
@@ -59,6 +68,18 @@ function PersonIcon() {
   );
 }
 
+function CalendarIcon() {
+  return (
+    <svg className="h-4 w-4 text-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+      />
+    </svg>
+  );
+}
 function ChairIcon() {
   return (
     <svg className="h-5 w-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -149,7 +170,16 @@ function useRealtimeQueue(shopId: string, serverQueue: QueueEntry[]) {
   return liveQueue;
 }
 
-export function LiveQueueView({ shopId, shopName, queue, members, services, currentMemberId, stats }: Props) {
+export function LiveQueueView({
+  shopId,
+  shopName,
+  queue,
+  todayAppointments,
+  members,
+  services,
+  currentMemberId,
+  stats,
+}: Props) {
   const router = useRouter();
   const liveQueue = useRealtimeQueue(shopId, queue);
 
@@ -160,23 +190,35 @@ export function LiveQueueView({ shopId, shopName, queue, members, services, curr
 
   const waiting = liveQueue.filter((e) => e.status === "waiting");
   const inChair = liveQueue.filter((e) => e.status === "in_chair");
+  const todayScheduled = todayAppointments.filter((a) => a.status === "scheduled");
+  const todayInChair = todayAppointments.filter((a) => a.status === "in_chair");
+  const waitingTotal = waiting.length + todayScheduled.length;
+  const inChairTotal = inChair.length + todayInChair.length;
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <StatCard label="In Queue" value={waiting.length} />
-        <StatCard label="In Chair" value={inChair.length} />
+        <StatCard label="In Queue" value={waitingTotal} />
+        <StatCard label="In Chair" value={inChairTotal} />
         <StatCard label="Served Today" value={stats.todayServed} />
       </div>
 
       <AddCustomerPanel services={services} members={members} />
 
-      {inChair.length > 0 && (
+      {inChairTotal > 0 && (
         <section>
           <h2 className="text-xs font-bold text-foreground uppercase tracking-widest mb-2.5">
-            In Chair ({inChair.length})
+            In Chair ({inChairTotal})
           </h2>
           <div className="space-y-2.5">
+            {todayInChair.map((appt) => (
+              <TodayBookingInChairCard
+                key={`appt-${appt.id}`}
+                appointment={appt}
+                members={members}
+                services={services}
+              />
+            ))}
             {inChair.map((entry) => (
               <InChairCard
                 key={entry.id}
@@ -192,14 +234,22 @@ export function LiveQueueView({ shopId, shopName, queue, members, services, curr
 
       <section>
         <h2 className="text-xs font-bold text-foreground uppercase tracking-widest mb-2.5">
-          Waiting Queue ({waiting.length})
+          Waiting Queue ({waitingTotal})
         </h2>
-        {waiting.length === 0 ? (
+        {waitingTotal === 0 ? (
           <p className="text-sm text-muted py-10 text-center barber-panel">
             No one in the queue right now.
           </p>
         ) : (
           <div className="space-y-2.5">
+            {todayScheduled.map((appt) => (
+              <TodayBookingWaitingCard
+                key={`appt-${appt.id}`}
+                appointment={appt}
+                members={members}
+                services={services}
+              />
+            ))}
             {waiting.map((entry, idx) => (
               <WaitingCard
                 key={entry.id}
@@ -362,6 +412,163 @@ function AddCustomerPanel({
           </form>
         </div>
       </div>
+    </div>
+  );
+}
+
+function TodayBookingWaitingCard({
+  appointment,
+  members,
+  services,
+}: {
+  appointment: TodayAppointment;
+  members: BarberMember[];
+  services: BarberService[];
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const barber = members.find((m) => m.id === appointment.barber_id);
+  const service = services.find((s) => s.id === appointment.service_id);
+  const hasPhone = !!appointment.guest_phone;
+
+  function handleStart() {
+    setActionError(null);
+    startTransition(async () => {
+      const result = await updateBarberAppointmentStatus(appointment.id, "in_chair");
+      if (result.error) setActionError(result.error);
+      else router.refresh();
+    });
+  }
+
+  function handleNoShow() {
+    setActionError(null);
+    startTransition(async () => {
+      const result = await updateBarberAppointmentStatus(appointment.id, "no_show");
+      if (result.error) setActionError(result.error);
+      else router.refresh();
+    });
+  }
+
+  return (
+    <div className="barber-panel p-3.5 sm:p-4 space-y-3 border-l-2 border-l-accent/60">
+      <div className="flex items-start gap-2.5">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-accent/15">
+          <CalendarIcon />
+        </span>
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+          <PersonIcon />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold truncate">{appointment.guest_name ?? "Booking"}</p>
+              <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border border-border text-muted">
+                Booked
+              </span>
+            </div>
+            <p className="text-xs text-muted truncate">
+              {service ? service.name : "Any service"}
+              {barber ? ` · ${barber.display_name ?? "Barber"}` : ""}
+            </p>
+            <p className="text-[11px] text-muted mt-0.5 tabular-nums">
+              {formatBookingTime(appointment.start_time)}
+            </p>
+          </div>
+        </div>
+        {hasPhone && (
+          <div className="shrink-0 text-right">
+            <span className="text-xs font-mono text-foreground/80">{appointment.guest_phone}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={handleStart} disabled={isPending} className={btnPrimary}>
+          Start
+        </button>
+        <button type="button" onClick={handleNoShow} disabled={isPending} className={btnOutline}>
+          No-show
+        </button>
+      </div>
+
+      {actionError && <p className="text-xs text-red-400">{actionError}</p>}
+    </div>
+  );
+}
+
+function TodayBookingInChairCard({
+  appointment,
+  members,
+  services,
+}: {
+  appointment: TodayAppointment;
+  members: BarberMember[];
+  services: BarberService[];
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const barber = members.find((m) => m.id === appointment.barber_id);
+  const service = services.find((s) => s.id === appointment.service_id);
+  const price = service?.price_minor ?? 0;
+  const hasPhone = !!appointment.guest_phone;
+
+  function handleComplete() {
+    setActionError(null);
+    startTransition(async () => {
+      const result = await updateBarberAppointmentStatus(appointment.id, "completed");
+      if (result.error) setActionError(result.error);
+      else router.refresh();
+    });
+  }
+
+  function handleCancel() {
+    setActionError(null);
+    startTransition(async () => {
+      const result = await deleteBarberAppointment(appointment.id);
+      if (result.error) setActionError(result.error);
+      else router.refresh();
+    });
+  }
+
+  return (
+    <div className="barber-panel-highlight p-3.5 sm:p-4 space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-accent/15">
+          <ChairIcon />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold truncate">{appointment.guest_name ?? "Booking"}</p>
+            <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border border-border text-muted">
+              Booked
+            </span>
+          </div>
+          {hasPhone && (
+            <p className="text-xs font-mono text-foreground/80 mt-0.5">{appointment.guest_phone}</p>
+          )}
+          <p className="text-xs text-muted mt-0.5">
+            {barber
+              ? `${barber.display_name ?? "Barber"}${barber.chair_number ? ` · Chair ${barber.chair_number}` : ""}`
+              : "—"}
+            {service ? ` · ${service.name}` : ""}
+            {` · ${formatBookingTime(appointment.start_time)}`}
+          </p>
+        </div>
+        {price > 0 && (
+          <span className="text-sm font-semibold tabular-nums shrink-0 text-foreground">{formatPrice(price)}</span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={handleComplete} disabled={isPending} className={`${btnPrimary} py-2.5`}>
+          {isPending ? "Completing…" : "Complete"}
+        </button>
+        <button type="button" onClick={handleCancel} disabled={isPending} className={`${btnOutline} py-2.5`}>
+          Cancel
+        </button>
+      </div>
+
+      {actionError && <p className="text-xs text-red-400">{actionError}</p>}
     </div>
   );
 }

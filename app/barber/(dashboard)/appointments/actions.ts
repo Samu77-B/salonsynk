@@ -21,6 +21,7 @@ async function getShopScopedClient() {
 
 function revalidateAppointments() {
   revalidatePath("/barber/appointments", "page");
+  revalidatePath("/barber/dashboard", "page");
 }
 
 export async function createBarberAppointment(formData: FormData): Promise<{ error?: string }> {

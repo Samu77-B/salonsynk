@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@core/supabase/admin";
 import { sendJoinQueueSms } from "@modules/barber/lib/queue-auto-notify";
 import { getNextQueuePosition } from "@modules/barber/lib/queue-positions";
@@ -102,6 +103,9 @@ export async function publicBookAppointment(
   });
 
   if (error) return { success: false, error: "Could not save your booking. Please try again." };
+
+  revalidatePath("/barber/appointments", "page");
+  revalidatePath("/barber/dashboard", "page");
 
   return {
     success: true,
