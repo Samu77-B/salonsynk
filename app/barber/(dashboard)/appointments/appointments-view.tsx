@@ -27,10 +27,10 @@ function formatPrice(minor: number): string {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  scheduled: "text-blue-400 bg-blue-500/10",
-  in_chair: "text-amber-400 bg-amber-500/10",
-  completed: "text-emerald-400 bg-emerald-500/10",
-  no_show: "text-red-400 bg-red-500/10",
+  scheduled: "text-foreground/90 bg-card border border-border",
+  in_chair: "text-accent bg-accent/10 border border-accent/30",
+  completed: "text-foreground/80 bg-card border border-border",
+  no_show: "text-red-300 bg-red-500/10 border border-red-500/20",
 };
 
 export function AppointmentsView({ date, appointments, members, services }: Props) {
@@ -98,7 +98,7 @@ export function AppointmentsView({ date, appointments, members, services }: Prop
         <button
           type="button"
           onClick={() => setShowForm((v) => !v)}
-          className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="rounded bg-accent px-4 py-2 text-sm font-medium text-white hover:brightness-110"
         >
           {showForm ? "Close" : "New booking"}
         </button>
@@ -113,7 +113,7 @@ export function AppointmentsView({ date, appointments, members, services }: Prop
       {showForm && (
         <form
           onSubmit={handleCreate}
-          className="rounded-lg border border-dashed border-border p-4 space-y-3"
+          className="barber-panel border-dashed p-4 space-y-3"
         >
           <p className="text-sm font-medium">Add pre-booking</p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -163,7 +163,7 @@ export function AppointmentsView({ date, appointments, members, services }: Prop
           <button
             type="submit"
             disabled={isPending}
-            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {isPending ? "Saving…" : "Save booking"}
           </button>
@@ -183,7 +183,7 @@ export function AppointmentsView({ date, appointments, members, services }: Prop
             return (
               <li
                 key={appt.id}
-                className="rounded-lg border border-border bg-surface px-4 py-3 flex flex-wrap gap-3 items-start justify-between"
+                className="barber-panel px-4 py-3 flex flex-wrap gap-3 items-start justify-between"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -207,10 +207,10 @@ export function AppointmentsView({ date, appointments, members, services }: Prop
                   {phone && links && (
                     <div className="flex gap-2 mt-2">
                       <span className="text-xs font-mono text-muted">{phone}</span>
-                      <a href={links.tel} className="text-xs text-blue-400 hover:underline">
+                      <a href={links.tel} className="text-xs text-accent hover:underline">
                         Call
                       </a>
-                      <a href={links.sms} className="text-xs text-blue-400 hover:underline">
+                      <a href={links.sms} className="text-xs text-accent hover:underline">
                         SMS
                       </a>
                     </div>
@@ -224,7 +224,7 @@ export function AppointmentsView({ date, appointments, members, services }: Prop
                         type="button"
                         onClick={() => handleStatus(appt.id, "in_chair")}
                         disabled={isPending}
-                        className="rounded bg-emerald-600 px-2 py-1 text-xs text-white disabled:opacity-50"
+                        className="rounded bg-accent px-2 py-1 text-xs text-white disabled:opacity-50"
                       >
                         Start
                       </button>
@@ -243,7 +243,7 @@ export function AppointmentsView({ date, appointments, members, services }: Prop
                       type="button"
                       onClick={() => handleStatus(appt.id, "completed")}
                       disabled={isPending}
-                      className="rounded bg-emerald-600 px-2 py-1 text-xs text-white disabled:opacity-50"
+                      className="rounded bg-accent px-2 py-1 text-xs text-white disabled:opacity-50"
                     >
                       Complete
                     </button>

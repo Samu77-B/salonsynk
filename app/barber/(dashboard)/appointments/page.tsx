@@ -21,7 +21,7 @@ export default async function BarberAppointmentsPage({
         <h1 className="text-xl font-bold">Bookings</h1>
         <p className="text-sm text-muted mt-1">
           Pre-booked appointments for {data.shop.name}. Walk-ins are managed on the{" "}
-          <a href="/barber/dashboard" className="text-blue-400 hover:underline">
+          <a href="/barber/dashboard" className="text-accent hover:underline">
             live queue
           </a>
           .

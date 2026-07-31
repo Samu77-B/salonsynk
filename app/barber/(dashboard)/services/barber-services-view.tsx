@@ -108,7 +108,7 @@ function ServiceRow({ service }: { service: BarberServiceRow }) {
             type="button"
             onClick={handleSave}
             disabled={loading}
-            className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+            className="rounded bg-accent px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
           >
             Save
           </button>
@@ -143,7 +143,7 @@ function ServiceRow({ service }: { service: BarberServiceRow }) {
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="text-xs text-blue-400 hover:underline"
+          className="text-xs text-accent hover:underline"
         >
           Edit
         </button>
@@ -263,7 +263,7 @@ export function BarberServicesView({ services }: { services: BarberServiceRow[] 
         <button
           type="submit"
           disabled={loading}
-          className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           {loading ? "Adding…" : "Add service"}
         </button>

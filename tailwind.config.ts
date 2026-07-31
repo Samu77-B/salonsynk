@@ -24,6 +24,7 @@ const config: Config = {
         border: "var(--border)",
         borderGrid: "var(--border-grid)",
         card: "var(--card, var(--background))",
+        surface: "var(--surface, var(--card, var(--background)))",
         salon: "var(--salon, #2dd4bf)",
         barber: "var(--barber, #fbbf24)",
         nail: "var(--nail, #f472b6)",

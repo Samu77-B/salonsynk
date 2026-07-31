@@ -157,7 +157,7 @@ function MemberRow({ member }: { member: Member }) {
               {(member.display_name ?? "?").charAt(0).toUpperCase()}
             </div>
           )}
-          <label className="absolute -bottom-1 -right-1 cursor-pointer rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+          <label className="absolute -bottom-1 -right-1 cursor-pointer rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium text-white">
             Photo
             <input
               type="file"
@@ -173,7 +173,7 @@ function MemberRow({ member }: { member: Member }) {
             <span className="font-medium">{member.display_name ?? "Owner"}</span>
             <span className="text-muted capitalize text-xs">(owner)</span>
             {!accepting && (
-              <span className="text-xs text-amber-400">Hidden from queue</span>
+              <span className="text-xs text-accent">Hidden from queue</span>
             )}
           </div>
           {member.email && <p className="text-xs text-muted">{member.email}</p>}
@@ -202,7 +202,7 @@ function MemberRow({ member }: { member: Member }) {
             {(member.display_name ?? "?").charAt(0).toUpperCase()}
           </div>
         )}
-        <label className="absolute -bottom-1 -right-1 cursor-pointer rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+        <label className="absolute -bottom-1 -right-1 cursor-pointer rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium text-white">
           Photo
           <input
             type="file"
@@ -243,7 +243,7 @@ function MemberRow({ member }: { member: Member }) {
                 type="button"
                 onClick={handleSave}
                 disabled={loading}
-                className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                className="rounded bg-accent px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
               >
                 Save
               </button>
@@ -264,7 +264,7 @@ function MemberRow({ member }: { member: Member }) {
                 <span className="text-xs text-muted">Chair {member.chair_number}</span>
               )}
               {!accepting && (
-                <span className="text-xs text-amber-400">Hidden from queue</span>
+                <span className="text-xs text-accent">Hidden from queue</span>
               )}
             </div>
             {member.email && <p className="text-xs text-muted">{member.email}</p>}
@@ -273,7 +273,7 @@ function MemberRow({ member }: { member: Member }) {
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="text-xs text-blue-400 hover:underline"
+                className="text-xs text-accent hover:underline"
               >
                 Edit name &amp; chair
               </button>
@@ -411,7 +411,7 @@ export function BarberTeamView({ members }: { members: Member[] }) {
         <button
           type="submit"
           disabled={loading}
-          className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           {loading ? "Adding…" : "Add barber"}
         </button>

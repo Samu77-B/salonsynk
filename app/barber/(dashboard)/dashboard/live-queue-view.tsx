@@ -3,7 +3,7 @@
 import { useTransition, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@core/supabase/client";
-import { phoneHref, queueSmsBody, formatEstimatedWait } from "@modules/barber/lib/queue-sms-messages";
+import { formatEstimatedWait } from "@modules/barber/lib/queue-sms-messages";
 import {
   startService,
   completeService,
@@ -14,9 +14,6 @@ import {
 } from "./actions";
 import type { QueueEntry, BarberMember, BarberService } from "./data";
 
-/* ------------------------------------------------------------------ */
-/*  Props                                                             */
-/* ------------------------------------------------------------------ */
 type Props = {
   shopId: string;
   shopName: string;
@@ -27,9 +24,6 @@ type Props = {
   stats: { todayServed: number; todayCash: number; todayCard: number; todayRevenue: number };
 };
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                           */
-/* ------------------------------------------------------------------ */
 function formatPrice(minor: number): string {
   return `£${(minor / 100).toFixed(2)}`;
 }
@@ -38,9 +32,6 @@ function serviceOptionLabel(name: string, priceMinor: number): string {
   return priceMinor > 0 ? `${name} — ${formatPrice(priceMinor)}` : name;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Icons                                                             */
-/* ------------------------------------------------------------------ */
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
@@ -70,7 +61,7 @@ function PersonIcon() {
 
 function ChairIcon() {
   return (
-    <svg className="h-5 w-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <svg className="h-5 w-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -81,10 +72,12 @@ function ChairIcon() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Realtime hook                                                     */
-/* ------------------------------------------------------------------ */
 const ACTIVE_STATUSES = ["waiting", "in_chair"];
+
+const inputClass =
+  "w-full rounded-lg border border-border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent";
+const btnPrimary = "btn-accent px-3 py-2 text-xs sm:text-sm disabled:opacity-50";
+const btnOutline = "btn-outline px-3 py-2 text-xs sm:text-sm disabled:opacity-50";
 
 function useRealtimeQueue(shopId: string, serverQueue: QueueEntry[]) {
   const [liveQueue, setLiveQueue] = useState<QueueEntry[]>(serverQueue);
@@ -153,9 +146,6 @@ function useRealtimeQueue(shopId: string, serverQueue: QueueEntry[]) {
   return liveQueue;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main component                                                    */
-/* ------------------------------------------------------------------ */
 export function LiveQueueView({ shopId, shopName, queue, members, services, currentMemberId, stats }: Props) {
   const router = useRouter();
   const liveQueue = useRealtimeQueue(shopId, queue);
@@ -170,20 +160,17 @@ export function LiveQueueView({ shopId, shopName, queue, members, services, curr
 
   return (
     <div className="space-y-5">
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <StatCard label="In Queue" value={waiting.length} accent="blue" />
-        <StatCard label="In Chair" value={inChair.length} accent="amber" />
-        <StatCard label="Served Today" value={stats.todayServed} accent="emerald" />
+        <StatCard label="In Queue" value={waiting.length} />
+        <StatCard label="In Chair" value={inChair.length} />
+        <StatCard label="Served Today" value={stats.todayServed} />
       </div>
 
-      {/* Collapsible add customer */}
       <AddCustomerPanel services={services} members={members} />
 
-      {/* In Chair section */}
       {inChair.length > 0 && (
         <section>
-          <h2 className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-2.5">
+          <h2 className="text-xs font-bold text-accent uppercase tracking-widest mb-2.5">
             In Chair ({inChair.length})
           </h2>
           <div className="space-y-2.5">
@@ -200,13 +187,12 @@ export function LiveQueueView({ shopId, shopName, queue, members, services, curr
         </section>
       )}
 
-      {/* Waiting queue */}
       <section>
-        <h2 className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2.5">
+        <h2 className="text-xs font-bold text-accent uppercase tracking-widest mb-2.5">
           Waiting Queue ({waiting.length})
         </h2>
         {waiting.length === 0 ? (
-          <p className="text-sm text-muted py-10 text-center rounded-xl border border-border/60 bg-card/40">
+          <p className="text-sm text-muted py-10 text-center barber-panel">
             No one in the queue right now.
           </p>
         ) : (
@@ -226,12 +212,12 @@ export function LiveQueueView({ shopId, shopName, queue, members, services, curr
         )}
       </section>
 
-      <p className="text-[11px] text-muted/70 text-center pt-1">
+      <p className="text-[11px] text-muted text-center pt-1">
         Auto-refreshes every 12 seconds ·{" "}
         <button
           type="button"
           onClick={() => router.refresh()}
-          className="underline hover:text-muted transition-colors"
+          className="underline hover:text-foreground transition-colors"
         >
           Refresh now
         </button>
@@ -240,40 +226,17 @@ export function LiveQueueView({ shopId, shopName, queue, members, services, curr
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Stat card                                                         */
-/* ------------------------------------------------------------------ */
-function StatCard({ label, value, accent }: { label: string; value: string | number; accent: string }) {
-  const styles: Record<string, { glow: string; border: string }> = {
-    blue: { glow: "bg-blue-500/25", border: "border-blue-500/20" },
-    amber: { glow: "bg-amber-500/25", border: "border-amber-500/20" },
-    emerald: { glow: "bg-emerald-500/25", border: "border-emerald-500/20" },
-  };
-  const style = styles[accent] ?? styles.blue;
-
+function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className={`relative overflow-hidden rounded-xl border ${style.border} bg-card/60 px-3 py-2.5 sm:px-4 sm:py-3`}>
-      <div className={`absolute -top-3 -right-3 h-10 w-10 rounded-full blur-xl ${style.glow}`} />
-      <p className="relative text-[10px] sm:text-xs text-muted leading-tight">{label}</p>
-      <p className="relative text-xl sm:text-2xl font-bold tabular-nums mt-0.5">{value}</p>
+    <div className="barber-panel px-3 py-2.5 sm:px-4 sm:py-3">
+      <p className="text-[10px] sm:text-xs text-muted leading-tight">{label}</p>
+      <p className="text-xl sm:text-2xl font-bold tabular-nums mt-0.5 text-accent">{value}</p>
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Shared button styles                                              */
-/* ------------------------------------------------------------------ */
-const btnPrimary =
-  "rounded-lg px-3 py-2 text-xs sm:text-sm font-semibold text-white transition-colors disabled:opacity-50";
-const btnOutline =
-  "rounded-lg border border-border/80 bg-transparent px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-foreground/5 transition-colors";
-
-/* ------------------------------------------------------------------ */
-/*  SMS helpers                                                       */
-/* ------------------------------------------------------------------ */
 function useQueueSmsActions(
   entryId: string,
-  phone: string,
   guestName: string,
   shopName: string,
   notified: boolean
@@ -282,9 +245,6 @@ function useQueueSmsActions(
   const [error, setError] = useState<string | null>(null);
   const [showMessage, setShowMessage] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
-
-  const smsPreview = queueSmsBody("next", { clientName: guestName, shopName });
-  const { tel, sms } = phoneHref(phone, smsPreview);
 
   function handleNotify() {
     setError(null);
@@ -313,17 +273,12 @@ function useQueueSmsActions(
     setShowMessage,
     customMessage,
     setCustomMessage,
-    tel,
-    sms,
     handleNotify,
     handleSendCustom,
     notified,
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Add customer accordion                                            */
-/* ------------------------------------------------------------------ */
 function AddCustomerPanel({
   services,
   members,
@@ -343,11 +298,11 @@ function AddCustomerPanel({
   }
 
   return (
-    <div className="rounded-xl border border-border/80 overflow-hidden bg-card/40">
+    <div className="barber-panel overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-4 py-3.5 text-left hover:bg-foreground/[0.03] transition-colors"
+        className="flex w-full items-center justify-between px-4 py-3.5 text-left hover:bg-foreground/[0.04] transition-colors"
         aria-expanded={open}
       >
         <span className="text-sm font-semibold">Add Customer</span>
@@ -355,40 +310,24 @@ function AddCustomerPanel({
       </button>
 
       {open && (
-        <form action={handleSubmit} className="border-t border-border/60 px-4 py-4 space-y-3">
+        <form action={handleSubmit} className="border-t border-border px-4 py-4 space-y-3">
           <div>
             <label htmlFor="guest_name" className="block text-xs text-muted mb-1.5">
               Name
             </label>
-            <input
-              id="guest_name"
-              name="guest_name"
-              type="text"
-              placeholder="Walk-in"
-              className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            <input id="guest_name" name="guest_name" type="text" placeholder="Walk-in" className={inputClass} />
           </div>
           <div>
             <label htmlFor="guest_phone" className="block text-xs text-muted mb-1.5">
               Phone
             </label>
-            <input
-              id="guest_phone"
-              name="guest_phone"
-              type="tel"
-              placeholder="07..."
-              className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            <input id="guest_phone" name="guest_phone" type="tel" placeholder="07..." className={inputClass} />
           </div>
           <div>
             <label htmlFor="service_id" className="block text-xs text-muted mb-1.5">
               Service
             </label>
-            <select
-              id="service_id"
-              name="service_id"
-              className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
+            <select id="service_id" name="service_id" className={inputClass}>
               <option value="">Any</option>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -401,11 +340,7 @@ function AddCustomerPanel({
             <label htmlFor="preferred_barber_id" className="block text-xs text-muted mb-1.5">
               Preferred Barber
             </label>
-            <select
-              id="preferred_barber_id"
-              name="preferred_barber_id"
-              className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
+            <select id="preferred_barber_id" name="preferred_barber_id" className={inputClass}>
               <option value="">Next available</option>
               {members
                 .filter((m) => m.is_accepting_walk_ins)
@@ -417,11 +352,7 @@ function AddCustomerPanel({
                 ))}
             </select>
           </div>
-          <button
-            type="submit"
-            disabled={isPending}
-            className={`w-full ${btnPrimary} bg-blue-600 hover:bg-blue-700 py-3`}
-          >
+          <button type="submit" disabled={isPending} className={`w-full ${btnPrimary} py-3`}>
             {isPending ? "Adding…" : "Add to Queue"}
           </button>
         </form>
@@ -430,9 +361,6 @@ function AddCustomerPanel({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Waiting card                                                      */
-/* ------------------------------------------------------------------ */
 function WaitingCard({
   entry,
   position,
@@ -455,13 +383,7 @@ function WaitingCard({
   const notified = !!entry.next_sms_sent_at;
   const hasPhone = !!entry.guest_phone;
 
-  const sms = useQueueSmsActions(
-    entry.id,
-    entry.guest_phone ?? "",
-    entry.guest_name ?? "there",
-    shopName,
-    notified
-  );
+  const sms = useQueueSmsActions(entry.id, entry.guest_name ?? "there", shopName, notified);
 
   function handleStart() {
     setActionError(null);
@@ -480,10 +402,9 @@ function WaitingCard({
   }
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card/50 p-3.5 space-y-3">
-      {/* Header row */}
+    <div className="barber-panel p-3.5 sm:p-4 space-y-3">
       <div className="flex items-start gap-2.5">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-blue-500/30 bg-blue-500/10 text-sm font-bold text-blue-400">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-accent/15 text-sm font-bold text-accent">
           {position}
         </span>
         <div className="flex min-w-0 flex-1 items-start gap-2">
@@ -494,60 +415,36 @@ function WaitingCard({
               {service ? service.name : "Any service"}
               {preferred ? ` · ${preferred.display_name ?? "Barber"}` : ""}
             </p>
-            <p className="text-[11px] text-muted/80 mt-0.5">{formatEstimatedWait(position)}</p>
+            <p className="text-[11px] text-muted mt-0.5">{formatEstimatedWait(position)}</p>
           </div>
         </div>
         <div className="shrink-0 text-right">
           {notified ? (
-            <span className="text-xs font-medium text-emerald-400">Notified</span>
+            <span className="text-xs font-medium text-accent">Notified</span>
           ) : hasPhone ? (
-            <span className="text-xs font-mono text-emerald-400">{entry.guest_phone}</span>
+            <span className="text-xs font-mono text-foreground/80">{entry.guest_phone}</span>
           ) : null}
         </div>
       </div>
 
-      {/* Primary actions */}
       <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={handleStart}
-          disabled={isPending}
-          className={`${btnPrimary} bg-emerald-600 hover:bg-emerald-700`}
-        >
+        <button type="button" onClick={handleStart} disabled={isPending} className={btnPrimary}>
           Start
         </button>
-        <button
-          type="button"
-          onClick={handleRemove}
-          disabled={isPending}
-          className={`${btnPrimary} bg-orange-600/90 hover:bg-orange-600`}
-        >
+        <button type="button" onClick={handleRemove} disabled={isPending} className={btnOutline}>
           Remove
         </button>
       </div>
 
-      {/* Phone / SMS actions */}
       {hasPhone && (
         <>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={sms.handleNotify}
-              disabled={sms.isPending}
-              className={`${btnPrimary} bg-violet-600 hover:bg-violet-700`}
-            >
+          <div className="grid grid-cols-1 gap-2">
+            <button type="button" onClick={sms.handleNotify} disabled={sms.isPending} className={btnPrimary}>
               {sms.isPending ? "Sending…" : notified ? "Re-notify" : "Notify next"}
             </button>
-            <a href={sms.tel} className={`${btnOutline} text-center`}>
-              Call
-            </a>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => sms.setShowMessage((v) => !v)}
-              className={`${btnOutline} col-span-2`}
-            >
+          <div className="grid grid-cols-1 gap-2">
+            <button type="button" onClick={() => sms.setShowMessage((v) => !v)} className={btnOutline}>
               Message
             </button>
           </div>
@@ -558,13 +455,13 @@ function WaitingCard({
                 value={sms.customMessage}
                 onChange={(e) => sms.setCustomMessage(e.target.value)}
                 placeholder="Custom SMS message…"
-                className="flex-1 rounded-lg border border-border bg-canvas px-3 py-2 text-xs"
+                className={`flex-1 ${inputClass} py-2 text-xs`}
               />
               <button
                 type="button"
                 onClick={sms.handleSendCustom}
                 disabled={sms.isPending || !sms.customMessage.trim()}
-                className={`${btnPrimary} bg-blue-600 hover:bg-blue-700 shrink-0`}
+                className={`${btnPrimary} shrink-0`}
               >
                 Send
               </button>
@@ -575,7 +472,7 @@ function WaitingCard({
       )}
 
       {!hasPhone && (
-        <p className="text-[11px] text-muted/70 text-center">No phone — can&apos;t SMS</p>
+        <p className="text-[11px] text-muted text-center">No phone — can&apos;t SMS</p>
       )}
 
       {actionError && <p className="text-xs text-red-400">{actionError}</p>}
@@ -583,9 +480,6 @@ function WaitingCard({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  In-chair card                                                     */
-/* ------------------------------------------------------------------ */
 function InChairCard({
   entry,
   members,
@@ -605,9 +499,6 @@ function InChairCard({
   const service = services.find((s) => s.id === entry.service_id);
   const price = service?.price_minor ?? 0;
   const hasPhone = !!entry.guest_phone;
-
-  const smsPreview = queueSmsBody("next", { clientName: entry.guest_name ?? "there", shopName });
-  const phoneLinks = hasPhone ? phoneHref(entry.guest_phone!, smsPreview) : null;
 
   function handleComplete() {
     setActionError(null);
@@ -643,15 +534,15 @@ function InChairCard({
     : 0;
 
   return (
-    <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3.5 space-y-3">
+    <div className="barber-panel-highlight p-3.5 sm:p-4 space-y-3">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/15">
           <ChairIcon />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold truncate">{entry.guest_name || "Walk-in"}</p>
           {hasPhone && (
-            <p className="text-xs font-mono text-emerald-400 mt-0.5">{entry.guest_phone}</p>
+            <p className="text-xs font-mono text-foreground/80 mt-0.5">{entry.guest_phone}</p>
           )}
           <p className="text-xs text-muted mt-0.5">
             {barber
@@ -662,35 +553,22 @@ function InChairCard({
           </p>
         </div>
         {price > 0 && (
-          <span className="text-sm font-semibold tabular-nums shrink-0">{formatPrice(price)}</span>
+          <span className="text-sm font-semibold tabular-nums shrink-0 text-accent">{formatPrice(price)}</span>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={handleComplete}
-          disabled={isPending}
-          className={`${btnPrimary} bg-emerald-600 hover:bg-emerald-700 py-2.5`}
-        >
+        <button type="button" onClick={handleComplete} disabled={isPending} className={`${btnPrimary} py-2.5`}>
           {isPending ? "Completing…" : "Complete"}
         </button>
-        <button
-          type="button"
-          onClick={handleNoShow}
-          disabled={isPending}
-          className={`${btnPrimary} bg-orange-600/90 hover:bg-orange-600 py-2.5`}
-        >
+        <button type="button" onClick={handleNoShow} disabled={isPending} className={`${btnOutline} py-2.5`}>
           No-show
         </button>
       </div>
 
-      {hasPhone && phoneLinks && (
+      {hasPhone && (
         <>
-          <div className="grid grid-cols-2 gap-2">
-            <a href={phoneLinks.tel} className={`${btnOutline} text-center`}>
-              Call
-            </a>
+          <div className="grid grid-cols-1 gap-2">
             <button type="button" onClick={() => setShowMessage((v) => !v)} className={btnOutline}>
               Message
             </button>
@@ -702,13 +580,13 @@ function InChairCard({
                 value={customMessage}
                 onChange={(e) => setCustomMessage(e.target.value)}
                 placeholder="Custom SMS message…"
-                className="flex-1 rounded-lg border border-border bg-canvas px-3 py-2 text-xs"
+                className={`flex-1 ${inputClass} py-2 text-xs`}
               />
               <button
                 type="button"
                 onClick={handleSendCustom}
                 disabled={isPending || !customMessage.trim()}
-                className={`${btnPrimary} bg-blue-600 hover:bg-blue-700 shrink-0`}
+                className={`${btnPrimary} shrink-0`}
               >
                 Send
               </button>

@@ -37,12 +37,12 @@ export function BarberDashboardHeader({
       ? "rounded-lg px-4 py-3 text-sm"
       : "text-sm whitespace-nowrap";
     return active
-      ? `${base} text-foreground font-medium`
-      : `${base} text-muted hover:text-foreground`;
+      ? `${base} text-accent font-semibold`
+      : `${base} text-muted hover:text-foreground transition-colors`;
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-surface">
+    <header className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur-sm">
       <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-2">
           <span className="shrink-0 text-lg font-bold tracking-tight">Barber Synk</span>

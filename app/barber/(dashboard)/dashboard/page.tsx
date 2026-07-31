@@ -10,8 +10,8 @@ export default async function BarberDashboardPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Live Queue</h1>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Live Queue</h1>
         <p className="text-xs text-muted">
           {new Date().toLocaleDateString("en-GB", {
             weekday: "long",

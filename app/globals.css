@@ -56,6 +56,74 @@
   --border-grid: #56636d;
 }
 
+/* BarberSynk logged-in dashboard — matches barbersynk.com homepage */
+.barber-dashboard {
+  --background: #36454f;
+  --canvas: #36454f;
+  --foreground: #f5f1e8;
+  --muted: rgba(245, 241, 232, 0.65);
+  --accent: #a0522d;
+  --border: rgba(245, 241, 232, 0.15);
+  --border-grid: rgba(245, 241, 232, 0.2);
+  --card: rgba(245, 241, 232, 0.05);
+  --surface: rgba(245, 241, 232, 0.08);
+  --input-bg: rgba(245, 241, 232, 0.06);
+  color: var(--foreground);
+}
+
+.barber-dashboard input:not([type="checkbox"]):not([type="radio"]),
+.barber-dashboard select,
+.barber-dashboard textarea {
+  color: var(--foreground);
+  background-color: var(--input-bg);
+}
+
+.barber-dashboard input::placeholder,
+.barber-dashboard textarea::placeholder {
+  color: var(--muted);
+}
+
+.barber-dashboard .btn-accent {
+  background-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: filter 0.15s ease;
+}
+
+.barber-dashboard .btn-accent:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.barber-dashboard .btn-accent:disabled {
+  opacity: 0.5;
+}
+
+.barber-dashboard .btn-outline {
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  background-color: transparent;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+}
+
+.barber-dashboard .btn-outline:hover:not(:disabled) {
+  background-color: rgba(245, 241, 232, 0.06);
+}
+
+.barber-dashboard .barber-panel {
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  border-radius: 0.75rem;
+}
+
+.barber-dashboard .barber-panel-highlight {
+  border: 1px solid rgba(160, 82, 45, 0.35);
+  background-color: rgba(160, 82, 45, 0.08);
+  border-radius: 0.75rem;
+}
+
 .nail-marketing {
   --background: #000000;
   --canvas: #000000;

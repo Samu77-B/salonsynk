@@ -29,7 +29,7 @@ export default async function BarberDashboardLayout({
   const isOwner = memberRole === "owner" || shopContext.member.id === "admin";
 
   return (
-    <div className="app-shell-dark min-h-screen flex flex-col overflow-x-hidden bg-canvas text-foreground">
+    <div className="barber-dashboard min-h-screen flex flex-col overflow-x-hidden bg-canvas text-foreground">
       <BarberDashboardHeader
         shopName={shopContext.shop.name}
         userEmail={user.email ?? null}
