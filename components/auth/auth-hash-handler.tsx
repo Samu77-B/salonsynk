@@ -41,7 +41,8 @@ export function AuthHashHandler() {
   useEffect(() => {
     const { pathname, search, hash, hostname } = window.location;
 
-    if (pathname === "/" && search.includes("code=") && !search.includes("error=")) {
+    const hasAuthQuery = search.includes("code=") || search.includes("token_hash=");
+    if (pathname === "/" && hasAuthQuery && !search.includes("error=")) {
       window.location.replace(`/auth/callback${search}`);
       return;
     }

@@ -7,7 +7,11 @@ import { fetchSalonOnboardingState, salonRequiresPayment } from "@/lib/onboardin
 import { SMART_SITE } from "@core/config/smart-site";
 import { BARBER_SITE } from "@core/config/barber-site";
 import { NAIL_SITE } from "@core/config/nail-site";
-import { superAdminShouldHonorAuthNext } from "@core/auth/admin-switch-next";
+import {
+  isAllowedAdminReturnPath,
+  superAdminShouldHonorAuthNext,
+} from "@core/auth/admin-switch-next";
+import { consumePendingAdminReturn } from "@core/auth/admin-handoff-state";
 import {
   resolveAuthNextPath,
   resolveProductFromHost,
@@ -49,10 +53,18 @@ async function resolvePostAuthRedirect(
   origin: string,
   host: string,
   next: string,
-  authType: string | null
+  authType: string | null,
+  userId: string | null
 ): Promise<string> {
   const isSuperAdmin = await getIsSuperAdmin();
   const product = productFromHost(host);
+
+  if (isSuperAdmin && userId) {
+    const pending = await consumePendingAdminReturn(userId);
+    if (pending && isAllowedAdminReturnPath(pending)) {
+      return `${origin}${pending}`;
+    }
+  }
 
   if (isSmartHost(host) && isSuperAdmin) {
     return `${origin}/smart/overview`;
@@ -126,7 +138,16 @@ export async function GET(request: Request) {
       type: authType as EmailOtpType,
     });
     if (!error) {
-      const redirectUrl = await resolvePostAuthRedirect(origin, host, next, authType);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const redirectUrl = await resolvePostAuthRedirect(
+        origin,
+        host,
+        next,
+        authType,
+        user?.id ?? null
+      );
       return NextResponse.redirect(redirectUrl);
     }
   }
@@ -143,12 +164,36 @@ export async function GET(request: Request) {
         origin,
         host,
         next,
-        effectiveType
+        effectiveType,
+        user?.id ?? null
       );
       return NextResponse.redirect(redirectUrl);
     }
   }
 
   const loginPath = isSmartHost(host) ? `${SMART_SITE.url}/login` : `${origin}/login`;
-  return NextResponse.redirect(`${loginPath}?error=auth`);
+  return hashForwardingResponse(`${loginPath}?error=auth`);
+}
+
+/**
+ * Supabase email links use the implicit flow, so the session arrives in the URL
+ * fragment which never reaches the server. Hand the fragment to the client-side
+ * handler on this same domain instead of bouncing to the login screen.
+ */
+function hashForwardingResponse(fallbackUrl: string): NextResponse {
+  const html = `<!doctype html><html><head><meta name="robots" content="noindex"><title>Signing in…</title></head><body><script>
+(function () {
+  var hash = window.location.hash || "";
+  if (hash.indexOf("access_token") > -1 || hash.indexOf("error=") > -1) {
+    window.location.replace("/" + hash);
+    return;
+  }
+  window.location.replace(${JSON.stringify(fallbackUrl)});
+})();
+</script><noscript><a href="${fallbackUrl}">Continue</a></noscript></body></html>`;
+
+  return new NextResponse(html, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+  });
 }

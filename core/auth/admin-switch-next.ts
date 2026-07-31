@@ -57,6 +57,18 @@ export function isAllowedAdminReturnUrl(returnTo: string): boolean {
   }
 }
 
+/** Allowlisted relative return path (used after a cross-domain handoff). */
+export function isAllowedAdminReturnPath(path: string): boolean {
+  if (!path.startsWith("/") || path.startsWith("//")) return false;
+  try {
+    const url = new URL(path, "https://placeholder.local");
+    if (!SWITCH_PATHS.some((p) => url.pathname === p)) return false;
+    return Boolean(url.searchParams.get("salonId") || url.searchParams.get("shopId"));
+  } catch {
+    return false;
+  }
+}
+
 export function platformFromAdminReturnUrl(returnTo: string): AuthPlatform {
   try {
     const host = normalizeHostname(new URL(returnTo).hostname);

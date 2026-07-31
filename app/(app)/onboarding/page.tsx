@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { resolveUserPlatform } from "@core/auth/resolve-user-platform";
 import { resolveAuthNextPath, resolveProductFromHost } from "@/lib/platform-host";
 import { OnboardingForm } from "./onboarding-form";
 
@@ -15,6 +17,20 @@ export default async function OnboardingPage() {
 
   if (product === "barber") redirect("/barber/access");
   if (product === "nail") redirect("/nail/onboarding");
+
+  // A barber/nail owner can land here from a stale link; send them to their own product.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    const resolution = await resolveUserPlatform(user.id);
+    const otherPlatform = resolution.memberships.find(
+      (m) => m.platform === "barber" || m.platform === "nail"
+    );
+    if (otherPlatform) redirect(otherPlatform.dashboardUrl);
+  }
 
   return (
     <main className="flex min-h-[70vh] w-full min-w-0 flex-col items-center justify-center p-4 sm:p-6">
