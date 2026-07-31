@@ -34,11 +34,13 @@ export function BookAppointmentForm({
   shopName,
   barbers,
   services,
+  showServices = true,
 }: {
   shopId: string;
   shopName: string;
   barbers: BarberOption[];
   services: ServiceOption[];
+  showServices?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<BookAppointmentResult | null>(null);
@@ -64,6 +66,9 @@ export function BookAppointmentForm({
           <p className="text-sm text-muted">You&apos;re booked at {shopName}</p>
           <p className="text-lg font-semibold mt-2">{formatBookingWhen(result.startTime)}</p>
           <p className="text-sm text-muted mt-2">with {result.barberName}</p>
+          {result.smsSent && (
+            <p className="text-xs text-muted mt-3">We&apos;ve sent a confirmation text to your phone.</p>
+          )}
         </div>
         <button
           type="button"
@@ -117,18 +122,24 @@ export function BookAppointmentForm({
         <label htmlFor="book_barber_id" className="block text-xs text-muted mb-1.5">
           Barber *
         </label>
-        <select id="book_barber_id" name="barber_id" required className={selectClass}>
-          <option value="">Choose a barber…</option>
-          {barbers.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.display_name ?? "Barber"}
-              {b.chair_number ? ` (Chair ${b.chair_number})` : ""}
-            </option>
-          ))}
-        </select>
+        {barbers.length === 0 ? (
+          <p className="text-sm text-muted barber-panel px-3 py-2.5">
+            No barbers are available for booking right now. Please contact the shop.
+          </p>
+        ) : (
+          <select id="book_barber_id" name="barber_id" required className={selectClass}>
+            <option value="">Choose a barber…</option>
+            {barbers.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.display_name ?? "Barber"}
+                {b.chair_number ? ` (Chair ${b.chair_number})` : ""}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
-      {services.length > 0 && (
+      {showServices && services.length > 0 && (
         <div>
           <label htmlFor="book_service_id" className="block text-xs text-muted mb-1.5">
             Service
@@ -159,7 +170,7 @@ export function BookAppointmentForm({
         <input id="book_time" name="time" type="time" required className={fieldClass} />
       </div>
 
-      <button type="submit" disabled={isPending} className={btnPrimary}>
+      <button type="submit" disabled={isPending || barbers.length === 0} className={btnPrimary}>
         {isPending ? "Booking…" : "Confirm booking"}
       </button>
     </form>

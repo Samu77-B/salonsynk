@@ -78,6 +78,7 @@ export function ShopClientPortal({
           shopName={shopName}
           barbers={bookingBarbers}
           services={services}
+          showServices={showServicesOnQueue}
         />
       )}
 

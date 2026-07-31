@@ -164,18 +164,29 @@ export function AppointmentsView({ date, appointments, upcomingAppointments, mem
               </div>
               <div>
                 <label className="block text-xs text-muted mb-1.5">Barber *</label>
-                <select name="barber_id" required className={selectClass}>
-                  <option value="">Select…</option>
-                  {barbers.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.display_name}
-                      {m.chair_number ? ` (Chair ${m.chair_number})` : ""}
-                    </option>
-                  ))}
-                </select>
+                {barbers.length === 0 ? (
+                  <p className="text-sm text-muted barber-panel px-3 py-2.5">
+                    Add active team members in Team settings to book appointments.
+                  </p>
+                ) : (
+                  <select name="barber_id" required className={selectClass}>
+                    <option value="">Select…</option>
+                    {barbers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.display_name}
+                        {m.chair_number ? ` (Chair ${m.chair_number})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-xs text-muted mb-1.5">Service</label>
+                {services.length === 0 ? (
+                  <p className="text-sm text-muted barber-panel px-3 py-2.5">
+                    Add services in Services settings, or book a general cut below.
+                  </p>
+                ) : null}
                 <select name="service_id" className={selectClass}>
                   <option value="">General cut (30 min)</option>
                   {services.map((s) => (
@@ -197,7 +208,7 @@ export function AppointmentsView({ date, appointments, upcomingAppointments, mem
                 <label className="block text-xs text-muted mb-1.5">Notes</label>
                 <input name="notes" className={fieldClass} placeholder="Optional" />
               </div>
-              <button type="submit" disabled={isPending} className={`w-full ${btnPrimary} py-3`}>
+              <button type="submit" disabled={isPending || barbers.length === 0} className={`w-full ${btnPrimary} py-3`}>
                 {isPending ? "Saving…" : "Save booking"}
               </button>
             </form>

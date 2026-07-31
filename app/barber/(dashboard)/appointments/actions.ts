@@ -5,6 +5,7 @@ import { createClient } from "@core/supabase/server";
 import { createAdminClient } from "@core/supabase/admin";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
+import { sendBookingConfirmationSms } from "@modules/barber/lib/queue-auto-notify";
 
 async function getShopScopedClient() {
   const context = await getCurrentUserShop();
@@ -16,6 +17,7 @@ async function getShopScopedClient() {
   return {
     supabase: supabase ?? (await createClient()),
     shopId: context.shop.id,
+    shopName: context.shop.name,
   };
 }
 
@@ -25,7 +27,7 @@ function revalidateAppointments() {
 }
 
 export async function createBarberAppointment(formData: FormData): Promise<{ error?: string }> {
-  const { supabase, shopId } = await getShopScopedClient();
+  const { supabase, shopId, shopName } = await getShopScopedClient();
 
   const guestName = (formData.get("guest_name") as string)?.trim();
   const guestPhone = (formData.get("guest_phone") as string)?.trim() || null;
@@ -40,15 +42,29 @@ export async function createBarberAppointment(formData: FormData): Promise<{ err
   if (!barberId) return { error: "Select a barber" };
   if (!date || !time) return { error: "Date and time are required" };
 
+  const { data: barber } = await supabase
+    .from("barber_members")
+    .select("display_name")
+    .eq("id", barberId)
+    .eq("shop_id", shopId)
+    .eq("is_active", true)
+    .single();
+
+  if (!barber) return { error: "Select a barber from this shop" };
+
   let durationMinutes = 30;
+  let serviceName: string | null = null;
   if (serviceId) {
     const { data: service } = await supabase
       .from("barber_services")
-      .select("duration_minutes")
+      .select("duration_minutes, name")
       .eq("id", serviceId)
       .eq("shop_id", shopId)
+      .eq("is_active", true)
       .single();
-    if (service?.duration_minutes) durationMinutes = service.duration_minutes;
+    if (!service) return { error: "Select a service from this shop" };
+    if (service.duration_minutes) durationMinutes = service.duration_minutes;
+    if (service.name) serviceName = service.name;
   }
 
   const startTime = new Date(`${date}T${time}:00`);
@@ -71,6 +87,18 @@ export async function createBarberAppointment(formData: FormData): Promise<{ err
   });
 
   if (error) return { error: error.message };
+
+  if (guestPhone) {
+    await sendBookingConfirmationSms({
+      guestPhone,
+      guestName,
+      shopName: shopName?.trim() || "the barber shop",
+      barberName: barber?.display_name ?? "your barber",
+      startTime: startTime.toISOString(),
+      serviceName,
+    });
+  }
+
   revalidateAppointments();
   return {};
 }

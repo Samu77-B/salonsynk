@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@core/supabase/admin";
-import { sendJoinQueueSms } from "@modules/barber/lib/queue-auto-notify";
+import { sendJoinQueueSms, sendBookingConfirmationSms } from "@modules/barber/lib/queue-auto-notify";
 import { getNextQueuePosition } from "@modules/barber/lib/queue-positions";
 import { AVG_SERVICE_MINUTES } from "@modules/barber/lib/queue-sms-messages";
 
@@ -19,6 +19,8 @@ export type BookAppointmentResult = {
   success: boolean;
   startTime?: string;
   barberName?: string;
+  /** True when a confirmation SMS was sent (phone provided and Twilio configured). */
+  smsSent?: boolean;
   error?: string;
 };
 
@@ -62,20 +64,24 @@ export async function publicBookAppointment(
     .eq("id", barberId)
     .eq("shop_id", shopId)
     .eq("is_active", true)
+    .eq("is_accepting_walk_ins", true)
     .single();
 
   if (!barber) return { success: false, error: "That barber is not available." };
 
   let durationMinutes = 30;
+  let serviceName: string | null = null;
   if (serviceId) {
     const { data: service } = await supabase
       .from("barber_services")
-      .select("duration_minutes")
+      .select("duration_minutes, name")
       .eq("id", serviceId)
       .eq("shop_id", shopId)
       .eq("is_active", true)
       .single();
-    if (service?.duration_minutes) durationMinutes = service.duration_minutes;
+    if (!service) return { success: false, error: "That service is not available." };
+    if (service.duration_minutes) durationMinutes = service.duration_minutes;
+    if (service.name) serviceName = service.name;
   }
 
   const startTime = new Date(`${date}T${time}:00`);
@@ -107,10 +113,25 @@ export async function publicBookAppointment(
   revalidatePath("/barber/appointments", "page");
   revalidatePath("/barber/dashboard", "page");
 
+  const shopDisplayName = shop.name?.trim() || "the barber shop";
+  const barberDisplayName = barber.display_name ?? "your barber";
+  let smsSent = false;
+  if (guestPhone) {
+    smsSent = await sendBookingConfirmationSms({
+      guestPhone,
+      guestName: guestName,
+      shopName: shopDisplayName,
+      barberName: barberDisplayName,
+      startTime: startTime.toISOString(),
+      serviceName,
+    });
+  }
+
   return {
     success: true,
     startTime: startTime.toISOString(),
-    barberName: barber.display_name ?? "your barber",
+    barberName: barberDisplayName,
+    smsSent,
   };
 }
 

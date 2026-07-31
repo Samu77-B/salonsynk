@@ -39,7 +39,7 @@ export default async function PublicJoinQueuePage({
   const nextAvailableOnly = branding.next_available_only === true;
   const showServicesOnQueue = branding.show_services_on_queue !== false;
 
-  const [servicesResult, walkInBarbersResult, bookingBarbersResult, queueCountResult] = await Promise.all([
+  const [servicesResult, walkInBarbersResult, queueCountResult] = await Promise.all([
     supabase
       .from("barber_services")
       .select("id, name, duration_minutes, price_minor")
@@ -57,13 +57,6 @@ export default async function PublicJoinQueuePage({
       .order("display_name"),
 
     supabase
-      .from("barber_members")
-      .select("id, display_name, chair_number")
-      .eq("shop_id", shop.id)
-      .eq("is_active", true)
-      .order("display_name"),
-
-    supabase
       .from("barber_queue")
       .select("id", { count: "exact", head: true })
       .eq("shop_id", shop.id)
@@ -76,9 +69,7 @@ export default async function PublicJoinQueuePage({
   const walkInBarbers = (walkInBarbersResult.data ?? []) as {
     id: string; display_name: string | null; chair_number: number | null; avatar_url: string | null; role: string;
   }[];
-  const bookingBarbers = (bookingBarbersResult.data ?? []) as {
-    id: string; display_name: string | null; chair_number: number | null;
-  }[];
+  const bookingBarbers = walkInBarbers.filter((b) => b.display_name?.trim());
   const queueLength = queueCountResult.count ?? 0;
 
   return (

@@ -43,9 +43,12 @@ export async function getBarberAppointmentsData(dateStr: string) {
 
   const isSuperAdmin = await getIsSuperAdmin();
   const userSb = await createClient();
-  const supabase = isSuperAdmin
-    ? (() => { try { return createAdminClient(); } catch { return userSb; } })()
-    : userSb;
+  let supabase;
+  try {
+    supabase = isSuperAdmin ? createAdminClient() : userSb;
+  } catch {
+    supabase = userSb;
+  }
 
   const shopId = context.shop.id;
   const date = dateStr || new Date().toISOString().slice(0, 10);

@@ -3,6 +3,7 @@ import { canSendSms } from "@core/utils/sms";
 import {
   queueJoinedSmsBody,
   queueSmsBody,
+  bookingConfirmationSmsBody,
   sendBarberQueueSms,
 } from "./queue-sms";
 
@@ -38,6 +39,28 @@ export async function sendJoinQueueSms(
       .eq("id", entryId)
       .eq("shop_id", shopId);
   }
+}
+
+/** Text a customer when they book a future appointment. */
+export async function sendBookingConfirmationSms(opts: {
+  guestPhone: string;
+  guestName: string | null;
+  shopName: string;
+  barberName: string;
+  startTime: string;
+  serviceName?: string | null;
+}): Promise<boolean> {
+  if (!canSendSms() || !opts.guestPhone.trim()) return false;
+
+  const body = bookingConfirmationSmsBody({
+    clientName: opts.guestName ?? "there",
+    shopName: opts.shopName,
+    barberName: opts.barberName,
+    startTime: opts.startTime,
+    serviceName: opts.serviceName,
+  });
+  const sms = await sendBarberQueueSms(opts.guestPhone, body);
+  return sms.sent;
 }
 
 /**

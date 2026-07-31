@@ -69,3 +69,35 @@ export function phoneHref(phone: string, smsBody?: string): { tel: string; sms: 
     : `sms:${tel}`;
   return { tel: `tel:${tel}`, sms };
 }
+
+function formatBookingWhenForSms(iso: string): string {
+  const d = new Date(iso);
+  const datePart = d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const timePart = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return `${datePart} at ${timePart}`;
+}
+
+/** SMS sent when a customer books a future appointment. */
+export function bookingConfirmationSmsBody(opts: {
+  clientName: string;
+  shopName: string;
+  barberName: string;
+  startTime: string;
+  serviceName?: string | null;
+}): string {
+  const name = opts.clientName.trim() || "there";
+  const shop = opts.shopName.trim() || "the barber shop";
+  const barber = opts.barberName.trim() || "your barber";
+  const when = formatBookingWhenForSms(opts.startTime);
+
+  let message = `Hi ${name}, thanks for booking at ${shop}! You're booked with ${barber} on ${when}.`;
+  if (opts.serviceName?.trim()) {
+    message += ` Service: ${opts.serviceName.trim()}.`;
+  }
+  message += " See you then!";
+  return message;
+}
