@@ -68,7 +68,7 @@ function ServiceRow({ service }: { service: BarberServiceRow }) {
 
   if (editing) {
     return (
-      <li className="rounded-lg border border-border p-3 space-y-3">
+      <li className="rounded border border-border p-3 space-y-3">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="sm:col-span-1">
             <label className="block text-xs text-muted mb-1">Name</label>
@@ -131,7 +131,7 @@ function ServiceRow({ service }: { service: BarberServiceRow }) {
   }
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
+    <li className="flex flex-wrap items-center justify-between gap-3 rounded border border-border p-3">
       <div>
         <p className="font-medium">{service.name}</p>
         <p className="text-xs text-muted mt-0.5">
@@ -194,7 +194,7 @@ export function BarberServicesView({ services }: { services: BarberServiceRow[] 
   return (
     <div className="space-y-6">
       {services.length === 0 ? (
-        <p className="text-sm text-muted rounded-lg border border-dashed border-border p-4">
+        <p className="text-sm text-muted rounded border border-dashed border-border p-4">
           No services yet. Add your first cut below — price is optional.
         </p>
       ) : (
@@ -207,7 +207,7 @@ export function BarberServicesView({ services }: { services: BarberServiceRow[] 
 
       <form
         onSubmit={handleAdd}
-        className="space-y-3 rounded-lg border border-dashed border-border p-4"
+        className="space-y-3 rounded border border-dashed border-border p-4"
       >
         <p className="text-sm font-medium">Add service</p>
         <div className="grid gap-3 sm:grid-cols-3">

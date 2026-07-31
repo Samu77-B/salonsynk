@@ -41,7 +41,7 @@ export function BarberShopBrandingForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-3 rounded-lg border border-border p-4"
+      className="space-y-3 rounded border border-border p-4"
     >
       <div>
         <p className="text-sm font-medium">Queue page display</p>

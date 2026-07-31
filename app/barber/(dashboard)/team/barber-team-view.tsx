@@ -143,7 +143,7 @@ function MemberRow({ member }: { member: Member }) {
 
   if (member.role === "owner") {
     return (
-      <li className="flex flex-wrap items-start gap-3 rounded-lg border border-border p-3">
+      <li className="flex flex-wrap items-start gap-3 rounded border border-border p-3">
         <div className="relative shrink-0">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -188,7 +188,7 @@ function MemberRow({ member }: { member: Member }) {
   }
 
   return (
-    <li className="flex flex-wrap items-start gap-3 rounded-lg border border-border p-3">
+    <li className="flex flex-wrap items-start gap-3 rounded border border-border p-3">
       <div className="relative shrink-0">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -352,7 +352,7 @@ export function BarberTeamView({ members }: { members: Member[] }) {
 
       <form
         onSubmit={handleAdd}
-        className="space-y-3 rounded-lg border border-dashed border-border p-4"
+        className="space-y-3 rounded border border-dashed border-border p-4"
       >
         <p className="text-sm font-medium">Add barber</p>
         <div className="grid gap-3 sm:grid-cols-2">

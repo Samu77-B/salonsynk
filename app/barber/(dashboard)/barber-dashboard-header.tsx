@@ -34,7 +34,7 @@ export function BarberDashboardHeader({
   function linkClass(href: string, mobile = false) {
     const active = pathname === href || pathname.startsWith(`${href}/`);
     const base = mobile
-      ? "rounded-lg px-4 py-3 text-sm"
+      ? "rounded px-4 py-3 text-sm"
       : "text-sm whitespace-nowrap";
     return active
       ? `${base} text-accent font-semibold`
@@ -74,7 +74,7 @@ export function BarberDashboardHeader({
         <button
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
-          className="md:hidden shrink-0 rounded-lg p-2 text-muted hover:text-foreground hover:bg-white/5"
+          className="md:hidden shrink-0 rounded p-2 text-muted hover:text-foreground hover:bg-white/5"
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
         >
@@ -107,7 +107,7 @@ export function BarberDashboardHeader({
               <button
                 type="button"
                 onClick={() => setMenuOpen(false)}
-                className="shrink-0 rounded-lg p-2 text-muted hover:text-foreground"
+                className="shrink-0 rounded p-2 text-muted hover:text-foreground"
                 aria-label="Close menu"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

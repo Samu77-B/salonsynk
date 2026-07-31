@@ -75,7 +75,7 @@ function ChairIcon() {
 const ACTIVE_STATUSES = ["waiting", "in_chair"];
 
 const inputClass =
-  "w-full min-h-[2.75rem] rounded-lg border border-border px-3 py-2.5 text-sm leading-5 focus:outline-none focus:ring-1 focus:ring-accent";
+  "w-full min-h-[2.75rem] rounded border border-border px-3 py-2.5 text-sm leading-5 focus:outline-none focus:ring-1 focus:ring-accent";
 const selectClass = `${inputClass} block appearance-auto`;
 const btnPrimary = "btn-accent px-3 py-2 text-xs sm:text-sm disabled:opacity-50";
 const btnOutline = "btn-outline px-3 py-2 text-xs sm:text-sm disabled:opacity-50";
@@ -537,7 +537,7 @@ function InChairCard({
   return (
     <div className="barber-panel-highlight p-3.5 sm:p-4 space-y-3">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/15">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-accent/15">
           <ChairIcon />
         </div>
         <div className="min-w-0 flex-1">
