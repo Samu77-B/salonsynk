@@ -1,10 +1,22 @@
 import { Resend } from "resend";
+import { BARBER_SITE } from "@core/config/barber-site";
+import { NAIL_SITE } from "@core/config/nail-site";
 
 const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
 
 const fromAddress =
   process.env.RESEND_FROM_ADDRESS || "SalonSynk <hello@salonsynk.com>";
+
+function platformFromAddress(platform: "salon" | "barber" | "nail"): string {
+  if (platform === "barber") {
+    return process.env.RESEND_FROM_BARBER || `BarberSynk <${BARBER_SITE.email}>`;
+  }
+  if (platform === "nail") {
+    return process.env.RESEND_FROM_NAIL || `NailSynk <${NAIL_SITE.email}>`;
+  }
+  return fromAddress;
+}
 
 function normalizeResendError(error: unknown): string | undefined {
   if (!error) return undefined;
@@ -14,6 +26,17 @@ function normalizeResendError(error: unknown): string | undefined {
     return anyErr.message || anyErr.name || "Email error";
   }
   return String(error);
+}
+
+async function sendViaResend(
+  payload: Parameters<NonNullable<typeof resend>["emails"]["send"]>[0]
+): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured (RESEND_API_KEY missing)" };
+  const { data, error } = await resend.emails.send(payload);
+  const normalized = normalizeResendError(error);
+  if (normalized) return { error: normalized };
+  if (!data?.id) return { error: "Email provider did not accept the message." };
+  return {};
 }
 
 export async function sendAppointmentReminder(
@@ -295,7 +318,6 @@ export async function sendBarberWelcomeEmail(params: {
   loginLink: string;
   paymentLink: string;
 }): Promise<{ error?: string }> {
-  if (!resend) return { error: "Resend not configured" };
   const html = `
     <p>Hi ${escapeHtmlPlainText(params.ownerName)},</p>
     <p>Welcome to <strong>BarberSynk</strong> — your account for <strong>${escapeHtmlPlainText(params.businessName)}</strong> is ready.</p>
@@ -309,14 +331,13 @@ export async function sendBarberWelcomeEmail(params: {
     <p style="color:#666;font-size:14px;">Your dashboard opens as soon as you set your password. No payment is required today.</p>
     <p style="color:#666;font-size:14px;">Questions? Contact <a href="mailto:hello@barbersynk.com">hello@barbersynk.com</a>.</p>
   `;
-  const { error } = await resend.emails.send({
-    from: fromAddress,
+  return sendViaResend({
+    from: platformFromAddress("barber"),
     to: [params.to],
-    replyTo: "hello@barbersynk.com",
+    replyTo: BARBER_SITE.email,
     subject: `Welcome to BarberSynk — ${params.businessName}`,
     html,
   });
-  return { error: normalizeResendError(error) };
 }
 
 /** Welcome email when master admin onboards a NailSynk salon. */
@@ -328,7 +349,6 @@ export async function sendNailWelcomeEmail(params: {
   loginLink: string;
   paymentLink: string;
 }): Promise<{ error?: string }> {
-  if (!resend) return { error: "Resend not configured" };
   const html = `
     <p>Hi ${escapeHtmlPlainText(params.ownerName)},</p>
     <p>Welcome to <strong>NailSynk</strong> — your account for <strong>${escapeHtmlPlainText(params.businessName)}</strong> is ready.</p>
@@ -342,14 +362,13 @@ export async function sendNailWelcomeEmail(params: {
     <p style="color:#666;font-size:14px;">Your dashboard opens as soon as you set your password. No payment is required today.</p>
     <p style="color:#666;font-size:14px;">Questions? Contact <a href="mailto:hello@nailsynk.com">hello@nailsynk.com</a>.</p>
   `;
-  const { error } = await resend.emails.send({
-    from: fromAddress,
+  return sendViaResend({
+    from: platformFromAddress("nail"),
     to: [params.to],
-    replyTo: "hello@nailsynk.com",
+    replyTo: NAIL_SITE.email,
     subject: `Welcome to NailSynk — ${params.businessName}`,
     html,
   });
-  return { error: normalizeResendError(error) };
 }
 
 /** Sent after first successful subscription payment. */

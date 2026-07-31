@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { adminSendPlatformWelcomeEmail } from "@core/billing/admin-welcome-email";
 
 export function AdminPlatformOnboardingPanel({
@@ -24,6 +25,7 @@ export function AdminPlatformOnboardingPanel({
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const router = useRouter();
 
   const status = subscriptionStatus.toLowerCase();
   const onFreeTrial = status === "trialing" || status === "active";
@@ -43,9 +45,10 @@ export function AdminPlatformOnboardingPanel({
     if (result.error) {
       setMsg({ type: "err", text: result.error });
     } else {
+      router.refresh();
       setMsg({
         type: "ok",
-        text: "Welcome email sent. The owner gets 30 days free — dashboard opens after they set their password.",
+        text: `Welcome email sent to ${email.trim()}. The owner gets 30 days free — check spam if it doesn't arrive within a few minutes.`,
       });
     }
   }
@@ -107,7 +110,7 @@ export function AdminPlatformOnboardingPanel({
             disabled={loading}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
           >
-            {loading ? "Sending…" : "Send welcome email"}
+            {loading ? "Sending…" : welcomeSentAt ? "Resend welcome email" : "Send welcome email"}
           </button>
         </div>
         {msg?.type === "ok" && <p className="text-sm text-green-400">{msg.text}</p>}

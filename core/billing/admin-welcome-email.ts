@@ -7,8 +7,6 @@ import { getAuthCallbackUrl, normalizeAuthActionLink } from "@core/auth/auth-red
 import {
   formatPlatformPrice,
   paymentInviteUrl,
-  platformProductName,
-  type BillingPlatform,
 } from "@core/billing/platform-billing";
 import { generatePaymentInviteToken } from "@core/billing/platform-onboarding";
 import { sendBarberWelcomeEmail, sendNailWelcomeEmail } from "@/lib/email";
@@ -28,6 +26,12 @@ function getAuthActionLink(d: unknown, platform: "barber" | "nail"): string | nu
   return null;
 }
 
+function getUserIdFromLinkPayload(d: unknown): string | undefined {
+  if (!d || typeof d !== "object") return undefined;
+  const user = (d as { user?: { id?: string } }).user;
+  return user?.id;
+}
+
 type MemberConfig = {
   table: string;
   tenantColumn: string;
@@ -38,6 +42,56 @@ const MEMBER_CONFIG: Record<"barber" | "nail", MemberConfig> = {
   barber: { table: "barber_members", tenantColumn: "shop_id", role: "owner" },
   nail: { table: "nail_members", tenantColumn: "salon_id", role: "owner" },
 };
+
+async function generateOwnerLoginLink(
+  supabase: ReturnType<typeof createAdminClient>,
+  email: string,
+  ownerName: string,
+  platform: "barber" | "nail"
+): Promise<{ loginLink?: string; linkPayload?: unknown; error?: string }> {
+  const redirectTo = getAuthCallbackUrl(platform);
+
+  const { data: inviteData, error: inviteError } = await supabase.auth.admin.generateLink({
+    type: "invite",
+    email,
+    options: { redirectTo, data: { full_name: ownerName } },
+  });
+
+  if (!inviteError) {
+    const loginLink = getAuthActionLink(inviteData, platform);
+    if (loginLink) return { loginLink, linkPayload: inviteData };
+  }
+
+  const { data: recoveryData, error: recoveryError } = await supabase.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo },
+  });
+
+  if (!recoveryError) {
+    const loginLink = getAuthActionLink(recoveryData, platform);
+    if (loginLink) return { loginLink, linkPayload: recoveryData };
+  }
+
+  const { data: magicData, error: magicError } = await supabase.auth.admin.generateLink({
+    type: "magiclink",
+    email,
+    options: { redirectTo },
+  });
+
+  if (!magicError) {
+    const loginLink = getAuthActionLink(magicData, platform);
+    if (loginLink) return { loginLink, linkPayload: magicData };
+  }
+
+  return {
+    error:
+      magicError?.message ||
+      recoveryError?.message ||
+      inviteError?.message ||
+      "Could not generate login link for this email.",
+  };
+}
 
 export async function adminSendPlatformWelcomeEmail(
   platform: "barber" | "nail",
@@ -63,34 +117,16 @@ export async function adminSendPlatformWelcomeEmail(
 
   const ownerName = (displayName?.trim() || trimmed.split("@")[0]) || "there";
   const businessName = (tenant.name as string) || "your business";
-  const productName = platformProductName(platform);
   const planPrice = formatPlatformPrice(platform);
 
-  const redirectTo = getAuthCallbackUrl(platform);
-
-  const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-    type: "invite",
-    email: trimmed,
-    options: { redirectTo, data: { full_name: ownerName } },
-  });
-
-  let loginLink: string | null = getAuthActionLink(linkData, platform);
-
-  if (linkError) {
-    const { data: recoveryData, error: recoveryError } = await supabase.auth.admin.generateLink({
-      type: "recovery",
-      email: trimmed,
-      options: { redirectTo },
-    });
-    if (recoveryError) return { error: linkError.message };
-    loginLink = getAuthActionLink(recoveryData, platform);
+  const linkResult = await generateOwnerLoginLink(supabase, trimmed, ownerName, platform);
+  if (linkResult.error || !linkResult.loginLink) {
+    return { error: linkResult.error ?? "Could not generate login link for this email." };
   }
 
-  if (!loginLink) return { error: "Could not generate login link for this email." };
-
   const invitedUserId =
-    (linkData as { user?: { id?: string } } | null)?.user?.id ??
-    (await supabase.from("profiles").select("id").eq("email", trimmed).single()).data?.id;
+    getUserIdFromLinkPayload(linkResult.linkPayload) ??
+    (await supabase.from("profiles").select("id").eq("email", trimmed).maybeSingle()).data?.id;
 
   if (invitedUserId) {
     const memberCfg = MEMBER_CONFIG[platform];
@@ -109,6 +145,23 @@ export async function adminSendPlatformWelcomeEmail(
   }
 
   const paymentToken = generatePaymentInviteToken();
+  const paymentLink = paymentInviteUrl(platform, paymentToken);
+  const emailParams = {
+    to: trimmed,
+    ownerName,
+    businessName,
+    planPrice,
+    loginLink: linkResult.loginLink,
+    paymentLink,
+  };
+
+  const emailResult =
+    platform === "barber"
+      ? await sendBarberWelcomeEmail(emailParams)
+      : await sendNailWelcomeEmail(emailParams);
+
+  if (emailResult.error) return { error: emailResult.error };
+
   const { error: updateError } = await supabase
     .from(tenantTableName)
     .update({
@@ -125,23 +178,6 @@ export async function adminSendPlatformWelcomeEmail(
     }
     return { error: updateError.message };
   }
-
-  const paymentLink = paymentInviteUrl(platform, paymentToken);
-  const emailParams = {
-    to: trimmed,
-    ownerName,
-    businessName,
-    planPrice,
-    loginLink,
-    paymentLink,
-  };
-
-  const emailResult =
-    platform === "barber"
-      ? await sendBarberWelcomeEmail(emailParams)
-      : await sendNailWelcomeEmail(emailParams);
-
-  if (emailResult.error) return { error: emailResult.error };
 
   const adminListPath = platform === "barber" ? "/admin/barber-shops" : "/admin/nail-salons";
   revalidatePath("/admin");
