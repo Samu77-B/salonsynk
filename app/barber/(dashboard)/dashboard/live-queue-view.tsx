@@ -74,9 +74,10 @@ function ChairIcon() {
 
 const ACTIVE_STATUSES = ["waiting", "in_chair"];
 
-const inputClass =
-  "w-full min-h-[2.75rem] rounded border border-border px-3 py-2.5 text-sm leading-5 focus:outline-none focus:ring-1 focus:ring-accent";
-const selectClass = `${inputClass} block appearance-auto`;
+const fieldClass =
+  "w-full h-11 rounded border border-border px-3 text-sm leading-5 focus:outline-none focus:ring-1 focus:ring-accent box-border";
+const messageInputClass =
+  "flex-1 rounded border border-border px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-accent box-border";
 const btnPrimary = "btn-accent px-3 py-2 text-xs sm:text-sm disabled:opacity-50";
 const btnOutline = "btn-outline px-3 py-2 text-xs sm:text-sm disabled:opacity-50";
 
@@ -317,13 +318,13 @@ function AddCustomerPanel({
               <label htmlFor="guest_name" className="block text-xs text-muted mb-1.5">
                 Name
               </label>
-              <input id="guest_name" name="guest_name" type="text" placeholder="Walk-in" className={inputClass} />
+              <input id="guest_name" name="guest_name" type="text" placeholder="Walk-in" className={fieldClass} />
             </div>
             <div>
               <label htmlFor="guest_phone" className="block text-xs text-muted mb-1.5">
                 Phone
               </label>
-              <input id="guest_phone" name="guest_phone" type="tel" placeholder="07..." className={inputClass} />
+              <input id="guest_phone" name="guest_phone" type="tel" placeholder="07..." className={fieldClass} />
             </div>
             <div>
               <label htmlFor="service_id" className="block text-xs text-muted mb-1.5">
@@ -458,7 +459,7 @@ function WaitingCard({
                 value={sms.customMessage}
                 onChange={(e) => sms.setCustomMessage(e.target.value)}
                 placeholder="Custom SMS message…"
-                className={`flex-1 ${inputClass} py-2 text-xs`}
+                className={messageInputClass}
               />
               <button
                 type="button"
@@ -583,7 +584,7 @@ function InChairCard({
                 value={customMessage}
                 onChange={(e) => setCustomMessage(e.target.value)}
                 placeholder="Custom SMS message…"
-                className={`flex-1 ${inputClass} py-2 text-xs`}
+                className={messageInputClass}
               />
               <button
                 type="button"
