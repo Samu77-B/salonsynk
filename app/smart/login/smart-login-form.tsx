@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { PlatformMembership } from "@core/auth/resolve-user-platform";
 import { PlatformIcon } from "@/components/smart/marketing/platform-icons";
 import type { SmartPlatformId } from "@core/config/smart-site";
+import { isAllowedAdminReturnUrl } from "@core/auth/admin-switch-next";
 
 type SmartRedirectResponse =
   | { type: "redirect"; url: string }
@@ -22,8 +23,14 @@ export function SmartLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromPlatform = searchParams.get("from");
+  const returnTo = searchParams.get("next");
 
   async function completeRedirect(platform?: string) {
+    if (returnTo && isAllowedAdminReturnUrl(returnTo)) {
+      window.location.href = `/api/auth/platform-handoff?returnTo=${encodeURIComponent(returnTo)}`;
+      return;
+    }
+
     const res = await fetch("/api/auth/smart-redirect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

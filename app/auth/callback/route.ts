@@ -7,6 +7,7 @@ import { fetchSalonOnboardingState, salonRequiresPayment } from "@/lib/onboardin
 import { SMART_SITE } from "@core/config/smart-site";
 import { BARBER_SITE } from "@core/config/barber-site";
 import { NAIL_SITE } from "@core/config/nail-site";
+import { superAdminShouldHonorAuthNext } from "@core/auth/admin-switch-next";
 
 function hostFromRequest(request: Request): string {
   return new URL(request.url).host.toLowerCase();
@@ -50,6 +51,9 @@ async function resolvePostAuthRedirect(
       return passwordSetupPath(BARBER_SITE.url.replace(/\/$/, ""), barberNext);
     }
     if (isSuperAdmin) {
+      if (superAdminShouldHonorAuthNext(barberNext)) {
+        return `${origin}${barberNext}`;
+      }
       return `${origin}/admin`;
     }
     return `${BARBER_SITE.url}${barberNext}`;
@@ -61,6 +65,9 @@ async function resolvePostAuthRedirect(
       return passwordSetupPath(NAIL_SITE.url.replace(/\/$/, ""), nailNext);
     }
     if (isSuperAdmin) {
+      if (superAdminShouldHonorAuthNext(nailNext)) {
+        return `${origin}${nailNext}`;
+      }
       return `${origin}/admin`;
     }
     return `${NAIL_SITE.url}${nailNext}`;
@@ -82,6 +89,9 @@ async function resolvePostAuthRedirect(
   }
 
   if (isSuperAdmin && !isSmartHost(host)) {
+    if (superAdminShouldHonorAuthNext(redirectTo)) {
+      return `${origin}${redirectTo}`;
+    }
     return `${origin}/admin`;
   }
 

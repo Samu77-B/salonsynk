@@ -3,7 +3,10 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { SITE } from "@core/config/site";
-import { sanitizeAdminSwitchNext } from "@core/auth/admin-switch-next";
+import {
+  sanitizeAdminSwitchNext,
+  smartLoginUrlForAdminReturn,
+} from "@core/auth/admin-switch-next";
 
 const ADMIN_SALON_COOKIE = "admin_salon_id";
 
@@ -25,9 +28,7 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", `${requestUrl.pathname}${requestUrl.search}`);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(smartLoginUrlForAdminReturn(requestUrl.toString()));
   }
 
   const ok = await getIsSuperAdmin();

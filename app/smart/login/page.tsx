@@ -6,14 +6,24 @@ import { SmartLoginForm } from "./smart-login-form";
 import { SMART_SITE } from "@core/config/smart-site";
 import { SmartSynkLogo } from "@/components/smart/smart-synk-logo";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { isAllowedAdminReturnUrl } from "@core/auth/admin-switch-next";
 
-export default async function SmartLoginPage() {
+export default async function SmartLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string; from?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (user) {
+    const next = params.next;
+    if (next && isAllowedAdminReturnUrl(next)) {
+      redirect(`/api/auth/platform-handoff?returnTo=${encodeURIComponent(next)}`);
+    }
     const isSuperAdmin = await getIsSuperAdmin();
     if (isSuperAdmin) redirect("/smart/overview");
   }

@@ -62,6 +62,8 @@ export async function middleware(request: NextRequest) {
     if (pathname === "/login") {
       const loginUrl = smartLoginUrl(request);
       loginUrl.searchParams.set("from", "barber");
+      const next = request.nextUrl.searchParams.get("next");
+      if (next) loginUrl.searchParams.set("next", next);
       return NextResponse.redirect(loginUrl);
     }
     const allowed =
@@ -89,6 +91,8 @@ export async function middleware(request: NextRequest) {
     if (pathname === "/login") {
       const loginUrl = smartLoginUrl(request);
       loginUrl.searchParams.set("from", "nail");
+      const next = request.nextUrl.searchParams.get("next");
+      if (next) loginUrl.searchParams.set("next", next);
       return NextResponse.redirect(loginUrl);
     }
     if (pathname === "/onboarding") {
