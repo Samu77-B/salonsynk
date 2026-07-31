@@ -31,6 +31,7 @@ export default async function BarberAppointmentsPage({
         <AppointmentsView
           date={data.date}
           appointments={JSON.parse(JSON.stringify(data.appointments))}
+          upcomingAppointments={JSON.parse(JSON.stringify(data.upcomingAppointments))}
           members={JSON.parse(JSON.stringify(data.members))}
           services={JSON.parse(JSON.stringify(data.services))}
         />

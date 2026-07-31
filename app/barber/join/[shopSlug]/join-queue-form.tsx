@@ -76,7 +76,7 @@ export function JoinQueueForm({
     return (
       <div className="text-center space-y-5 py-6">
         <div className="flex items-center justify-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/20 text-3xl text-accent">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/20 text-3xl text-foreground">
             ✓
           </span>
         </div>
@@ -86,7 +86,7 @@ export function JoinQueueForm({
             {result.position === 1 ? "You're up next" : "Your position"}
           </p>
           <p
-            className={`mt-1 font-bold text-accent ${
+            className={`mt-1 font-bold text-foreground ${
               result.position === 1 ? "text-2xl sm:text-3xl" : "text-4xl tabular-nums"
             }`}
           >
@@ -107,7 +107,7 @@ export function JoinQueueForm({
             setResult(null);
             setPreferredBarberId("");
           }}
-          className="text-sm text-accent hover:opacity-80 underline underline-offset-2"
+          className="text-sm text-foreground hover:opacity-80 underline underline-offset-2"
         >
           Join another person
         </button>
@@ -119,7 +119,7 @@ export function JoinQueueForm({
     <div className="space-y-4">
       <div className="barber-panel px-4 py-4 text-center">
         <p className="text-xs text-muted">Currently waiting at {shopName}</p>
-        <p className="text-3xl font-bold tabular-nums mt-1 text-accent">{queueLength}</p>
+        <p className="text-3xl font-bold tabular-nums mt-1 text-foreground">{queueLength}</p>
         <p className="text-xs text-muted mt-1">
           {queueLength === 0
             ? "No wait — you could be next!"
@@ -192,7 +192,7 @@ export function JoinQueueForm({
               <>
                 <input type="hidden" name="preferred_barber_id" value="" />
                 <div className="barber-panel-highlight p-4 text-center">
-                  <span className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-accent/15 text-xl text-accent border border-accent/30">
+                  <span className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-accent/15 text-xl text-foreground border border-accent/30">
                     ✦
                   </span>
                   <p className="text-sm font-medium mt-2">Next available barber</p>
@@ -210,7 +210,7 @@ export function JoinQueueForm({
                       preferredBarberId === "" ? "barber-panel-highlight" : ""
                     }`}
                   >
-                    <span className="flex h-10 w-10 mx-auto items-center justify-center rounded-full bg-accent/15 text-lg text-accent">
+                    <span className="flex h-10 w-10 mx-auto items-center justify-center rounded-full bg-accent/15 text-lg text-foreground">
                       ✦
                     </span>
                     <span className="text-xs font-medium leading-tight mt-2 block">Next available</span>

@@ -61,7 +61,7 @@ function PersonIcon() {
 
 function ChairIcon() {
   return (
-    <svg className="h-5 w-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <svg className="h-5 w-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -173,7 +173,7 @@ export function LiveQueueView({ shopId, shopName, queue, members, services, curr
 
       {inChair.length > 0 && (
         <section>
-          <h2 className="text-xs font-bold text-accent uppercase tracking-widest mb-2.5">
+          <h2 className="text-xs font-bold text-foreground uppercase tracking-widest mb-2.5">
             In Chair ({inChair.length})
           </h2>
           <div className="space-y-2.5">
@@ -191,7 +191,7 @@ export function LiveQueueView({ shopId, shopName, queue, members, services, curr
       )}
 
       <section>
-        <h2 className="text-xs font-bold text-accent uppercase tracking-widest mb-2.5">
+        <h2 className="text-xs font-bold text-foreground uppercase tracking-widest mb-2.5">
           Waiting Queue ({waiting.length})
         </h2>
         {waiting.length === 0 ? (
@@ -233,7 +233,7 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="barber-panel px-3 py-2.5 sm:px-4 sm:py-3">
       <p className="text-[10px] sm:text-xs text-muted leading-tight">{label}</p>
-      <p className="text-xl sm:text-2xl font-bold tabular-nums mt-0.5 text-accent">{value}</p>
+      <p className="text-xl sm:text-2xl font-bold tabular-nums mt-0.5 text-foreground">{value}</p>
     </div>
   );
 }
@@ -409,7 +409,7 @@ function WaitingCard({
   return (
     <div className="barber-panel p-3.5 sm:p-4 space-y-3">
       <div className="flex items-start gap-2.5">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-accent/15 text-sm font-bold text-accent">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-accent/15 text-sm font-bold text-foreground">
           {position}
         </span>
         <div className="flex min-w-0 flex-1 items-start gap-2">
@@ -425,7 +425,7 @@ function WaitingCard({
         </div>
         <div className="shrink-0 text-right">
           {notified ? (
-            <span className="text-xs font-medium text-accent">Notified</span>
+            <span className="text-xs font-medium text-foreground">Notified</span>
           ) : hasPhone ? (
             <span className="text-xs font-mono text-foreground/80">{entry.guest_phone}</span>
           ) : null}
@@ -558,7 +558,7 @@ function InChairCard({
           </p>
         </div>
         {price > 0 && (
-          <span className="text-sm font-semibold tabular-nums shrink-0 text-accent">{formatPrice(price)}</span>
+          <span className="text-sm font-semibold tabular-nums shrink-0 text-foreground">{formatPrice(price)}</span>
         )}
       </div>
 

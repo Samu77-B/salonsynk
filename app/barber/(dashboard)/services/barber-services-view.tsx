@@ -143,7 +143,7 @@ function ServiceRow({ service }: { service: BarberServiceRow }) {
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="text-xs text-accent hover:underline"
+          className="text-xs text-foreground hover:underline"
         >
           Edit
         </button>

@@ -48,9 +48,12 @@ export async function getBarberAppointmentsData(dateStr: string) {
     : userSb;
 
   const shopId = context.shop.id;
-  const { start, end } = dayBounds(dateStr || new Date().toISOString().slice(0, 10));
+  const date = dateStr || new Date().toISOString().slice(0, 10);
+  const { start, end } = dayBounds(date);
+  const nowIso = new Date().toISOString();
+  const futureCap = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [appointmentsResult, membersResult, servicesResult] = await Promise.all([
+  const [appointmentsResult, upcomingResult, membersResult, servicesResult] = await Promise.all([
     supabase
       .from("barber_appointments")
       .select("*")
@@ -59,6 +62,16 @@ export async function getBarberAppointmentsData(dateStr: string) {
       .lte("start_time", end)
       .neq("status", "canceled")
       .order("start_time"),
+
+    supabase
+      .from("barber_appointments")
+      .select("*")
+      .eq("shop_id", shopId)
+      .eq("status", "scheduled")
+      .gt("start_time", nowIso)
+      .lte("start_time", futureCap)
+      .order("start_time")
+      .limit(25),
 
     supabase
       .from("barber_members")
@@ -78,8 +91,9 @@ export async function getBarberAppointmentsData(dateStr: string) {
 
   return {
     shop: context.shop,
-    date: dateStr || new Date().toISOString().slice(0, 10),
+    date,
     appointments: (appointmentsResult.data ?? []) as BarberAppointment[],
+    upcomingAppointments: (upcomingResult.data ?? []) as BarberAppointment[],
     members: (membersResult.data ?? []) as BarberMember[],
     services: (servicesResult.data ?? []) as BarberService[],
   };

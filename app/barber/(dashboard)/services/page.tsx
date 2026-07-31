@@ -35,7 +35,7 @@ export default async function BarberServicesPage() {
             href={`/barber/join/${context.shop.slug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-accent hover:underline"
+            className="text-foreground hover:underline"
           >
             public queue page
           </a>

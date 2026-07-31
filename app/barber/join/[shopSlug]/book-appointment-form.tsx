@@ -55,7 +55,7 @@ export function BookAppointmentForm({
     return (
       <div className="text-center space-y-5 py-6">
         <div className="flex items-center justify-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/20 text-3xl text-accent">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/20 text-3xl text-foreground">
             ✓
           </span>
         </div>
@@ -68,7 +68,7 @@ export function BookAppointmentForm({
         <button
           type="button"
           onClick={() => setResult(null)}
-          className="text-sm text-accent hover:opacity-80 underline underline-offset-2"
+          className="text-sm text-foreground hover:opacity-80 underline underline-offset-2"
         >
           Book another appointment
         </button>

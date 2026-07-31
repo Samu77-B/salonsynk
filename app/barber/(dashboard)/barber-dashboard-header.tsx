@@ -38,7 +38,7 @@ export function BarberDashboardHeader({
   function desktopLinkClass(href: string) {
     const base = "text-sm whitespace-nowrap transition-colors";
     return isActive(href)
-      ? `${base} text-accent font-semibold`
+      ? `${base} text-foreground font-semibold`
       : `${base} text-muted hover:text-foreground`;
   }
 
@@ -112,7 +112,7 @@ export function BarberDashboardHeader({
                   onClick={closeMenu}
                   data-active={isActive(href) ? "true" : "false"}
                   className={`font-medium ${
-                    isActive(href) ? "text-accent" : "text-foreground/90"
+                    isActive(href) ? "text-foreground" : "text-foreground/90"
                   }`}
                 >
                   {label}

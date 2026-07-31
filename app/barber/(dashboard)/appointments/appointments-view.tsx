@@ -13,6 +13,7 @@ import { formatDurationMinutes } from "@/lib/format-duration";
 type Props = {
   date: string;
   appointments: BarberAppointment[];
+  upcomingAppointments: BarberAppointment[];
   members: BarberMember[];
   services: BarberService[];
 };
@@ -23,8 +24,15 @@ const selectClass = fieldClass;
 const btnPrimary = "btn-accent px-3 py-2.5 text-xs sm:text-sm disabled:opacity-50";
 const btnOutline = "btn-outline px-3 py-2.5 text-xs sm:text-sm disabled:opacity-50";
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+function formatAppointmentWhen(iso: string): string {
+  const d = new Date(iso);
+  const datePart = d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const timePart = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return `${datePart} · ${timePart}`;
 }
 
 function formatPrice(minor: number): string {
@@ -53,7 +61,7 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: "Canceled",
 };
 
-export function AppointmentsView({ date, appointments, members, services }: Props) {
+export function AppointmentsView({ date, appointments, upcomingAppointments, members, services }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -108,15 +116,15 @@ export function AppointmentsView({ date, appointments, members, services }: Prop
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <div className="barber-panel px-3 py-2.5 sm:px-4 sm:py-3">
           <p className="text-[10px] sm:text-xs text-muted leading-tight">Scheduled</p>
-          <p className="text-xl sm:text-2xl font-bold tabular-nums mt-0.5 text-accent">{scheduled}</p>
+          <p className="text-xl sm:text-2xl font-bold tabular-nums mt-0.5 text-foreground">{scheduled}</p>
         </div>
         <div className="barber-panel px-3 py-2.5 sm:px-4 sm:py-3">
           <p className="text-[10px] sm:text-xs text-muted leading-tight">In Chair</p>
-          <p className="text-xl sm:text-2xl font-bold tabular-nums mt-0.5 text-accent">{inProgress}</p>
+          <p className="text-xl sm:text-2xl font-bold tabular-nums mt-0.5 text-foreground">{inProgress}</p>
         </div>
         <div className="barber-panel px-3 py-2.5 sm:px-4 sm:py-3">
           <p className="text-[10px] sm:text-xs text-muted leading-tight">Completed</p>
-          <p className="text-xl sm:text-2xl font-bold tabular-nums mt-0.5 text-accent">{done}</p>
+          <p className="text-xl sm:text-2xl font-bold tabular-nums mt-0.5 text-foreground">{done}</p>
         </div>
       </div>
 
@@ -197,12 +205,37 @@ export function AppointmentsView({ date, appointments, members, services }: Prop
         </div>
       </div>
 
+      {upcomingAppointments.length > 0 && (
+        <section>
+          <h2 className="text-xs font-bold text-foreground uppercase tracking-widest mb-2.5">
+            Upcoming ({upcomingAppointments.length})
+          </h2>
+          <ul className="space-y-2.5">
+            {upcomingAppointments.map((appt) => {
+              const barber = members.find((m) => m.id === appt.barber_id);
+              const service = services.find((s) => s.id === appt.service_id);
+              return (
+                <li key={`upcoming-${appt.id}`} className="barber-panel p-3.5 sm:p-4">
+                  <p className="text-sm font-semibold tabular-nums">{formatAppointmentWhen(appt.start_time)}</p>
+                  <p className="text-sm font-medium mt-1 truncate">{appt.guest_name ?? "—"}</p>
+                  <p className="text-xs text-muted mt-1">
+                    {barber?.display_name ?? "Barber"}
+                    {service ? ` · ${service.name}` : ""}
+                    {appt.guest_phone ? ` · ${appt.guest_phone}` : ""}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       {error && (
         <p className="text-sm text-red-400 barber-panel px-3 py-2">{error}</p>
       )}
 
       <section>
-        <h2 className="text-xs font-bold text-accent uppercase tracking-widest mb-2.5">
+        <h2 className="text-xs font-bold text-foreground uppercase tracking-widest mb-2.5">
           Bookings ({appointments.length})
         </h2>
         {appointments.length === 0 ? (
@@ -222,8 +255,8 @@ export function AppointmentsView({ date, appointments, members, services }: Prop
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-sm font-semibold tabular-nums text-accent">
-                          {formatTime(appt.start_time)}
+                        <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
+                          {formatAppointmentWhen(appt.start_time)}
                         </span>
                         <span className="text-sm font-semibold truncate">{appt.guest_name ?? "—"}</span>
                       </div>

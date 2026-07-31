@@ -173,7 +173,7 @@ function MemberRow({ member }: { member: Member }) {
             <span className="font-medium">{member.display_name ?? "Owner"}</span>
             <span className="text-muted capitalize text-xs">(owner)</span>
             {!accepting && (
-              <span className="text-xs text-accent">Hidden from queue</span>
+              <span className="text-xs text-foreground">Hidden from queue</span>
             )}
           </div>
           {member.email && <p className="text-xs text-muted">{member.email}</p>}
@@ -264,7 +264,7 @@ function MemberRow({ member }: { member: Member }) {
                 <span className="text-xs text-muted">Chair {member.chair_number}</span>
               )}
               {!accepting && (
-                <span className="text-xs text-accent">Hidden from queue</span>
+                <span className="text-xs text-foreground">Hidden from queue</span>
               )}
             </div>
             {member.email && <p className="text-xs text-muted">{member.email}</p>}
@@ -273,7 +273,7 @@ function MemberRow({ member }: { member: Member }) {
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="text-xs text-accent hover:underline"
+                className="text-xs text-foreground hover:underline"
               >
                 Edit name &amp; chair
               </button>
