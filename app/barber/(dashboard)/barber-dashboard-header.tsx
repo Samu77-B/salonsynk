@@ -42,9 +42,21 @@ export function BarberDashboardHeader({
       : `${base} text-muted hover:text-foreground`;
   }
 
+  function closeMenu() {
+    setMenuOpen(false);
+  }
+
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface">
-      <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 md:hidden"
+          aria-hidden
+          onClick={closeMenu}
+        />
+      )}
+
+      <div className="relative z-40 flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-2">
           <span className="shrink-0 text-lg font-bold tracking-tight">Barber Synk</span>
           <span className="hidden truncate text-xs text-muted sm:inline max-w-[140px] md:max-w-[200px]">
@@ -86,40 +98,18 @@ export function BarberDashboardHeader({
         </button>
       </div>
 
-      {menuOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/60 md:hidden"
-            aria-hidden
-            onClick={() => setMenuOpen(false)}
-          />
-          <nav
-            className="barber-mobile-menu fixed top-0 right-0 bottom-0 z-50 flex w-[min(100%,16rem)] flex-col border-l border-border p-3 md:hidden"
-            aria-label="Mobile menu"
-          >
-            <div className="mb-2 flex items-center justify-between border-b border-border pb-2">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold">Menu</p>
-                <p className="truncate text-xs text-muted">{shopName}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMenuOpen(false)}
-                className="shrink-0 rounded p-1.5 text-muted hover:text-foreground hover:bg-foreground/5"
-                aria-label="Close menu"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-0.5 py-1">
+      <div
+        className={`barber-roll-down relative z-40 md:hidden ${menuOpen ? "is-open" : ""}`}
+        aria-hidden={!menuOpen}
+      >
+        <div className="barber-roll-down-inner">
+          <nav className="barber-mobile-menu border-t border-border px-3 pb-3" aria-label="Mobile menu">
+            <div className="flex flex-col gap-0.5 py-2">
               {links.map(({ href, label }) => (
                 <Link
                   key={href}
                   href={href}
-                  onClick={() => setMenuOpen(false)}
+                  onClick={closeMenu}
                   data-active={isActive(href) ? "true" : "false"}
                   className={`px-3 py-2 text-sm font-medium ${
                     isActive(href) ? "text-accent" : "text-foreground/90"
@@ -130,7 +120,7 @@ export function BarberDashboardHeader({
               ))}
             </div>
 
-            <div className="mt-auto border-t border-border pt-3 space-y-0.5">
+            <div className="border-t border-border pt-2 space-y-0.5">
               {isManager && <p className="px-3 text-xs text-muted">Manager access</p>}
               {userEmail && (
                 <p className="px-3 text-xs text-muted truncate" title={userEmail}>
@@ -139,8 +129,8 @@ export function BarberDashboardHeader({
               )}
             </div>
           </nav>
-        </>
-      )}
+        </div>
+      </div>
     </header>
   );
 }

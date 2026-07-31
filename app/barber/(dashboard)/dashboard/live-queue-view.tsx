@@ -310,54 +310,56 @@ function AddCustomerPanel({
         <ChevronIcon open={open} />
       </button>
 
-      {open && (
-        <form action={handleSubmit} className="border-t border-border px-4 py-4 space-y-3">
-          <div>
-            <label htmlFor="guest_name" className="block text-xs text-muted mb-1.5">
-              Name
-            </label>
-            <input id="guest_name" name="guest_name" type="text" placeholder="Walk-in" className={inputClass} />
-          </div>
-          <div>
-            <label htmlFor="guest_phone" className="block text-xs text-muted mb-1.5">
-              Phone
-            </label>
-            <input id="guest_phone" name="guest_phone" type="tel" placeholder="07..." className={inputClass} />
-          </div>
-          <div>
-            <label htmlFor="service_id" className="block text-xs text-muted mb-1.5">
-              Service
-            </label>
-            <select id="service_id" name="service_id" className={selectClass}>
-              <option value="">Any</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {serviceOptionLabel(s.name, s.price_minor)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="preferred_barber_id" className="block text-xs text-muted mb-1.5">
-              Preferred Barber
-            </label>
-            <select id="preferred_barber_id" name="preferred_barber_id" className={selectClass}>
-              <option value="">Next available</option>
-              {members
-                .filter((m) => m.is_accepting_walk_ins)
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.display_name ?? "Barber"}
-                    {m.chair_number ? ` (Chair ${m.chair_number})` : ""}
+      <div className={`barber-roll-down ${open ? "is-open" : ""}`} aria-hidden={!open}>
+        <div className="barber-roll-down-inner">
+          <form action={handleSubmit} className="border-t border-border px-4 py-4 space-y-3">
+            <div>
+              <label htmlFor="guest_name" className="block text-xs text-muted mb-1.5">
+                Name
+              </label>
+              <input id="guest_name" name="guest_name" type="text" placeholder="Walk-in" className={inputClass} />
+            </div>
+            <div>
+              <label htmlFor="guest_phone" className="block text-xs text-muted mb-1.5">
+                Phone
+              </label>
+              <input id="guest_phone" name="guest_phone" type="tel" placeholder="07..." className={inputClass} />
+            </div>
+            <div>
+              <label htmlFor="service_id" className="block text-xs text-muted mb-1.5">
+                Service
+              </label>
+              <select id="service_id" name="service_id" className={selectClass}>
+                <option value="">Any</option>
+                {services.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {serviceOptionLabel(s.name, s.price_minor)}
                   </option>
                 ))}
-            </select>
-          </div>
-          <button type="submit" disabled={isPending} className={`w-full ${btnPrimary} py-3`}>
-            {isPending ? "Adding…" : "Add to Queue"}
-          </button>
-        </form>
-      )}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="preferred_barber_id" className="block text-xs text-muted mb-1.5">
+                Preferred Barber
+              </label>
+              <select id="preferred_barber_id" name="preferred_barber_id" className={selectClass}>
+                <option value="">Next available</option>
+                {members
+                  .filter((m) => m.is_accepting_walk_ins)
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.display_name ?? "Barber"}
+                      {m.chair_number ? ` (Chair ${m.chair_number})` : ""}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <button type="submit" disabled={isPending} className={`w-full ${btnPrimary} py-3`}>
+              {isPending ? "Adding…" : "Add to Queue"}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

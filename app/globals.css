@@ -154,6 +154,33 @@
   box-shadow: 0 0 0 1px rgba(160, 82, 45, 0.15), inset 0 1px 0 rgba(245, 241, 232, 0.06);
 }
 
+.barber-dashboard .barber-roll-down {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.3s ease,
+    opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.barber-dashboard .barber-roll-down.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.barber-dashboard .barber-roll-down-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barber-dashboard .barber-roll-down {
+    transition: none;
+  }
+}
+
 .nail-marketing {
   --background: #000000;
   --canvas: #000000;
