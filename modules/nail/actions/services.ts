@@ -2,19 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@core/supabase/admin";
+import { QUEUE_SETUP_LIMITS } from "@core/queue/platform-queue-access";
+import { requireNailSalonManager } from "@modules/nail/lib/salon-access";
 import { getCurrentUserNailSalon } from "@modules/nail/lib/shop";
 import { pickNextCategoryColor } from "@/lib/service-diary-color";
 
 const SERVICE_DESCRIPTION_MAX_LEN = 2000;
-
-async function requireSalonOwner() {
-  const context = await getCurrentUserNailSalon();
-  if (!context) return { error: "Unauthorized" as const, context: null };
-  if (context.member.role !== "owner" && context.member.id !== "admin") {
-    return { error: "Only salon owners can manage services" as const, context: null };
-  }
-  return { error: null, context };
-}
 
 function getAdmin() {
   try {
@@ -64,14 +57,21 @@ export async function addNailService(
     category_id?: string | null;
   }
 ): Promise<NailServiceMutationResult> {
-  const context = await getCurrentUserNailSalon();
-  if (!context || context.salon.id !== salonId) return { error: "Unauthorized" };
-  if (context.member.role !== "owner" && context.member.id !== "admin") {
-    return { error: "Unauthorized" };
-  }
+  const { error: authError, context } = await requireNailSalonManager();
+  if (authError || !context || context.salon.id !== salonId) return { error: "Unauthorized" };
 
   const { admin, error: adminError } = getAdmin();
   if (adminError || !admin) return { error: adminError ?? "Admin client unavailable" };
+
+  const { count } = await admin
+    .from("nail_services")
+    .select("id", { count: "exact", head: true })
+    .eq("salon_id", salonId)
+    .eq("is_active", true);
+
+  if ((count ?? 0) >= QUEUE_SETUP_LIMITS.maxServices) {
+    return { error: `Maximum ${QUEUE_SETUP_LIMITS.maxServices} services per salon.` };
+  }
 
   const name = data.name?.trim();
   if (!name) return { error: "Service name is required" };

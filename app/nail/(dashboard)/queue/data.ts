@@ -1,6 +1,8 @@
 import { createClient } from "@core/supabase/server";
 import { createAdminClient } from "@core/supabase/admin";
 import { getCurrentUserNailSalon } from "@modules/nail/lib/shop";
+import { getIsSuperAdmin } from "@core/supabase/admin-auth";
+import { hasQueueManagerAccess } from "@core/queue/platform-queue-access";
 import { resolveActingTechnicianId } from "@modules/nail/lib/resolve-technician-id";
 
 export type QueueEntry = {
@@ -102,9 +104,17 @@ export async function getNailQueueData() {
     if (resolved.technicianId) actingMemberId = resolved.technicianId;
   }
 
+  const isSuperAdmin = await getIsSuperAdmin();
+  const isManagerView = hasQueueManagerAccess(
+    isSuperAdmin,
+    context.member.role ?? "",
+    context.member.id
+  );
+
   return {
     salon: context.salon,
     member: { ...context.member, id: actingMemberId },
+    isManagerView,
     queue,
     members,
     services,

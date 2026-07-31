@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@core/supabase/server";
 import { createAdminClient } from "@core/supabase/admin";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
+import {
+  assertCanManageInChairEntry,
+  assertCanStartQueueEntry,
+  hasQueueManagerAccess,
+} from "@core/queue/platform-queue-access";
 import { getCurrentUserNailSalon } from "@modules/nail/lib/shop";
 import { resolveActingTechnicianId } from "@modules/nail/lib/resolve-technician-id";
 import { autoNotifyQueueAfterAdvance } from "@modules/nail/lib/queue-auto-notify";
@@ -20,14 +25,28 @@ async function getSalonScopedClient() {
   const context = await getCurrentUserNailSalon();
   if (!context) throw new Error("No nail salon context");
   const isSuperAdmin = await getIsSuperAdmin();
+  const isManagerView = hasQueueManagerAccess(
+    isSuperAdmin,
+    context.member.role ?? "",
+    context.member.id
+  );
   const supabase = isSuperAdmin
     ? (() => { try { return createAdminClient(); } catch { return null; } })()
     : null;
+
+  let actingMemberId = context.member.id;
+  if (actingMemberId === "admin" || !/^[0-9a-f-]{36}$/i.test(actingMemberId)) {
+    const client = supabase ?? (await createClient());
+    const resolved = await resolveActingTechnicianId(client, context.salon.id, actingMemberId);
+    if (resolved.technicianId) actingMemberId = resolved.technicianId;
+  }
+
   return {
     supabase: supabase ?? (await createClient()),
     salonId: context.salon.id,
     salonName: context.salon.name,
-    memberId: context.member.id,
+    memberId: actingMemberId,
+    isManagerView,
   };
 }
 
@@ -42,7 +61,9 @@ async function fetchQueueEntry(
 ) {
   const { data, error } = await supabase
     .from("nail_queue")
-    .select("id, guest_name, guest_phone, called_at, next_sms_sent_at, status")
+    .select(
+      "id, guest_name, guest_phone, called_at, next_sms_sent_at, status, preferred_technician_id, assigned_technician_id"
+    )
     .eq("id", queueEntryId)
     .eq("salon_id", salonId)
     .single();
@@ -55,7 +76,8 @@ export async function notifyQueueCustomer(
   template: QueueSmsTemplate = "next"
 ): Promise<{ error?: string; sent?: boolean }> {
   try {
-    const { supabase, salonId, salonName } = await getSalonScopedClient();
+    const { supabase, salonId, salonName, isManagerView } = await getSalonScopedClient();
+    if (!isManagerView) return { error: "Only managers can send queue notifications" };
     const entry = await fetchQueueEntry(supabase, salonId, queueEntryId);
     if (!entry) return { error: "Queue entry not found" };
     if (!entry.guest_phone?.trim()) return { error: "No phone number for this customer" };
@@ -91,7 +113,8 @@ export async function sendQueueCustomMessage(
   message: string
 ): Promise<{ error?: string; sent?: boolean }> {
   try {
-    const { supabase, salonId } = await getSalonScopedClient();
+    const { supabase, salonId, isManagerView } = await getSalonScopedClient();
+    if (!isManagerView) return { error: "Only managers can send queue messages" };
     const entry = await fetchQueueEntry(supabase, salonId, queueEntryId);
     if (!entry) return { error: "Queue entry not found" };
     if (!entry.guest_phone?.trim()) return { error: "No phone number for this customer" };
@@ -111,8 +134,8 @@ export async function sendQueueCustomMessage(
 
 export async function addToQueue(formData: FormData): Promise<ActionResult> {
   try {
-    const { supabase, salonId } = await getSalonScopedClient();
-
+    const { supabase, salonId, isManagerView } = await getSalonScopedClient();
+    if (!isManagerView) return { error: "Only managers can add walk-ins from the desk" };
     const guestName = (formData.get("guest_name") as string)?.trim() || "Walk-in";
     const guestPhone = (formData.get("guest_phone") as string)?.trim() || null;
     const serviceId = (formData.get("service_id") as string) || null;
@@ -144,7 +167,7 @@ export async function startService(
   technicianId: string
 ): Promise<ActionResult> {
   try {
-    const { supabase, salonId, salonName } = await getSalonScopedClient();
+    const { supabase, salonId, salonName, isManagerView } = await getSalonScopedClient();
 
     const resolved = await resolveActingTechnicianId(supabase, salonId, technicianId);
     if (resolved.error || !resolved.technicianId) {
@@ -152,6 +175,17 @@ export async function startService(
     }
 
     const entry = await fetchQueueEntry(supabase, salonId, queueEntryId);
+    if (!entry) return { error: "Queue entry not found" };
+
+    const startError = assertCanStartQueueEntry(
+      {
+        preferred_staff_id: entry.preferred_technician_id,
+        status: entry.status,
+      },
+      resolved.technicianId,
+      isManagerView
+    );
+    if (startError) return { error: startError };
 
     const { error } = await supabase
       .from("nail_queue")
@@ -198,16 +232,23 @@ export async function completeService(
   amountMinor?: number
 ): Promise<ActionResult> {
   try {
-    const { supabase, salonId, salonName } = await getSalonScopedClient();
+    const { supabase, salonId, salonName, memberId, isManagerView } = await getSalonScopedClient();
 
     const { data: entry, error: fetchErr } = await supabase
       .from("nail_queue")
-      .select("service_id, assigned_technician_id, client_id, guest_name")
+      .select("service_id, assigned_technician_id, client_id, guest_name, status")
       .eq("id", queueEntryId)
       .eq("salon_id", salonId)
       .single();
 
     if (fetchErr || !entry) return { error: fetchErr?.message ?? "Entry not found" };
+
+    const touchError = assertCanManageInChairEntry(
+      { assigned_staff_id: entry.assigned_technician_id },
+      memberId,
+      isManagerView
+    );
+    if (touchError) return { error: touchError };
 
     const { error } = await supabase
       .from("nail_queue")
@@ -250,7 +291,35 @@ export async function removeFromQueue(
   reason: "no_show" | "left" = "left"
 ): Promise<ActionResult> {
   try {
-    const { supabase, salonId, salonName } = await getSalonScopedClient();
+    const { supabase, salonId, salonName, memberId, isManagerView } = await getSalonScopedClient();
+
+    if (!isManagerView) {
+      const { data: entry } = await supabase
+        .from("nail_queue")
+        .select("assigned_technician_id, status, preferred_technician_id")
+        .eq("id", queueEntryId)
+        .eq("salon_id", salonId)
+        .single();
+
+      if (entry?.status === "in_chair") {
+        const touchError = assertCanManageInChairEntry(
+          { assigned_staff_id: entry.assigned_technician_id },
+          memberId,
+          false
+        );
+        if (touchError) return { error: touchError };
+      } else if (entry?.status === "waiting") {
+        const startError = assertCanStartQueueEntry(
+          {
+            preferred_staff_id: entry.preferred_technician_id,
+            status: entry.status,
+          },
+          memberId,
+          false
+        );
+        if (startError) return { error: startError };
+      }
+    }
 
     const { error } = await supabase
       .from("nail_queue")

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createAdminClient } from "@core/supabase/admin";
+import { getIsSuperAdmin } from "@core/supabase/admin-auth";
+import { hasQueueManagerAccess } from "@core/queue/platform-queue-access";
 import { getCurrentUserNailSalon } from "@modules/nail/lib/shop";
 import { NailTeamView } from "./nail-team-view";
 import { NailSalonBrandingForm } from "./nail-salon-branding-form";
@@ -11,8 +13,15 @@ export default async function NailTeamPage() {
   const context = await getCurrentUserNailSalon();
   if (!context) redirect("/onboarding");
 
+  const isSuperAdmin = await getIsSuperAdmin();
+  const canManage = hasQueueManagerAccess(
+    isSuperAdmin,
+    context.member.role ?? "",
+    context.member.id
+  );
+  if (!canManage) redirect("/nail/queue");
+
   const isOwner = context.member.role === "owner" || context.member.id === "admin";
-  if (!isOwner) redirect("/nail/queue");
 
   const admin = createAdminClient();
 

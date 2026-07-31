@@ -4,16 +4,9 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@core/supabase/admin";
 import { hashPasscode } from "@core/auth/passcode";
 import { uploadTeamAvatarImage } from "@core/storage/team-avatar";
+import { QUEUE_SETUP_LIMITS, isValidStationNumber } from "@core/queue/platform-queue-access";
+import { requireNailSalonManager } from "@modules/nail/lib/salon-access";
 import { getCurrentUserNailSalon } from "@modules/nail/lib/shop";
-
-async function requireSalonOwner() {
-  const context = await getCurrentUserNailSalon();
-  if (!context) return { error: "Unauthorized" as const, context: null };
-  if (context.member.role !== "owner" && context.member.id !== "admin") {
-    return { error: "Only salon owners can manage the team" as const, context: null };
-  }
-  return { error: null, context };
-}
 
 function getAdmin() {
   try {
@@ -26,6 +19,7 @@ function getAdmin() {
 
 function revalidateTeamPaths(slug?: string) {
   revalidatePath("/nail/team");
+  revalidatePath("/nail/stations");
   revalidatePath("/nail/queue");
   revalidatePath("/nail/appointments");
   revalidatePath("/nail/dashboard");
@@ -63,7 +57,7 @@ async function uploadAvatarForMember(
 export async function addNailTeamMember(
   formData: FormData
 ): Promise<{ error?: string; memberId?: string }> {
-  const { error, context } = await requireSalonOwner();
+  const { error, context } = await requireNailSalonManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const { admin, error: adminError } = getAdmin();
@@ -202,7 +196,7 @@ export async function updateNailTeamMember(
     is_active?: boolean;
   }
 ): Promise<{ error?: string }> {
-  const { error, context } = await requireSalonOwner();
+  const { error, context } = await requireNailSalonManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const { admin, error: adminError } = getAdmin();
@@ -239,7 +233,7 @@ export async function updateNailSalonBranding(updates: {
   show_title_on_queue?: boolean;
   company_name?: string;
 }): Promise<{ error?: string }> {
-  const { error, context } = await requireSalonOwner();
+  const { error, context } = await requireNailSalonManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const { admin, error: adminError } = getAdmin();
@@ -306,7 +300,7 @@ export async function updateNailSalonTeamRoles(
 }
 
 export async function removeNailTeamMember(memberId: string): Promise<{ error?: string }> {
-  const { error, context } = await requireSalonOwner();
+  const { error, context } = await requireNailSalonManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const { admin, error: adminError } = getAdmin();
@@ -482,6 +476,54 @@ export async function clearNailMemberPasscode(
     .eq("salon_id", salonId);
 
   if (error) return { error: error.message };
+  revalidateTeamPaths(context.salon.slug);
+  return {};
+}
+
+export async function setNailStationAssignment(
+  stationNumber: number,
+  memberId: string | null
+): Promise<{ error?: string }> {
+  const { error, context } = await requireNailSalonManager();
+  if (error || !context) return { error: error ?? "Unauthorized" };
+
+  if (!isValidStationNumber(stationNumber)) {
+    return { error: `Station number must be between 1 and ${QUEUE_SETUP_LIMITS.maxStations}.` };
+  }
+
+  const { admin, error: adminError } = getAdmin();
+  if (adminError || !admin) return { error: adminError ?? "Admin client unavailable" };
+
+  const salonId = context.salon.id;
+
+  await admin
+    .from("nail_members")
+    .update({ station_number: null })
+    .eq("salon_id", salonId)
+    .eq("station_number", stationNumber);
+
+  if (!memberId) {
+    revalidateTeamPaths(context.salon.slug);
+    return {};
+  }
+
+  const { data: member } = await admin
+    .from("nail_members")
+    .select("id")
+    .eq("id", memberId)
+    .eq("salon_id", salonId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!member) return { error: "Team member not found" };
+
+  const { error: updateError } = await admin
+    .from("nail_members")
+    .update({ station_number: stationNumber })
+    .eq("id", memberId)
+    .eq("salon_id", salonId);
+
+  if (updateError) return { error: updateError.message };
   revalidateTeamPaths(context.salon.slug);
   return {};
 }

@@ -22,11 +22,14 @@ export function BarberDashboardHeader({
 
   const links: NavLink[] = [
     { href: "/barber/dashboard", label: "Queue" },
-    { href: "/barber/appointments", label: "Bookings" },
-    ...(isOwner
+    ...(isOwner || isManager
+      ? [{ href: "/barber/appointments", label: "Bookings" }]
+      : []),
+    ...(isOwner || isManager
       ? [
           { href: "/barber/services", label: "Services" },
           { href: "/barber/team", label: "Team" },
+          { href: "/barber/chairs", label: "Chairs" },
         ]
       : []),
   ];

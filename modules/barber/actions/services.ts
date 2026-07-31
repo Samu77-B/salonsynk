@@ -2,16 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@core/supabase/admin";
-import { getCurrentUserShop } from "@modules/barber/lib/shop";
-
-async function requireShopOwner() {
-  const context = await getCurrentUserShop();
-  if (!context) return { error: "Unauthorized" as const, context: null };
-  if (context.member.role !== "owner" && context.member.id !== "admin") {
-    return { error: "Only shop owners can manage services" as const, context: null };
-  }
-  return { error: null, context };
-}
+import { QUEUE_SETUP_LIMITS } from "@core/queue/platform-queue-access";
+import { requireBarberShopManager } from "@modules/barber/lib/shop-access";
 
 function getAdmin() {
   try {
@@ -42,11 +34,21 @@ export async function addBarberService(data: {
   duration_minutes: number;
   price_gbp?: string;
 }): Promise<{ error?: string }> {
-  const { error, context } = await requireShopOwner();
+  const { error, context } = await requireBarberShopManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const { admin, error: adminError } = getAdmin();
   if (adminError || !admin) return { error: adminError ?? "Admin client unavailable" };
+
+  const { count } = await admin
+    .from("barber_services")
+    .select("id", { count: "exact", head: true })
+    .eq("shop_id", context.shop.id)
+    .eq("is_active", true);
+
+  if ((count ?? 0) >= QUEUE_SETUP_LIMITS.maxServices) {
+    return { error: `Maximum ${QUEUE_SETUP_LIMITS.maxServices} services per shop.` };
+  }
 
   const name = data.name?.trim();
   if (!name) return { error: "Service name is required" };
@@ -87,7 +89,7 @@ export async function updateBarberService(
     clear_price?: boolean;
   }
 ): Promise<{ error?: string }> {
-  const { error, context } = await requireShopOwner();
+  const { error, context } = await requireBarberShopManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const { admin, error: adminError } = getAdmin();
@@ -124,7 +126,7 @@ export async function updateBarberService(
 }
 
 export async function deleteBarberService(serviceId: string): Promise<{ error?: string }> {
-  const { error, context } = await requireShopOwner();
+  const { error, context } = await requireBarberShopManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const { admin, error: adminError } = getAdmin();

@@ -1,6 +1,8 @@
 import { createClient } from "@core/supabase/server";
 import { createAdminClient } from "@core/supabase/admin";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
+import { getIsSuperAdmin } from "@core/supabase/admin-auth";
+import { hasQueueManagerAccess } from "@core/queue/platform-queue-access";
 import { resolveActingBarberId } from "@modules/barber/lib/resolve-barber-id";
 
 export type QueueEntry = {
@@ -143,9 +145,17 @@ export async function getBarberDashboardData() {
   const todayAppointments = (todayAppointmentsResult.data ?? []) as TodayAppointment[];
   const futureBookingsCount = futureBookingsResult.count ?? 0;
 
+  const isSuperAdmin = await getIsSuperAdmin();
+  const isManagerView = hasQueueManagerAccess(
+    isSuperAdmin,
+    context.member.role ?? "",
+    context.member.id
+  );
+
   return {
     shop: context.shop,
     member: { ...context.member, id: actingMemberId },
+    isManagerView,
     queue,
     members,
     services,

@@ -8,21 +8,32 @@ export default async function NailQueuePage() {
   const data = await getNailQueueData();
   if (!data) redirect("/onboarding");
 
+  const memberName = data.member.display_name?.trim() || "My queue";
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Live Queue</h1>
-        <p className="text-xs text-muted">
-          {new Date().toLocaleDateString("en-GB", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-          })}
-        </p>
+        <div>
+          <h1 className="text-xl font-bold">
+            {data.isManagerView ? "Live Queue" : memberName}
+          </h1>
+          <p className="text-xs text-muted">
+            {data.isManagerView
+              ? new Date().toLocaleDateString("en-GB", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })
+              : "Clients assigned to you"}
+          </p>
+        </div>
       </div>
-      <p className="text-xs text-muted -mt-2">
-        Walk-in customers from the join queue page appear here in real time. Tap Start to notify the next clients by text.
-      </p>
+      {data.isManagerView ? (
+        <p className="text-xs text-muted -mt-2">
+          Walk-in customers from the join queue page appear here in real time. Tap Start to notify
+          the next clients by text.
+        </p>
+      ) : null}
 
       <LiveQueueView
         salonId={data.salon.id}
@@ -31,6 +42,7 @@ export default async function NailQueuePage() {
         members={JSON.parse(JSON.stringify(data.members))}
         services={JSON.parse(JSON.stringify(data.services))}
         currentMemberId={data.member.id}
+        isManagerView={data.isManagerView}
         stats={data.stats}
       />
     </div>

@@ -17,6 +17,10 @@ import {
   deleteBarberAppointment,
 } from "../appointments/actions";
 import type { QueueEntry, BarberMember, BarberService, TodayAppointment } from "./data";
+import {
+  appointmentVisibleToMember,
+  staffQueueRowVisibleToMember,
+} from "@core/queue/platform-queue-access";
 
 type Props = {
   shopId: string;
@@ -26,6 +30,7 @@ type Props = {
   members: BarberMember[];
   services: BarberService[];
   currentMemberId: string;
+  isManagerView: boolean;
   stats: { todayServed: number; todayCash: number; todayCard: number; todayRevenue: number };
 };
 
@@ -178,6 +183,7 @@ export function LiveQueueView({
   members,
   services,
   currentMemberId,
+  isManagerView,
   stats,
 }: Props) {
   const router = useRouter();
@@ -188,22 +194,46 @@ export function LiveQueueView({
     return () => clearInterval(id);
   }, [router]);
 
-  const waiting = liveQueue.filter((e) => e.status === "waiting");
-  const inChair = liveQueue.filter((e) => e.status === "in_chair");
-  const todayScheduled = todayAppointments.filter((a) => a.status === "scheduled");
-  const todayInChair = todayAppointments.filter((a) => a.status === "in_chair");
+  const rowVisible = (entry: QueueEntry) =>
+    staffQueueRowVisibleToMember(
+      {
+        preferred_staff_id: entry.preferred_barber_id,
+        assigned_staff_id: entry.assigned_barber_id,
+        status: entry.status,
+      },
+      currentMemberId,
+      isManagerView
+    );
+
+  const waiting = liveQueue.filter((e) => e.status === "waiting" && rowVisible(e));
+  const inChair = liveQueue.filter((e) => e.status === "in_chair" && rowVisible(e));
+  const todayScheduled = todayAppointments.filter(
+    (a) => a.status === "scheduled" && appointmentVisibleToMember(a.barber_id, currentMemberId, isManagerView)
+  );
+  const todayInChair = todayAppointments.filter(
+    (a) => a.status === "in_chair" && appointmentVisibleToMember(a.barber_id, currentMemberId, isManagerView)
+  );
   const waitingTotal = waiting.length + todayScheduled.length;
   const inChairTotal = inChair.length + todayInChair.length;
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <StatCard label="In Queue" value={waitingTotal} />
-        <StatCard label="In Chair" value={inChairTotal} />
-        <StatCard label="Served Today" value={stats.todayServed} />
+      <div className={`grid gap-2 sm:gap-3 ${isManagerView ? "grid-cols-3" : "grid-cols-2"}`}>
+        {isManagerView ? (
+          <>
+            <StatCard label="In Queue" value={waitingTotal} />
+            <StatCard label="In Chair" value={inChairTotal} />
+            <StatCard label="Served Today" value={stats.todayServed} />
+          </>
+        ) : (
+          <>
+            <StatCard label="Waiting for me" value={waitingTotal} />
+            <StatCard label="In my chair" value={inChairTotal} />
+          </>
+        )}
       </div>
 
-      <AddCustomerPanel services={services} members={members} />
+      {isManagerView ? <AddCustomerPanel services={services} members={members} /> : null}
 
       {inChairTotal > 0 && (
         <section>
@@ -238,7 +268,9 @@ export function LiveQueueView({
         </h2>
         {waitingTotal === 0 ? (
           <p className="text-sm text-muted py-10 text-center barber-panel">
-            No one in the queue right now.
+            {isManagerView
+              ? "No one in the queue right now."
+              : "No clients waiting for you right now."}
           </p>
         ) : (
           <div className="space-y-2.5">
@@ -248,6 +280,7 @@ export function LiveQueueView({
                 appointment={appt}
                 members={members}
                 services={services}
+                isManagerView={isManagerView}
               />
             ))}
             {waiting.map((entry, idx) => (
@@ -258,6 +291,7 @@ export function LiveQueueView({
                 members={members}
                 services={services}
                 currentMemberId={currentMemberId}
+                isManagerView={isManagerView}
                 shopName={shopName}
               />
             ))}
@@ -420,10 +454,12 @@ function TodayBookingWaitingCard({
   appointment,
   members,
   services,
+  isManagerView,
 }: {
   appointment: TodayAppointment;
   members: BarberMember[];
   services: BarberService[];
+  isManagerView: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -481,13 +517,15 @@ function TodayBookingWaitingCard({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className={`grid gap-2 ${isManagerView ? "grid-cols-2" : "grid-cols-1"}`}>
         <button type="button" onClick={handleStart} disabled={isPending} className={btnPrimary}>
           Start
         </button>
-        <button type="button" onClick={handleNoShow} disabled={isPending} className={btnOutline}>
-          No-show
-        </button>
+        {isManagerView ? (
+          <button type="button" onClick={handleNoShow} disabled={isPending} className={btnOutline}>
+            No-show
+          </button>
+        ) : null}
       </div>
 
       {actionError && <p className="text-xs text-red-400">{actionError}</p>}
@@ -579,6 +617,7 @@ function WaitingCard({
   members,
   services,
   currentMemberId,
+  isManagerView,
   shopName,
 }: {
   entry: QueueEntry;
@@ -586,10 +625,14 @@ function WaitingCard({
   members: BarberMember[];
   services: BarberService[];
   currentMemberId: string;
+  isManagerView: boolean;
   shopName: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [assignBarberId, setAssignBarberId] = useState(
+    entry.preferred_barber_id || currentMemberId
+  );
   const service = services.find((s) => s.id === entry.service_id);
   const preferred = members.find((m) => m.id === entry.preferred_barber_id);
   const notified = !!entry.next_sms_sent_at;
@@ -600,7 +643,8 @@ function WaitingCard({
   function handleStart() {
     setActionError(null);
     startTransition(async () => {
-      const result = await startService(entry.id, currentMemberId);
+      const barberId = isManagerView ? assignBarberId : currentMemberId;
+      const result = await startService(entry.id, barberId);
       if (result.error) setActionError(result.error);
     });
   }
@@ -639,16 +683,41 @@ function WaitingCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      {isManagerView && !entry.preferred_barber_id ? (
+        <div>
+          <label htmlFor={`assign-${entry.id}`} className="block text-xs text-muted mb-1">
+            Assign barber
+          </label>
+          <select
+            id={`assign-${entry.id}`}
+            className={selectClass}
+            value={assignBarberId}
+            onChange={(e) => setAssignBarberId(e.target.value)}
+          >
+            {members
+              .filter((m) => m.is_accepting_walk_ins)
+              .map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.display_name ?? "Barber"}
+                  {m.chair_number ? ` (Chair ${m.chair_number})` : ""}
+                </option>
+              ))}
+          </select>
+        </div>
+      ) : null}
+
+      <div className={`grid gap-2 ${isManagerView ? "grid-cols-2" : "grid-cols-1"}`}>
         <button type="button" onClick={handleStart} disabled={isPending} className={btnPrimary}>
           Start
         </button>
-        <button type="button" onClick={handleRemove} disabled={isPending} className={btnOutline}>
-          Remove
-        </button>
+        {isManagerView ? (
+          <button type="button" onClick={handleRemove} disabled={isPending} className={btnOutline}>
+            Remove
+          </button>
+        ) : null}
       </div>
 
-      {hasPhone && (
+      {isManagerView && hasPhone && (
         <>
           <div className="grid grid-cols-1 gap-2">
             <button type="button" onClick={sms.handleNotify} disabled={sms.isPending} className={btnPrimary}>
@@ -683,7 +752,11 @@ function WaitingCard({
         </>
       )}
 
-      {!hasPhone && (
+      {!isManagerView && !hasPhone && (
+        <p className="text-[11px] text-muted text-center">Tap Start when they sit in your chair</p>
+      )}
+
+      {isManagerView && !hasPhone && (
         <p className="text-[11px] text-muted text-center">No phone — can&apos;t SMS</p>
       )}
 

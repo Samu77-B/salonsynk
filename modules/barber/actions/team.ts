@@ -3,16 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@core/supabase/admin";
 import { uploadTeamAvatarImage } from "@core/storage/team-avatar";
-import { getCurrentUserShop } from "@modules/barber/lib/shop";
-
-async function requireShopOwner() {
-  const context = await getCurrentUserShop();
-  if (!context) return { error: "Unauthorized" as const, context: null };
-  if (context.member.role !== "owner" && context.member.id !== "admin") {
-    return { error: "Only shop owners can manage the team" as const, context: null };
-  }
-  return { error: null, context };
-}
+import { QUEUE_SETUP_LIMITS, isValidStationNumber } from "@core/queue/platform-queue-access";
+import { requireBarberShopManager } from "@modules/barber/lib/shop-access";
 
 function getAdmin() {
   try {
@@ -25,8 +17,21 @@ function getAdmin() {
 
 function revalidateTeamPaths(slug?: string) {
   revalidatePath("/barber/team");
+  revalidatePath("/barber/chairs");
   revalidatePath("/barber/dashboard");
   if (slug) revalidatePath(`/barber/join/${slug}`);
+}
+
+async function countActiveBarberMembers(
+  admin: NonNullable<ReturnType<typeof getAdmin>["admin"]>,
+  shopId: string
+) {
+  const { count } = await admin
+    .from("barber_members")
+    .select("id", { count: "exact", head: true })
+    .eq("shop_id", shopId)
+    .eq("is_active", true);
+  return count ?? 0;
 }
 
 async function uploadAvatarForMember(
@@ -60,11 +65,17 @@ async function uploadAvatarForMember(
 export async function addBarberTeamMember(
   formData: FormData
 ): Promise<{ error?: string; memberId?: string }> {
-  const { error, context } = await requireShopOwner();
+  const { error, context } = await requireBarberShopManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const { admin, error: adminError } = getAdmin();
   if (adminError || !admin) return { error: adminError ?? "Admin client unavailable" };
+
+  const shopId = context.shop.id;
+  const activeCount = await countActiveBarberMembers(admin, shopId);
+  if (activeCount >= QUEUE_SETUP_LIMITS.maxTeamMembers) {
+    return { error: `Maximum ${QUEUE_SETUP_LIMITS.maxTeamMembers} team members per shop.` };
+  }
 
   const displayName = (formData.get("display_name") as string)?.trim();
   const email = (formData.get("email") as string)?.trim();
@@ -73,8 +84,10 @@ export async function addBarberTeamMember(
     chairRaw === "" ? null : Number.parseInt(chairRaw, 10);
 
   if (!displayName) return { error: "Display name is required" };
+  if (chair != null && !Number.isNaN(chair) && !isValidStationNumber(chair)) {
+    return { error: `Chair number must be between 1 and ${QUEUE_SETUP_LIMITS.maxStations}.` };
+  }
 
-  const shopId = context.shop.id;
   let memberId: string | undefined;
 
   if (email) {
@@ -172,7 +185,7 @@ export async function updateBarberTeamMember(
     is_accepting_walk_ins?: boolean;
   }
 ): Promise<{ error?: string }> {
-  const { error, context } = await requireShopOwner();
+  const { error, context } = await requireBarberShopManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const { admin, error: adminError } = getAdmin();
@@ -181,10 +194,14 @@ export async function updateBarberTeamMember(
   const payload: Record<string, unknown> = {};
   if (updates.display_name !== undefined) payload.display_name = updates.display_name.trim();
   if (updates.chair_number !== undefined) {
-    payload.chair_number =
+    const chair =
       updates.chair_number != null && !Number.isNaN(updates.chair_number)
         ? Number(updates.chair_number)
         : null;
+    if (chair != null && !isValidStationNumber(chair)) {
+      return { error: `Chair number must be between 1 and ${QUEUE_SETUP_LIMITS.maxStations}.` };
+    }
+    payload.chair_number = chair;
   }
   if (updates.is_accepting_walk_ins !== undefined) {
     payload.is_accepting_walk_ins = updates.is_accepting_walk_ins;
@@ -205,7 +222,7 @@ export async function updateBarberShopBranding(updates: {
   show_title_on_queue?: boolean;
   company_name?: string;
 }): Promise<{ error?: string }> {
-  const { error, context } = await requireShopOwner();
+  const { error, context } = await requireBarberShopManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const { admin, error: adminError } = getAdmin();
@@ -235,7 +252,7 @@ export async function updateBarberShopBranding(updates: {
 }
 
 export async function removeBarberTeamMember(memberId: string): Promise<{ error?: string }> {
-  const { error, context } = await requireShopOwner();
+  const { error, context } = await requireBarberShopManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const { admin, error: adminError } = getAdmin();
@@ -282,7 +299,7 @@ export async function uploadBarberTeamMemberAvatar(
   memberId: string,
   formData: FormData
 ): Promise<{ error: string | null; url?: string }> {
-  const { error, context } = await requireShopOwner();
+  const { error, context } = await requireBarberShopManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
 
   const raw = formData.get("avatar");
@@ -297,4 +314,53 @@ export async function uploadBarberTeamMemberAvatar(
   );
   if (!result.error) revalidateTeamPaths(context.shop.slug);
   return result;
+}
+
+/** Assign a barber to a chair (1–10). Clears the chair from any previous occupant. */
+export async function setBarberChairAssignment(
+  chairNumber: number,
+  memberId: string | null
+): Promise<{ error?: string }> {
+  const { error, context } = await requireBarberShopManager();
+  if (error || !context) return { error: error ?? "Unauthorized" };
+
+  if (!isValidStationNumber(chairNumber)) {
+    return { error: `Chair number must be between 1 and ${QUEUE_SETUP_LIMITS.maxStations}.` };
+  }
+
+  const { admin, error: adminError } = getAdmin();
+  if (adminError || !admin) return { error: adminError ?? "Admin client unavailable" };
+
+  const shopId = context.shop.id;
+
+  await admin
+    .from("barber_members")
+    .update({ chair_number: null })
+    .eq("shop_id", shopId)
+    .eq("chair_number", chairNumber);
+
+  if (!memberId) {
+    revalidateTeamPaths(context.shop.slug);
+    return {};
+  }
+
+  const { data: member } = await admin
+    .from("barber_members")
+    .select("id")
+    .eq("id", memberId)
+    .eq("shop_id", shopId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!member) return { error: "Team member not found" };
+
+  const { error: updateError } = await admin
+    .from("barber_members")
+    .update({ chair_number: chairNumber })
+    .eq("id", memberId)
+    .eq("shop_id", shopId);
+
+  if (updateError) return { error: updateError.message };
+  revalidateTeamPaths(context.shop.slug);
+  return {};
 }

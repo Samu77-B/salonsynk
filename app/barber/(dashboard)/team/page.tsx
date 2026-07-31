@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createAdminClient } from "@core/supabase/admin";
+import { getIsSuperAdmin } from "@core/supabase/admin-auth";
+import { hasQueueManagerAccess } from "@core/queue/platform-queue-access";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
 import { BarberTeamView } from "./barber-team-view";
 import { BarberShopBrandingForm } from "./barber-shop-branding-form";
@@ -11,8 +13,13 @@ export default async function BarberTeamPage() {
   const context = await getCurrentUserShop();
   if (!context) redirect("/onboarding");
 
-  const isOwner = context.member.role === "owner" || context.member.id === "admin";
-  if (!isOwner) redirect("/barber/dashboard");
+  const isSuperAdmin = await getIsSuperAdmin();
+  const canManage = hasQueueManagerAccess(
+    isSuperAdmin,
+    context.member.role ?? "",
+    context.member.id
+  );
+  if (!canManage) redirect("/barber/dashboard");
 
   const admin = createAdminClient();
   const { data: shopRow } = await admin

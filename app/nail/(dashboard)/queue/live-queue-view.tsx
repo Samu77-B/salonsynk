@@ -13,6 +13,7 @@ import {
   sendQueueCustomMessage,
 } from "./actions";
 import type { QueueEntry, NailMember, NailService } from "./data";
+import { staffQueueRowVisibleToMember } from "@core/queue/platform-queue-access";
 
 type Props = {
   salonId: string;
@@ -21,6 +22,7 @@ type Props = {
   members: NailMember[];
   services: NailService[];
   currentMemberId: string;
+  isManagerView: boolean;
   stats: { todayServed: number; todayCash: number; todayCard: number; todayRevenue: number };
 };
 
@@ -120,14 +122,16 @@ export function LiveQueueView({
   members,
   services,
   currentMemberId,
+  isManagerView,
   stats,
 }: Props) {
   const router = useRouter();
   const [newJoinAlert, setNewJoinAlert] = useState<string | null>(null);
 
   const handleNewJoin = useCallback((entry: QueueEntry) => {
+    if (!isManagerView) return;
     setNewJoinAlert(entry.guest_name?.trim() || "Walk-in");
-  }, []);
+  }, [isManagerView]);
 
   const liveQueue = useRealtimeQueue(salonId, queue, handleNewJoin);
 
@@ -136,12 +140,23 @@ export function LiveQueueView({
     return () => clearInterval(id);
   }, [router]);
 
-  const waiting = liveQueue.filter((e) => e.status === "waiting");
-  const inChair = liveQueue.filter((e) => e.status === "in_chair");
+  const rowVisible = (entry: QueueEntry) =>
+    staffQueueRowVisibleToMember(
+      {
+        preferred_staff_id: entry.preferred_technician_id,
+        assigned_staff_id: entry.assigned_technician_id,
+        status: entry.status,
+      },
+      currentMemberId,
+      isManagerView
+    );
+
+  const waiting = liveQueue.filter((e) => e.status === "waiting" && rowVisible(e));
+  const inChair = liveQueue.filter((e) => e.status === "in_chair" && rowVisible(e));
 
   return (
     <div className="space-y-6">
-      {newJoinAlert && (
+      {newJoinAlert && isManagerView && (
         <div
           className="flex items-center justify-between gap-3 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-4 py-3"
           role="status"
@@ -170,14 +185,23 @@ export function LiveQueueView({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="In Queue" value={waiting.length} accent="blue" />
-        <StatCard label="In Chair" value={inChair.length} accent="amber" />
-        <StatCard label="Served Today" value={stats.todayServed} accent="emerald" />
-        <StatCard label="Today Revenue" value={formatPrice(stats.todayRevenue)} accent="violet" />
+      <div className={`grid gap-3 ${isManagerView ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`}>
+        {isManagerView ? (
+          <>
+            <StatCard label="In Queue" value={waiting.length} accent="blue" />
+            <StatCard label="In Chair" value={inChair.length} accent="amber" />
+            <StatCard label="Served Today" value={stats.todayServed} accent="emerald" />
+            <StatCard label="Today Revenue" value={formatPrice(stats.todayRevenue)} accent="violet" />
+          </>
+        ) : (
+          <>
+            <StatCard label="Waiting for me" value={waiting.length} accent="blue" />
+            <StatCard label="In my chair" value={inChair.length} accent="amber" />
+          </>
+        )}
       </div>
 
-      <AddWalkInForm services={services} members={members} />
+      {isManagerView ? <AddWalkInForm services={services} members={members} /> : null}
 
       {inChair.length > 0 && (
         <section>
@@ -203,7 +227,11 @@ export function LiveQueueView({
           Waiting ({waiting.length})
         </h2>
         {waiting.length === 0 ? (
-          <p className="text-sm text-muted py-8 text-center">No one in the queue right now.</p>
+          <p className="text-sm text-muted py-8 text-center">
+            {isManagerView
+              ? "No one in the queue right now."
+              : "No clients waiting for you right now."}
+          </p>
         ) : (
           <div className="space-y-2">
             {waiting.map((entry, idx) => (
@@ -214,6 +242,7 @@ export function LiveQueueView({
                 members={members}
                 services={services}
                 currentMemberId={currentMemberId}
+                isManagerView={isManagerView}
                 salonName={salonName}
               />
             ))}
@@ -424,6 +453,7 @@ function WaitingCard({
   members,
   services,
   currentMemberId,
+  isManagerView,
   salonName,
 }: {
   entry: QueueEntry;
@@ -431,17 +461,22 @@ function WaitingCard({
   members: NailMember[];
   services: NailService[];
   currentMemberId: string;
+  isManagerView: boolean;
   salonName: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [assignTechnicianId, setAssignTechnicianId] = useState(
+    entry.preferred_technician_id || currentMemberId
+  );
   const service = services.find((s) => s.id === entry.service_id);
   const preferred = members.find((m) => m.id === entry.preferred_technician_id);
 
   function handleStart() {
     setActionError(null);
     startTransition(async () => {
-      const result = await startService(entry.id, currentMemberId);
+      const technicianId = isManagerView ? assignTechnicianId : currentMemberId;
+      const result = await startService(entry.id, technicianId);
       if (result.error) setActionError(result.error);
     });
   }
@@ -467,7 +502,7 @@ function WaitingCard({
           {" · "}{waitTime(entry.joined_at)}
           {entry.next_sms_sent_at ? " · Notified" : ""}
         </p>
-        {entry.guest_phone ? (
+        {entry.guest_phone && isManagerView ? (
           <QueuePhoneActions
             phone={entry.guest_phone}
             guestName={entry.guest_name ?? "there"}
@@ -475,11 +510,29 @@ function WaitingCard({
             entryId={entry.id}
             notified={!!entry.next_sms_sent_at}
           />
+        ) : entry.guest_phone && !isManagerView ? (
+          <p className="text-[11px] text-muted/70 mt-0.5">{entry.guest_phone}</p>
         ) : (
           <p className="text-[11px] text-muted/70 mt-0.5">No phone — can&apos;t SMS</p>
         )}
       </div>
-      <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+      <div className="flex flex-col items-end gap-2 shrink-0 flex-wrap justify-end min-w-[8rem]">
+        {isManagerView && !entry.preferred_technician_id ? (
+          <select
+            className="w-full rounded border border-border px-2 py-1 text-xs bg-background"
+            value={assignTechnicianId}
+            onChange={(e) => setAssignTechnicianId(e.target.value)}
+          >
+            {members
+              .filter((m) => m.is_accepting_walk_ins)
+              .map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.display_name ?? "Technician"}
+                </option>
+              ))}
+          </select>
+        ) : null}
+        <div className="flex items-center gap-2">
         <button
           onClick={handleStart}
           disabled={isPending}
@@ -487,6 +540,7 @@ function WaitingCard({
         >
           Start
         </button>
+        {isManagerView ? (
         <button
           onClick={handleRemove}
           disabled={isPending}
@@ -494,6 +548,8 @@ function WaitingCard({
         >
           Remove
         </button>
+        ) : null}
+        </div>
       </div>
       {actionError && (
         <p className="w-full text-xs text-red-400 basis-full">{actionError}</p>

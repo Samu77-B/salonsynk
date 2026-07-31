@@ -4,11 +4,11 @@ import { createAdminClient } from "@core/supabase/admin";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { hasQueueManagerAccess } from "@core/queue/platform-queue-access";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
-import { BarberServicesView } from "./barber-services-view";
+import { BarberChairsView } from "./barber-chairs-view";
 
 export const dynamic = "force-dynamic";
 
-export default async function BarberServicesPage() {
+export default async function BarberChairsPage() {
   const context = await getCurrentUserShop();
   if (!context) redirect("/onboarding");
 
@@ -21,13 +21,12 @@ export default async function BarberServicesPage() {
   if (!canManage) redirect("/barber/dashboard");
 
   const admin = createAdminClient();
-  const { data: services } = await admin
-    .from("barber_services")
-    .select("id, name, duration_minutes, price_minor, sort_order")
+  const { data: members } = await admin
+    .from("barber_members")
+    .select("id, display_name, chair_number")
     .eq("shop_id", context.shop.id)
     .eq("is_active", true)
-    .order("sort_order")
-    .order("name");
+    .order("display_name");
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -35,22 +34,13 @@ export default async function BarberServicesPage() {
         <Link href="/barber/dashboard" className="text-sm text-muted hover:text-foreground">
           ← Live queue
         </Link>
-        <h1 className="text-xl font-bold mt-1">Services</h1>
+        <h1 className="text-xl font-bold mt-1">Chairs</h1>
         <p className="text-sm text-muted mt-1">
-          Manage the cuts and treatments customers can pick on your{" "}
-          <a
-            href={`/barber/join/${context.shop.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-foreground hover:underline"
-          >
-            public queue page
-          </a>
-          .
+          Match each chair in the shop to a barber. Customers see chair numbers on the join page.
         </p>
       </div>
 
-      <BarberServicesView services={JSON.parse(JSON.stringify(services ?? []))} />
+      <BarberChairsView members={JSON.parse(JSON.stringify(members ?? []))} />
     </div>
   );
 }
