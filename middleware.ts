@@ -70,6 +70,7 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/login") ||
       pathname.startsWith("/signup") ||
       pathname.startsWith("/onboarding") ||
+      pathname.startsWith("/update-password") ||
       pathname.startsWith("/api") ||
       pathname.startsWith("/auth");
     if (!allowed) {
@@ -103,6 +104,7 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/login") ||
       pathname.startsWith("/signup") ||
       pathname.startsWith("/onboarding") ||
+      pathname.startsWith("/update-password") ||
       pathname.startsWith("/api") ||
       pathname.startsWith("/auth");
     if (!allowed) {

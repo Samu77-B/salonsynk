@@ -4,14 +4,19 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export function UpdatePasswordForm() {
+type UpdatePasswordFormProps = {
+  defaultNext?: string;
+  accentColor?: string;
+};
+
+export function UpdatePasswordForm({ defaultNext = "/dashboard", accentColor }: UpdatePasswordFormProps) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = searchParams.get("next") ?? defaultNext;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,7 +40,7 @@ export function UpdatePasswordForm() {
         return;
       }
       router.refresh();
-      router.push(next.startsWith("/") ? next : "/dashboard");
+      router.push(next.startsWith("/") ? next : defaultNext);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
       setMessage({ type: "error", text: msg });
@@ -84,7 +89,8 @@ export function UpdatePasswordForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90 disabled:opacity-50"
+        className={`w-full rounded-lg px-4 py-2 text-sm font-medium text-background hover:opacity-90 disabled:opacity-50${accentColor ? "" : " bg-accent"}`}
+        style={accentColor ? { backgroundColor: accentColor } : undefined}
       >
         {loading ? "Saving…" : "Set password & continue"}
       </button>

@@ -44,14 +44,13 @@ async function resolvePostAuthRedirect(
     return `${origin}/smart/overview`;
   }
 
-  if (isSuperAdmin && !isSmartHost(host)) {
-    return `${origin}/admin`;
-  }
-
   if (isBarberHost(host)) {
     const barberNext = next.startsWith("/") ? next : "/barber/dashboard";
     if (needsPasswordSetup(authType)) {
       return passwordSetupPath(BARBER_SITE.url.replace(/\/$/, ""), barberNext);
+    }
+    if (isSuperAdmin) {
+      return `${origin}/admin`;
     }
     return `${BARBER_SITE.url}${barberNext}`;
   }
@@ -60,6 +59,9 @@ async function resolvePostAuthRedirect(
     const nailNext = next.startsWith("/") ? next : "/nail/queue";
     if (needsPasswordSetup(authType)) {
       return passwordSetupPath(NAIL_SITE.url.replace(/\/$/, ""), nailNext);
+    }
+    if (isSuperAdmin) {
+      return `${origin}/admin`;
     }
     return `${NAIL_SITE.url}${nailNext}`;
   }
@@ -77,6 +79,10 @@ async function resolvePostAuthRedirect(
 
   if (needsPasswordSetup(authType) || onboardingPaymentRequired) {
     return passwordSetupPath(origin, redirectTo);
+  }
+
+  if (isSuperAdmin && !isSmartHost(host)) {
+    return `${origin}/admin`;
   }
 
   return `${origin}${redirectTo}`;
