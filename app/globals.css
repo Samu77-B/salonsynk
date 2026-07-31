@@ -112,6 +112,7 @@
   color: var(--foreground);
 }
 
+.barber-dashboard .btn-accent {
   background-color: var(--accent);
   color: #fff;
   font-weight: 600;
