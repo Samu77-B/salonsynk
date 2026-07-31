@@ -546,13 +546,10 @@ function WaitingCard({
             <button
               type="button"
               onClick={() => sms.setShowMessage((v) => !v)}
-              className={btnOutline}
+              className={`${btnOutline} col-span-2`}
             >
               Message
             </button>
-            <a href={sms.sms} className={`${btnOutline} text-center`}>
-              SMS app
-            </a>
           </div>
           {sms.showMessage && (
             <div className="flex gap-2">
