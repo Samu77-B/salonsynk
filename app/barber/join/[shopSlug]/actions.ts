@@ -14,6 +14,102 @@ export type JoinQueueResult = {
   error?: string;
 };
 
+export type BookAppointmentResult = {
+  success: boolean;
+  startTime?: string;
+  barberName?: string;
+  error?: string;
+};
+
+export async function publicBookAppointment(
+  shopId: string,
+  formData: FormData
+): Promise<BookAppointmentResult> {
+  let supabase;
+  try {
+    supabase = createAdminClient();
+  } catch {
+    return { success: false, error: "Service temporarily unavailable." };
+  }
+
+  const guestName = (formData.get("guest_name") as string)?.trim();
+  const guestPhone = (formData.get("guest_phone") as string)?.trim() || null;
+  const barberId = (formData.get("barber_id") as string)?.trim();
+  const serviceId = (formData.get("service_id") as string)?.trim() || null;
+  const date = (formData.get("date") as string)?.trim();
+  const time = (formData.get("time") as string)?.trim();
+  const notes = (formData.get("notes") as string)?.trim() || null;
+
+  if (!guestName) return { success: false, error: "Please enter your name." };
+  if (!barberId) return { success: false, error: "Please choose a barber." };
+  if (!date || !time) return { success: false, error: "Please pick a date and time." };
+
+  const today = new Date().toISOString().slice(0, 10);
+  if (date < today) return { success: false, error: "Please choose today or a future date." };
+
+  const { data: shop } = await supabase
+    .from("barber_shops")
+    .select("id, name")
+    .eq("id", shopId)
+    .single();
+
+  if (!shop) return { success: false, error: "Shop not found." };
+
+  const { data: barber } = await supabase
+    .from("barber_members")
+    .select("id, display_name")
+    .eq("id", barberId)
+    .eq("shop_id", shopId)
+    .eq("is_active", true)
+    .single();
+
+  if (!barber) return { success: false, error: "That barber is not available." };
+
+  let durationMinutes = 30;
+  if (serviceId) {
+    const { data: service } = await supabase
+      .from("barber_services")
+      .select("duration_minutes")
+      .eq("id", serviceId)
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .single();
+    if (service?.duration_minutes) durationMinutes = service.duration_minutes;
+  }
+
+  const startTime = new Date(`${date}T${time}:00`);
+  if (Number.isNaN(startTime.getTime())) {
+    return { success: false, error: "Invalid date or time." };
+  }
+
+  if (startTime.getTime() < Date.now() - 60_000) {
+    return { success: false, error: "Please choose a time in the future." };
+  }
+
+  const endTime = new Date(startTime.getTime() + durationMinutes * 60_000);
+
+  const { error } = await supabase.from("barber_appointments").insert({
+    shop_id: shopId,
+    barber_id: barberId,
+    service_id: serviceId,
+    guest_name: guestName,
+    guest_phone: guestPhone,
+    notes,
+    start_time: startTime.toISOString(),
+    end_time: endTime.toISOString(),
+    status: "scheduled",
+    source: "booking",
+  });
+
+  if (error) return { success: false, error: "Could not save your booking. Please try again." };
+
+  return {
+    success: true,
+    startTime: startTime.toISOString(),
+    barberName: barber.display_name ?? "your barber",
+  };
+}
+
 export async function publicJoinQueue(
   shopId: string,
   formData: FormData

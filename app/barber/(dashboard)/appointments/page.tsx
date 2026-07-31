@@ -17,14 +17,14 @@ export default async function BarberAppointmentsPage({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold">Bookings</h1>
-        <p className="text-sm text-muted mt-1">
-          Pre-booked appointments for {data.shop.name}. Walk-ins are managed on the{" "}
-          <a href="/barber/dashboard" className="text-accent hover:underline">
-            live queue
-          </a>
-          .
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Bookings</h1>
+        <p className="text-xs text-muted">
+          {new Date(data.date + "T12:00:00").toLocaleDateString("en-GB", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          })}
         </p>
       </div>
       <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>

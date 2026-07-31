@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@core/supabase/admin";
-import { JoinQueueForm } from "./join-queue-form";
+import { ShopClientPortal } from "./shop-client-portal";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +39,7 @@ export default async function PublicJoinQueuePage({
   const nextAvailableOnly = branding.next_available_only === true;
   const showServicesOnQueue = branding.show_services_on_queue !== false;
 
-  const [servicesResult, barbersResult, queueCountResult] = await Promise.all([
+  const [servicesResult, walkInBarbersResult, bookingBarbersResult, queueCountResult] = await Promise.all([
     supabase
       .from("barber_services")
       .select("id, name, duration_minutes, price_minor")
@@ -57,6 +57,13 @@ export default async function PublicJoinQueuePage({
       .order("display_name"),
 
     supabase
+      .from("barber_members")
+      .select("id, display_name, chair_number")
+      .eq("shop_id", shop.id)
+      .eq("is_active", true)
+      .order("display_name"),
+
+    supabase
       .from("barber_queue")
       .select("id", { count: "exact", head: true })
       .eq("shop_id", shop.id)
@@ -66,18 +73,17 @@ export default async function PublicJoinQueuePage({
   const services = (servicesResult.data ?? []) as {
     id: string; name: string; duration_minutes: number; price_minor: number;
   }[];
-  const barbers = (barbersResult.data ?? []) as {
-    id: string;
-    display_name: string | null;
-    chair_number: number | null;
-    avatar_url: string | null;
-    role: string;
+  const walkInBarbers = (walkInBarbersResult.data ?? []) as {
+    id: string; display_name: string | null; chair_number: number | null; avatar_url: string | null; role: string;
+  }[];
+  const bookingBarbers = (bookingBarbersResult.data ?? []) as {
+    id: string; display_name: string | null; chair_number: number | null;
   }[];
   const queueLength = queueCountResult.count ?? 0;
 
   return (
     <div
-      className="app-shell-dark min-h-screen bg-canvas text-foreground"
+      className="barber-dashboard min-h-screen bg-canvas text-foreground"
       style={
         primaryColor
           ? ({ ["--accent"]: primaryColor } as React.CSSProperties)
@@ -85,14 +91,10 @@ export default async function PublicJoinQueuePage({
       }
     >
       {primaryColor ? (
-        <div
-          className="h-1.5 w-full"
-          style={{ backgroundColor: primaryColor }}
-          aria-hidden
-        />
+        <div className="h-1.5 w-full bg-accent" aria-hidden />
       ) : null}
-      <div className="mx-auto max-w-lg px-4 py-8 sm:py-12">
-        <header className="text-center mb-8">
+      <div className="mx-auto max-w-lg px-4 py-8 sm:py-10">
+        <header className="text-center mb-6">
           {logoUrl ? (
             <div className="flex justify-center mb-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -103,15 +105,18 @@ export default async function PublicJoinQueuePage({
               />
             </div>
           ) : null}
-          {showTitle ? <h1 className="text-2xl font-bold">{displayName}</h1> : null}
-          <p className={`text-sm text-muted ${showTitle ? "mt-1" : "mt-4"}`}>Walk-in Queue</p>
+          {showTitle ? <h1 className="text-2xl font-bold tracking-tight">{displayName}</h1> : null}
+          <p className={`text-xs text-muted uppercase tracking-widest ${showTitle ? "mt-2" : "mt-4"}`}>
+            Walk-in &amp; bookings
+          </p>
         </header>
 
-        <JoinQueueForm
+        <ShopClientPortal
           shopId={shop.id}
           shopName={displayName}
           queueLength={queueLength}
-          barbers={JSON.parse(JSON.stringify(barbers))}
+          walkInBarbers={JSON.parse(JSON.stringify(walkInBarbers))}
+          bookingBarbers={JSON.parse(JSON.stringify(bookingBarbers))}
           services={JSON.parse(JSON.stringify(services))}
           nextAvailableOnly={nextAvailableOnly}
           showServicesOnQueue={showServicesOnQueue}

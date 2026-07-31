@@ -11,15 +11,18 @@ type BarberOption = {
 };
 type ServiceOption = { id: string; name: string; duration_minutes: number; price_minor: number };
 
+const fieldClass =
+  "w-full h-11 rounded border border-border px-3 text-sm leading-5 focus:outline-none focus:ring-1 focus:ring-accent box-border";
+const selectClass = fieldClass;
+const btnPrimary = "btn-accent w-full py-3 text-sm font-semibold disabled:opacity-50";
+
 type Props = {
   shopId: string;
   shopName: string;
   queueLength: number;
   barbers: BarberOption[];
   services: ServiceOption[];
-  /** When true, show only "Next available" — no individual barber tiles. */
   nextAvailableOnly?: boolean;
-  /** When false, hide the service dropdown on the join form. */
   showServicesOnQueue?: boolean;
 };
 
@@ -71,19 +74,19 @@ export function JoinQueueForm({
 
   if (result?.success) {
     return (
-      <div className="mx-auto max-w-md text-center space-y-6 py-10">
+      <div className="text-center space-y-5 py-6">
         <div className="flex items-center justify-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-600/20 text-3xl">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/20 text-3xl text-accent">
             ✓
           </span>
         </div>
         <h2 className="text-2xl font-bold">You&apos;re in the queue!</h2>
-        <div className="rounded-xl border border-border bg-surface p-6 text-center">
+        <div className="barber-panel p-5 text-center">
           <p className="text-sm text-muted">
             {result.position === 1 ? "You're up next" : "Your position"}
           </p>
           <p
-            className={`mt-1 font-bold ${
+            className={`mt-1 font-bold text-accent ${
               result.position === 1 ? "text-2xl sm:text-3xl" : "text-4xl tabular-nums"
             }`}
           >
@@ -95,21 +98,11 @@ export function JoinQueueForm({
             <p className="text-xs text-muted mt-1">Estimated wait ~{result.estimatedWait} mins</p>
           ) : null}
         </div>
-        {result.position !== 1 && (
-          <p className="text-sm text-muted">
-            Please stay nearby. We&apos;ll call your name when it&apos;s your turn.
-          </p>
-        )}
         {result.smsQueued && (
-          <p className="text-sm text-muted">
-            {result.position === 1
-              ? "Check your phone — we&apos;ve texted you that you&apos;ll be up next shortly."
-              : result.position === 2
-                ? "Check your phone — we&apos;ve texted you that you&apos;re #2 in the queue, with around 20 minutes until your turn."
-                : "Check your phone — we&apos;ve texted you your queue number and estimated wait time."}
-          </p>
+          <p className="text-sm text-muted">Check your phone for a confirmation text.</p>
         )}
         <button
+          type="button"
           onClick={() => {
             setResult(null);
             setPreferredBarberId("");
@@ -123,10 +116,10 @@ export function JoinQueueForm({
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-6">
-      <div className="rounded-xl border border-border bg-surface p-5 text-center">
-        <p className="text-sm text-muted">Currently waiting</p>
-        <p className="text-4xl font-bold tabular-nums mt-1">{queueLength}</p>
+    <div className="space-y-4">
+      <div className="barber-panel px-4 py-4 text-center">
+        <p className="text-xs text-muted">Currently waiting at {shopName}</p>
+        <p className="text-3xl font-bold tabular-nums mt-1 text-accent">{queueLength}</p>
         <p className="text-xs text-muted mt-1">
           {queueLength === 0
             ? "No wait — you could be next!"
@@ -134,34 +127,31 @@ export function JoinQueueForm({
         </p>
       </div>
 
-      <form action={handleSubmit} className="rounded-xl border border-border bg-surface p-5 space-y-4">
-        <h2 className="text-lg font-semibold text-center">Join the Queue</h2>
+      <form action={handleSubmit} className="barber-panel p-4 sm:p-5 space-y-3">
+        <h2 className="text-sm font-semibold text-center">Join the queue</h2>
 
         {result?.error && (
-          <p className="text-sm text-red-400 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5">
-            {result.error}
-          </p>
+          <p className="text-sm text-red-400 barber-panel px-3 py-2">{result.error}</p>
         )}
 
         <div>
-          <label htmlFor="guest_name" className="block text-sm font-medium mb-1">Your Name *</label>
+          <label htmlFor="guest_name" className="block text-xs text-muted mb-1.5">
+            Your name *
+          </label>
           <input
             id="guest_name"
             name="guest_name"
             type="text"
             required
             placeholder="e.g. James"
-            className="w-full rounded-lg border border-border bg-canvas px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            className={fieldClass}
           />
         </div>
 
         <div>
-          <label htmlFor="guest_phone" className="block text-sm font-medium mb-1">
+          <label htmlFor="guest_phone" className="block text-xs text-muted mb-1.5">
             Mobile number
           </label>
-          <p className="text-xs text-muted mb-2">
-            Add your mobile so we can text you when it&apos;s your turn.
-          </p>
           <input
             id="guest_phone"
             name="guest_phone"
@@ -169,26 +159,24 @@ export function JoinQueueForm({
             inputMode="tel"
             autoComplete="tel"
             placeholder="07..."
-            className="w-full rounded-lg border border-border bg-canvas px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            className={fieldClass}
           />
-          <p className="text-xs text-muted mt-2">
-            We only use your number for queue text alerts. We don&apos;t share it with anyone
-            else or use it for marketing.
+          <p className="text-[11px] text-muted mt-1.5">
+            We only use your number for queue alerts — no marketing.
           </p>
         </div>
 
         {showServicesOnQueue && services.length > 0 && (
           <div>
-            <label htmlFor="service_id" className="block text-sm font-medium mb-1">Service</label>
-            <select
-              id="service_id"
-              name="service_id"
-              className="w-full rounded-lg border border-border bg-canvas px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-            >
+            <label htmlFor="service_id" className="block text-xs text-muted mb-1.5">
+              Service
+            </label>
+            <select id="service_id" name="service_id" className={selectClass}>
               <option value="">Not sure yet</option>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name}{s.price_minor > 0 ? ` — ${formatPrice(s.price_minor)}` : ""}
+                  {s.name}
+                  {s.price_minor > 0 ? ` — ${formatPrice(s.price_minor)}` : ""}
                 </option>
               ))}
             </select>
@@ -197,80 +185,62 @@ export function JoinQueueForm({
 
         {(nextAvailableOnly || barbers.length > 0) && (
           <fieldset>
-            <legend className="block text-sm font-medium mb-2">
+            <legend className="block text-xs text-muted mb-2">
               {nextAvailableOnly ? "Barber" : "Choose your barber"}
             </legend>
             {nextAvailableOnly ? (
               <>
                 <input type="hidden" name="preferred_barber_id" value="" />
-              <div className="flex flex-col items-center gap-2 rounded-xl border border-accent bg-accent/10 ring-2 ring-accent p-4 text-center">
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/20 text-2xl border border-border">
-                  ✦
-                </span>
-                <span className="text-sm font-medium">Next available barber</span>
-                <p className="text-xs text-muted">
-                  We&apos;ll assign whoever is free first.
-                </p>
-              </div>
+                <div className="barber-panel-highlight p-4 text-center">
+                  <span className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-accent/15 text-xl text-accent border border-accent/30">
+                    ✦
+                  </span>
+                  <p className="text-sm font-medium mt-2">Next available barber</p>
+                  <p className="text-xs text-muted mt-1">We&apos;ll assign whoever is free first.</p>
+                </div>
               </>
             ) : (
               <>
                 <input type="hidden" name="preferred_barber_id" value={preferredBarberId} />
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setPreferredBarberId("")}
-                    className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors ${
-                      preferredBarberId === ""
-                        ? "border-accent bg-accent/10 ring-2 ring-accent"
-                        : "border-border hover:border-accent/50"
+                    className={`barber-panel p-3 text-center transition-colors ${
+                      preferredBarberId === "" ? "barber-panel-highlight" : ""
                     }`}
                   >
-                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/20 text-2xl border border-border">
+                    <span className="flex h-10 w-10 mx-auto items-center justify-center rounded-full bg-accent/15 text-lg text-accent">
                       ✦
                     </span>
-                    <span className="text-xs font-medium leading-tight">Next available</span>
+                    <span className="text-xs font-medium leading-tight mt-2 block">Next available</span>
                   </button>
                   {barbers.map((b) => (
                     <button
                       key={b.id}
                       type="button"
                       onClick={() => setPreferredBarberId(b.id)}
-                      className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors ${
-                        preferredBarberId === b.id
-                          ? "border-accent bg-accent/10 ring-2 ring-accent"
-                          : "border-border hover:border-accent/50"
+                      className={`barber-panel p-3 text-center transition-colors ${
+                        preferredBarberId === b.id ? "barber-panel-highlight" : ""
                       }`}
                     >
-                      <BarberAvatar barber={b} />
-                      <span className="text-xs font-medium leading-tight line-clamp-2">
+                      <BarberAvatar barber={b} size="sm" />
+                      <span className="text-xs font-medium leading-tight line-clamp-2 mt-2 block">
                         {b.display_name ?? "Barber"}
                         {b.chair_number ? ` · Ch.${b.chair_number}` : ""}
                       </span>
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-muted mt-2">
-                  Pick someone you know, or tap their photo. Otherwise we&apos;ll assign the next available barber.
-                </p>
               </>
             )}
           </fieldset>
         )}
 
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-full rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-background hover:opacity-90 disabled:opacity-50 transition-colors"
-        >
-          {isPending ? "Joining…" : "Join Queue"}
+        <button type="submit" disabled={isPending} className={btnPrimary}>
+          {isPending ? "Joining…" : "Join queue"}
         </button>
       </form>
-
-      <p className="text-center text-xs text-muted">
-        Powered by <span className="font-semibold">Barber Synk</span>
-      </p>
     </div>
   );
 }
-
