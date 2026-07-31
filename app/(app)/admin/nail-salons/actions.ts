@@ -535,3 +535,45 @@ export async function adminUploadNailMemberAvatar(
     return { error: msg };
   }
 }
+
+export async function adminDeleteNailSalon(salonId: string) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+
+  // Ordered deletes — appointments reference members/services with ON DELETE RESTRICT.
+  const { data: appointmentIds } = await supabase
+    .from("nail_appointments")
+    .select("id")
+    .eq("salon_id", salonId);
+
+  const ids = (appointmentIds ?? []).map((a) => a.id);
+  if (ids.length > 0) {
+    const { error: e0 } = await supabase
+      .from("nail_appointment_services")
+      .delete()
+      .in("appointment_id", ids);
+    if (e0) return { error: e0.message };
+  }
+
+  const steps: { table: string; column: string }[] = [
+    { table: "nail_sales_transactions", column: "salon_id" },
+    { table: "nail_appointments", column: "salon_id" },
+    { table: "nail_queue", column: "salon_id" },
+    { table: "nail_clients", column: "salon_id" },
+    { table: "nail_services", column: "salon_id" },
+    { table: "nail_service_categories", column: "salon_id" },
+    { table: "nail_members", column: "salon_id" },
+  ];
+
+  for (const step of steps) {
+    const { error } = await supabase.from(step.table).delete().eq(step.column, salonId);
+    if (error) return { error: error.message };
+  }
+
+  const { error } = await supabase.from("nail_salons").delete().eq("id", salonId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/nail-salons");
+  return {};
+}

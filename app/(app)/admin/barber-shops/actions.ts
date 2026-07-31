@@ -529,3 +529,30 @@ export async function adminUploadBarberMemberAvatar(
     return { error: msg };
   }
 }
+
+export async function adminDeleteBarberShop(shopId: string) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+
+  // Ordered deletes — appointments/queue reference members with ON DELETE RESTRICT.
+  const steps: { table: string; column: string }[] = [
+    { table: "barber_sales_transactions", column: "shop_id" },
+    { table: "barber_appointments", column: "shop_id" },
+    { table: "barber_queue", column: "shop_id" },
+    { table: "barber_clients", column: "shop_id" },
+    { table: "barber_services", column: "shop_id" },
+    { table: "barber_members", column: "shop_id" },
+  ];
+
+  for (const step of steps) {
+    const { error } = await supabase.from(step.table).delete().eq(step.column, shopId);
+    if (error) return { error: error.message };
+  }
+
+  const { error } = await supabase.from("barber_shops").delete().eq("id", shopId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/barber-shops");
+  return {};
+}

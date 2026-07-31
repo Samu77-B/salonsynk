@@ -7,6 +7,7 @@ import { AdminAddNailOwnerForm } from "./admin-add-owner-form";
 import { AdminAddTechnicianForm } from "./admin-add-technician-form";
 import { AdminNailMemberRow } from "./admin-nail-member-row";
 import { AdminEditNailSalonForm } from "./admin-edit-nail-salon-form";
+import { AdminNailSalonDangerZone } from "./admin-nail-salon-danger-zone";
 import { AdminPlatformOnboardingPanel } from "@/components/admin/admin-platform-onboarding-panel";
 import { formatPlatformPrice } from "@core/billing/platform-billing";
 
@@ -204,6 +205,8 @@ export default async function AdminNailSalonDetailPage({
           <AdminAddNailOwnerForm salonId={salon.id} />
         </div>
       </section>
+
+      <AdminNailSalonDangerZone salonId={salon.id} salonName={salon.name} />
     </div>
   );
 }

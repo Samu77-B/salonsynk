@@ -7,6 +7,7 @@ import { AdminAddBarberOwnerForm } from "./admin-add-owner-form";
 import { AdminAddBarberForm } from "./admin-add-barber-form";
 import { AdminBarberMemberRow } from "./admin-barber-member-row";
 import { AdminEditBarberShopForm } from "./admin-edit-barber-shop-form";
+import { AdminBarberShopDangerZone } from "./admin-barber-shop-danger-zone";
 import { AdminPlatformOnboardingPanel } from "@/components/admin/admin-platform-onboarding-panel";
 import { formatPlatformPrice } from "@core/billing/platform-billing";
 
@@ -204,6 +205,8 @@ export default async function AdminBarberShopDetailPage({
           <AdminAddBarberOwnerForm shopId={shop.id} />
         </div>
       </section>
+
+      <AdminBarberShopDangerZone shopId={shop.id} shopName={shop.name} />
     </div>
   );
 }
