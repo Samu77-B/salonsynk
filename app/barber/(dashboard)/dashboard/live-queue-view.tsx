@@ -75,7 +75,8 @@ function ChairIcon() {
 const ACTIVE_STATUSES = ["waiting", "in_chair"];
 
 const inputClass =
-  "w-full rounded-lg border border-border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent";
+  "w-full min-h-[2.75rem] rounded-lg border border-border px-3 py-2.5 text-sm leading-5 focus:outline-none focus:ring-1 focus:ring-accent";
+const selectClass = `${inputClass} block appearance-auto`;
 const btnPrimary = "btn-accent px-3 py-2 text-xs sm:text-sm disabled:opacity-50";
 const btnOutline = "btn-outline px-3 py-2 text-xs sm:text-sm disabled:opacity-50";
 
@@ -327,7 +328,7 @@ function AddCustomerPanel({
             <label htmlFor="service_id" className="block text-xs text-muted mb-1.5">
               Service
             </label>
-            <select id="service_id" name="service_id" className={inputClass}>
+            <select id="service_id" name="service_id" className={selectClass}>
               <option value="">Any</option>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -340,7 +341,7 @@ function AddCustomerPanel({
             <label htmlFor="preferred_barber_id" className="block text-xs text-muted mb-1.5">
               Preferred Barber
             </label>
-            <select id="preferred_barber_id" name="preferred_barber_id" className={inputClass}>
+            <select id="preferred_barber_id" name="preferred_barber_id" className={selectClass}>
               <option value="">Next available</option>
               {members
                 .filter((m) => m.is_accepting_walk_ins)
