@@ -110,6 +110,7 @@ export default async function TeamPage() {
       )}
       <TeamView
         salonId={context.salon.id}
+        salonSlug={context.salon.slug}
         members={members}
         memberEmails={profilesMap}
         invites={invites}

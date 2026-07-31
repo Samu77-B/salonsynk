@@ -26,7 +26,8 @@ export type PlatformFeatureId =
   | "aftercare"
   | "targets_loyalty"
   | "products_shop"
-  | "chair_renter_splits";
+  | "chair_renter_splits"
+  | "walk_in_queue";
 
 export type PlatformFeatureMeta = {
   id: PlatformFeatureId;
@@ -57,6 +58,7 @@ export const PLATFORM_FEATURES: PlatformFeatureMeta[] = [
   { id: "targets_loyalty", label: "Targets & loyalty", description: "Staff targets and client loyalty tiers" },
   { id: "products_shop", label: "Products & shop", description: "Retail products and /shop page" },
   { id: "chair_renter_splits", label: "Chair renter splits", description: "RENTER splits via Stripe Connect" },
+  { id: "walk_in_queue", label: "Walk-in queue", description: "QR join page, live queue, and queue SMS" },
 ];
 
 const ESSENTIALS_FEATURES: PlatformFeatureId[] = [
@@ -79,6 +81,7 @@ const PROFESSIONAL_ADDONS: PlatformFeatureId[] = [
   "deposits_no_show",
   "appointment_photos",
   "processing_time",
+  "walk_in_queue",
 ];
 
 const COMPLETE_ADDONS: PlatformFeatureId[] = [

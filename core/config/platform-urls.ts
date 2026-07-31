@@ -8,6 +8,10 @@ import { BARBER_SITE } from "@core/config/barber-site";
 import { NAIL_SITE } from "@core/config/nail-site";
 import { salonRowHasFeature, type SalonPlanRow } from "@/lib/salon-features";
 
+export function salonWalkInUrl(slug: string) {
+  return `${SITE.url}/walk-in/${slug}`;
+}
+
 export function salonBookingUrl(slug: string) {
   return `${SITE.url}/book/${slug}`;
 }
@@ -57,13 +61,20 @@ export function nailAdminSwitchUrl(salonId: string, next = "/nail/queue") {
 
 export function salonPublicPathsLabel(slug: string, row?: SalonPlanRow) {
   const booking = `/book/${slug}`;
-  if (row && !salonHasPublicShop(row)) return booking;
-  return `${booking} · /shop/${slug}`;
+  const walkIn = `/walk-in/${slug}`;
+  const parts = [booking];
+  if (!row || salonRowHasFeature(row, "walk_in_queue")) parts.push(walkIn);
+  if (row && salonHasPublicShop(row)) parts.push(`/shop/${slug}`);
+  return parts.join(" · ");
 }
 
 export function salonPublicUrlsLabel(slug: string, row?: SalonPlanRow) {
   const host = SITE.url.replace(/^https?:\/\//, "");
   const booking = `${host}/book/${slug}`;
-  if (row && !salonHasPublicShop(row)) return booking;
-  return `${booking} · ${host}/shop/${slug}`;
+  const parts = [booking];
+  if (!row || salonRowHasFeature(row, "walk_in_queue")) {
+    parts.push(`${host}/walk-in/${slug}`);
+  }
+  if (row && salonHasPublicShop(row)) parts.push(`${host}/shop/${slug}`);
+  return parts.join(" · ");
 }

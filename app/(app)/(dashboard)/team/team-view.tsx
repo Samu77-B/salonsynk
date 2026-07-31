@@ -44,6 +44,7 @@ const ADD_ROLE_VALUE = "__add_role__";
 
 export function TeamView({
   salonId,
+  salonSlug,
   members,
   memberEmails = {},
   invites,
@@ -54,6 +55,7 @@ export function TeamView({
   overridesByMember = {},
 }: {
   salonId: string;
+  salonSlug?: string;
   members: Member[];
   memberEmails?: Record<string, string>;
   invites: Invite[];
@@ -233,6 +235,24 @@ export function TeamView({
           ) : undefined
         }
       />
+
+      {salonSlug ? (
+        <p className="text-sm text-muted">
+          Walk-in queue (QR):{" "}
+          <a
+            href={`/walk-in/${salonSlug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent hover:underline"
+          >
+            /walk-in/{salonSlug}
+          </a>
+          {" · "}
+          <a href="/queue" className="text-accent hover:underline">
+            Open live queue
+          </a>
+        </p>
+      ) : null}
 
       {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
 

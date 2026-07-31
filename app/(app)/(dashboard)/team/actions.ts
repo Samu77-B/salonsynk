@@ -115,6 +115,7 @@ export async function updateTeamMember(
     avatar_url?: string | null;
     calendar_color?: string | null;
     show_on_diary?: boolean;
+    is_accepting_walk_ins?: boolean;
   }
 ) {
   const supabase = await createClient();
@@ -123,6 +124,7 @@ export async function updateTeamMember(
   if (updates.employment_type !== undefined && context.member.role !== "owner") return { error: "Only owners can set employment type" };
   if (updates.role !== undefined && context.member.role !== "owner") return { error: "Only owners can change roles" };
   if (updates.show_on_diary !== undefined && context.member.role !== "owner") return { error: "Only owners can change diary visibility" };
+  if (updates.is_accepting_walk_ins !== undefined && context.member.role !== "owner") return { error: "Only owners can change walk-in queue visibility" };
 
   const payload: Record<string, unknown> = {};
   if (updates.display_name !== undefined) payload.display_name = updates.display_name;
@@ -132,6 +134,7 @@ export async function updateTeamMember(
   if (updates.avatar_url !== undefined) payload.avatar_url = updates.avatar_url;
   if (updates.calendar_color !== undefined) payload.calendar_color = updates.calendar_color?.trim() || null;
   if (updates.show_on_diary !== undefined) payload.show_on_diary = updates.show_on_diary;
+  if (updates.is_accepting_walk_ins !== undefined) payload.is_accepting_walk_ins = updates.is_accepting_walk_ins;
   if (updates.holiday_ranges !== undefined) {
     payload.holiday_ranges = updates.holiday_ranges;
   }
@@ -146,6 +149,8 @@ export async function updateTeamMember(
   revalidatePath("/team");
   revalidatePath("/dashboard");
   revalidatePath("/checkout");
+  revalidatePath("/queue");
+  revalidatePath(`/walk-in/${context.salon.slug}`);
   return { error: null };
 }
 

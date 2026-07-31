@@ -54,6 +54,7 @@ function ThemeToggleButton({
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Diary" },
+  { href: "/queue", label: "Walk-in queue" },
   { href: "/team", label: "Team" },
   { href: "/clients", label: "Clients" },
   { href: "/checkout", label: "Checkout" },
@@ -69,7 +70,7 @@ const NAV_LINKS = [
 const MOBILE_NAV_GROUPS = [
   {
     label: "Today",
-    links: ["/dashboard", "/clients", "/checkout"],
+    links: ["/dashboard", "/queue", "/clients", "/checkout"],
   },
   {
     label: "Business",
@@ -81,7 +82,7 @@ const MOBILE_NAV_GROUPS = [
   },
 ] as const;
 
-const STAFF_ALLOWED_LINKS = new Set(["/dashboard", "/clients", "/checkout", "/help"]);
+const STAFF_ALLOWED_LINKS = new Set(["/dashboard", "/queue", "/clients", "/checkout", "/help"]);
 
 function navLinksForPlan(
   enabledFeatures: PlatformFeatureId[],

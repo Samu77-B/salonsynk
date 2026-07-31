@@ -31,6 +31,7 @@ export function salonRowHasFeature(
 
 export const DASHBOARD_NAV_FEATURES: Record<string, PlatformFeatureId> = {
   "/dashboard": "diary",
+  "/queue": "walk_in_queue",
   "/team": "team",
   "/clients": "clients",
   "/checkout": "checkout",
@@ -48,6 +49,7 @@ export function dashboardNavLinksForFeatures(
 ): { href: string; label: string }[] {
   const links: { href: string; label: string }[] = [
     { href: "/dashboard", label: "Diary" },
+    { href: "/queue", label: "Walk-in queue" },
     { href: "/team", label: "Team" },
     { href: "/clients", label: "Clients" },
     { href: "/checkout", label: "Checkout" },
