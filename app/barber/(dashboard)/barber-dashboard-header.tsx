@@ -31,18 +31,19 @@ export function BarberDashboardHeader({
       : []),
   ];
 
-  function linkClass(href: string, mobile = false) {
-    const active = pathname === href || pathname.startsWith(`${href}/`);
-    const base = mobile
-      ? "rounded px-4 py-3 text-sm"
-      : "text-sm whitespace-nowrap";
-    return active
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function desktopLinkClass(href: string) {
+    const base = "text-sm whitespace-nowrap transition-colors";
+    return isActive(href)
       ? `${base} text-accent font-semibold`
-      : `${base} text-muted hover:text-foreground transition-colors`;
+      : `${base} text-muted hover:text-foreground`;
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur-sm">
+    <header className="sticky top-0 z-40 border-b border-border bg-surface">
       <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-2">
           <span className="shrink-0 text-lg font-bold tracking-tight">Barber Synk</span>
@@ -51,12 +52,9 @@ export function BarberDashboardHeader({
           </span>
         </div>
 
-        <nav
-          className="hidden md:flex items-center gap-4 ml-2"
-          aria-label="Main navigation"
-        >
+        <nav className="hidden md:flex items-center gap-4 ml-2" aria-label="Main navigation">
           {links.map(({ href, label }) => (
-            <Link key={href} href={href} className={linkClass(href)}>
+            <Link key={href} href={href} className={desktopLinkClass(href)}>
               {label}
             </Link>
           ))}
@@ -74,7 +72,7 @@ export function BarberDashboardHeader({
         <button
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
-          className="md:hidden shrink-0 rounded p-2 text-muted hover:text-foreground hover:bg-white/5"
+          className="md:hidden shrink-0 rounded p-2 text-muted hover:text-foreground hover:bg-foreground/5"
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
         >
@@ -91,23 +89,23 @@ export function BarberDashboardHeader({
       {menuOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            className="fixed inset-0 z-40 bg-black/60 md:hidden"
             aria-hidden
             onClick={() => setMenuOpen(false)}
           />
           <nav
-            className="fixed top-0 right-0 bottom-0 z-50 flex w-full max-w-xs flex-col gap-1 border-l border-border bg-surface p-4 md:hidden"
+            className="barber-mobile-menu fixed top-0 right-0 bottom-0 z-50 flex w-[min(100%,16rem)] flex-col border-l border-border p-3 md:hidden"
             aria-label="Mobile menu"
           >
-            <div className="mb-3 flex items-center justify-between border-b border-border pb-3">
+            <div className="mb-2 flex items-center justify-between border-b border-border pb-2">
               <div className="min-w-0">
-                <p className="font-semibold">Menu</p>
+                <p className="text-sm font-semibold">Menu</p>
                 <p className="truncate text-xs text-muted">{shopName}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setMenuOpen(false)}
-                className="shrink-0 rounded p-2 text-muted hover:text-foreground"
+                className="shrink-0 rounded p-1.5 text-muted hover:text-foreground hover:bg-foreground/5"
                 aria-label="Close menu"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,22 +113,27 @@ export function BarberDashboardHeader({
                 </svg>
               </button>
             </div>
-            {links.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setMenuOpen(false)}
-                className={linkClass(href, true)}
-              >
-                {label}
-              </Link>
-            ))}
-            <div className="mt-auto border-t border-border pt-4 space-y-1">
-              {isManager && (
-                <p className="px-4 text-xs text-muted">Manager access</p>
-              )}
+
+            <div className="flex flex-col gap-0.5 py-1">
+              {links.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMenuOpen(false)}
+                  data-active={isActive(href) ? "true" : "false"}
+                  className={`px-3 py-2 text-sm font-medium ${
+                    isActive(href) ? "text-accent" : "text-foreground/90"
+                  }`}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+
+            <div className="mt-auto border-t border-border pt-3 space-y-0.5">
+              {isManager && <p className="px-3 text-xs text-muted">Manager access</p>}
               {userEmail && (
-                <p className="px-4 text-xs text-muted truncate" title={userEmail}>
+                <p className="px-3 text-xs text-muted truncate" title={userEmail}>
                   {userEmail}
                 </p>
               )}

@@ -65,9 +65,10 @@
   --accent: #a0522d;
   --border: rgba(245, 241, 232, 0.15);
   --border-grid: rgba(245, 241, 232, 0.2);
-  --card: rgba(245, 241, 232, 0.05);
-  --surface: rgba(245, 241, 232, 0.08);
-  --input-bg: rgba(245, 241, 232, 0.06);
+  --card: rgba(245, 241, 232, 0.08);
+  --surface: #2f3d46;
+  --input-bg: #3d4f59;
+  --menu-bg: #2b3840;
   --barber-radius: 0.25rem;
   color: var(--foreground);
 }
@@ -93,7 +94,24 @@
   color: var(--muted);
 }
 
-.barber-dashboard .btn-accent {
+.barber-dashboard .barber-mobile-menu {
+  background-color: var(--menu-bg);
+}
+
+.barber-dashboard .barber-mobile-menu a {
+  display: block;
+  border-radius: var(--barber-radius);
+}
+
+.barber-dashboard .barber-mobile-menu a:hover {
+  background-color: rgba(245, 241, 232, 0.06);
+}
+
+.barber-dashboard .barber-mobile-menu a[data-active="true"] {
+  background-color: rgba(160, 82, 45, 0.18);
+  color: var(--foreground);
+}
+
   background-color: var(--accent);
   color: #fff;
   font-weight: 600;
