@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAuthCallbackUrl } from "@core/auth/auth-redirect";
 import { SITE } from "@core/config/site";
 import { BARBER_SITE } from "@core/config/barber-site";
 import { NAIL_SITE } from "@core/config/nail-site";
@@ -151,5 +152,5 @@ export async function resolveUserPlatform(userId: string): Promise<UserPlatformR
 }
 
 export function getPlatformCallbackUrl(platform: "salon" | "barber" | "nail"): string {
-  return `${PLATFORM_URLS[platform].replace(/\/$/, "")}/auth/callback`;
+  return getAuthCallbackUrl(platform);
 }

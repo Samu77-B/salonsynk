@@ -8,6 +8,11 @@ import { SMART_SITE } from "@core/config/smart-site";
 import { BARBER_SITE } from "@core/config/barber-site";
 import { NAIL_SITE } from "@core/config/nail-site";
 import { superAdminShouldHonorAuthNext } from "@core/auth/admin-switch-next";
+import {
+  resolveAuthNextPath,
+  resolveProductFromHost,
+  type ProductHost,
+} from "@/lib/platform-host";
 
 function hostFromRequest(request: Request): string {
   return new URL(request.url).host.toLowerCase();
@@ -33,6 +38,13 @@ function needsPasswordSetup(type: string | null): boolean {
   return type === "invite" || type === "recovery" || type === "signup";
 }
 
+function productFromHost(host: string): ProductHost {
+  if (isBarberHost(host)) return "barber";
+  if (isNailHost(host)) return "nail";
+  if (isSmartHost(host)) return "smart";
+  return resolveProductFromHost(host);
+}
+
 async function resolvePostAuthRedirect(
   origin: string,
   host: string,
@@ -40,13 +52,14 @@ async function resolvePostAuthRedirect(
   authType: string | null
 ): Promise<string> {
   const isSuperAdmin = await getIsSuperAdmin();
+  const product = productFromHost(host);
 
   if (isSmartHost(host) && isSuperAdmin) {
     return `${origin}/smart/overview`;
   }
 
   if (isBarberHost(host)) {
-    const barberNext = next.startsWith("/") ? next : "/barber/dashboard";
+    const barberNext = resolveAuthNextPath("barber", next);
     if (needsPasswordSetup(authType)) {
       return passwordSetupPath(BARBER_SITE.url.replace(/\/$/, ""), barberNext);
     }
@@ -60,7 +73,7 @@ async function resolvePostAuthRedirect(
   }
 
   if (isNailHost(host)) {
-    const nailNext = next.startsWith("/") ? next : "/nail/queue";
+    const nailNext = resolveAuthNextPath("nail", next);
     if (needsPasswordSetup(authType)) {
       return passwordSetupPath(NAIL_SITE.url.replace(/\/$/, ""), nailNext);
     }
@@ -73,7 +86,7 @@ async function resolvePostAuthRedirect(
     return `${NAIL_SITE.url}${nailNext}`;
   }
 
-  let redirectTo = next.startsWith("/") ? next : "/dashboard";
+  let redirectTo = resolveAuthNextPath(product, next);
   const context = await getCurrentUserSalon();
   let onboardingPaymentRequired = false;
   if (context?.salon.id) {

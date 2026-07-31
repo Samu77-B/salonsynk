@@ -10,6 +10,13 @@ import {
   resolvePublicBookingBarber,
 } from "@modules/barber/lib/resolve-booking-barber";
 
+function optionalUuid(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  if (!/^[0-9a-f-]{36}$/i.test(trimmed)) return null;
+  return trimmed;
+}
+
 export type JoinQueueResult = {
   success: boolean;
   position?: number;
@@ -37,6 +44,7 @@ export async function publicBookAppointment(
   shopId: string,
   formData: FormData
 ): Promise<BookAppointmentResult> {
+  try {
   let supabase;
   try {
     supabase = createAdminClient();
@@ -47,7 +55,7 @@ export async function publicBookAppointment(
   const guestName = (formData.get("guest_name") as string)?.trim();
   const guestPhone = (formData.get("guest_phone") as string)?.trim() || null;
   const barberIdRaw = (formData.get("barber_id") as string)?.trim() || ANY_BARBER_BOOKING_VALUE;
-  const serviceId = (formData.get("service_id") as string)?.trim() || null;
+  const serviceId = optionalUuid(formData.get("service_id") as string | null);
   const date = (formData.get("date") as string)?.trim();
   const time = (formData.get("time") as string)?.trim();
   const notes = (formData.get("notes") as string)?.trim() || null;
@@ -146,12 +154,17 @@ export async function publicBookAppointment(
     showBarber,
     smsSent,
   };
+  } catch (err) {
+    console.error("publicBookAppointment failed:", err);
+    return { success: false, error: "Could not save your booking. Please try again." };
+  }
 }
 
 export async function publicJoinQueue(
   shopId: string,
   formData: FormData
 ): Promise<JoinQueueResult> {
+  try {
   let supabase;
   try {
     supabase = createAdminClient();
@@ -161,9 +174,8 @@ export async function publicJoinQueue(
 
   const guestName = (formData.get("guest_name") as string)?.trim();
   const guestPhone = (formData.get("guest_phone") as string)?.trim() || null;
-  const serviceId = (formData.get("service_id") as string) || null;
-  const preferredRaw = (formData.get("preferred_barber_id") as string)?.trim();
-  const preferredBarberId = preferredRaw || null;
+  const serviceId = optionalUuid(formData.get("service_id") as string | null);
+  const preferredBarberId = optionalUuid(formData.get("preferred_barber_id") as string | null);
 
   if (!guestName) {
     return { success: false, error: "Please enter your name." };
@@ -230,10 +242,16 @@ export async function publicJoinQueue(
     );
   }
 
+  revalidatePath("/barber/join", "layout");
+
   return {
     success: true,
     position: nextPosition,
     estimatedWait,
     smsQueued: !!guestPhone,
   };
+  } catch (err) {
+    console.error("publicJoinQueue failed:", err);
+    return { success: false, error: "Could not join the queue. Please try again." };
+  }
 }

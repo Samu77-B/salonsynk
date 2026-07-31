@@ -20,7 +20,7 @@ export default async function BarberDashboardLayout({
 
   const isSuperAdmin = await getIsSuperAdmin();
   const shopContext = await getCurrentUserShop();
-  if (!shopContext) redirect("/onboarding");
+  if (!shopContext) redirect("/barber/access");
 
   await enforceBarberSubscriptionIfRequired();
 

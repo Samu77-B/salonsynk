@@ -2,36 +2,45 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { SITE } from "@core/config/site";
-
-const SALON_HOSTS = ["salonsynk.com", "www.salonsynk.com", "localhost"];
+import {
+  DEFAULT_DASHBOARD_PATH,
+  productSiteUrl,
+  resolveProductFromHost,
+  type ProductHost,
+} from "@/lib/platform-host";
 
 function hashHasAuthTokens(hash: string): boolean {
   return hash.includes("access_token") || hash.includes("error=");
 }
 
-function passwordSetupPath(type: string | null, isSuperAdmin: boolean): string {
+function passwordSetupPath(type: string | null, product: ProductHost, isSuperAdmin: boolean): string {
+  if (isSuperAdmin && product === "smart") return "/smart/overview";
   if (isSuperAdmin) return "/admin";
   const needsPassword = type === "recovery" || type === "invite" || type === "signup";
-  return needsPassword ? "/update-password?next=/dashboard" : "/dashboard";
+  const dashboard = DEFAULT_DASHBOARD_PATH[product];
+  return needsPassword
+    ? `/update-password?next=${encodeURIComponent(dashboard)}`
+    : dashboard;
 }
 
-function isSalonHost(hostname: string): boolean {
+function isProductHost(hostname: string, product: ProductHost): boolean {
   const host = hostname.toLowerCase();
-  return SALON_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+  if (product === "barber") return host.includes("barbersynk.com");
+  if (product === "nail") return host.includes("nailsynk.com");
+  if (product === "smart") return host.includes("smartsynk.net");
+  return host.includes("salonsynk.com") || host === "localhost" || host.startsWith("127.0.0.1");
 }
 
 /**
  * Handles Supabase implicit-flow redirects (#access_token in URL hash).
- * Also moves auth hashes from preview hosts (e.g. *.vercel.app) to salonsynk.com.
+ * Keeps auth on the correct product domain (barber/nail/salon).
  */
 export function AuthHashHandler() {
   const [status, setStatus] = useState<"idle" | "working" | "done">("idle");
 
   useEffect(() => {
-    const { pathname, search, hash } = window.location;
+    const { pathname, search, hash, hostname } = window.location;
 
-    // Misconfigured redirects sometimes land ?code= on the homepage instead of /auth/callback.
     if (pathname === "/" && search.includes("code=") && !search.includes("error=")) {
       window.location.replace(`/auth/callback${search}`);
       return;
@@ -39,8 +48,10 @@ export function AuthHashHandler() {
 
     if (!hash || !hashHasAuthTokens(hash)) return;
 
-    if (!isSalonHost(window.location.hostname) && hash.includes("access_token")) {
-      window.location.replace(`${SITE.url.replace(/\/$/, "")}${hash}`);
+    const product = resolveProductFromHost(hostname);
+
+    if (!isProductHost(hostname, product) && hash.includes("access_token")) {
+      window.location.replace(`${productSiteUrl(product)}${hash}`);
       return;
     }
 
@@ -77,7 +88,7 @@ export function AuthHashHandler() {
       const me = meRes.ok ? await meRes.json() : { isSuperAdmin: false };
 
       setStatus("done");
-      window.location.assign(passwordSetupPath(type, me.isSuperAdmin === true));
+      window.location.assign(passwordSetupPath(type, product, me.isSuperAdmin === true));
     })();
   }, []);
 

@@ -118,6 +118,7 @@ export default async function UpdatePasswordPage() {
         <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
           <UpdatePasswordForm
             defaultNext={defaultNext}
+            product={product}
             accentColor={
               product === "barber" ? barberStyles.accent : product === "nail" ? nailStyles.accent : undefined
             }

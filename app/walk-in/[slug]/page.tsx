@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { CSSProperties } from "react";
 import { createAdminClient } from "@core/supabase/admin";
 import { JoinQueueForm } from "./join-queue-form";
 
@@ -79,7 +80,7 @@ export default async function PublicWalkInPage({
     <div
       className="app-shell-dark min-h-screen bg-canvas text-foreground"
       style={
-        primaryColor ? ({ ["--accent"]: primaryColor } as React.CSSProperties) : undefined
+        primaryColor ? ({ ["--accent"]: primaryColor } as CSSProperties) : undefined
       }
     >
       {primaryColor ? (

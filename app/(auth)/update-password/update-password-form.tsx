@@ -4,19 +4,27 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { resolveAuthNextPath, type ProductHost } from "@/lib/platform-host";
+
 type UpdatePasswordFormProps = {
   defaultNext?: string;
   accentColor?: string;
+  product?: ProductHost;
 };
 
-export function UpdatePasswordForm({ defaultNext = "/dashboard", accentColor }: UpdatePasswordFormProps) {
+export function UpdatePasswordForm({
+  defaultNext = "/dashboard",
+  accentColor,
+  product = "salon",
+}: UpdatePasswordFormProps) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? defaultNext;
+  const rawNext = searchParams.get("next") ?? defaultNext;
+  const next = resolveAuthNextPath(product, rawNext);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,7 +48,7 @@ export function UpdatePasswordForm({ defaultNext = "/dashboard", accentColor }: 
         return;
       }
       router.refresh();
-      router.push(next.startsWith("/") ? next : defaultNext);
+      router.push(next);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
       setMessage({ type: "error", text: msg });

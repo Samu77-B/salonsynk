@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { CSSProperties } from "react";
 import { createAdminClient } from "@core/supabase/admin";
 import { ShopClientPortal } from "./shop-client-portal";
 
@@ -77,7 +78,7 @@ export default async function PublicJoinQueuePage({
       className="barber-dashboard min-h-screen bg-canvas text-foreground"
       style={
         primaryColor
-          ? ({ ["--accent"]: primaryColor } as React.CSSProperties)
+          ? ({ ["--accent"]: primaryColor } as CSSProperties)
           : undefined
       }
     >

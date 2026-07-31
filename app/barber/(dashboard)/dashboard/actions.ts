@@ -139,8 +139,12 @@ export async function addToQueue(formData: FormData): Promise<ActionResult> {
 
     const guestName = (formData.get("guest_name") as string)?.trim() || "Walk-in";
     const guestPhone = (formData.get("guest_phone") as string)?.trim() || null;
-    const serviceId = (formData.get("service_id") as string) || null;
-    const preferredBarberId = (formData.get("preferred_barber_id") as string) || null;
+    const serviceIdRaw = (formData.get("service_id") as string)?.trim();
+    const serviceId =
+      serviceIdRaw && /^[0-9a-f-]{36}$/i.test(serviceIdRaw) ? serviceIdRaw : null;
+    const preferredRaw = (formData.get("preferred_barber_id") as string)?.trim();
+    const preferredBarberId =
+      preferredRaw && /^[0-9a-f-]{36}$/i.test(preferredRaw) ? preferredRaw : null;
 
     const nextPosition = await getNextQueuePosition(supabase, shopId);
 
