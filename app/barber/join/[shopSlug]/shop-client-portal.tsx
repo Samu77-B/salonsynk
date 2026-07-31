@@ -16,6 +16,7 @@ type BookingBarberOption = {
   id: string;
   display_name: string | null;
   chair_number: number | null;
+  avatar_url: string | null;
 };
 
 type Props = {

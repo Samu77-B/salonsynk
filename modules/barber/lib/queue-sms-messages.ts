@@ -85,16 +85,18 @@ function formatBookingWhenForSms(iso: string): string {
 export function bookingConfirmationSmsBody(opts: {
   clientName: string;
   shopName: string;
-  barberName: string;
+  barberName?: string | null;
   startTime: string;
   serviceName?: string | null;
 }): string {
   const name = opts.clientName.trim() || "there";
   const shop = opts.shopName.trim() || "the barber shop";
-  const barber = opts.barberName.trim() || "your barber";
   const when = formatBookingWhenForSms(opts.startTime);
+  const barber = opts.barberName?.trim();
 
-  let message = `Hi ${name}, thanks for booking at ${shop}! You're booked with ${barber} on ${when}.`;
+  let message = barber
+    ? `Hi ${name}, thanks for booking at ${shop}! You're booked with ${barber} on ${when}.`
+    : `Hi ${name}, thanks for booking at ${shop}! You're booked on ${when}.`;
   if (opts.serviceName?.trim()) {
     message += ` Service: ${opts.serviceName.trim()}.`;
   }

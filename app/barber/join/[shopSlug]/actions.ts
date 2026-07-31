@@ -5,6 +5,10 @@ import { createAdminClient } from "@core/supabase/admin";
 import { sendJoinQueueSms, sendBookingConfirmationSms } from "@modules/barber/lib/queue-auto-notify";
 import { getNextQueuePosition } from "@modules/barber/lib/queue-positions";
 import { AVG_SERVICE_MINUTES } from "@modules/barber/lib/queue-sms-messages";
+import {
+  ANY_BARBER_BOOKING_VALUE,
+  resolvePublicBookingBarber,
+} from "@modules/barber/lib/resolve-booking-barber";
 
 export type JoinQueueResult = {
   success: boolean;
@@ -19,10 +23,15 @@ export type BookAppointmentResult = {
   success: boolean;
   startTime?: string;
   barberName?: string;
+  barberAvatarUrl?: string | null;
+  /** When true, show assigned barber name and photo on the confirmation screen. */
+  showBarber?: boolean;
   /** True when a confirmation SMS was sent (phone provided and Twilio configured). */
   smsSent?: boolean;
   error?: string;
 };
+
+export { ANY_BARBER_BOOKING_VALUE };
 
 export async function publicBookAppointment(
   shopId: string,
@@ -37,14 +46,13 @@ export async function publicBookAppointment(
 
   const guestName = (formData.get("guest_name") as string)?.trim();
   const guestPhone = (formData.get("guest_phone") as string)?.trim() || null;
-  const barberId = (formData.get("barber_id") as string)?.trim();
+  const barberIdRaw = (formData.get("barber_id") as string)?.trim() || ANY_BARBER_BOOKING_VALUE;
   const serviceId = (formData.get("service_id") as string)?.trim() || null;
   const date = (formData.get("date") as string)?.trim();
   const time = (formData.get("time") as string)?.trim();
   const notes = (formData.get("notes") as string)?.trim() || null;
 
   if (!guestName) return { success: false, error: "Please enter your name." };
-  if (!barberId) return { success: false, error: "Please choose a barber." };
   if (!date || !time) return { success: false, error: "Please pick a date and time." };
 
   const today = new Date().toISOString().slice(0, 10);
@@ -57,17 +65,6 @@ export async function publicBookAppointment(
     .single();
 
   if (!shop) return { success: false, error: "Shop not found." };
-
-  const { data: barber } = await supabase
-    .from("barber_members")
-    .select("id, display_name")
-    .eq("id", barberId)
-    .eq("shop_id", shopId)
-    .eq("is_active", true)
-    .eq("is_accepting_walk_ins", true)
-    .single();
-
-  if (!barber) return { success: false, error: "That barber is not available." };
 
   let durationMinutes = 30;
   let serviceName: string | null = null;
@@ -95,9 +92,21 @@ export async function publicBookAppointment(
 
   const endTime = new Date(startTime.getTime() + durationMinutes * 60_000);
 
+  const resolved = await resolvePublicBookingBarber(
+    supabase,
+    shopId,
+    barberIdRaw,
+    startTime.toISOString(),
+    endTime.toISOString()
+  );
+  if (resolved.error || !resolved.barber) {
+    return { success: false, error: resolved.error ?? "Could not assign a barber." };
+  }
+  const barber = resolved.barber;
+
   const { error } = await supabase.from("barber_appointments").insert({
     shop_id: shopId,
-    barber_id: barberId,
+    barber_id: barber.id,
     service_id: serviceId,
     guest_name: guestName,
     guest_phone: guestPhone,
@@ -112,16 +121,18 @@ export async function publicBookAppointment(
 
   revalidatePath("/barber/appointments", "page");
   revalidatePath("/barber/dashboard", "page");
+  revalidatePath("/barber/join", "layout");
 
   const shopDisplayName = shop.name?.trim() || "the barber shop";
-  const barberDisplayName = barber.display_name ?? "your barber";
+  const barberDisplayName = barber.display_name?.trim() || null;
+  const showBarber = barber.showToClient && !!barberDisplayName;
   let smsSent = false;
   if (guestPhone) {
     smsSent = await sendBookingConfirmationSms({
       guestPhone,
       guestName: guestName,
       shopName: shopDisplayName,
-      barberName: barberDisplayName,
+      barberName: showBarber ? barberDisplayName : null,
       startTime: startTime.toISOString(),
       serviceName,
     });
@@ -130,7 +141,9 @@ export async function publicBookAppointment(
   return {
     success: true,
     startTime: startTime.toISOString(),
-    barberName: barberDisplayName,
+    barberName: showBarber ? barberDisplayName ?? undefined : undefined,
+    barberAvatarUrl: showBarber ? barber.avatar_url : null,
+    showBarber,
     smsSent,
   };
 }

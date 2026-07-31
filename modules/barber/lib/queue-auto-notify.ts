@@ -46,7 +46,7 @@ export async function sendBookingConfirmationSms(opts: {
   guestPhone: string;
   guestName: string | null;
   shopName: string;
-  barberName: string;
+  barberName?: string | null;
   startTime: string;
   serviceName?: string | null;
 }): Promise<boolean> {

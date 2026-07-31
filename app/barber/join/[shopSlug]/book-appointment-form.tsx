@@ -1,12 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { publicBookAppointment, type BookAppointmentResult } from "./actions";
+import {
+  publicBookAppointment,
+  ANY_BARBER_BOOKING_VALUE,
+  type BookAppointmentResult,
+} from "./actions";
 
 type BarberOption = {
   id: string;
   display_name: string | null;
   chair_number: number | null;
+  avatar_url: string | null;
 };
 type ServiceOption = { id: string; name: string; duration_minutes: number; price_minor: number };
 
@@ -27,6 +32,77 @@ function formatBookingWhen(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function AssignedBarberAvatar({
+  name,
+  avatarUrl,
+}: {
+  name: string;
+  avatarUrl?: string | null;
+}) {
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl}
+        alt=""
+        className="h-16 w-16 rounded-full object-cover border border-border shrink-0"
+      />
+    );
+  }
+  return (
+    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/20 text-xl font-semibold text-muted border border-border shrink-0">
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
+function BookingConfirmed({ result, shopName, onBookAnother }: {
+  result: BookAppointmentResult;
+  shopName: string;
+  onBookAnother: () => void;
+}) {
+  const showBarber = result.showBarber && result.barberName;
+
+  return (
+    <div className="text-center space-y-5 py-6">
+      <div className="flex items-center justify-center">
+        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/20 text-3xl text-foreground">
+          ✓
+        </span>
+      </div>
+      <h2 className="text-2xl font-bold">Booking confirmed</h2>
+      <div className="barber-panel p-5 text-center space-y-3">
+        {showBarber ? (
+          <>
+            <div className="flex justify-center">
+              <AssignedBarberAvatar
+                name={result.barberName!}
+                avatarUrl={result.barberAvatarUrl}
+              />
+            </div>
+            <p className="text-sm font-semibold">{result.barberName}</p>
+            <p className="text-xs text-muted">Your barber</p>
+          </>
+        ) : null}
+        <div className={showBarber ? "pt-1 border-t border-border" : undefined}>
+          <p className="text-sm text-muted">You&apos;re booked at {shopName}</p>
+          <p className="text-lg font-semibold mt-2">{formatBookingWhen(result.startTime!)}</p>
+        </div>
+        {result.smsSent && (
+          <p className="text-xs text-muted">We&apos;ve sent a confirmation text to your phone.</p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onBookAnother}
+        className="text-sm text-foreground hover:opacity-80 underline underline-offset-2"
+      >
+        Book another appointment
+      </button>
+    </div>
+  );
 }
 
 export function BookAppointmentForm({
@@ -55,29 +131,11 @@ export function BookAppointmentForm({
 
   if (result?.success && result.startTime) {
     return (
-      <div className="text-center space-y-5 py-6">
-        <div className="flex items-center justify-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/20 text-3xl text-foreground">
-            ✓
-          </span>
-        </div>
-        <h2 className="text-2xl font-bold">Booking confirmed</h2>
-        <div className="barber-panel p-5 text-center">
-          <p className="text-sm text-muted">You&apos;re booked at {shopName}</p>
-          <p className="text-lg font-semibold mt-2">{formatBookingWhen(result.startTime)}</p>
-          <p className="text-sm text-muted mt-2">with {result.barberName}</p>
-          {result.smsSent && (
-            <p className="text-xs text-muted mt-3">We&apos;ve sent a confirmation text to your phone.</p>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => setResult(null)}
-          className="text-sm text-foreground hover:opacity-80 underline underline-offset-2"
-        >
-          Book another appointment
-        </button>
-      </div>
+      <BookingConfirmed
+        result={result}
+        shopName={shopName}
+        onBookAnother={() => setResult(null)}
+      />
     );
   }
 
@@ -118,17 +176,18 @@ export function BookAppointmentForm({
         />
       </div>
 
-      <div>
-        <label htmlFor="book_barber_id" className="block text-xs text-muted mb-1.5">
-          Barber *
-        </label>
-        {barbers.length === 0 ? (
-          <p className="text-sm text-muted barber-panel px-3 py-2.5">
-            No barbers are available for booking right now. Please contact the shop.
-          </p>
-        ) : (
-          <select id="book_barber_id" name="barber_id" required className={selectClass}>
-            <option value="">Choose a barber…</option>
+      {barbers.length > 0 && (
+        <div>
+          <label htmlFor="book_barber_id" className="block text-xs text-muted mb-1.5">
+            Barber
+          </label>
+          <select
+            id="book_barber_id"
+            name="barber_id"
+            defaultValue={ANY_BARBER_BOOKING_VALUE}
+            className={selectClass}
+          >
+            <option value={ANY_BARBER_BOOKING_VALUE}>Any barber</option>
             {barbers.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.display_name ?? "Barber"}
@@ -136,8 +195,11 @@ export function BookAppointmentForm({
               </option>
             ))}
           </select>
-        )}
-      </div>
+          <p className="text-xs text-muted mt-1.5">
+            Choose any barber and we&apos;ll assign whoever is available for your time.
+          </p>
+        </div>
+      )}
 
       {showServices && services.length > 0 && (
         <div>
@@ -170,7 +232,7 @@ export function BookAppointmentForm({
         <input id="book_time" name="time" type="time" required className={fieldClass} />
       </div>
 
-      <button type="submit" disabled={isPending || barbers.length === 0} className={btnPrimary}>
+      <button type="submit" disabled={isPending} className={btnPrimary}>
         {isPending ? "Booking…" : "Confirm booking"}
       </button>
     </form>
