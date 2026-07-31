@@ -208,8 +208,14 @@ export async function adminUpdateNailSalon(
   if (updates.slug !== undefined) payload.slug = updates.slug.trim();
   if (updates.branding !== undefined) {
     const current = (existing.settings as Record<string, unknown>) ?? {};
-    const branding = { ...(current.branding as object), ...updates.branding };
-    payload.settings = { ...current, branding };
+    const merged = {
+      ...((current.branding as Record<string, unknown>) ?? {}),
+      ...updates.branding,
+    };
+    if ("logo_url" in updates.branding && !updates.branding.logo_url?.trim()) {
+      delete merged.logo_url;
+    }
+    payload.settings = { ...current, branding: merged };
   }
 
   const { error } = await admin.from("nail_salons").update(payload).eq("id", salonId);

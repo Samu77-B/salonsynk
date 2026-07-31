@@ -1,5 +1,4 @@
 import { createAdminClient } from "@core/supabase/admin";
-import { NAIL_SITE } from "@core/config/nail-site";
 import { nailAdminSwitchUrl, nailJoinUrl } from "@core/config/platform-urls";
 import { AdminTenantSetupLinks } from "@/components/admin/admin-tenant-setup-links";
 import { notFound } from "next/navigation";
@@ -52,7 +51,7 @@ export default async function AdminNailSalonDetailPage({
   }
 
   const joinUrl = nailJoinUrl(salon.slug);
-  const dashboardUrl = `${NAIL_SITE.url}/nail/queue`;
+  const dashboardUrl = nailAdminSwitchUrl(salon.id);
   const settings = (salon.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | boolean | undefined>) ?? {};
   const brandingStr = (key: string) => {

@@ -49,8 +49,8 @@ export function AdminEditBarberShopForm({
       show_title_on_queue: showTitleOnQueue,
       next_available_only: nextAvailableOnly,
       show_services_on_queue: showServicesOnQueue,
+      logo_url: logoUrl.trim(),
     };
-    if (logoUrl.trim()) branding.logo_url = logoUrl.trim();
     if (primaryColor.trim()) branding.primary_color = primaryColor.trim();
     if (companyName.trim()) branding.company_name = companyName.trim();
     const result = await adminUpdateBarberShop(shopId, {

@@ -1,5 +1,4 @@
 import { createAdminClient } from "@core/supabase/admin";
-import { BARBER_SITE } from "@core/config/barber-site";
 import { barberAdminSwitchUrl, barberJoinUrl } from "@core/config/platform-urls";
 import { AdminTenantSetupLinks } from "@/components/admin/admin-tenant-setup-links";
 import { notFound } from "next/navigation";
@@ -52,7 +51,7 @@ export default async function AdminBarberShopDetailPage({
   }
 
   const joinUrl = barberJoinUrl(shop.slug);
-  const dashboardUrl = `${BARBER_SITE.url}/barber/dashboard`;
+  const dashboardUrl = barberAdminSwitchUrl(shop.id);
   const settings = (shop.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | boolean | undefined>) ?? {};
   const brandingStr = (key: string) => {
