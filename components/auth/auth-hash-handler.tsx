@@ -23,6 +23,19 @@ function passwordSetupPath(type: string | null, product: ProductHost, isSuperAdm
     : dashboard;
 }
 
+async function pendingAdminReturnPath(): Promise<string | null> {
+  try {
+    const res = await fetch("/api/auth/admin-return", { method: "POST" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { path?: string | null };
+    const path = data.path;
+    if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//")) return null;
+    return path;
+  } catch {
+    return null;
+  }
+}
+
 function isProductHost(hostname: string, product: ProductHost): boolean {
   const host = hostname.toLowerCase();
   if (product === "barber") return host.includes("barbersynk.com");
@@ -87,9 +100,16 @@ export function AuthHashHandler() {
 
       const meRes = await fetch("/api/auth/me");
       const me = meRes.ok ? await meRes.json() : { isSuperAdmin: false };
+      const isSuperAdmin = me.isSuperAdmin === true;
+
+      let destination = passwordSetupPath(type, product, isSuperAdmin);
+      if (isSuperAdmin) {
+        const adminReturn = await pendingAdminReturnPath();
+        if (adminReturn) destination = adminReturn;
+      }
 
       setStatus("done");
-      window.location.assign(passwordSetupPath(type, product, me.isSuperAdmin === true));
+      window.location.assign(destination);
     })();
   }, []);
 

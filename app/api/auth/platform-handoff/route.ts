@@ -45,9 +45,25 @@ export async function GET(request: Request) {
     options: { redirectTo: getAuthCallbackUrl(platform) },
   });
 
-  const actionLink = data?.properties?.action_link;
-  if (error || !actionLink) {
+  if (error) {
     console.error("platform-handoff generateLink failed:", error);
+    return NextResponse.redirect(new URL("/smart/overview", request.url));
+  }
+
+  // Verify server-side on the product domain so the session lands in cookies and
+  // the callback can honour the parked admin destination. Supabase's own verify
+  // endpoint returns the session in a URL fragment, which never reaches the server.
+  const hashedToken = data?.properties?.hashed_token;
+  if (hashedToken) {
+    const callback = new URL(getAuthCallbackUrl(platform));
+    callback.searchParams.set("token_hash", hashedToken);
+    callback.searchParams.set("type", "magiclink");
+    return NextResponse.redirect(callback);
+  }
+
+  const actionLink = data?.properties?.action_link;
+  if (!actionLink) {
+    console.error("platform-handoff generateLink returned no usable link");
     return NextResponse.redirect(new URL("/smart/overview", request.url));
   }
 
