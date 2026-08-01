@@ -60,11 +60,9 @@ export function BarberDashboardHeader({
       )}
 
       <div className="relative z-40 flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 text-lg font-bold tracking-tight">Barber Synk</span>
-          <span className="hidden truncate text-xs text-muted sm:inline max-w-[140px] md:max-w-[200px]">
-            {shopName}
-          </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-lg font-bold tracking-tight leading-tight">{shopName}</p>
+          <p className="truncate text-[11px] text-muted leading-tight">Barber Synk</p>
         </div>
 
         <nav className="hidden md:flex items-center gap-4 ml-2" aria-label="Main navigation">
