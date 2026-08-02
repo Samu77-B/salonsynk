@@ -18,8 +18,16 @@ export default async function BarberDashboardLayout({
 
   if (!user) redirect("/login");
 
-  const isSuperAdmin = await getIsSuperAdmin();
-  const shopContext = await getCurrentUserShop();
+  let isSuperAdmin = false;
+  let shopContext = null;
+  try {
+    isSuperAdmin = await getIsSuperAdmin();
+    shopContext = await getCurrentUserShop();
+  } catch (err) {
+    console.error("BarberDashboardLayout auth context failed:", err);
+    redirect("/barber/access");
+  }
+
   if (!shopContext) redirect("/barber/access");
 
   await enforceBarberSubscriptionIfRequired();

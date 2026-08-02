@@ -67,8 +67,13 @@ export function JoinQueueForm({
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
-      const res = await publicJoinQueue(shopId, formData);
-      setResult(res);
+      try {
+        const res = await publicJoinQueue(shopId, formData);
+        setResult(res ?? { success: false, error: "Could not join the queue. Please try again." });
+      } catch (err) {
+        console.error("JoinQueueForm submit failed:", err);
+        setResult({ success: false, error: "Could not join the queue. Please try again." });
+      }
     });
   }
 

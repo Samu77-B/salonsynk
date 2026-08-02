@@ -23,7 +23,7 @@ type ActionResult = { error?: string };
 
 async function getShopScopedClient() {
   const context = await getCurrentUserShop();
-  if (!context) throw new Error("No barber shop context");
+  if (!context) return { error: "No barber shop context. Sign in again and retry." } as const;
   const isSuperAdmin = await getIsSuperAdmin();
   const isManagerView = hasQueueManagerAccess(
     isSuperAdmin,
@@ -47,7 +47,7 @@ async function getShopScopedClient() {
     shopName: context.shop.name,
     memberId: actingMemberId,
     isManagerView,
-  };
+  } as const;
 }
 
 function revalidateQueue() {
@@ -55,7 +55,7 @@ function revalidateQueue() {
 }
 
 async function fetchQueueEntry(
-  supabase: Awaited<ReturnType<typeof getShopScopedClient>>["supabase"],
+  supabase: Awaited<ReturnType<typeof createClient>>,
   shopId: string,
   queueEntryId: string
 ) {
@@ -76,7 +76,9 @@ export async function notifyQueueCustomer(
   template: QueueSmsTemplate = "next"
 ): Promise<{ error?: string; sent?: boolean }> {
   try {
-    const { supabase, shopId, shopName, isManagerView } = await getShopScopedClient();
+    const scoped = await getShopScopedClient();
+    if ("error" in scoped) return { error: scoped.error };
+    const { supabase, shopId, shopName, isManagerView } = scoped;
     if (!isManagerView) return { error: "Only managers can send queue notifications" };
     const entry = await fetchQueueEntry(supabase, shopId, queueEntryId);
     if (!entry) return { error: "Queue entry not found" };
@@ -113,7 +115,9 @@ export async function sendQueueCustomMessage(
   message: string
 ): Promise<{ error?: string; sent?: boolean }> {
   try {
-    const { supabase, shopId, isManagerView } = await getShopScopedClient();
+    const scoped = await getShopScopedClient();
+    if ("error" in scoped) return { error: scoped.error };
+    const { supabase, shopId, isManagerView } = scoped;
     if (!isManagerView) return { error: "Only managers can send queue messages" };
     const entry = await fetchQueueEntry(supabase, shopId, queueEntryId);
     if (!entry) return { error: "Queue entry not found" };
@@ -134,7 +138,9 @@ export async function sendQueueCustomMessage(
 
 export async function addToQueue(formData: FormData): Promise<ActionResult> {
   try {
-    const { supabase, shopId, isManagerView } = await getShopScopedClient();
+    const scoped = await getShopScopedClient();
+    if ("error" in scoped) return { error: scoped.error };
+    const { supabase, shopId, isManagerView } = scoped;
     if (!isManagerView) return { error: "Only managers can add customers from the desk" };
 
     const guestName = (formData.get("guest_name") as string)?.trim() || "Walk-in";
@@ -172,7 +178,9 @@ export async function startService(
   barberId: string
 ): Promise<ActionResult> {
   try {
-    const { supabase, shopId, shopName, isManagerView } = await getShopScopedClient();
+    const scoped = await getShopScopedClient();
+    if ("error" in scoped) return { error: scoped.error };
+    const { supabase, shopId, shopName, isManagerView } = scoped;
 
     const resolved = await resolveActingBarberId(supabase, shopId, barberId);
     if (resolved.error || !resolved.barberId) {
@@ -237,7 +245,9 @@ export async function completeService(
   amountMinor?: number
 ): Promise<ActionResult> {
   try {
-    const { supabase, shopId, shopName, memberId, isManagerView } = await getShopScopedClient();
+    const scoped = await getShopScopedClient();
+    if ("error" in scoped) return { error: scoped.error };
+    const { supabase, shopId, shopName, memberId, isManagerView } = scoped;
 
     const { data: entry, error: fetchErr } = await supabase
       .from("barber_queue")
@@ -296,7 +306,9 @@ export async function removeFromQueue(
   reason: "no_show" | "left" = "left"
 ): Promise<ActionResult> {
   try {
-    const { supabase, shopId, shopName, memberId, isManagerView } = await getShopScopedClient();
+    const scoped = await getShopScopedClient();
+    if ("error" in scoped) return { error: scoped.error };
+    const { supabase, shopId, shopName, memberId, isManagerView } = scoped;
 
     if (!isManagerView) {
       const { data: entry } = await supabase

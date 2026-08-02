@@ -13,7 +13,7 @@ export default async function BarberAppointmentsPage({
   const { date } = await searchParams;
   const today = new Date().toISOString().slice(0, 10);
   const data = await getBarberAppointmentsData(date ?? today);
-  if (!data) redirect("/onboarding");
+  if (!data) redirect("/barber/access");
 
   return (
     <div className="space-y-4">

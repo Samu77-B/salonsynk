@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function BarberDashboardPage() {
   const data = await getBarberDashboardData();
-  if (!data) redirect("/onboarding");
+  if (!data) redirect("/barber/access");
 
   const memberName = data.member.display_name?.trim() || "My queue";
 

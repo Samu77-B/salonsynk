@@ -11,27 +11,54 @@ import {
 } from "@core/billing/platform-onboarding";
 
 export async function enforceBarberSubscriptionIfRequired() {
-  const isSuperAdmin = await getIsSuperAdmin();
-  if (isSuperAdmin) return;
+  try {
+    const isSuperAdmin = await getIsSuperAdmin();
+    if (isSuperAdmin) return;
 
-  const context = await getCurrentUserShop();
-  if (!context?.shop.id) return;
+    const context = await getCurrentUserShop();
+    if (!context?.shop.id) return;
 
-  const state = await fetchBarberBillingState(context.shop.id);
-  if (state && tenantRequiresPayment(state)) {
-    redirect("/barber/billing");
+    const state = await fetchBarberBillingState(context.shop.id);
+    if (state && tenantRequiresPayment(state)) {
+      redirect("/barber/billing");
+    }
+  } catch (err) {
+    // redirect() throws a special NEXT_REDIRECT error — rethrow it
+    if (
+      err &&
+      typeof err === "object" &&
+      "digest" in err &&
+      typeof (err as { digest?: unknown }).digest === "string" &&
+      String((err as { digest: string }).digest).startsWith("NEXT_REDIRECT")
+    ) {
+      throw err;
+    }
+    console.error("enforceBarberSubscriptionIfRequired failed:", err);
   }
 }
 
 export async function enforceNailSubscriptionIfRequired() {
-  const isSuperAdmin = await getIsSuperAdmin();
-  if (isSuperAdmin) return;
+  try {
+    const isSuperAdmin = await getIsSuperAdmin();
+    if (isSuperAdmin) return;
 
-  const context = await getCurrentUserNailSalon();
-  if (!context?.salon.id) return;
+    const context = await getCurrentUserNailSalon();
+    if (!context?.salon.id) return;
 
-  const state = await fetchNailBillingState(context.salon.id);
-  if (state && tenantRequiresPayment(state)) {
-    redirect("/nail/billing");
+    const state = await fetchNailBillingState(context.salon.id);
+    if (state && tenantRequiresPayment(state)) {
+      redirect("/nail/billing");
+    }
+  } catch (err) {
+    if (
+      err &&
+      typeof err === "object" &&
+      "digest" in err &&
+      typeof (err as { digest?: unknown }).digest === "string" &&
+      String((err as { digest: string }).digest).startsWith("NEXT_REDIRECT")
+    ) {
+      throw err;
+    }
+    console.error("enforceNailSubscriptionIfRequired failed:", err);
   }
 }

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function BarberServicesPage() {
   const context = await getCurrentUserShop();
-  if (!context) redirect("/onboarding");
+  if (!context) redirect("/barber/access");
 
   const isSuperAdmin = await getIsSuperAdmin();
   const canManage = hasQueueManagerAccess(

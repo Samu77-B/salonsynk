@@ -143,7 +143,12 @@ export async function fetchTenantByPaymentToken(
 }
 
 export async function fetchBarberBillingState(shopId: string) {
-  const admin = createAdminClient();
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return null;
+  }
   const { data } = await admin
     .from("barber_shops")
     .select(
@@ -155,7 +160,12 @@ export async function fetchBarberBillingState(shopId: string) {
 }
 
 export async function fetchNailBillingState(salonId: string) {
-  const admin = createAdminClient();
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return null;
+  }
   const { data } = await admin
     .from("nail_salons")
     .select(

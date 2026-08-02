@@ -31,10 +31,15 @@ export default async function BarberBillingPage({
   }
 
   const context = await getCurrentUserShop();
-  if (!context) redirect("/barber/onboarding");
+  if (!context) redirect("/barber/access");
 
   const params = await searchParams;
-  const admin = createAdminClient();
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    redirect("/barber/access");
+  }
   const { data: shopRow } = await admin
     .from("barber_shops")
     .select(
