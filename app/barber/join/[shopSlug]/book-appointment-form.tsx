@@ -1,11 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  publicBookAppointment,
-  ANY_BARBER_BOOKING_VALUE,
-  type BookAppointmentResult,
-} from "./actions";
+import { ANY_BARBER_BOOKING_VALUE, type BookAppointmentResult } from "./actions";
 
 type BarberOption = {
   id: string;
@@ -125,8 +121,24 @@ export function BookAppointmentForm({
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
       try {
-        const res = await publicBookAppointment(shopId, formData);
-        setResult(res ?? { success: false, error: "Could not save your booking. Please try again." });
+        const res = await fetch("/api/barber/public-book", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            shopId,
+            guestName: (formData.get("guest_name") as string) ?? "",
+            guestPhone: (formData.get("guest_phone") as string) ?? "",
+            barberId: (formData.get("barber_id") as string) ?? ANY_BARBER_BOOKING_VALUE,
+            serviceId: (formData.get("service_id") as string) ?? "",
+            date: (formData.get("date") as string) ?? "",
+            time: (formData.get("time") as string) ?? "",
+            notes: (formData.get("notes") as string) ?? "",
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as BookAppointmentResult | null;
+        setResult(
+          data ?? { success: false, error: "Could not save your booking. Please try again." }
+        );
       } catch (err) {
         console.error("BookAppointmentForm submit failed:", err);
         setResult({ success: false, error: "Could not save your booking. Please try again." });

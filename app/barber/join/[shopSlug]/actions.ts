@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@core/supabase/admin";
 import { sendJoinQueueSms, sendBookingConfirmationSms } from "@modules/barber/lib/queue-auto-notify";
 import { getNextQueuePosition } from "@modules/barber/lib/queue-positions";
@@ -127,10 +126,6 @@ export async function publicBookAppointment(
 
   if (error) return { success: false, error: "Could not save your booking. Please try again." };
 
-  revalidatePath("/barber/appointments", "page");
-  revalidatePath("/barber/dashboard", "page");
-  revalidatePath("/barber/join", "layout");
-
   const shopDisplayName = shop.name?.trim() || "the barber shop";
   const barberDisplayName = barber.display_name?.trim() || null;
   const showBarber = barber.showToClient && !!barberDisplayName;
@@ -241,8 +236,6 @@ export async function publicJoinQueue(
       guestName
     );
   }
-
-  revalidatePath("/barber/join", "layout");
 
   return {
     success: true,

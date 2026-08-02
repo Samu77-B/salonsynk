@@ -74,7 +74,9 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/onboarding") ||
       pathname.startsWith("/update-password") ||
       pathname.startsWith("/api") ||
-      pathname.startsWith("/auth");
+      pathname.startsWith("/auth") ||
+      pathname === "/manifest.webmanifest" ||
+      pathname === "/sw.js";
     if (!allowed) {
       return NextResponse.redirect(new URL("/", request.url));
     }

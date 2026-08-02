@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { publicJoinQueue, type JoinQueueResult } from "./actions";
+import type { JoinQueueResult } from "./actions";
 
 type BarberOption = {
   id: string;
@@ -68,8 +68,21 @@ export function JoinQueueForm({
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
       try {
-        const res = await publicJoinQueue(shopId, formData);
-        setResult(res ?? { success: false, error: "Could not join the queue. Please try again." });
+        const res = await fetch("/api/barber/public-join-queue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            shopId,
+            guestName: (formData.get("guest_name") as string) ?? "",
+            guestPhone: (formData.get("guest_phone") as string) ?? "",
+            serviceId: (formData.get("service_id") as string) ?? "",
+            preferredBarberId: (formData.get("preferred_barber_id") as string) ?? "",
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as JoinQueueResult | null;
+        setResult(
+          data ?? { success: false, error: "Could not join the queue. Please try again." }
+        );
       } catch (err) {
         console.error("JoinQueueForm submit failed:", err);
         setResult({ success: false, error: "Could not join the queue. Please try again." });
