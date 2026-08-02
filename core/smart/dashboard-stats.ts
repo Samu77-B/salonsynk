@@ -87,16 +87,34 @@ function eachDay(from: Date, to: Date): string[] {
   return days;
 }
 
+export type TenantScope = {
+  salonIds: string[];
+  shopIds: string[];
+  nailSalonIds: string[];
+};
+
+type CountFilter = {
+  column: string;
+  gte?: string;
+  lte?: string;
+  eq?: string;
+  in?: string[];
+};
+
 async function safeCount(
   admin: ReturnType<typeof createAdminClient>,
   table: string,
-  filters?: { column: string; gte?: string; lte?: string; eq?: string }[]
+  filters?: CountFilter[]
 ): Promise<number> {
+  for (const f of filters ?? []) {
+    if (f.in && f.in.length === 0) return 0;
+  }
   let q = admin.from(table).select("*", { count: "exact", head: true });
   for (const f of filters ?? []) {
     if (f.gte) q = q.gte(f.column, f.gte);
     if (f.lte) q = q.lte(f.column, f.lte);
     if (f.eq) q = q.eq(f.column, f.eq);
+    if (f.in) q = q.in(f.column, f.in);
   }
   const { count, error } = await q;
   if (error) return 0;
@@ -110,13 +128,14 @@ async function sumAmountMinor(
   from: string,
   to: string,
   idColumn: string,
-  nameTable: string
+  nameTable: string,
+  tenantIds?: string[]
 ): Promise<{ total: number; byLocation: Map<string, { name: string; amount: number }> }> {
-  const { data, error } = await admin
-    .from(table)
-    .select("*")
-    .gte(dateColumn, from)
-    .lte(dateColumn, to);
+  if (tenantIds && tenantIds.length === 0) return { total: 0, byLocation: new Map() };
+
+  let q = admin.from(table).select("*").gte(dateColumn, from).lte(dateColumn, to);
+  if (tenantIds) q = q.in(idColumn, tenantIds);
+  const { data, error } = await q;
 
   if (error || !data) return { total: 0, byLocation: new Map() };
 
@@ -175,7 +194,8 @@ export async function fetchDashboardOverview(
   range: DateRange = {
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     to: new Date(),
-  }
+  },
+  scope?: TenantScope
 ): Promise<DashboardOverviewStats> {
   const admin = createAdminClient();
   const today = new Date();
@@ -193,6 +213,11 @@ export async function fetchDashboardOverview(
 
   const weekAgo = new Date(today);
   weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const salonIds = scope?.salonIds;
+  const shopIds = scope?.shopIds;
+  const nailIds = scope?.nailSalonIds;
+  const scoped = Boolean(scope);
 
   const [
     salonToday,
@@ -217,29 +242,53 @@ export async function fetchDashboardOverview(
   ] = await Promise.all([
     safeCount(admin, "appointments", [
       { column: "start_time", gte: todayStart, lte: todayEnd },
+      ...(salonIds ? [{ column: "salon_id", in: salonIds }] : []),
     ]),
     safeCount(admin, "barber_appointments", [
       { column: "start_time", gte: todayStart, lte: todayEnd },
+      ...(shopIds ? [{ column: "shop_id", in: shopIds }] : []),
     ]),
     safeCount(admin, "nail_appointments", [
       { column: "start_time", gte: todayStart, lte: todayEnd },
+      ...(nailIds ? [{ column: "salon_id", in: nailIds }] : []),
     ]),
     safeCount(admin, "appointments", [
       { column: "start_time", gte: yesterdayStart, lte: yesterdayEnd },
+      ...(salonIds ? [{ column: "salon_id", in: salonIds }] : []),
     ]),
     safeCount(admin, "barber_appointments", [
       { column: "start_time", gte: yesterdayStart, lte: yesterdayEnd },
+      ...(shopIds ? [{ column: "shop_id", in: shopIds }] : []),
     ]),
     safeCount(admin, "nail_appointments", [
       { column: "start_time", gte: yesterdayStart, lte: yesterdayEnd },
+      ...(nailIds ? [{ column: "salon_id", in: nailIds }] : []),
     ]),
-    safeCount(admin, "salons"),
-    safeCount(admin, "barber_shops"),
-    safeCount(admin, "nail_salons"),
-    safeCount(admin, "salons", [{ column: "created_at", gte: weekAgo.toISOString() }]),
-    safeCount(admin, "barber_shops", [{ column: "created_at", gte: weekAgo.toISOString() }]),
-    safeCount(admin, "nail_salons", [{ column: "created_at", gte: weekAgo.toISOString() }]),
-    sumAmountMinor(admin, "sales_transactions", "paid_at", monthStart, todayEnd, "salon_id", "salons"),
+    scoped ? Promise.resolve(salonIds?.length ?? 0) : safeCount(admin, "salons"),
+    scoped ? Promise.resolve(shopIds?.length ?? 0) : safeCount(admin, "barber_shops"),
+    scoped ? Promise.resolve(nailIds?.length ?? 0) : safeCount(admin, "nail_salons"),
+    safeCount(admin, "salons", [
+      { column: "created_at", gte: weekAgo.toISOString() },
+      ...(salonIds ? [{ column: "id", in: salonIds }] : []),
+    ]),
+    safeCount(admin, "barber_shops", [
+      { column: "created_at", gte: weekAgo.toISOString() },
+      ...(shopIds ? [{ column: "id", in: shopIds }] : []),
+    ]),
+    safeCount(admin, "nail_salons", [
+      { column: "created_at", gte: weekAgo.toISOString() },
+      ...(nailIds ? [{ column: "id", in: nailIds }] : []),
+    ]),
+    sumAmountMinor(
+      admin,
+      "sales_transactions",
+      "paid_at",
+      monthStart,
+      todayEnd,
+      "salon_id",
+      "salons",
+      salonIds
+    ),
     sumAmountMinor(
       admin,
       "barber_sales_transactions",
@@ -247,7 +296,8 @@ export async function fetchDashboardOverview(
       monthStart,
       todayEnd,
       "shop_id",
-      "barber_shops"
+      "barber_shops",
+      shopIds
     ),
     sumAmountMinor(
       admin,
@@ -256,7 +306,8 @@ export async function fetchDashboardOverview(
       monthStart,
       todayEnd,
       "salon_id",
-      "nail_salons"
+      "nail_salons",
+      nailIds
     ),
     sumAmountMinor(
       admin,
@@ -265,7 +316,8 @@ export async function fetchDashboardOverview(
       lastMonthStart,
       lastMonthEnd,
       "salon_id",
-      "salons"
+      "salons",
+      salonIds
     ),
     sumAmountMinor(
       admin,
@@ -274,7 +326,8 @@ export async function fetchDashboardOverview(
       lastMonthStart,
       lastMonthEnd,
       "shop_id",
-      "barber_shops"
+      "barber_shops",
+      shopIds
     ),
     sumAmountMinor(
       admin,
@@ -283,9 +336,17 @@ export async function fetchDashboardOverview(
       lastMonthStart,
       lastMonthEnd,
       "salon_id",
-      "nail_salons"
+      "nail_salons",
+      nailIds
     ),
-    fetchLandingStats(),
+    scoped
+      ? Promise.resolve({
+          businesses: (salonIds?.length ?? 0) + (shopIds?.length ?? 0) + (nailIds?.length ?? 0),
+          appointments: 0,
+          transactions: 0,
+          platforms: 3,
+        })
+      : fetchLandingStats(),
   ]);
 
   const appointmentsToday = salonToday + barberToday + nailToday;
@@ -334,22 +395,42 @@ export async function fetchDashboardOverview(
   const rangeTo = endOfDay(range.to);
   const days = eachDay(range.from, range.to);
 
+  const emptyRows = Promise.resolve({ data: [] as Record<string, unknown>[] });
+
   const [salonApptsRange, barberApptsRange, nailApptsRange] = await Promise.all([
-    admin
-      .from("appointments")
-      .select("start_time")
-      .gte("start_time", rangeFrom)
-      .lte("start_time", rangeTo),
-    admin
-      .from("barber_appointments")
-      .select("start_time")
-      .gte("start_time", rangeFrom)
-      .lte("start_time", rangeTo),
-    admin
-      .from("nail_appointments")
-      .select("start_time")
-      .gte("start_time", rangeFrom)
-      .lte("start_time", rangeTo),
+    salonIds && salonIds.length === 0
+      ? emptyRows
+      : (() => {
+          let q = admin
+            .from("appointments")
+            .select("start_time")
+            .gte("start_time", rangeFrom)
+            .lte("start_time", rangeTo);
+          if (salonIds) q = q.in("salon_id", salonIds);
+          return q;
+        })(),
+    shopIds && shopIds.length === 0
+      ? emptyRows
+      : (() => {
+          let q = admin
+            .from("barber_appointments")
+            .select("start_time")
+            .gte("start_time", rangeFrom)
+            .lte("start_time", rangeTo);
+          if (shopIds) q = q.in("shop_id", shopIds);
+          return q;
+        })(),
+    nailIds && nailIds.length === 0
+      ? emptyRows
+      : (() => {
+          let q = admin
+            .from("nail_appointments")
+            .select("start_time")
+            .gte("start_time", rangeFrom)
+            .lte("start_time", rangeTo);
+          if (nailIds) q = q.in("salon_id", nailIds);
+          return q;
+        })(),
   ]);
 
   const apptsByDay = new Map<string, number>();
@@ -362,21 +443,39 @@ export async function fetchDashboardOverview(
   }
 
   const [salonRevRange, barberRevRange, nailRevRange] = await Promise.all([
-    admin
-      .from("sales_transactions")
-      .select("paid_at, amount_minor")
-      .gte("paid_at", rangeFrom)
-      .lte("paid_at", rangeTo),
-    admin
-      .from("barber_sales_transactions")
-      .select("paid_at, amount_minor")
-      .gte("paid_at", rangeFrom)
-      .lte("paid_at", rangeTo),
-    admin
-      .from("nail_sales_transactions")
-      .select("paid_at, amount_minor")
-      .gte("paid_at", rangeFrom)
-      .lte("paid_at", rangeTo),
+    salonIds && salonIds.length === 0
+      ? emptyRows
+      : (() => {
+          let q = admin
+            .from("sales_transactions")
+            .select("paid_at, amount_minor")
+            .gte("paid_at", rangeFrom)
+            .lte("paid_at", rangeTo);
+          if (salonIds) q = q.in("salon_id", salonIds);
+          return q;
+        })(),
+    shopIds && shopIds.length === 0
+      ? emptyRows
+      : (() => {
+          let q = admin
+            .from("barber_sales_transactions")
+            .select("paid_at, amount_minor")
+            .gte("paid_at", rangeFrom)
+            .lte("paid_at", rangeTo);
+          if (shopIds) q = q.in("shop_id", shopIds);
+          return q;
+        })(),
+    nailIds && nailIds.length === 0
+      ? emptyRows
+      : (() => {
+          let q = admin
+            .from("nail_sales_transactions")
+            .select("paid_at, amount_minor")
+            .gte("paid_at", rangeFrom)
+            .lte("paid_at", rangeTo);
+          if (nailIds) q = q.in("salon_id", nailIds);
+          return q;
+        })(),
   ]);
 
   const revByDay = new Map<string, number>();
@@ -412,36 +511,72 @@ export async function fetchDashboardOverview(
 
   const [recentSalonAppts, recentBarberAppts, recentNailAppts, recentSalonTx, recentBarberTx, recentNailTx] =
     await Promise.all([
-      admin
-        .from("appointments")
-        .select("id, created_at, guest_name, status")
-        .order("created_at", { ascending: false })
-        .limit(8),
-      admin
-        .from("barber_appointments")
-        .select("id, created_at, guest_name, status")
-        .order("created_at", { ascending: false })
-        .limit(8),
-      admin
-        .from("nail_appointments")
-        .select("id, created_at, guest_name, status")
-        .order("created_at", { ascending: false })
-        .limit(8),
-      admin
-        .from("sales_transactions")
-        .select("id, paid_at, amount_minor")
-        .order("paid_at", { ascending: false })
-        .limit(5),
-      admin
-        .from("barber_sales_transactions")
-        .select("id, paid_at, amount_minor")
-        .order("paid_at", { ascending: false })
-        .limit(5),
-      admin
-        .from("nail_sales_transactions")
-        .select("id, paid_at, amount_minor")
-        .order("paid_at", { ascending: false })
-        .limit(5),
+      salonIds && salonIds.length === 0
+        ? emptyRows
+        : (() => {
+            let q = admin
+              .from("appointments")
+              .select("id, created_at, guest_name, status")
+              .order("created_at", { ascending: false })
+              .limit(8);
+            if (salonIds) q = q.in("salon_id", salonIds);
+            return q;
+          })(),
+      shopIds && shopIds.length === 0
+        ? emptyRows
+        : (() => {
+            let q = admin
+              .from("barber_appointments")
+              .select("id, created_at, guest_name, status")
+              .order("created_at", { ascending: false })
+              .limit(8);
+            if (shopIds) q = q.in("shop_id", shopIds);
+            return q;
+          })(),
+      nailIds && nailIds.length === 0
+        ? emptyRows
+        : (() => {
+            let q = admin
+              .from("nail_appointments")
+              .select("id, created_at, guest_name, status")
+              .order("created_at", { ascending: false })
+              .limit(8);
+            if (nailIds) q = q.in("salon_id", nailIds);
+            return q;
+          })(),
+      salonIds && salonIds.length === 0
+        ? emptyRows
+        : (() => {
+            let q = admin
+              .from("sales_transactions")
+              .select("id, paid_at, amount_minor")
+              .order("paid_at", { ascending: false })
+              .limit(5);
+            if (salonIds) q = q.in("salon_id", salonIds);
+            return q;
+          })(),
+      shopIds && shopIds.length === 0
+        ? emptyRows
+        : (() => {
+            let q = admin
+              .from("barber_sales_transactions")
+              .select("id, paid_at, amount_minor")
+              .order("paid_at", { ascending: false })
+              .limit(5);
+            if (shopIds) q = q.in("shop_id", shopIds);
+            return q;
+          })(),
+      nailIds && nailIds.length === 0
+        ? emptyRows
+        : (() => {
+            let q = admin
+              .from("nail_sales_transactions")
+              .select("id, paid_at, amount_minor")
+              .order("paid_at", { ascending: false })
+              .limit(5);
+            if (nailIds) q = q.in("salon_id", nailIds);
+            return q;
+          })(),
     ]);
 
   type ActivityItem = DashboardOverviewStats["recentActivity"][number];

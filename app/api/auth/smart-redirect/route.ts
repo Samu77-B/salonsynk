@@ -5,6 +5,8 @@ import {
   resolveUserPlatform,
   getPlatformCallbackUrl,
 } from "@core/auth/resolve-user-platform";
+import { buildPlatformAuthLink } from "@core/auth/auth-redirect";
+import { qualifiesForOwnerHub } from "@core/auth/smart-access";
 
 export async function POST(request: Request) {
   try {
@@ -22,7 +24,7 @@ export async function POST(request: Request) {
 
     const resolution = await resolveUserPlatform(user.id);
 
-    if (resolution.type === "super_admin") {
+    if (resolution.type === "super_admin" || qualifiesForOwnerHub(resolution)) {
       return NextResponse.json({ type: "local", path: "/smart/overview" });
     }
 
@@ -73,10 +75,10 @@ async function generatePlatformMagicLink(
     options: { redirectTo },
   });
 
-  if (error || !data.properties?.action_link) {
+  if (error) {
     console.error("generateLink failed:", error);
     return null;
   }
 
-  return data.properties.action_link;
+  return buildPlatformAuthLink(data, platform, "magiclink");
 }

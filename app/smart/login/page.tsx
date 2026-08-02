@@ -5,7 +5,7 @@ import Link from "next/link";
 import { SmartLoginForm } from "./smart-login-form";
 import { SMART_SITE } from "@core/config/smart-site";
 import { SmartSynkLogo } from "@/components/smart/smart-synk-logo";
-import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
+import { getSmartAccess } from "@core/auth/smart-access";
 import { isAllowedAdminReturnUrl } from "@core/auth/admin-switch-next";
 
 export default async function SmartLoginPage({
@@ -24,8 +24,8 @@ export default async function SmartLoginPage({
     if (next && isAllowedAdminReturnUrl(next)) {
       redirect(`/api/auth/platform-handoff?returnTo=${encodeURIComponent(next)}`);
     }
-    const isSuperAdmin = await getIsSuperAdmin();
-    if (isSuperAdmin) redirect("/smart/overview");
+    const access = await getSmartAccess(user.id);
+    if (access.canAccess) redirect("/smart/overview");
   }
 
   return (
@@ -37,7 +37,7 @@ export default async function SmartLoginPage({
           </div>
           <h1 className="text-2xl font-bold text-zinc-900">Sign in to {SMART_SITE.name}</h1>
           <p className="mt-2 text-sm text-zinc-600">
-            One login for SalonSynk, BarberSynk, and NailSynk
+            One login for every salon, barber shop, and nail studio you own
           </p>
         </div>
         <Suspense fallback={<p className="text-sm text-zinc-500 text-center">Loading…</p>}>

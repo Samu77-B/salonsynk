@@ -10,7 +10,11 @@ import {
   generatePaymentInviteToken,
   paymentInviteUrl,
 } from "@/lib/onboarding";
-import { getAuthCallbackUrl, normalizeAuthActionLink } from "@core/auth/auth-redirect";
+import {
+  buildPlatformAuthLink,
+  getAuthCallbackUrl,
+  normalizeAuthActionLink,
+} from "@core/auth/auth-redirect";
 import { isPaymentGatewayId, type PaymentGatewayId } from "@/config/payment-gateways";
 
 /**
@@ -713,22 +717,25 @@ export async function adminSendSalonWelcomeEmail(
     options: { redirectTo, data: { full_name: ownerName } },
   });
 
-  let loginLink: string | null = getAuthActionLink(linkData);
+  let loginLink: string | null = buildPlatformAuthLink(linkData, "salon", "invite");
+  let linkPayload: unknown = linkData;
 
-  if (linkError) {
+  if (linkError || !loginLink) {
     const { data: recoveryData, error: recoveryError } = await supabase.auth.admin.generateLink({
       type: "recovery",
       email: trimmed,
       options: { redirectTo },
     });
-    if (recoveryError) return { error: linkError.message };
-    loginLink = getAuthActionLink(recoveryData);
+    if (recoveryError && linkError) return { error: linkError.message };
+    if (recoveryError && !loginLink) return { error: recoveryError.message };
+    loginLink = buildPlatformAuthLink(recoveryData, "salon", "recovery");
+    linkPayload = recoveryData;
   }
 
   if (!loginLink) return { error: "Could not generate login link for this email." };
 
   const invitedUserId =
-    (linkData as { user?: { id?: string } } | null)?.user?.id ??
+    (linkPayload as { user?: { id?: string } } | null)?.user?.id ??
     (await supabase.from("profiles").select("id").eq("email", trimmed).single()).data?.id;
 
   if (invitedUserId) {

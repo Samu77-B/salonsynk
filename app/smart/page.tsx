@@ -79,10 +79,12 @@ export default async function SmartLandingPage() {
           <section className="py-20 sm:py-24 bg-white text-zinc-900">
             <div className="mx-auto max-w-3xl px-4 sm:px-6 text-center">
               <h2 className="text-2xl font-bold sm:text-3xl text-zinc-900">
-                One login. Three platforms.
+                Own more than one location?
               </h2>
               <p className="mt-3 text-zinc-600">
-                Sign in to manage your salon, barber shop, or nail studio from the SmartSynk hub.
+                SmartSynk is for group owners — see every salon, barber shop, and nail studio you own
+                in one place, then open any location to run the day. Site managers keep their own
+                logins for a single site.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
                 <Link

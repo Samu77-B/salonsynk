@@ -17,6 +17,7 @@ import {
   resolveProductFromHost,
   type ProductHost,
 } from "@/lib/platform-host";
+import { getSmartAccess } from "@core/auth/smart-access";
 
 function hostFromRequest(request: Request): string {
   return new URL(request.url).host.toLowerCase();
@@ -68,6 +69,13 @@ async function resolvePostAuthRedirect(
 
   if (isSmartHost(host) && isSuperAdmin) {
     return `${origin}/smart/overview`;
+  }
+
+  if (isSmartHost(host) && userId) {
+    const access = await getSmartAccess(userId);
+    if (access.canAccess) {
+      return `${origin}/smart/overview`;
+    }
   }
 
   if (isBarberHost(host)) {
@@ -133,11 +141,37 @@ export async function GET(request: Request) {
   const supabase = await createClient();
 
   if (tokenHash && authType) {
-    const { error } = await supabase.auth.verifyOtp({
-      token_hash: tokenHash,
-      type: authType as EmailOtpType,
-    });
-    if (!error) {
+    let verifyError = (
+      await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: authType as EmailOtpType,
+      })
+    ).error;
+
+    // Invite links sometimes only verify as signup depending on Supabase version.
+    if (verifyError && authType === "invite") {
+      verifyError = (
+        await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: "signup",
+        })
+      ).error;
+      if (!verifyError) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const redirectUrl = await resolvePostAuthRedirect(
+          origin,
+          host,
+          next,
+          "invite",
+          user?.id ?? null
+        );
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
+
+    if (!verifyError) {
       const {
         data: { user },
       } = await supabase.auth.getUser();

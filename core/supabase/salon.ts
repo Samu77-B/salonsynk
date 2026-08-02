@@ -92,15 +92,22 @@ export async function getCurrentUserSalon(): Promise<SalonWithMember | null> {
     .from("salon_members")
     .select("id, salon_id, role, display_name")
     .eq("user_id", user.id)
-    .eq("is_active", true)
-    .limit(1);
+    .eq("is_active", true);
 
   if (!members?.length) return null;
+
+  const cookieStore = await cookies();
+  const preferredSalonId = cookieStore.get(ADMIN_SALON_COOKIE)?.value;
+  const preferred =
+    preferredSalonId != null
+      ? members.find((m: { salon_id: string }) => m.salon_id === preferredSalonId)
+      : undefined;
+  const member = preferred ?? members[0];
 
   const { data: salon } = await admin
     .from("salons")
     .select("id, name, slug")
-    .eq("id", members[0].salon_id)
+    .eq("id", member.salon_id)
     .single();
 
   if (!salon) return null;
@@ -108,9 +115,9 @@ export async function getCurrentUserSalon(): Promise<SalonWithMember | null> {
   return {
     salon: { id: salon.id, name: salon.name, slug: salon.slug },
     member: {
-      id: members[0].id,
-      role: members[0].role,
-      display_name: members[0].display_name ?? null,
+      id: member.id,
+      role: member.role,
+      display_name: member.display_name ?? null,
     },
   };
 }

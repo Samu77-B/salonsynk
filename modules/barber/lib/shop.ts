@@ -51,15 +51,22 @@ export async function getCurrentUserShop(): Promise<ShopWithMember | null> {
     .from("barber_members")
     .select("id, shop_id, role, display_name")
     .eq("user_id", user.id)
-    .eq("is_active", true)
-    .limit(1);
+    .eq("is_active", true);
 
   if (!members?.length) return null;
+
+  const cookieStore = await cookies();
+  const preferredShopId = cookieStore.get(ADMIN_SHOP_COOKIE)?.value;
+  const preferred =
+    preferredShopId != null
+      ? members.find((m: { shop_id: string }) => m.shop_id === preferredShopId)
+      : undefined;
+  const member = preferred ?? members[0];
 
   const { data: shop } = await admin
     .from("barber_shops")
     .select("id, name, slug")
-    .eq("id", members[0].shop_id)
+    .eq("id", member.shop_id)
     .single();
 
   if (!shop) return null;
@@ -67,9 +74,9 @@ export async function getCurrentUserShop(): Promise<ShopWithMember | null> {
   return {
     shop: { id: shop.id, name: shop.name, slug: shop.slug },
     member: {
-      id: members[0].id,
-      role: members[0].role,
-      display_name: members[0].display_name ?? null,
+      id: member.id,
+      role: member.role,
+      display_name: member.display_name ?? null,
     },
   };
 }

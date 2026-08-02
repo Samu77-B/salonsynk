@@ -8,9 +8,9 @@ import { NAIL_SITE } from "@core/config/nail-site";
 
 export const SMART_SITE = {
   name: "SmartSynk",
-  tagline: "One platform. Three worlds.",
+  tagline: "One login. Every location.",
   description:
-    "The ultimate all-in-one management ecosystem for independent hair, barber, and nail businesses",
+    "The hub for salon, barber, and nail groups — see all your locations in one place, then open any site to run the day.",
   url: "https://smartsynk.net",
   email: "hello@smartsynk.net",
   studio: "Paradigm Digital Studio",
@@ -58,15 +58,19 @@ export const SMART_NAV_ITEMS = [
 export const SMART_FAQ_ITEMS = [
   {
     q: "What is SmartSynk?",
-    a: "SmartSynk is the central hub for SalonSynk, BarberSynk, and NailSynk. One login gives platform owners and admins access across all three products.",
+    a: "SmartSynk is the hub for SalonSynk, BarberSynk, and NailSynk. If you own several locations — or mix salons, barber shops, and nail bars — one login shows how they are all doing, then lets you open any site.",
+  },
+  {
+    q: "I own multiple salons. Do my managers share my login?",
+    a: "No. You sign in at smartsynk.net to see every location you own. Each salon, shop, or nail bar can have its own manager login that only opens that one site.",
   },
   {
     q: "Do I need a separate account for each platform?",
-    a: "No. Sign in once at smartsynk.net and you'll be routed to the right dashboard for your business — salon, barber shop, or nail studio.",
+    a: "No. One SmartSynk account covers SalonSynk, BarberSynk, and NailSynk. Own two salons and a nail bar? They all appear on your SmartSynk overview.",
   },
   {
     q: "Which platform should I use?",
-    a: "SalonSynk for hair salons, BarberSynk for barber shops with walk-in queues, and NailSynk for nail studios. Visit each product site to learn more and sign up.",
+    a: "SalonSynk for hair salons, BarberSynk for barber shops with walk-in queues, and NailSynk for nail studios. Visit each product site to learn more and sign up — then manage the group from SmartSynk.",
   },
   {
     q: "How do I get help or request a demo?",
@@ -75,8 +79,8 @@ export const SMART_FAQ_ITEMS = [
 ] as const;
 
 export const SMART_ABOUT = {
-  headline: "One unified ecosystem. Zero commission fees.",
-  body: "SmartSynk is the central hub built to scale the local beauty and grooming industry. With one login, you can seamlessly power multiple branches or distinct verticals—keeping your diaries packed, your queues managed, and 100% of your earnings in your pocket.",
+  headline: "One owner. Many locations. One hub.",
+  body: "Whether you run Hair Top in East London and Birmingham, a barber shop and a nail bar under the same brand, or a growing group across the country — SmartSynk is where group owners see appointments, revenue, and activity across every location. Managers still log into their own site; you stay above the day-to-day with a clear view of the whole group.",
   specializationLabel: "our platforms:",
   watermark: "Sy",
 } as const;

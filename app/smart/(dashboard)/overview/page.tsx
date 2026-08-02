@@ -1,3 +1,5 @@
+import { createClient } from "@/lib/supabase/server";
+import { getSmartAccess, tenantIdsByPlatform } from "@core/auth/smart-access";
 import { SmartDashboardHeader } from "@/components/smart/dashboard/smart-dashboard-header";
 import { MetricCard } from "@/components/smart/dashboard/metric-card";
 import { PerformanceChart } from "@/components/smart/dashboard/performance-chart";
@@ -5,33 +7,50 @@ import { ActivityFeed } from "@/components/smart/dashboard/activity-feed";
 import { PlatformDonut } from "@/components/smart/dashboard/platform-donut";
 import { LocationsBarChart } from "@/components/smart/dashboard/locations-bar-chart";
 import { SystemStatus } from "@/components/smart/dashboard/system-status";
+import { OwnerLocationList } from "@/components/smart/owner/owner-location-list";
 import {
   fetchDashboardOverview,
   formatMinorAsCurrency,
+  type DashboardOverviewStats,
 } from "@core/smart/dashboard-stats";
 
+const EMPTY_STATS: DashboardOverviewStats = {
+  appointmentsToday: 0,
+  appointmentsTodayTrend: 0,
+  revenueThisMonthMinor: 0,
+  revenueTrendPercent: 0,
+  locationsCount: 0,
+  newLocationsThisWeek: 0,
+  platformDistribution: [
+    { platform: "salon", label: "SalonSynk", count: 0, percent: 0 },
+    { platform: "barber", label: "BarberSynk", count: 0, percent: 0 },
+    { platform: "nail", label: "NailSynk", count: 0, percent: 0 },
+  ],
+  dailyPerformance: [],
+  topLocations: [],
+  recentActivity: [],
+  landingStats: { businesses: 0, appointments: 0, transactions: 0, platforms: 3 },
+};
+
 export default async function SmartOverviewPage() {
-  let stats;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const access = user ? await getSmartAccess(user.id) : null;
+  const isSuperAdmin = access?.isSuperAdmin ?? false;
+  const ownedLocations = access?.ownedLocations ?? [];
+
+  let stats = EMPTY_STATS;
   try {
-    stats = await fetchDashboardOverview();
+    if (isSuperAdmin) {
+      stats = await fetchDashboardOverview();
+    } else {
+      stats = await fetchDashboardOverview(undefined, tenantIdsByPlatform(ownedLocations));
+    }
   } catch {
-    stats = {
-      appointmentsToday: 0,
-      appointmentsTodayTrend: 0,
-      revenueThisMonthMinor: 0,
-      revenueTrendPercent: 0,
-      locationsCount: 0,
-      newLocationsThisWeek: 0,
-      platformDistribution: [
-        { platform: "salon" as const, label: "SalonSynk", count: 0, percent: 0 },
-        { platform: "barber" as const, label: "BarberSynk", count: 0, percent: 0 },
-        { platform: "nail" as const, label: "NailSynk", count: 0, percent: 0 },
-      ],
-      dailyPerformance: [],
-      topLocations: [],
-      recentActivity: [],
-      landingStats: { businesses: 0, appointments: 0, transactions: 0, platforms: 3 },
-    };
+    stats = EMPTY_STATS;
   }
 
   const sparkAppts = stats.dailyPerformance.slice(-7).map((d) => d.appointments);
@@ -39,7 +58,13 @@ export default async function SmartOverviewPage() {
 
   return (
     <>
-      <SmartDashboardHeader />
+      <SmartDashboardHeader
+        subtitle={
+          isSuperAdmin
+            ? "Unified dashboard across all platforms and locations"
+            : "Your locations across SalonSynk, BarberSynk, and NailSynk"
+        }
+      />
       <main className="flex-1 overflow-y-auto p-6">
         <div className="grid gap-4 sm:grid-cols-3">
           <MetricCard
@@ -61,11 +86,21 @@ export default async function SmartOverviewPage() {
           <MetricCard
             title="Locations Synced"
             value={stats.locationsCount.toLocaleString()}
-            trend={`${stats.newLocationsThisWeek} new this week`}
+            trend={
+              isSuperAdmin
+                ? `${stats.newLocationsThisWeek} new this week`
+                : `${ownedLocations.length} you own`
+            }
             trendPositive
             accentClass="text-nail"
           />
         </div>
+
+        {!isSuperAdmin && ownedLocations.length > 0 && (
+          <div className="mt-6">
+            <OwnerLocationList locations={ownedLocations} />
+          </div>
+        )}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
@@ -80,7 +115,7 @@ export default async function SmartOverviewPage() {
             data={stats.platformDistribution}
             total={stats.appointmentsToday}
           />
-          <SystemStatus />
+          {isSuperAdmin ? <SystemStatus /> : <div className="hidden lg:block" />}
         </div>
       </main>
     </>

@@ -23,6 +23,15 @@ export function resolveAuthNextPath(
   const fallback = DEFAULT_DASHBOARD_PATH[product];
   if (!next || !next.startsWith("/") || next.startsWith("//")) return fallback;
 
+  // Owner / admin location switch after SmartSynk handoff
+  if (
+    next.startsWith("/api/admin/switch-salon") ||
+    next.startsWith("/api/admin/switch-barber-shop") ||
+    next.startsWith("/api/admin/switch-nail-salon")
+  ) {
+    return next;
+  }
+
   if (product === "barber") {
     if (next === "/dashboard") return "/barber/dashboard";
     if (next.startsWith("/dashboard/")) {

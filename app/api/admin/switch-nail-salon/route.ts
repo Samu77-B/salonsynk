@@ -7,6 +7,7 @@ import {
   sanitizeAdminSwitchNext,
   smartLoginUrlForAdminReturn,
 } from "@core/auth/admin-switch-next";
+import { userIsActiveTenantMember } from "@core/auth/tenant-membership";
 
 const ADMIN_SALON_COOKIE = "admin_nail_salon_id";
 
@@ -31,10 +32,13 @@ export async function GET(request: Request) {
     return NextResponse.redirect(smartLoginUrlForAdminReturn(requestUrl.toString()));
   }
 
-  const ok = await getIsSuperAdmin();
-  if (!ok) return NextResponse.redirect(new URL("/dashboard", request.url));
+  if (!salonId) return NextResponse.redirect(new URL("/nail/queue", request.url));
 
-  if (!salonId) return NextResponse.redirect(new URL("/admin/nail-salons", request.url));
+  const isSuperAdmin = await getIsSuperAdmin();
+  if (!isSuperAdmin) {
+    const member = await userIsActiveTenantMember(user.id, "nail", salonId);
+    if (!member) return NextResponse.redirect(new URL("/nail/queue", request.url));
+  }
 
   const cookieStore = await cookies();
   cookieStore.set(ADMIN_SALON_COOKIE, salonId, { path: "/", maxAge: 60 * 60 * 24 * 7 });

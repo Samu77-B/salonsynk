@@ -3,7 +3,11 @@
 import { createAdminClient } from "@core/supabase/admin";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
-import { getAuthCallbackUrl, normalizeAuthActionLink } from "@core/auth/auth-redirect";
+import {
+  buildPlatformAuthLink,
+  getAuthCallbackUrl,
+  type AuthLinkType,
+} from "@core/auth/auth-redirect";
 import {
   formatPlatformPrice,
   paymentInviteUrl,
@@ -11,20 +15,6 @@ import {
 import { generatePaymentInviteToken } from "@core/billing/platform-onboarding";
 import { sendBarberWelcomeEmail, sendNailWelcomeEmail } from "@/lib/email";
 import { tenantTable } from "@core/billing/stripe-metadata";
-
-function getAuthActionLink(d: unknown, platform: "barber" | "nail"): string | null {
-  if (!d || typeof d !== "object") return null;
-  const o = d as Record<string, unknown>;
-  const direct = o.action_link;
-  if (typeof direct === "string") return normalizeAuthActionLink(direct, platform);
-  const props = o.properties as Record<string, unknown> | undefined;
-  const fromProps = props?.action_link;
-  if (typeof fromProps === "string") return normalizeAuthActionLink(fromProps, platform);
-  const user = o.user as Record<string, unknown> | undefined;
-  const fromUser = user?.action_link;
-  if (typeof fromUser === "string") return normalizeAuthActionLink(fromUser, platform);
-  return null;
-}
 
 function getUserIdFromLinkPayload(d: unknown): string | undefined {
   if (!d || typeof d !== "object") return undefined;
@@ -43,6 +33,27 @@ const MEMBER_CONFIG: Record<"barber" | "nail", MemberConfig> = {
   nail: { table: "nail_members", tenantColumn: "salon_id", role: "owner" },
 };
 
+async function tryGenerateOwnerLink(
+  supabase: ReturnType<typeof createAdminClient>,
+  email: string,
+  platform: "barber" | "nail",
+  type: Extract<AuthLinkType, "invite" | "recovery" | "magiclink">,
+  options: { redirectTo: string; data?: { full_name: string } }
+): Promise<{ loginLink?: string; linkPayload?: unknown; error?: string }> {
+  const params =
+    type === "invite"
+      ? ({ type: "invite", email, options } as const)
+      : type === "recovery"
+        ? ({ type: "recovery", email, options: { redirectTo: options.redirectTo } } as const)
+        : ({ type: "magiclink", email, options: { redirectTo: options.redirectTo } } as const);
+
+  const { data, error } = await supabase.auth.admin.generateLink(params);
+  if (error) return { error: error.message };
+  const loginLink = buildPlatformAuthLink(data, platform, type);
+  if (!loginLink) return { error: "Could not generate login link for this email." };
+  return { loginLink, linkPayload: data };
+}
+
 async function generateOwnerLoginLink(
   supabase: ReturnType<typeof createAdminClient>,
   email: string,
@@ -51,44 +62,27 @@ async function generateOwnerLoginLink(
 ): Promise<{ loginLink?: string; linkPayload?: unknown; error?: string }> {
   const redirectTo = getAuthCallbackUrl(platform);
 
-  const { data: inviteData, error: inviteError } = await supabase.auth.admin.generateLink({
-    type: "invite",
-    email,
-    options: { redirectTo, data: { full_name: ownerName } },
+  const invite = await tryGenerateOwnerLink(supabase, email, platform, "invite", {
+    redirectTo,
+    data: { full_name: ownerName },
   });
+  if (invite.loginLink) return invite;
 
-  if (!inviteError) {
-    const loginLink = getAuthActionLink(inviteData, platform);
-    if (loginLink) return { loginLink, linkPayload: inviteData };
-  }
-
-  const { data: recoveryData, error: recoveryError } = await supabase.auth.admin.generateLink({
-    type: "recovery",
-    email,
-    options: { redirectTo },
+  const recovery = await tryGenerateOwnerLink(supabase, email, platform, "recovery", {
+    redirectTo,
   });
+  if (recovery.loginLink) return recovery;
 
-  if (!recoveryError) {
-    const loginLink = getAuthActionLink(recoveryData, platform);
-    if (loginLink) return { loginLink, linkPayload: recoveryData };
-  }
-
-  const { data: magicData, error: magicError } = await supabase.auth.admin.generateLink({
-    type: "magiclink",
-    email,
-    options: { redirectTo },
+  const magic = await tryGenerateOwnerLink(supabase, email, platform, "magiclink", {
+    redirectTo,
   });
-
-  if (!magicError) {
-    const loginLink = getAuthActionLink(magicData, platform);
-    if (loginLink) return { loginLink, linkPayload: magicData };
-  }
+  if (magic.loginLink) return magic;
 
   return {
     error:
-      magicError?.message ||
-      recoveryError?.message ||
-      inviteError?.message ||
+      magic.error ||
+      recovery.error ||
+      invite.error ||
       "Could not generate login link for this email.",
   };
 }
