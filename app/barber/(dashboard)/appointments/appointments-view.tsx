@@ -85,13 +85,18 @@ export function AppointmentsView({ date, appointments, upcomingAppointments, mem
     const fd = new FormData(e.currentTarget);
     fd.set("date", date);
     startTransition(async () => {
-      const result = await createBarberAppointment(fd);
-      if (result.error) {
-        setError(result.error);
-        return;
+      try {
+        const result = await createBarberAppointment(fd);
+        if (result?.error) {
+          setError(result.error);
+          return;
+        }
+        setShowForm(false);
+        router.refresh();
+      } catch (err) {
+        console.error("handleCreate booking failed:", err);
+        setError("Could not save booking. Please try again.");
       }
-      setShowForm(false);
-      router.refresh();
     });
   }
 

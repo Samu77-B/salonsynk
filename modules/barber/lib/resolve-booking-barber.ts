@@ -20,7 +20,9 @@ async function fetchBookableBarbers(
   supabase: SupabaseClient,
   shopId: string
 ): Promise<BarberRow[]> {
-  const { data } = await supabase
+  // Prefer barbers marked as accepting walk-ins; if none, any active named barber
+  // (owners are often created with walk-ins off but should still take bookings).
+  const { data: accepting } = await supabase
     .from("barber_members")
     .select("id, display_name, avatar_url")
     .eq("shop_id", shopId)
@@ -28,7 +30,17 @@ async function fetchBookableBarbers(
     .eq("is_accepting_walk_ins", true)
     .order("display_name");
 
-  return (data ?? []).filter((b) => b.display_name?.trim()) as BarberRow[];
+  const acceptingRows = (accepting ?? []).filter((b) => b.display_name?.trim()) as BarberRow[];
+  if (acceptingRows.length > 0) return acceptingRows;
+
+  const { data: anyActive } = await supabase
+    .from("barber_members")
+    .select("id, display_name, avatar_url")
+    .eq("shop_id", shopId)
+    .eq("is_active", true)
+    .order("display_name");
+
+  return (anyActive ?? []).filter((b) => b.display_name?.trim()) as BarberRow[];
 }
 
 async function fetchFallbackBarber(

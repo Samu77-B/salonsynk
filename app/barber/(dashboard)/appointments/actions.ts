@@ -7,12 +7,21 @@ import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
 import { sendBookingConfirmationSms } from "@modules/barber/lib/queue-auto-notify";
 
-async function getShopScopedClient() {
+async function getShopScopedClient(): Promise<
+  | { supabase: Awaited<ReturnType<typeof createClient>>; shopId: string; shopName: string }
+  | { error: string }
+> {
   const context = await getCurrentUserShop();
-  if (!context) throw new Error("No barber shop context");
+  if (!context) return { error: "No barber shop context. Sign in again and retry." };
   const isSuperAdmin = await getIsSuperAdmin();
   const supabase = isSuperAdmin
-    ? (() => { try { return createAdminClient(); } catch { return null; } })()
+    ? (() => {
+        try {
+          return createAdminClient();
+        } catch {
+          return null;
+        }
+      })()
     : null;
   return {
     supabase: supabase ?? (await createClient()),
@@ -27,97 +36,115 @@ function revalidateAppointments() {
 }
 
 export async function createBarberAppointment(formData: FormData): Promise<{ error?: string }> {
-  const { supabase, shopId, shopName } = await getShopScopedClient();
+  try {
+    const scoped = await getShopScopedClient();
+    if ("error" in scoped) return { error: scoped.error };
+    const { supabase, shopId, shopName } = scoped;
 
-  const guestName = (formData.get("guest_name") as string)?.trim();
-  const guestPhone = (formData.get("guest_phone") as string)?.trim() || null;
-  const guestEmail = (formData.get("guest_email") as string)?.trim() || null;
-  const barberId = (formData.get("barber_id") as string)?.trim();
-  const serviceId = (formData.get("service_id") as string)?.trim() || null;
-  const date = (formData.get("date") as string)?.trim();
-  const time = (formData.get("time") as string)?.trim();
-  const notes = (formData.get("notes") as string)?.trim() || null;
+    const guestName = (formData.get("guest_name") as string)?.trim();
+    const guestPhone = (formData.get("guest_phone") as string)?.trim() || null;
+    const guestEmail = (formData.get("guest_email") as string)?.trim() || null;
+    const barberId = (formData.get("barber_id") as string)?.trim();
+    const serviceId = (formData.get("service_id") as string)?.trim() || null;
+    const date = (formData.get("date") as string)?.trim();
+    const time = (formData.get("time") as string)?.trim();
+    const notes = (formData.get("notes") as string)?.trim() || null;
 
-  if (!guestName) return { error: "Client name is required" };
-  if (!barberId) return { error: "Select a barber" };
-  if (!date || !time) return { error: "Date and time are required" };
+    if (!guestName) return { error: "Client name is required" };
+    if (!barberId) return { error: "Select a barber" };
+    if (!date || !time) return { error: "Date and time are required" };
 
-  const { data: barber } = await supabase
-    .from("barber_members")
-    .select("display_name")
-    .eq("id", barberId)
-    .eq("shop_id", shopId)
-    .eq("is_active", true)
-    .single();
-
-  if (!barber) return { error: "Select a barber from this shop" };
-
-  let durationMinutes = 30;
-  let serviceName: string | null = null;
-  if (serviceId) {
-    const { data: service } = await supabase
-      .from("barber_services")
-      .select("duration_minutes, name")
-      .eq("id", serviceId)
+    const { data: barber } = await supabase
+      .from("barber_members")
+      .select("display_name")
+      .eq("id", barberId)
       .eq("shop_id", shopId)
       .eq("is_active", true)
       .single();
-    if (!service) return { error: "Select a service from this shop" };
-    if (service.duration_minutes) durationMinutes = service.duration_minutes;
-    if (service.name) serviceName = service.name;
-  }
 
-  const startTime = new Date(`${date}T${time}:00`);
-  if (Number.isNaN(startTime.getTime())) return { error: "Invalid date or time" };
+    if (!barber) return { error: "Select a barber from this shop" };
 
-  const endTime = new Date(startTime.getTime() + durationMinutes * 60_000);
+    let durationMinutes = 30;
+    let serviceName: string | null = null;
+    if (serviceId) {
+      const { data: service } = await supabase
+        .from("barber_services")
+        .select("duration_minutes, name")
+        .eq("id", serviceId)
+        .eq("shop_id", shopId)
+        .eq("is_active", true)
+        .single();
+      if (!service) return { error: "Select a service from this shop" };
+      if (service.duration_minutes) durationMinutes = service.duration_minutes;
+      if (service.name) serviceName = service.name;
+    }
 
-  const { error } = await supabase.from("barber_appointments").insert({
-    shop_id: shopId,
-    barber_id: barberId,
-    service_id: serviceId,
-    guest_name: guestName,
-    guest_phone: guestPhone,
-    guest_email: guestEmail,
-    notes,
-    start_time: startTime.toISOString(),
-    end_time: endTime.toISOString(),
-    status: "scheduled",
-    source: "booking",
-  });
+    const startTime = new Date(`${date}T${time}:00`);
+    if (Number.isNaN(startTime.getTime())) return { error: "Invalid date or time" };
 
-  if (error) return { error: error.message };
+    const endTime = new Date(startTime.getTime() + durationMinutes * 60_000);
 
-  if (guestPhone) {
-    await sendBookingConfirmationSms({
-      guestPhone,
-      guestName,
-      shopName: shopName?.trim() || "the barber shop",
-      barberName: barber?.display_name ?? "your barber",
-      startTime: startTime.toISOString(),
-      serviceName,
+    const { error } = await supabase.from("barber_appointments").insert({
+      shop_id: shopId,
+      barber_id: barberId,
+      service_id: serviceId || null,
+      guest_name: guestName,
+      guest_phone: guestPhone,
+      guest_email: guestEmail,
+      notes,
+      start_time: startTime.toISOString(),
+      end_time: endTime.toISOString(),
+      status: "scheduled",
+      source: "booking",
     });
-  }
 
-  revalidateAppointments();
-  return {};
+    if (error) return { error: error.message };
+
+    if (guestPhone) {
+      try {
+        await sendBookingConfirmationSms({
+          guestPhone,
+          guestName,
+          shopName: shopName?.trim() || "the barber shop",
+          barberName: barber?.display_name ?? "your barber",
+          startTime: startTime.toISOString(),
+          serviceName,
+        });
+      } catch (smsErr) {
+        console.error("createBarberAppointment SMS failed:", smsErr);
+      }
+    }
+
+    revalidateAppointments();
+    return {};
+  } catch (err) {
+    console.error("createBarberAppointment failed:", err);
+    return { error: "Could not save booking. Please try again." };
+  }
 }
 
 export async function updateBarberAppointmentStatus(
   appointmentId: string,
   status: "scheduled" | "in_chair" | "completed" | "no_show" | "canceled"
 ): Promise<{ error?: string }> {
-  const { supabase, shopId } = await getShopScopedClient();
+  try {
+    const scoped = await getShopScopedClient();
+    if ("error" in scoped) return { error: scoped.error };
+    const { supabase, shopId } = scoped;
 
-  const { error } = await supabase
-    .from("barber_appointments")
-    .update({ status })
-    .eq("id", appointmentId)
-    .eq("shop_id", shopId);
+    const { error } = await supabase
+      .from("barber_appointments")
+      .update({ status })
+      .eq("id", appointmentId)
+      .eq("shop_id", shopId);
 
-  if (error) return { error: error.message };
-  revalidateAppointments();
-  return {};
+    if (error) return { error: error.message };
+    revalidateAppointments();
+    return {};
+  } catch (err) {
+    console.error("updateBarberAppointmentStatus failed:", err);
+    return { error: "Could not update booking. Please try again." };
+  }
 }
 
 export async function deleteBarberAppointment(appointmentId: string): Promise<{ error?: string }> {

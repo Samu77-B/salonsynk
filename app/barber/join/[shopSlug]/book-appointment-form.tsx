@@ -124,8 +124,13 @@ export function BookAppointmentForm({
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
-      const res = await publicBookAppointment(shopId, formData);
-      setResult(res);
+      try {
+        const res = await publicBookAppointment(shopId, formData);
+        setResult(res ?? { success: false, error: "Could not save your booking. Please try again." });
+      } catch (err) {
+        console.error("BookAppointmentForm submit failed:", err);
+        setResult({ success: false, error: "Could not save your booking. Please try again." });
+      }
     });
   }
 
