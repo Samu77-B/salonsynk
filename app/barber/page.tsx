@@ -17,24 +17,24 @@ export const metadata: Metadata = {
 
 const FEATURES = [
   {
-    title: "Real-time Queue Management",
+    title: "Live Queue Management",
     description:
-      "Walk-ins are added to a live queue that updates instantly across every screen in your shop. No clipboards, no confusion — just a clean list your whole team can see.",
+      "Walk-ins go onto a live queue that updates as people join, start, and finish. Managers see the full shop list; each barber sees the clients waiting for them.",
   },
   {
-    title: "Hybrid Booking Model",
+    title: "Walk-ins and Bookings Together",
     description:
-      "Manage walk-ins and pre-booked appointments in one system. Booked slots sit alongside the queue so nothing clashes and no client gets forgotten.",
+      "Take walk-ins and pre-booked appointments in one place. Today's bookings show on the live queue screen alongside people waiting, so nothing gets forgotten.",
   },
   {
-    title: "Performance Analytics",
+    title: "Live Shop Dashboard",
     description:
-      "Track daily revenue, services completed, and cash vs card split in real time. Know exactly how your shop is performing without end-of-day maths.",
+      "See who's waiting, who's in the chair, today's bookings, and how many clients you've served — on phone, tablet, or laptop.",
   },
   {
     title: "Customer Self-Check-in",
     description:
-      "Print a QR code for your door. Customers scan it, enter their name, and join the queue from their phone — no app download required.",
+      "Share your shop's join link. Customers open it on their phone, enter their name, and join the queue — no app download required.",
   },
 ];
 
@@ -45,15 +45,15 @@ const FAQ_ITEMS = [
   },
   {
     q: "Do my customers need to download an app?",
-    a: "No. They scan a QR code and join the queue in their browser. Works on any phone, no download needed.",
+    a: "No. They open your shop's join page in the browser, enter their name, and join the queue. Works on any phone.",
   },
   {
-    q: "Can I still take walk-ins without the QR code?",
-    a: "Absolutely. Your team can add walk-ins directly from the dashboard. The public queue page is an optional extra.",
+    q: "Can I still take walk-ins without the public link?",
+    a: "Absolutely. Your team can add walk-ins directly from the dashboard. The public join page is optional.",
   },
   {
-    q: "Do I need a specific card machine?",
-    a: "No. BarberSynk tracks whether each client paid by cash or card, but you use your own card terminal. We don't process payments for you unless you choose to connect Stripe.",
+    q: "Do you take payments for me?",
+    a: "No. You take payment how you already do — cash, card machine, or otherwise. BarberSynk runs the queue and bookings; it doesn't process payments for you.",
   },
   {
     q: "Is it just for UK barbers?",
@@ -119,7 +119,7 @@ export default function BarberHomePage() {
                   <span style={{ color: "#A0522D" }}>Your way.</span>
                 </h1>
                 <p className="mt-5 text-lg leading-relaxed" style={{ color: "rgba(245,241,232,0.85)" }}>
-                  Queue management built for barber shops. Walk-ins, bookings, cash or card — all from one screen. From just £25/mo.
+                  Queue management built for barber shops. Walk-ins, bookings, and a live queue — all from one screen. From just £25/mo.
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row gap-4">
                   <Link
@@ -179,9 +179,9 @@ export default function BarberHomePage() {
               </h2>
               <div className="mt-14 grid gap-10 sm:grid-cols-3">
                 {[
-                  { icon: scanIcon, title: "Customer joins", desc: "They scan the QR code on your door or give their name at the desk." },
-                  { icon: chairIcon, title: "You cut", desc: "Tap 'Start' when they sit down. The queue updates for everyone in real time." },
-                  { icon: cardIcon, title: "Cash or card", desc: "Toggle the payment method and hit 'Complete'. Revenue tracked. Next customer." },
+                  { icon: scanIcon, title: "Customer joins", desc: "They open your shop's join link on their phone, or you add them at the desk." },
+                  { icon: chairIcon, title: "You cut", desc: "Tap Start when they sit down. The queue updates for everyone watching that screen." },
+                  { icon: cardIcon, title: "Finish & next", desc: "Hit Complete when you're done. They're marked served and you move to the next client." },
                 ].map((s) => (
                   <div key={s.title} className="text-center">
                     <Image
@@ -223,12 +223,12 @@ export default function BarberHomePage() {
                 </p>
                 <ul className="mt-8 space-y-4 text-sm text-left" style={{ color: "#5a6a74" }}>
                   {[
-                    "Real-time queue management",
-                    "Walk-in and pre-booked appointments",
-                    "Unlimited barbers and chairs",
-                    "Customer self-check-in via QR code",
-                    "Cash and card tracking",
-                    "Daily revenue and performance stats",
+                    "Live queue that updates as people join and finish",
+                    "Walk-ins and pre-booked appointments together",
+                    "Up to 10 barbers and chairs per shop",
+                    "Customer self-check-in from their phone",
+                    "Today's bookings on the live queue screen",
+                    "Served-today count on the dashboard",
                     "Works on any device — tablet, phone, laptop",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3">
