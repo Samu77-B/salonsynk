@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { StaticImageData } from "next/image";
 import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
@@ -8,6 +9,10 @@ import heroImage from "../../imgs/barber/hero.png";
 import scanIcon from "../../imgs/barber/scan.png";
 import chairIcon from "../../imgs/barber/chair.png";
 import cardIcon from "../../imgs/barber/card.png";
+import featureLiveQueue from "../../imgs/barber/feature-live-queue.png";
+import featureHybridBookings from "../../imgs/barber/feature-hybrid-bookings.png";
+import featureDashboard from "../../imgs/barber/feature-dashboard.png";
+import featureSelfCheckin from "../../imgs/barber/feature-self-checkin.png";
 /* eslint-disable @next/next/no-img-element */
 
 export const metadata: Metadata = {
@@ -15,26 +20,44 @@ export const metadata: Metadata = {
   description: BARBER_SITE.description,
 };
 
-const FEATURES = [
+const FEATURES: {
+  title: string;
+  description: string;
+  image: StaticImageData;
+  imageAlt: string;
+  imagePosition?: string;
+}[] = [
   {
     title: "Live Queue Management",
     description:
       "Walk-ins go onto a live queue that updates as people join, start, and finish. Managers see the full shop list; each barber sees the clients waiting for them.",
+    image: featureLiveQueue,
+    imageAlt: "BarberSynk live queue on a phone showing a client in the chair and someone waiting",
+    imagePosition: "object-center",
   },
   {
     title: "Walk-ins and Bookings Together",
     description:
       "Take walk-ins and pre-booked appointments in one place. Today's bookings show on the live queue screen alongside people waiting, so nothing gets forgotten.",
+    image: featureHybridBookings,
+    imageAlt: "BarberSynk live queue with a booked appointment shown next to walk-in customers",
+    imagePosition: "object-top",
   },
   {
     title: "Live Shop Dashboard",
     description:
       "See who's waiting, who's in the chair, today's bookings, and how many clients you've served — on phone, tablet, or laptop.",
+    image: featureDashboard,
+    imageAlt: "BarberSynk dashboard showing in queue, in chair, and served today counts",
+    imagePosition: "object-top",
   },
   {
     title: "Customer Self-Check-in",
     description:
       "Share your shop's join link. Customers open it on their phone, enter their name, and join the queue — no app download required.",
+    image: featureSelfCheckin,
+    imageAlt: "Customer joining the Proton Barbers walk-in queue from their phone",
+    imagePosition: "object-top",
   },
 ];
 
@@ -152,17 +175,32 @@ export default function BarberHomePage() {
               <p className="mx-auto mt-3 max-w-2xl text-center" style={{ color: "#5a6a74" }}>
                 Built around walk-ins, queues, and getting people in and out of the chair.
               </p>
-              <div className="mt-14 grid gap-6 sm:grid-cols-2">
+              <div className="mt-14 grid gap-8 sm:grid-cols-2">
                 {FEATURES.map((f) => (
                   <div
                     key={f.title}
-                    className="rounded border p-8 transition-all hover:shadow-md"
+                    className="overflow-hidden rounded border transition-all hover:shadow-md"
                     style={{ borderColor: "#d6d0c4", backgroundColor: "#ffffff" }}
                   >
-                    <h3 className="text-lg font-semibold" style={{ color: "#36454F" }}>{f.title}</h3>
-                    <p className="mt-3 text-sm leading-relaxed" style={{ color: "#5a6a74" }}>
-                      {f.description}
-                    </p>
+                    <div
+                      className="relative mx-auto mt-6 w-[min(100%,14rem)] overflow-hidden rounded-[1.25rem] border shadow-lg"
+                      style={{ borderColor: "#2b373f", backgroundColor: "#1c2228", aspectRatio: "9 / 16" }}
+                    >
+                      <Image
+                        src={f.image}
+                        alt={f.imageAlt}
+                        fill
+                        className={`object-cover ${f.imagePosition ?? "object-top"}`}
+                        sizes="224px"
+                        unoptimized
+                      />
+                    </div>
+                    <div className="p-6 pt-5 sm:p-8 sm:pt-6">
+                      <h3 className="text-lg font-semibold" style={{ color: "#36454F" }}>{f.title}</h3>
+                      <p className="mt-3 text-sm leading-relaxed" style={{ color: "#5a6a74" }}>
+                        {f.description}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
