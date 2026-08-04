@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@core/supabase/admin";
 import { sendJoinQueueSms } from "@modules/barber/lib/queue-auto-notify";
+import { notifyBarberManagerBySms } from "@modules/barber/lib/manager-notifications";
 import { getNextQueuePosition } from "@modules/barber/lib/queue-positions";
 import { AVG_SERVICE_MINUTES } from "@modules/barber/lib/queue-sms-messages";
 
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
 
     const { data: shop, error: shopError } = await supabase
       .from("barber_shops")
-      .select("id, name, max_queue_size")
+      .select("id, name, max_queue_size, settings")
       .eq("id", shopId)
       .single();
 
@@ -140,6 +141,21 @@ export async function POST(request: Request) {
       } catch (smsErr) {
         console.error("public join-queue: SMS failed", smsErr);
       }
+    }
+
+    try {
+      const displayName = shop.name?.trim() || "the barber shop";
+      await notifyBarberManagerBySms({
+        supabase,
+        shopId,
+        shopName: displayName,
+        kind: "queue_join",
+        guestName,
+        detail: `#${nextPosition} in queue`,
+        settings: (shop.settings as Record<string, unknown>) ?? null,
+      });
+    } catch (managerSmsErr) {
+      console.error("public join-queue: manager SMS failed", managerSmsErr);
     }
 
     return NextResponse.json({

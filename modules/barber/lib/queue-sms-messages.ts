@@ -103,3 +103,27 @@ export function bookingConfirmationSmsBody(opts: {
   message += " See you then!";
   return message;
 }
+
+export type ManagerAlertKind = "queue_join" | "booking";
+
+/** SMS to the shop manager when a customer joins or books. */
+export function managerAlertSmsBody(opts: {
+  kind: ManagerAlertKind;
+  shopName: string;
+  guestName: string;
+  detail?: string | null;
+}): string {
+  const shop = opts.shopName.trim() || "your shop";
+  const guest = opts.guestName.trim() || "A customer";
+  const detail = opts.detail?.trim();
+
+  if (opts.kind === "queue_join") {
+    return detail
+      ? `BarberSynk: ${guest} joined the queue at ${shop} (${detail}).`
+      : `BarberSynk: ${guest} joined the queue at ${shop}.`;
+  }
+
+  return detail
+    ? `BarberSynk: ${guest} booked at ${shop} — ${detail}.`
+    : `BarberSynk: ${guest} booked at ${shop}.`;
+}

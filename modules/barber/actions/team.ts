@@ -251,6 +251,46 @@ export async function updateBarberShopBranding(updates: {
   return {};
 }
 
+export async function updateBarberManagerNotifications(updates: {
+  dashboardAlerts: boolean;
+  smsAlerts: boolean;
+  notifyPhone: string;
+}): Promise<{ error?: string }> {
+  const { error, context } = await requireBarberShopManager();
+  if (error || !context) return { error: error ?? "Unauthorized" };
+
+  const { admin, error: adminError } = getAdmin();
+  if (adminError || !admin) return { error: adminError ?? "Admin client unavailable" };
+
+  const phone = updates.notifyPhone.trim();
+  if (updates.smsAlerts && !phone) {
+    return { error: "Add a mobile number to turn on SMS alerts." };
+  }
+
+  const { data: existing } = await admin
+    .from("barber_shops")
+    .select("settings")
+    .eq("id", context.shop.id)
+    .single();
+  if (!existing) return { error: "Shop not found" };
+
+  const current = (existing.settings as Record<string, unknown>) ?? {};
+  const manager_notifications = {
+    dashboard_alerts: updates.dashboardAlerts,
+    sms_alerts: updates.smsAlerts,
+    notify_phone: phone,
+  };
+
+  const { error: updateError } = await admin
+    .from("barber_shops")
+    .update({ settings: { ...current, manager_notifications } })
+    .eq("id", context.shop.id);
+
+  if (updateError) return { error: updateError.message };
+  revalidateTeamPaths(context.shop.slug);
+  return {};
+}
+
 export async function removeBarberTeamMember(memberId: string): Promise<{ error?: string }> {
   const { error, context } = await requireBarberShopManager();
   if (error || !context) return { error: error ?? "Unauthorized" };

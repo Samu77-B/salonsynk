@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@core/supabase/admin";
 import { sendBookingConfirmationSms } from "@modules/barber/lib/queue-auto-notify";
+import { notifyBarberManagerBySms } from "@modules/barber/lib/manager-notifications";
 import {
   ANY_BARBER_BOOKING_VALUE,
   resolvePublicBookingBarber,
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
 
     const { data: shop, error: shopError } = await supabase
       .from("barber_shops")
-      .select("id, name")
+      .select("id, name, settings")
       .eq("id", shopId)
       .single();
 
@@ -183,6 +184,27 @@ export async function POST(request: Request) {
       } catch (smsErr) {
         console.error("public book: SMS failed", smsErr);
       }
+    }
+
+    try {
+      const whenLabel = startTime.toLocaleString("en-GB", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      await notifyBarberManagerBySms({
+        supabase,
+        shopId,
+        shopName: shopDisplayName,
+        kind: "booking",
+        guestName,
+        detail: whenLabel,
+        settings: (shop.settings as Record<string, unknown>) ?? null,
+      });
+    } catch (managerSmsErr) {
+      console.error("public book: manager SMS failed", managerSmsErr);
     }
 
     return NextResponse.json({

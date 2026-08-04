@@ -2,6 +2,7 @@
 
 import { useTransition, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@core/supabase/client";
 import { formatEstimatedWait } from "@modules/barber/lib/queue-sms-messages";
 import {
@@ -32,7 +33,36 @@ type Props = {
   currentMemberId: string;
   isManagerView: boolean;
   stats: { todayServed: number; todayCash: number; todayCard: number; todayRevenue: number };
+  dashboardAlertsEnabled?: boolean;
 };
+
+type ManagerAlertBanner = {
+  id: string;
+  message: string;
+};
+
+function playManagerAlertChime() {
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.value = 0.09;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.stop(ctx.currentTime + 0.45);
+    window.setTimeout(() => void ctx.close(), 600);
+  } catch {
+    /* autoplay / unsupported */
+  }
+}
 
 function formatBookingTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -108,8 +138,16 @@ const messageInputClass =
 const btnPrimary = "btn-accent px-3 py-2 text-xs sm:text-sm disabled:opacity-50";
 const btnOutline = "btn-outline px-3 py-2 text-xs sm:text-sm disabled:opacity-50";
 
-function useRealtimeQueue(shopId: string, serverQueue: QueueEntry[]) {
+function useRealtimeQueue(
+  shopId: string,
+  serverQueue: QueueEntry[],
+  onNewWaiting?: (row: QueueEntry) => void
+) {
   const [liveQueue, setLiveQueue] = useState<QueueEntry[]>(serverQueue);
+  const onNewWaitingRef = useRef(onNewWaiting);
+  useEffect(() => {
+    onNewWaitingRef.current = onNewWaiting;
+  }, [onNewWaiting]);
 
   const serverRef = useRef(serverQueue);
   useEffect(() => {
@@ -126,6 +164,9 @@ function useRealtimeQueue(shopId: string, serverQueue: QueueEntry[]) {
       if (prev.some((e) => e.id === row.id)) return prev;
       return [...prev, row].sort((a, b) => a.position - b.position);
     });
+    if (row.status === "waiting") {
+      onNewWaitingRef.current?.(row);
+    }
   }, [shopId]);
 
   const applyUpdate = useCallback((row: QueueEntry) => {
@@ -185,9 +226,81 @@ export function LiveQueueView({
   currentMemberId,
   isManagerView,
   stats,
+  dashboardAlertsEnabled = false,
 }: Props) {
   const router = useRouter();
-  const liveQueue = useRealtimeQueue(shopId, queue);
+  const [alertBanner, setAlertBanner] = useState<ManagerAlertBanner | null>(null);
+  const alertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pushManagerAlert = useCallback(
+    (message: string) => {
+      if (!dashboardAlertsEnabled) return;
+      playManagerAlertChime();
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setAlertBanner({ id, message });
+      if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+      alertTimerRef.current = setTimeout(() => setAlertBanner(null), 6000);
+      router.refresh();
+    },
+    [dashboardAlertsEnabled, router]
+  );
+
+  const onNewWaiting = useCallback(
+    (row: QueueEntry) => {
+      const name = row.guest_name?.trim() || "A customer";
+      pushManagerAlert(`${name} joined the queue`);
+    },
+    [pushManagerAlert]
+  );
+
+  const liveQueue = useRealtimeQueue(shopId, queue, onNewWaiting);
+
+  useEffect(() => {
+    if (!dashboardAlertsEnabled) return;
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`barber_appointments_alerts:${shopId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "barber_appointments",
+          filter: `shop_id=eq.${shopId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            guest_name?: string | null;
+            start_time?: string;
+            status?: string;
+          };
+          if (row.status && row.status !== "scheduled") return;
+          const name = row.guest_name?.trim() || "A customer";
+          const when = row.start_time
+            ? new Date(row.start_time).toLocaleString("en-GB", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "soon";
+          pushManagerAlert(`${name} booked for ${when}`);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [shopId, dashboardAlertsEnabled, pushManagerAlert]);
+
+  useEffect(() => {
+    return () => {
+      if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => router.refresh(), 12_000);
@@ -218,6 +331,25 @@ export function LiveQueueView({
 
   return (
     <div className="space-y-5">
+      {alertBanner ? (
+        <div
+          role="status"
+          className="rounded border border-accent/40 bg-accent/15 px-4 py-3 text-sm font-medium text-foreground shadow-sm"
+        >
+          {alertBanner.message}
+        </div>
+      ) : null}
+
+      {isManagerView ? (
+        <p className="text-xs text-muted">
+          Manager alerts:{" "}
+          {dashboardAlertsEnabled ? "sound & banner on" : "sound & banner off"}.{" "}
+          <Link href="/barber/team#alerts" className="underline hover:text-foreground">
+            Change in Team
+          </Link>
+        </p>
+      ) : null}
+
       <div className={`grid gap-2 sm:gap-3 ${isManagerView ? "grid-cols-3" : "grid-cols-2"}`}>
         {isManagerView ? (
           <>

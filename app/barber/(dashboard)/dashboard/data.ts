@@ -4,6 +4,10 @@ import { getCurrentUserShop } from "@modules/barber/lib/shop";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { hasQueueManagerAccess } from "@core/queue/platform-queue-access";
 import { resolveActingBarberId } from "@modules/barber/lib/resolve-barber-id";
+import {
+  parseManagerNotificationSettings,
+  type BarberManagerNotificationSettings,
+} from "@modules/barber/lib/manager-notifications";
 
 export type QueueEntry = {
   id: string;
@@ -54,6 +58,8 @@ export type TodayAppointment = {
   notes: string | null;
 };
 
+export type { BarberManagerNotificationSettings };
+
 function todayBounds() {
   const today = new Date().toISOString().slice(0, 10);
   const start = new Date(today + "T00:00:00");
@@ -77,7 +83,7 @@ export async function getBarberDashboardData() {
 
   const { start: todayStart, end: todayEnd } = todayBounds();
 
-  const [queueResult, membersResult, servicesResult, todayStatsResult, todayAppointmentsResult, futureBookingsResult] =
+  const [queueResult, membersResult, servicesResult, todayStatsResult, todayAppointmentsResult, futureBookingsResult, shopSettingsResult] =
     await Promise.all([
       supabase
         .from("barber_queue")
@@ -121,6 +127,12 @@ export async function getBarberDashboardData() {
         .eq("shop_id", shopId)
         .eq("status", "scheduled")
         .gt("start_time", todayEnd),
+
+      supabase
+        .from("barber_shops")
+        .select("settings")
+        .eq("id", shopId)
+        .maybeSingle(),
     ]);
 
   const queue = (queueResult.data ?? []) as QueueEntry[];
@@ -144,6 +156,9 @@ export async function getBarberDashboardData() {
 
   const todayAppointments = (todayAppointmentsResult.data ?? []) as TodayAppointment[];
   const futureBookingsCount = futureBookingsResult.count ?? 0;
+  const managerNotifications = parseManagerNotificationSettings(
+    (shopSettingsResult.data?.settings as Record<string, unknown>) ?? null
+  );
 
   const isSuperAdmin = await getIsSuperAdmin();
   const isManagerView = hasQueueManagerAccess(
@@ -161,6 +176,7 @@ export async function getBarberDashboardData() {
     services,
     todayAppointments,
     futureBookingsCount,
+    managerNotifications,
     stats: { todayServed, todayCash, todayCard, todayRevenue },
   };
 }

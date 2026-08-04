@@ -48,6 +48,7 @@ export default async function BarberDashboardPage() {
         currentMemberId={data.member.id}
         isManagerView={data.isManagerView}
         stats={data.stats}
+        dashboardAlertsEnabled={data.isManagerView && data.managerNotifications.dashboardAlerts}
       />
     </div>
   );

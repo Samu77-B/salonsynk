@@ -4,8 +4,10 @@ import { createAdminClient } from "@core/supabase/admin";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { hasQueueManagerAccess } from "@core/queue/platform-queue-access";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
+import { parseManagerNotificationSettings } from "@modules/barber/lib/manager-notifications";
 import { BarberTeamView } from "./barber-team-view";
 import { BarberShopBrandingForm } from "./barber-shop-branding-form";
+import { BarberManagerAlertsForm } from "./barber-manager-alerts-form";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +36,7 @@ export default async function BarberTeamPage() {
     const v = branding[key];
     return typeof v === "string" ? v : "";
   };
+  const alertPrefs = parseManagerNotificationSettings(settings);
 
   const { data: members } = await admin
     .from("barber_members")
@@ -57,8 +60,6 @@ export default async function BarberTeamPage() {
     }
   }
 
-  const joinUrl = `/barber/join/${context.shop.slug}`;
-
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -78,6 +79,12 @@ export default async function BarberTeamPage() {
         shopName={context.shop.name}
         initialCompanyName={brandingStr("company_name").trim() || context.shop.name}
         initialShowTitle={branding.show_title_on_queue !== false}
+      />
+
+      <BarberManagerAlertsForm
+        initialDashboardAlerts={alertPrefs.dashboardAlerts}
+        initialSmsAlerts={alertPrefs.smsAlerts}
+        initialNotifyPhone={alertPrefs.notifyPhone}
       />
 
       <BarberTeamView
