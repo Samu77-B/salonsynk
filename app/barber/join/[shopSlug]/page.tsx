@@ -40,7 +40,8 @@ export default async function PublicJoinQueuePage({
   const nextAvailableOnly = branding.next_available_only === true;
   const showServicesOnQueue = branding.show_services_on_queue !== false;
 
-  const [servicesResult, walkInBarbersResult, bookingBarbersResult, queueCountResult] = await Promise.all([
+  // Same visibility flag for Join queue + Book later ("Show on Choose your barber page")
+  const [servicesResult, publicBarbersResult, queueCountResult] = await Promise.all([
     supabase
       .from("barber_services")
       .select("id, name, duration_minutes, price_minor")
@@ -57,14 +58,6 @@ export default async function PublicJoinQueuePage({
       .eq("is_accepting_walk_ins", true)
       .order("display_name"),
 
-    // Bookings can use any active named barber, not only those on the walk-in queue
-    supabase
-      .from("barber_members")
-      .select("id, display_name, chair_number, avatar_url")
-      .eq("shop_id", shop.id)
-      .eq("is_active", true)
-      .order("display_name"),
-
     supabase
       .from("barber_queue")
       .select("id", { count: "exact", head: true })
@@ -75,12 +68,17 @@ export default async function PublicJoinQueuePage({
   const services = (servicesResult.data ?? []) as {
     id: string; name: string; duration_minutes: number; price_minor: number;
   }[];
-  const walkInBarbers = (walkInBarbersResult.data ?? []) as {
+  const walkInBarbers = (publicBarbersResult.data ?? []) as {
     id: string; display_name: string | null; chair_number: number | null; avatar_url: string | null; role: string;
   }[];
-  const bookingBarbers = ((bookingBarbersResult.data ?? []) as {
-    id: string; display_name: string | null; chair_number: number | null; avatar_url: string | null;
-  }[]).filter((b) => b.display_name?.trim());
+  const bookingBarbers = walkInBarbers
+    .filter((b) => b.display_name?.trim())
+    .map(({ id, display_name, chair_number, avatar_url }) => ({
+      id,
+      display_name,
+      chair_number,
+      avatar_url,
+    }));
   const queueLength = queueCountResult.count ?? 0;
 
   return (
