@@ -183,7 +183,7 @@ export default function BarberHomePage() {
                     style={{ borderColor: "#d6d0c4", backgroundColor: "#ffffff" }}
                   >
                     <div
-                      className="relative mx-auto mt-6 w-[min(100%,14rem)] overflow-hidden rounded-[1.25rem] border shadow-lg"
+                      className="relative mx-auto mt-6 w-[min(100%,14rem)] overflow-hidden rounded-md border shadow-lg"
                       style={{ borderColor: "#2b373f", backgroundColor: "#1c2228", aspectRatio: "9 / 16" }}
                     >
                       <Image
