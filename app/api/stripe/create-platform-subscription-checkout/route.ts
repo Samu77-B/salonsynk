@@ -18,6 +18,14 @@ import { stripeTrialPeriodForWelcome } from "@core/billing/stripe-trial";
 
 export const dynamic = "force-dynamic";
 
+function stripeErrorMessage(err: unknown): string {
+  if (err && typeof err === "object") {
+    const e = err as { message?: string; raw?: { message?: string }; type?: string; code?: string };
+    return e.raw?.message || e.message || "Stripe error";
+  }
+  return "Stripe error";
+}
+
 /**
  * Logged-in owner Checkout for BarberSynk / NailSynk (monthly or yearly).
  * Uses remaining free-trial days from welcome email when still in the free window.
@@ -30,6 +38,13 @@ export async function GET(request: Request) {
   }
   const platform = platformRaw;
   const interval: PlatformBillingInterval = parseBillingInterval(url.searchParams.get("interval"));
+
+  if (!process.env.STRIPE_SECRET_KEY?.trim()) {
+    return NextResponse.json(
+      { error: "STRIPE_SECRET_KEY is missing on this Vercel project." },
+      { status: 503 }
+    );
+  }
 
   const supabase = await createClient();
   const {
@@ -97,22 +112,58 @@ export async function GET(request: Request) {
     tenantRow.onboarding_welcome_sent_at as string | null
   );
 
-  const appUrl = getPlatformAppBaseUrl(platform);
+  // Prefer request origin (www vs apex) so Checkout returns to the same host.
+  const requestOrigin = url.origin.replace(/\/$/, "");
+  const configuredBase = getPlatformAppBaseUrl(platform);
+  const appUrl =
+    requestOrigin.includes("barbersynk.com") ||
+    requestOrigin.includes("nailsynk.com") ||
+    requestOrigin.includes("salonsynk.com")
+      ? requestOrigin
+      : configuredBase;
   const billingPath = platformBillingPath(platform);
 
-  try {
-    const stripe = getStripe();
-    const session = await stripe.checkout.sessions.create({
+  const stripe = getStripe();
+
+  async function createSession(customerOpts: { customer?: string; customer_email?: string }) {
+    return stripe.checkout.sessions.create({
       mode: "subscription",
-      ...(existingCustomerId
-        ? { customer: existingCustomerId }
-        : { customer_email: user.email.trim() }),
+      ...customerOpts,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${appUrl}${billingPath}?success=1`,
       cancel_url: `${appUrl}${billingPath}?cancel=1`,
       metadata,
       subscription_data: { metadata, ...trialData },
     });
+  }
+
+  try {
+    let session;
+    try {
+      session = await createSession(
+        existingCustomerId
+          ? { customer: existingCustomerId }
+          : { customer_email: user.email.trim() }
+      );
+    } catch (firstErr) {
+      const msg = stripeErrorMessage(firstErr).toLowerCase();
+      // Stale customer from another Stripe account/mode — retry with email.
+      if (existingCustomerId && (msg.includes("no such customer") || msg.includes("customer"))) {
+        console.warn(
+          "create-platform-subscription-checkout retrying without customer",
+          platform,
+          existingCustomerId,
+          firstErr
+        );
+        session = await createSession({ customer_email: user.email.trim() });
+        await admin
+          .from(table)
+          .update({ stripe_billing_customer_id: null })
+          .eq("id", tenantId);
+      } else {
+        throw firstErr;
+      }
+    }
 
     if (!session.url) {
       return NextResponse.json({ error: "Stripe did not return a checkout URL" }, { status: 500 });
@@ -120,7 +171,18 @@ export async function GET(request: Request) {
 
     return NextResponse.redirect(session.url, 303);
   } catch (err) {
-    console.error("create-platform-subscription-checkout", platform, interval, err);
-    return NextResponse.json({ error: "Stripe error" }, { status: 500 });
+    const message = stripeErrorMessage(err);
+    console.error("create-platform-subscription-checkout", platform, interval, priceId, err);
+    return NextResponse.json(
+      {
+        error: message,
+        hint:
+          message.toLowerCase().includes("no such price")
+            ? "Price ID mode mismatch: live price IDs need a live STRIPE_SECRET_KEY (sk_live_...), test prices need sk_test_..."
+            : undefined,
+        priceIdPrefix: priceId.slice(0, 12),
+      },
+      { status: 500 }
+    );
   }
 }
