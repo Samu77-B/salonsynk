@@ -16,6 +16,8 @@ import {
 import { stripeMetadataForTenant, tenantTable } from "@core/billing/stripe-metadata";
 import { stripeTrialPeriodForWelcome } from "@core/billing/stripe-trial";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Logged-in owner Checkout for BarberSynk / NailSynk (monthly or yearly).
  * Uses remaining free-trial days from welcome email when still in the free window.

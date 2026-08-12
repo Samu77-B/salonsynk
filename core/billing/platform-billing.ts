@@ -20,14 +20,17 @@ export function getStripePriceIdForPlatform(
   platform: "barber" | "nail",
   interval: PlatformBillingInterval = "monthly"
 ): string {
-  if (platform === "barber") {
-    return interval === "yearly"
-      ? process.env.STRIPE_PRICE_BARBER_YEARLY?.trim() ?? ""
-      : process.env.STRIPE_PRICE_BARBER?.trim() ?? "";
+  // Dynamic key access so Next/Vercel does not inline empty values at build time.
+  const monthlyKey = platform === "barber" ? "STRIPE_PRICE_BARBER" : "STRIPE_PRICE_NAIL";
+  const yearlyKey =
+    platform === "barber" ? "STRIPE_PRICE_BARBER_YEARLY" : "STRIPE_PRICE_NAIL_YEARLY";
+  const monthlyAlias =
+    platform === "barber" ? "STRIPE_PRICE_BARBER_MONTHLY" : "STRIPE_PRICE_NAIL_MONTHLY";
+
+  if (interval === "yearly") {
+    return (process.env[yearlyKey] ?? "").trim();
   }
-  return interval === "yearly"
-    ? process.env.STRIPE_PRICE_NAIL_YEARLY?.trim() ?? ""
-    : process.env.STRIPE_PRICE_NAIL?.trim() ?? "";
+  return (process.env[monthlyKey] ?? process.env[monthlyAlias] ?? "").trim();
 }
 
 export function isStripePriceConfiguredForPlatform(

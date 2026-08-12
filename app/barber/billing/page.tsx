@@ -9,6 +9,8 @@ import { BARBER_SITE } from "@core/config/barber-site";
 import { fetchPlatformStripeSubscriptionSummary } from "@core/billing/platform-stripe-subscription";
 import { PlatformBillingAccountView } from "@/components/billing/platform-billing-account-view";
 
+export const dynamic = "force-dynamic";
+
 export default async function BarberBillingPage({
   searchParams,
 }: {
