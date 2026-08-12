@@ -91,7 +91,7 @@ export function PlatformSubscribeButtons({
         {(!monthlyConfigured || !yearlyConfigured) && (
           <p className="mt-2 text-xs text-amber-200/90">
             {!monthlyConfigured && !yearlyConfigured
-              ? "Subscription prices are not configured yet. Add STRIPE_PRICE_BARBER / STRIPE_PRICE_NAIL (and _YEARLY) on this Vercel project, then redeploy."
+              ? "Subscription prices are not configured yet on this deployment. Open /api/stripe/platform-prices-configured?platform=barber (or nail) to see what Vercel is loading, then check the env var values on the correct Vercel project and redeploy."
               : !yearlyConfigured
                 ? "Yearly plan is not configured yet — monthly is available."
                 : "Monthly plan is not configured yet — yearly is available."}
