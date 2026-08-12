@@ -11,7 +11,6 @@ import dashboardLogo from "../../salonsynk-light.png";
 import dashboardLogoWhite from "../../salonsynk_logo-wht.png";
 import type { DashboardTheme } from "./dashboard-theme";
 import { SupportEmailChip } from "@/components/support-email-chip";
-import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@core/config/support";
 
 function ThemeToggleButton({
   theme,
