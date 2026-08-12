@@ -12,6 +12,7 @@ export type TenantByToken = {
   subscription_required?: boolean | null;
   payment_invite_token?: string | null;
   stripe_billing_customer_id?: string | null;
+  onboarding_welcome_sent_at?: string | null;
   owner_email: string | null;
 };
 
@@ -77,7 +78,7 @@ export async function fetchTenantByPaymentToken(
     const { data: shop } = await admin
       .from("barber_shops")
       .select(
-        "id, name, subscription_status, subscription_required, payment_invite_token, stripe_billing_customer_id"
+        "id, name, subscription_status, subscription_required, payment_invite_token, stripe_billing_customer_id, onboarding_welcome_sent_at"
       )
       .eq("payment_invite_token", trimmed)
       .single();
@@ -104,6 +105,7 @@ export async function fetchTenantByPaymentToken(
       subscription_required: shop.subscription_required,
       payment_invite_token: shop.payment_invite_token,
       stripe_billing_customer_id: shop.stripe_billing_customer_id,
+      onboarding_welcome_sent_at: shop.onboarding_welcome_sent_at,
       owner_email: ownerEmail,
     };
   }
@@ -111,7 +113,7 @@ export async function fetchTenantByPaymentToken(
   const { data: nailSalon } = await admin
     .from("nail_salons")
     .select(
-      "id, name, subscription_status, subscription_required, payment_invite_token, stripe_billing_customer_id"
+      "id, name, subscription_status, subscription_required, payment_invite_token, stripe_billing_customer_id, onboarding_welcome_sent_at"
     )
     .eq("payment_invite_token", trimmed)
     .single();
@@ -138,6 +140,7 @@ export async function fetchTenantByPaymentToken(
     subscription_required: nailSalon.subscription_required,
     payment_invite_token: nailSalon.payment_invite_token,
     stripe_billing_customer_id: nailSalon.stripe_billing_customer_id,
+    onboarding_welcome_sent_at: nailSalon.onboarding_welcome_sent_at,
     owner_email: ownerEmail,
   };
 }
@@ -152,7 +155,7 @@ export async function fetchBarberBillingState(shopId: string) {
   const { data } = await admin
     .from("barber_shops")
     .select(
-      "id, name, subscription_status, subscription_required, payment_invite_token, onboarding_welcome_sent_at"
+      "id, name, subscription_status, subscription_required, payment_invite_token, onboarding_welcome_sent_at, stripe_billing_customer_id"
     )
     .eq("id", shopId)
     .single();
@@ -169,7 +172,7 @@ export async function fetchNailBillingState(salonId: string) {
   const { data } = await admin
     .from("nail_salons")
     .select(
-      "id, name, subscription_status, subscription_required, payment_invite_token, onboarding_welcome_sent_at"
+      "id, name, subscription_status, subscription_required, payment_invite_token, onboarding_welcome_sent_at, stripe_billing_customer_id"
     )
     .eq("id", salonId)
     .single();

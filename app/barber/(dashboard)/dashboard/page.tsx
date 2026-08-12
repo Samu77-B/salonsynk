@@ -2,6 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getBarberDashboardData } from "./data";
 import { LiveQueueView } from "./live-queue-view";
+import { fetchBarberBillingState } from "@core/billing/platform-onboarding";
+import { shouldShowPlatformSubscribeBanner } from "@core/billing/platform-billing";
+import { PlatformSubscribeButtons } from "@/components/billing/platform-subscribe-buttons";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +13,23 @@ export default async function BarberDashboardPage() {
   if (!data) redirect("/barber/access");
 
   const memberName = data.member.display_name?.trim() || "My queue";
+  const isOwner = (data.member.role ?? "").toLowerCase() === "owner";
+  const billing = isOwner ? await fetchBarberBillingState(data.shop.id) : null;
+  const showSubscribe =
+    isOwner && billing != null && shouldShowPlatformSubscribeBanner(billing);
 
   return (
     <div className="space-y-4">
+      {showSubscribe ? (
+        <PlatformSubscribeButtons
+          platform="barber"
+          useAuthenticatedCheckout
+          paymentInviteToken={billing.payment_invite_token as string | null}
+          welcomeSentAt={billing.onboarding_welcome_sent_at as string | null}
+          variant="banner"
+          productBlurb="Live queue, appointments, and team tools for your shop."
+        />
+      ) : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1 min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">

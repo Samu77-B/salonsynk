@@ -58,7 +58,8 @@ export function AdminPlatformOnboardingPanel({
       <h2 className="text-lg font-semibold mb-1">Client onboarding</h2>
       <p className="text-sm text-muted mb-4">
         Send the welcome email. New {productName} clients get <strong>30 days free</strong> — they set a
-        password and can use the dashboard straight away. Payment is only required after the free month.
+        password and can use the dashboard straight away. They can subscribe monthly or yearly during the
+        free month; payment is required after it ends.
       </p>
 
       <dl className="grid gap-2 text-sm mb-4 sm:grid-cols-3">

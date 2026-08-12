@@ -30,6 +30,7 @@ export function NailDashboardHeader({
           { href: "/nail/stations", label: "Stations" },
         ]
       : []),
+    ...(isOwner ? [{ href: "/nail/billing", label: "Billing" }] : []),
   ];
 
   function linkClass(href: string, mobile = false) {

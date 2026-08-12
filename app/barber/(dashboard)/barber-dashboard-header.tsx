@@ -32,6 +32,7 @@ export function BarberDashboardHeader({
           { href: "/barber/chairs", label: "Chairs" },
         ]
       : []),
+    ...(isOwner ? [{ href: "/barber/billing", label: "Billing" }] : []),
   ];
 
   function isActive(href: string) {

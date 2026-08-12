@@ -1,35 +1,72 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
+import { getCurrentUserShop } from "@modules/barber/lib/shop";
+import { getCurrentUserNailSalon } from "@modules/nail/lib/shop";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/server";
+import {
+  getPlatformAppBaseUrl,
+  platformBillingPath,
+  type BillingPlatform,
+} from "@core/billing/platform-billing";
+import { tenantTable } from "@core/billing/stripe-metadata";
 
 /**
  * Stripe Customer Portal — update card, cancel, view invoices for the platform subscription.
- * Requires stripe_billing_customer_id (set after first successful Checkout).
+ * Salon: ?salonId=...
+ * Barber / Nail: ?platform=barber|nail (uses the logged-in owner's tenant)
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const platformParam = url.searchParams.get("platform");
   const salonId = url.searchParams.get("salonId");
-  if (!salonId) {
-    return NextResponse.json({ error: "salonId required" }, { status: 400 });
+
+  let platform: BillingPlatform = "salon";
+  let tenantId: string;
+  let memberRole: string;
+
+  if (platformParam === "barber" || platformParam === "nail") {
+    platform = platformParam;
+    if (platform === "barber") {
+      const context = await getCurrentUserShop();
+      if (!context) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+      tenantId = context.shop.id;
+      memberRole = (context.member.role ?? "").toLowerCase();
+    } else {
+      const context = await getCurrentUserNailSalon();
+      if (!context) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+      tenantId = context.salon.id;
+      memberRole = (context.member.role ?? "").toLowerCase();
+    }
+  } else {
+    if (!salonId) {
+      return NextResponse.json({ error: "salonId or platform required" }, { status: 400 });
+    }
+    const context = await getCurrentUserSalon();
+    if (!context || context.salon.id !== salonId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+    tenantId = salonId;
+    memberRole = (context.member.role ?? "").toLowerCase();
   }
 
-  const context = await getCurrentUserSalon();
-  if (!context || context.salon.id !== salonId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
-  if (context.member.role !== "owner") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (memberRole !== "owner") {
+    return NextResponse.json({ error: "Only the owner can manage billing" }, { status: 403 });
   }
 
   const admin = createAdminClient();
-  const { data: salon } = await admin
-    .from("salons")
+  const table = tenantTable(platform);
+  const { data: tenant } = await admin
+    .from(table)
     .select("stripe_billing_customer_id")
-    .eq("id", salonId)
+    .eq("id", tenantId)
     .single();
 
-  const customerId = salon?.stripe_billing_customer_id?.trim();
+  const customerId = (tenant?.stripe_billing_customer_id as string | null)?.trim();
   if (!customerId) {
     return NextResponse.json(
       {
@@ -40,17 +77,20 @@ export async function GET(request: Request) {
     );
   }
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? url.origin).replace(/\/$/, "");
+  const returnUrl =
+    platform === "salon"
+      ? `${(process.env.NEXT_PUBLIC_APP_URL ?? url.origin).replace(/\/$/, "")}/settings`
+      : `${getPlatformAppBaseUrl(platform)}${platformBillingPath(platform)}`;
 
   try {
     const stripe = getStripe();
     const portal = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${appUrl}/settings`,
+      return_url: returnUrl,
     });
     return NextResponse.redirect(portal.url, 303);
   } catch (err) {
-    console.error("billing-portal", err);
+    console.error("billing-portal", platform, err);
     return NextResponse.json({ error: "Stripe error" }, { status: 500 });
   }
 }

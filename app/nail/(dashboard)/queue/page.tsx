@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { getNailQueueData } from "./data";
 import { LiveQueueView } from "./live-queue-view";
+import { fetchNailBillingState } from "@core/billing/platform-onboarding";
+import { shouldShowPlatformSubscribeBanner } from "@core/billing/platform-billing";
+import { PlatformSubscribeButtons } from "@/components/billing/platform-subscribe-buttons";
 
 export const dynamic = "force-dynamic";
 
@@ -9,9 +12,23 @@ export default async function NailQueuePage() {
   if (!data) redirect("/onboarding");
 
   const memberName = data.member.display_name?.trim() || "My queue";
+  const isOwner = (data.member.role ?? "").toLowerCase() === "owner";
+  const billing = isOwner ? await fetchNailBillingState(data.salon.id) : null;
+  const showSubscribe =
+    isOwner && billing != null && shouldShowPlatformSubscribeBanner(billing);
 
   return (
     <div className="space-y-4">
+      {showSubscribe ? (
+        <PlatformSubscribeButtons
+          platform="nail"
+          useAuthenticatedCheckout
+          paymentInviteToken={billing.payment_invite_token as string | null}
+          welcomeSentAt={billing.onboarding_welcome_sent_at as string | null}
+          variant="banner"
+          productBlurb="Live queue, diary, and client tools for your nail salon."
+        />
+      ) : null}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold">

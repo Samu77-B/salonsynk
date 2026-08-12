@@ -3,23 +3,25 @@ import { getStripe } from "@/lib/stripe/server";
 import {
   getStripePriceIdForTier,
   isStripePriceConfiguredForTier,
-  formatPlanPrice,
-  PLAN_TIERS,
   type PlanTierId,
 } from "@/config/plans";
 import {
-  formatPlatformPrice,
   getPlatformAppBaseUrl,
   isStripePriceConfiguredForPlatform,
   getStripePriceIdForPlatform,
+  parseBillingInterval,
   platformBillingPath,
   platformProductName,
   tenantSubscriptionIsActive,
   type BillingPlatform,
+  type PlatformBillingInterval,
 } from "@core/billing/platform-billing";
 import { fetchTenantByPaymentToken } from "@core/billing/platform-onboarding";
 import { stripeMetadataForTenant } from "@core/billing/stripe-metadata";
-import { stripeOnboardingTrialPeriod } from "@core/billing/stripe-trial";
+import {
+  stripeOnboardingTrialPeriod,
+  stripeTrialPeriodForWelcome,
+} from "@core/billing/stripe-trial";
 
 function parsePlatform(raw: string | null): BillingPlatform {
   if (raw === "barber" || raw === "nail") return raw;
@@ -28,12 +30,14 @@ function parsePlatform(raw: string | null): BillingPlatform {
 
 /**
  * Public payment link from welcome email (token on tenant row).
- * No login required — Stripe Checkout collects card and starts monthly subscription.
+ * No login required — Stripe Checkout collects card and starts subscription.
+ * Optional `interval=monthly|yearly` (default monthly) for barber/nail.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const token = url.searchParams.get("token");
   const platform = parsePlatform(url.searchParams.get("platform"));
+  const interval: PlatformBillingInterval = parseBillingInterval(url.searchParams.get("interval"));
 
   if (!token?.trim()) {
     return NextResponse.json({ error: "Missing payment token" }, { status: 400 });
@@ -47,13 +51,11 @@ export async function GET(request: Request) {
   const appUrl = getPlatformAppBaseUrl(platform);
   const billingPath = platformBillingPath(platform);
 
-  if (tenantSubscriptionIsActive(tenant.subscription_status)) {
+  if (tenantSubscriptionIsActive(tenant.subscription_status) && tenant.stripe_billing_customer_id?.trim()) {
     return NextResponse.redirect(`${appUrl}${billingPath}?already=1`, 303);
   }
 
   let priceId: string;
-  let planLabel: string;
-  let planPrice: string;
 
   if (platform === "salon") {
     const planTier = (tenant.plan_tier ?? "professional") as PlanTierId;
@@ -64,20 +66,20 @@ export async function GET(request: Request) {
       );
     }
     priceId = getStripePriceIdForTier(planTier);
-    planLabel = PLAN_TIERS[planTier].label;
-    planPrice = formatPlanPrice(planTier);
   } else {
-    if (!isStripePriceConfiguredForPlatform(platform)) {
+    if (!isStripePriceConfiguredForPlatform(platform, interval)) {
+      const envHint =
+        interval === "yearly"
+          ? `STRIPE_PRICE_${platform.toUpperCase()}_YEARLY`
+          : `STRIPE_PRICE_${platform.toUpperCase()}`;
       return NextResponse.json(
         {
-          error: `Subscription billing is not configured for ${platformProductName(platform)}. Set STRIPE_PRICE_${platform.toUpperCase()} in environment variables.`,
+          error: `Subscription billing is not configured for ${platformProductName(platform)} (${interval}). Set ${envHint} in environment variables.`,
         },
         { status: 503 }
       );
     }
-    priceId = getStripePriceIdForPlatform(platform);
-    planLabel = platformProductName(platform);
-    planPrice = formatPlatformPrice(platform);
+    priceId = getStripePriceIdForPlatform(platform, interval);
   }
 
   const ownerEmail = tenant.owner_email?.trim();
@@ -85,8 +87,17 @@ export async function GET(request: Request) {
   const metadata = stripeMetadataForTenant(
     platform,
     tenant.id,
-    platform === "salon" && tenant.plan_tier ? { plan_tier: tenant.plan_tier } : undefined
+    platform === "salon" && tenant.plan_tier
+      ? { plan_tier: tenant.plan_tier }
+      : platform !== "salon"
+        ? { billing_interval: interval }
+        : undefined
   );
+
+  const trialData =
+    platform === "salon"
+      ? stripeOnboardingTrialPeriod()
+      : stripeTrialPeriodForWelcome(tenant.onboarding_welcome_sent_at);
 
   try {
     const stripe = getStripe();
@@ -101,7 +112,7 @@ export async function GET(request: Request) {
       success_url: `${appUrl}${billingPath}?success=1`,
       cancel_url: `${appUrl}${billingPath}?cancel=1`,
       metadata,
-      subscription_data: { metadata, ...stripeOnboardingTrialPeriod() },
+      subscription_data: { metadata, ...trialData },
     });
 
     if (!session.url) {
@@ -110,7 +121,7 @@ export async function GET(request: Request) {
 
     return NextResponse.redirect(session.url, 303);
   } catch (err) {
-    console.error("subscribe-invite", platform, err);
+    console.error("subscribe-invite", platform, interval, err);
     return NextResponse.json({ error: "Stripe error" }, { status: 500 });
   }
 }
