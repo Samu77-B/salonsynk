@@ -10,6 +10,7 @@ import type { PlatformFeatureId } from "@/config/plans";
 import dashboardLogo from "../../salonsynk-light.png";
 import dashboardLogoWhite from "../../salonsynk_logo-wht.png";
 import type { DashboardTheme } from "./dashboard-theme";
+import { SupportEmailChip } from "@/components/support-email-chip";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@core/config/support";
 
 function ThemeToggleButton({
@@ -228,13 +229,7 @@ export function AppHeader({
               {userEmail}
             </span>
           )}
-          <a
-            href={SUPPORT_MAILTO}
-            className="hidden text-xs text-muted transition-colors hover:text-foreground lg:inline whitespace-nowrap"
-            title={`Email support: ${SUPPORT_EMAIL}`}
-          >
-            {SUPPORT_EMAIL}
-          </a>
+          <SupportEmailChip className="hidden lg:inline-flex" />
           {onToggleTheme && <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />}
           <form action="/api/auth/signout" method="post">
             <button
@@ -358,13 +353,9 @@ export function AppHeader({
               </p>
             )}
 
-            <a
-              href={SUPPORT_MAILTO}
-              onClick={() => setMenuOpen(false)}
-              className="rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-foreground/5 hover:text-foreground"
-            >
-              Support: {SUPPORT_EMAIL}
-            </a>
+            <div className="px-3 pt-2">
+              <SupportEmailChip />
+            </div>
 
             <form action="/api/auth/signout" method="post" className="mt-auto pt-4">
               <button

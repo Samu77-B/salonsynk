@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@core/config/support";
+import { SupportEmailChip } from "@/components/support-email-chip";
 
 type NavLink = { href: string; label: string };
 
@@ -76,19 +76,13 @@ export function BarberDashboardHeader({
         </nav>
 
         <div className="hidden md:flex ml-auto items-center gap-3 text-sm text-muted shrink-0">
-          <a
-            href={SUPPORT_MAILTO}
-            className="text-xs text-muted hover:text-foreground whitespace-nowrap"
-            title={`Email support: ${SUPPORT_EMAIL}`}
-          >
-            {SUPPORT_EMAIL}
-          </a>
           {isManager && <span className="text-xs opacity-60">Manager</span>}
           {userEmail && (
             <span className="text-xs max-w-[180px] truncate" title={userEmail}>
               {userEmail}
             </span>
           )}
+          <SupportEmailChip />
         </div>
 
         <button
@@ -130,19 +124,16 @@ export function BarberDashboardHeader({
               ))}
             </div>
 
-            <div className="border-t border-border pt-2 space-y-0.5">
+            <div className="border-t border-border pt-2 space-y-2">
               {isManager && <p className="px-3 text-xs text-muted">Manager access</p>}
-              <a
-                href={SUPPORT_MAILTO}
-                className="block px-3 py-1 text-xs text-muted hover:text-foreground"
-              >
-                Support: {SUPPORT_EMAIL}
-              </a>
               {userEmail && (
                 <p className="px-3 text-xs text-muted truncate" title={userEmail}>
                   {userEmail}
                 </p>
               )}
+              <div className="px-3">
+                <SupportEmailChip />
+              </div>
             </div>
           </nav>
         </div>
