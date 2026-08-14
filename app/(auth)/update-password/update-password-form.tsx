@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 import { resolveAuthNextPath, type ProductHost } from "@/lib/platform-host";
+import { setPasswordAndContinue } from "./actions";
 
 type UpdatePasswordFormProps = {
   defaultNext?: string;
@@ -21,7 +21,6 @@ export function UpdatePasswordForm({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const rawNext = searchParams.get("next") ?? defaultNext;
   const next = resolveAuthNextPath(product, rawNext);
@@ -41,14 +40,12 @@ export function UpdatePasswordForm({
 
     setLoading(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) {
-        setMessage({ type: "error", text: error.message });
+      const result = await setPasswordAndContinue(password, confirmPassword, next, product);
+      if (result.error) {
+        setMessage({ type: "error", text: result.error });
         return;
       }
-      router.refresh();
-      router.push(next);
+      window.location.assign(result.next ?? next);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
       setMessage({ type: "error", text: msg });

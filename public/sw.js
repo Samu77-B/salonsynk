@@ -1,4 +1,4 @@
-const CACHE_NAME = "salonsynk-v17";
+const CACHE_NAME = "salonsynk-v18";
 
 function shouldCache(request, response) {
   if (!response || !response.ok || response.type !== "basic") return false;
@@ -24,6 +24,9 @@ function shouldCache(request, response) {
 function shouldBypassServiceWorker(request) {
   if (request.method !== "GET") return true;
   if (request.url.startsWith("chrome-extension")) return true;
+  // Auth/API calls to Supabase (and other third parties) must not go through the SW.
+  // Intercepting them surfaces as "Failed to fetch" on set-password / login.
+  if (!request.url.startsWith(self.location.origin)) return true;
   const u = new URL(request.url);
   // Full navigations must not go through cache-first logic (RSC/streaming breaks; avoids rejected respondWith).
   if (request.mode === "navigate" || request.destination === "document") return true;

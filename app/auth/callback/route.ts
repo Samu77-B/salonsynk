@@ -5,8 +5,6 @@ import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { fetchSalonOnboardingState, salonRequiresPayment } from "@/lib/onboarding";
 import { SMART_SITE } from "@core/config/smart-site";
-import { BARBER_SITE } from "@core/config/barber-site";
-import { NAIL_SITE } from "@core/config/nail-site";
 import {
   isAllowedAdminReturnPath,
   superAdminShouldHonorAuthNext,
@@ -81,7 +79,7 @@ async function resolvePostAuthRedirect(
   if (isBarberHost(host)) {
     const barberNext = resolveAuthNextPath("barber", next);
     if (needsPasswordSetup(authType)) {
-      return passwordSetupPath(BARBER_SITE.url.replace(/\/$/, ""), barberNext);
+      return passwordSetupPath(origin, barberNext);
     }
     if (isSuperAdmin) {
       if (superAdminShouldHonorAuthNext(barberNext)) {
@@ -89,13 +87,13 @@ async function resolvePostAuthRedirect(
       }
       return `${origin}/admin`;
     }
-    return `${BARBER_SITE.url}${barberNext}`;
+    return `${origin}${barberNext}`;
   }
 
   if (isNailHost(host)) {
     const nailNext = resolveAuthNextPath("nail", next);
     if (needsPasswordSetup(authType)) {
-      return passwordSetupPath(NAIL_SITE.url.replace(/\/$/, ""), nailNext);
+      return passwordSetupPath(origin, nailNext);
     }
     if (isSuperAdmin) {
       if (superAdminShouldHonorAuthNext(nailNext)) {
@@ -103,7 +101,7 @@ async function resolvePostAuthRedirect(
       }
       return `${origin}/admin`;
     }
-    return `${NAIL_SITE.url}${nailNext}`;
+    return `${origin}${nailNext}`;
   }
 
   let redirectTo = resolveAuthNextPath(product, next);
