@@ -30,26 +30,24 @@ function formatBookingWhen(iso: string): string {
   });
 }
 
-function AssignedBarberAvatar({
-  name,
-  avatarUrl,
-}: {
-  name: string;
-  avatarUrl?: string | null;
-}) {
-  if (avatarUrl) {
+function BarberAvatar({ barber, size = "md" }: { barber: BarberOption | { display_name: string | null; avatar_url?: string | null }; size?: "sm" | "md" }) {
+  const dim = size === "sm" ? "h-10 w-10" : "h-14 w-14";
+  const text = size === "sm" ? "text-sm" : "text-lg";
+  if (barber.avatar_url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={avatarUrl}
+        src={barber.avatar_url}
         alt=""
-        className="h-16 w-16 rounded-full object-cover border border-border shrink-0"
+        className={`${dim} mx-auto rounded-full object-cover border border-border shrink-0`}
       />
     );
   }
   return (
-    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/20 text-xl font-semibold text-muted border border-border shrink-0">
-      {name.charAt(0).toUpperCase()}
+    <div
+      className={`${dim} mx-auto flex items-center justify-center rounded-full bg-muted/20 ${text} font-semibold text-muted border border-border shrink-0`}
+    >
+      {(barber.display_name ?? "B").charAt(0).toUpperCase()}
     </div>
   );
 }
@@ -73,9 +71,11 @@ function BookingConfirmed({ result, shopName, onBookAnother }: {
         {showBarber ? (
           <>
             <div className="flex justify-center">
-              <AssignedBarberAvatar
-                name={result.barberName!}
-                avatarUrl={result.barberAvatarUrl}
+              <BarberAvatar
+                barber={{
+                  display_name: result.barberName ?? null,
+                  avatar_url: result.barberAvatarUrl,
+                }}
               />
             </div>
             <p className="text-sm font-semibold">{result.barberName}</p>
@@ -107,15 +107,18 @@ export function BookAppointmentForm({
   barbers,
   services,
   showServices = true,
+  nextAvailableOnly = false,
 }: {
   shopId: string;
   shopName: string;
   barbers: BarberOption[];
   services: ServiceOption[];
   showServices?: boolean;
+  nextAvailableOnly?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<BookAppointmentResult | null>(null);
+  const [barberId, setBarberId] = useState(ANY_BARBER_BOOKING_VALUE);
   const minDate = new Date().toISOString().slice(0, 10);
 
   function handleSubmit(formData: FormData) {
@@ -128,7 +131,7 @@ export function BookAppointmentForm({
             shopId,
             guestName: (formData.get("guest_name") as string) ?? "",
             guestPhone: (formData.get("guest_phone") as string) ?? "",
-            barberId: (formData.get("barber_id") as string) ?? ANY_BARBER_BOOKING_VALUE,
+            barberId,
             serviceId: (formData.get("service_id") as string) ?? "",
             date: (formData.get("date") as string) ?? "",
             time: (formData.get("time") as string) ?? "",
@@ -151,7 +154,10 @@ export function BookAppointmentForm({
       <BookingConfirmed
         result={result}
         shopName={shopName}
-        onBookAnother={() => setResult(null)}
+        onBookAnother={() => {
+          setResult(null);
+          setBarberId(ANY_BARBER_BOOKING_VALUE);
+        }}
       />
     );
   }
@@ -193,29 +199,57 @@ export function BookAppointmentForm({
         />
       </div>
 
-      {barbers.length > 0 && (
-        <div>
-          <label htmlFor="book_barber_id" className="block text-xs text-muted mb-1.5">
-            Barber
-          </label>
-          <select
-            id="book_barber_id"
-            name="barber_id"
-            defaultValue={ANY_BARBER_BOOKING_VALUE}
-            className={selectClass}
-          >
-            <option value={ANY_BARBER_BOOKING_VALUE}>Any barber</option>
-            {barbers.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.display_name ?? "Barber"}
-                {b.chair_number ? ` (Chair ${b.chair_number})` : ""}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-muted mt-1.5">
-            Choose any barber and we&apos;ll assign whoever is available for your time.
-          </p>
-        </div>
+      {(nextAvailableOnly || barbers.length > 0) && (
+        <fieldset>
+          <legend className="block text-xs text-muted mb-2">
+            {nextAvailableOnly ? "Barber" : "Choose your barber"}
+          </legend>
+          {nextAvailableOnly ? (
+            <div className="barber-panel-highlight p-4 text-center">
+              <span className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-accent/15 text-xl text-foreground border border-accent/30">
+                ✦
+              </span>
+              <p className="text-sm font-medium mt-2">Any barber</p>
+              <p className="text-xs text-muted mt-1">We&apos;ll assign whoever is available for your time.</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBarberId(ANY_BARBER_BOOKING_VALUE)}
+                  className={`barber-panel p-3 text-center transition-colors ${
+                    barberId === ANY_BARBER_BOOKING_VALUE ? "barber-panel-highlight" : ""
+                  }`}
+                >
+                  <span className="flex h-10 w-10 mx-auto items-center justify-center rounded-full bg-accent/15 text-lg text-foreground">
+                    ✦
+                  </span>
+                  <span className="text-xs font-medium leading-tight mt-2 block">Any barber</span>
+                </button>
+                {barbers.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setBarberId(b.id)}
+                    className={`barber-panel p-3 text-center transition-colors ${
+                      barberId === b.id ? "barber-panel-highlight" : ""
+                    }`}
+                  >
+                    <BarberAvatar barber={b} size="sm" />
+                    <span className="text-xs font-medium leading-tight line-clamp-2 mt-2 block">
+                      {b.display_name ?? "Barber"}
+                      {b.chair_number ? ` · Ch.${b.chair_number}` : ""}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted mt-2">
+                Tap a photo to book with them, or choose any barber and we&apos;ll assign whoever is free.
+              </p>
+            </>
+          )}
+        </fieldset>
       )}
 
       {showServices && services.length > 0 && (

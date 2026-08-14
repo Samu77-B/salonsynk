@@ -89,6 +89,7 @@ export function SalonClientPortal({
           technicians={bookingTechnicians}
           services={services}
           showServices={showServicesOnQueue}
+          nextAvailableOnly={nextAvailableOnly}
         />
       )}
 

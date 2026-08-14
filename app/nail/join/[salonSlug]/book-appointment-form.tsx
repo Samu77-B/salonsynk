@@ -38,26 +38,30 @@ function formatBookingWhen(iso: string): string {
   });
 }
 
-function AssignedTechnicianAvatar({
-  name,
-  avatarUrl,
+function TechnicianAvatar({
+  technician,
+  size = "md",
 }: {
-  name: string;
-  avatarUrl?: string | null;
+  technician: TechnicianOption | { display_name: string | null; avatar_url?: string | null };
+  size?: "sm" | "md";
 }) {
-  if (avatarUrl) {
+  const dim = size === "sm" ? "h-10 w-10" : "h-14 w-14";
+  const text = size === "sm" ? "text-sm" : "text-lg";
+  if (technician.avatar_url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={avatarUrl}
+        src={technician.avatar_url}
         alt=""
-        className="h-16 w-16 rounded-full object-cover border border-border shrink-0"
+        className={`${dim} rounded-full object-cover border border-border shrink-0`}
       />
     );
   }
   return (
-    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/20 text-xl font-semibold text-muted border border-border shrink-0">
-      {name.charAt(0).toUpperCase()}
+    <div
+      className={`${dim} flex items-center justify-center rounded-full bg-muted/20 ${text} font-semibold text-muted border border-border shrink-0`}
+    >
+      {(technician.display_name ?? "T").charAt(0).toUpperCase()}
     </div>
   );
 }
@@ -85,9 +89,11 @@ function BookingConfirmed({
         {showTechnician ? (
           <>
             <div className="flex justify-center">
-              <AssignedTechnicianAvatar
-                name={result.technicianName!}
-                avatarUrl={result.technicianAvatarUrl}
+              <TechnicianAvatar
+                technician={{
+                  display_name: result.technicianName ?? null,
+                  avatar_url: result.technicianAvatarUrl,
+                }}
               />
             </div>
             <p className="text-sm font-semibold">{result.technicianName}</p>
@@ -119,15 +125,18 @@ export function BookAppointmentForm({
   technicians,
   services,
   showServices = true,
+  nextAvailableOnly = false,
 }: {
   salonId: string;
   salonName: string;
   technicians: TechnicianOption[];
   services: ServiceOption[];
   showServices?: boolean;
+  nextAvailableOnly?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<BookAppointmentResult | null>(null);
+  const [technicianId, setTechnicianId] = useState(ANY_TECHNICIAN_BOOKING_VALUE);
   const minDate = new Date().toISOString().slice(0, 10);
 
   function handleSubmit(formData: FormData) {
@@ -140,7 +149,7 @@ export function BookAppointmentForm({
             salonId,
             guestName: (formData.get("guest_name") as string) ?? "",
             guestPhone: (formData.get("guest_phone") as string) ?? "",
-            technicianId: (formData.get("technician_id") as string) ?? ANY_TECHNICIAN_BOOKING_VALUE,
+            technicianId,
             serviceId: (formData.get("service_id") as string) ?? "",
             date: (formData.get("date") as string) ?? "",
             time: (formData.get("time") as string) ?? "",
@@ -163,7 +172,10 @@ export function BookAppointmentForm({
       <BookingConfirmed
         result={result}
         salonName={salonName}
-        onBookAnother={() => setResult(null)}
+        onBookAnother={() => {
+          setResult(null);
+          setTechnicianId(ANY_TECHNICIAN_BOOKING_VALUE);
+        }}
       />
     );
   }
@@ -206,29 +218,61 @@ export function BookAppointmentForm({
         <p className="text-xs text-muted mt-1.5">Optional — we&apos;ll text a confirmation if you add it.</p>
       </div>
 
-      {technicians.length > 0 && (
-        <div>
-          <label htmlFor="book_technician_id" className="block text-sm font-medium mb-1">
-            Technician
-          </label>
-          <select
-            id="book_technician_id"
-            name="technician_id"
-            defaultValue={ANY_TECHNICIAN_BOOKING_VALUE}
-            className={fieldClass}
-          >
-            <option value={ANY_TECHNICIAN_BOOKING_VALUE}>Any technician</option>
-            {technicians.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.display_name ?? "Technician"}
-                {t.station_number ? ` (Station ${t.station_number})` : ""}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-muted mt-1.5">
-            Choose any technician and we&apos;ll assign whoever is available for your time.
-          </p>
-        </div>
+      {(nextAvailableOnly || technicians.length > 0) && (
+        <fieldset>
+          <legend className="block text-sm font-medium mb-2">
+            {nextAvailableOnly ? "Technician" : "Choose your technician"}
+          </legend>
+          {nextAvailableOnly ? (
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-accent bg-accent/10 ring-2 ring-accent p-4 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/20 text-2xl border border-border">
+                ✦
+              </span>
+              <span className="text-sm font-medium">Any technician</span>
+              <p className="text-xs text-muted">We&apos;ll assign whoever is available for your time.</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => setTechnicianId(ANY_TECHNICIAN_BOOKING_VALUE)}
+                  className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors ${
+                    technicianId === ANY_TECHNICIAN_BOOKING_VALUE
+                      ? "border-accent bg-accent/10 ring-2 ring-accent"
+                      : "border-border hover:border-accent/50"
+                  }`}
+                >
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/20 text-2xl border border-border">
+                    ✦
+                  </span>
+                  <span className="text-xs font-medium leading-tight">Any technician</span>
+                </button>
+                {technicians.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTechnicianId(t.id)}
+                    className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors ${
+                      technicianId === t.id
+                        ? "border-accent bg-accent/10 ring-2 ring-accent"
+                        : "border-border hover:border-accent/50"
+                    }`}
+                  >
+                    <TechnicianAvatar technician={t} />
+                    <span className="text-xs font-medium leading-tight line-clamp-2">
+                      {t.display_name ?? "Technician"}
+                      {t.station_number ? ` · St.${t.station_number}` : ""}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted mt-2">
+                Tap a photo to book with them, or choose any technician and we&apos;ll assign whoever is free.
+              </p>
+            </>
+          )}
+        </fieldset>
       )}
 
       {showServices && services.length > 0 && (

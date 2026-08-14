@@ -80,6 +80,7 @@ export function ShopClientPortal({
           barbers={bookingBarbers}
           services={services}
           showServices={showServicesOnQueue}
+          nextAvailableOnly={nextAvailableOnly}
         />
       )}
 
