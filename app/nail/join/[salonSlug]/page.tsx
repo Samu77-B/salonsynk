@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 import { createAdminClient } from "@core/supabase/admin";
-import { JoinQueueForm } from "./join-queue-form";
+import { SalonClientPortal } from "./salon-client-portal";
 
 export const dynamic = "force-dynamic";
 
@@ -105,14 +105,24 @@ export default async function PublicJoinQueuePage({
             </div>
           ) : null}
           {showTitle ? <h1 className="text-2xl font-bold">{displayName}</h1> : null}
-          <p className={`text-sm text-muted ${showTitle ? "mt-1" : "mt-4"}`}>Walk-in Queue</p>
+          <p className={`text-sm text-muted ${showTitle ? "mt-1" : "mt-4"}`}>Walk-in &amp; bookings</p>
         </header>
 
-        <JoinQueueForm
+        <SalonClientPortal
           salonId={salon.id}
           salonName={displayName}
           queueLength={queueLength}
-          technicians={JSON.parse(JSON.stringify(technicians))}
+          walkInTechnicians={JSON.parse(JSON.stringify(technicians))}
+          bookingTechnicians={JSON.parse(JSON.stringify(
+            technicians
+              .filter((t) => t.display_name?.trim())
+              .map(({ id, display_name, station_number, avatar_url }) => ({
+                id,
+                display_name,
+                station_number,
+                avatar_url,
+              }))
+          ))}
           services={JSON.parse(JSON.stringify(services))}
           nextAvailableOnly={nextAvailableOnly}
           showServicesOnQueue={showServicesOnQueue}

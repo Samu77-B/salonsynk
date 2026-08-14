@@ -25,6 +25,9 @@ export function NailDashboardHeader({
   const links: NavLink[] = [
     { href: "/nail/queue", label: "Queue" },
     ...(isOwner || isManager
+      ? [{ href: "/nail/appointments", label: "Bookings" }]
+      : []),
+    ...(isOwner || isManager
       ? [
           { href: "/nail/services", label: "Services" },
           { href: "/nail/team", label: "Team" },

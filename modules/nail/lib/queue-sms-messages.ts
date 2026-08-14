@@ -50,6 +50,40 @@ export function queueSmsBody(
   }
 }
 
+function formatBookingWhenForSms(iso: string): string {
+  const d = new Date(iso);
+  const datePart = d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const timePart = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return `${datePart} at ${timePart}`;
+}
+
+/** SMS sent when a customer books a future appointment. */
+export function bookingConfirmationSmsBody(opts: {
+  clientName: string;
+  shopName: string;
+  technicianName?: string | null;
+  startTime: string;
+  serviceName?: string | null;
+}): string {
+  const name = opts.clientName.trim() || "there";
+  const shop = opts.shopName.trim() || "the nail bar";
+  const when = formatBookingWhenForSms(opts.startTime);
+  const technician = opts.technicianName?.trim();
+
+  let message = technician
+    ? `Hi ${name}, thanks for booking at ${shop}! You're booked with ${technician} on ${when}.`
+    : `Hi ${name}, thanks for booking at ${shop}! You're booked on ${when}.`;
+  if (opts.serviceName?.trim()) {
+    message += ` Service: ${opts.serviceName.trim()}.`;
+  }
+  message += " See you then!";
+  return message;
+}
+
 export function phoneHref(phone: string, smsBody?: string): { tel: string; sms: string } {
   const cleaned = phone.replace(/\s/g, "");
   const tel = cleaned.startsWith("+") ? cleaned : cleaned.replace(/^0/, "+44");

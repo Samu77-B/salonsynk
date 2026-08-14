@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getNailQueueData } from "./data";
 import { LiveQueueView } from "./live-queue-view";
+import { TodayBookings } from "./today-bookings";
 import { fetchNailBillingState } from "@core/billing/platform-onboarding";
 import { shouldShowPlatformSubscribeBanner } from "@core/billing/platform-billing";
 import { PlatformSubscribeButtons } from "@/components/billing/platform-subscribe-buttons";
@@ -29,7 +31,7 @@ export default async function NailQueuePage() {
           productBlurb="Live queue, diary, and client tools for your nail salon."
         />
       ) : null}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold">
             {data.isManagerView ? "Live Queue" : memberName}
@@ -44,12 +46,29 @@ export default async function NailQueuePage() {
               : "Clients assigned to you"}
           </p>
         </div>
+        {data.isManagerView ? (
+          <Link
+            href="/nail/appointments"
+            className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-background text-center shrink-0 hover:opacity-90"
+          >
+            Future bookings
+            {data.futureBookingsCount > 0 ? ` (${data.futureBookingsCount})` : ""}
+          </Link>
+        ) : null}
       </div>
       {data.isManagerView ? (
         <p className="text-xs text-muted -mt-2">
           Walk-in customers from the join queue page appear here in real time. Tap Start to notify
           the next clients by text.
         </p>
+      ) : null}
+
+      {data.isManagerView && data.todayAppointments.length > 0 ? (
+        <TodayBookings
+          appointments={JSON.parse(JSON.stringify(data.todayAppointments))}
+          members={JSON.parse(JSON.stringify(data.members))}
+          services={JSON.parse(JSON.stringify(data.services))}
+        />
       ) : null}
 
       <LiveQueueView

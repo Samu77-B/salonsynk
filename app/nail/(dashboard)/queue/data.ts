@@ -42,6 +42,22 @@ export type NailService = {
   price_minor: number;
 };
 
+export type TodayAppointment = {
+  id: string;
+  technician_id: string;
+  service_id: string | null;
+  start_time: string;
+  guest_name: string | null;
+  guest_phone: string | null;
+};
+
+function todayBounds() {
+  const today = new Date().toISOString().slice(0, 10);
+  const start = new Date(today + "T00:00:00");
+  const end = new Date(today + "T23:59:59");
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
 export async function getNailQueueData() {
   const context = await getCurrentUserNailSalon();
   if (!context) return null;
@@ -55,7 +71,9 @@ export async function getNailQueueData() {
     supabase = await createClient();
   }
 
-  const [queueResult, membersResult, servicesResult, todayStatsResult] =
+  const { start: todayStart, end: todayEnd } = todayBounds();
+
+  const [queueResult, membersResult, servicesResult, todayStatsResult, todayAppointmentsResult, futureBookingsResult] =
     await Promise.all([
       supabase
         .from("nail_queue")
@@ -83,6 +101,22 @@ export async function getNailQueueData() {
         .eq("salon_id", salonId)
         .eq("status", "completed")
         .gte("completed_at", new Date().toISOString().slice(0, 10)),
+
+      supabase
+        .from("nail_appointments")
+        .select("id, technician_id, service_id, start_time, guest_name, guest_phone")
+        .eq("salon_id", salonId)
+        .gte("start_time", todayStart)
+        .lte("start_time", todayEnd)
+        .eq("status", "scheduled")
+        .order("start_time"),
+
+      supabase
+        .from("nail_appointments")
+        .select("id", { count: "exact", head: true })
+        .eq("salon_id", salonId)
+        .eq("status", "scheduled")
+        .gt("start_time", todayEnd),
     ]);
 
   const queue = (queueResult.data ?? []) as QueueEntry[];
@@ -118,6 +152,8 @@ export async function getNailQueueData() {
     queue,
     members,
     services,
+    todayAppointments: (todayAppointmentsResult.data ?? []) as TodayAppointment[],
+    futureBookingsCount: futureBookingsResult.count ?? 0,
     stats: { todayServed, todayCash, todayCard, todayRevenue },
   };
 }

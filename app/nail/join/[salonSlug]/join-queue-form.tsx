@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { NAIL_SITE } from "@core/config/nail-site";
 import { AVG_SERVICE_MINUTES } from "@modules/nail/lib/queue-sms-messages";
 import { publicJoinQueue, type JoinQueueResult } from "./actions";
 
@@ -276,10 +275,6 @@ export function JoinQueueForm({
           {isPending ? "Joining…" : "Join Queue"}
         </button>
       </form>
-
-      <p className="text-center text-xs text-muted">
-        Powered by <span className="font-semibold">{NAIL_SITE.name}</span>
-      </p>
     </div>
   );
 }

@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { canSendSms } from "@core/utils/sms";
-import { queueJoinedSmsBody, queueSmsBody, sendNailQueueSms } from "./queue-sms";
+import {
+  queueJoinedSmsBody,
+  queueSmsBody,
+  bookingConfirmationSmsBody,
+  sendNailQueueSms,
+} from "./queue-sms";
 
 export async function sendJoinQueueSms(
   supabase: SupabaseClient,
@@ -33,6 +38,28 @@ export async function sendJoinQueueSms(
       .eq("id", entryId)
       .eq("salon_id", salonId);
   }
+}
+
+/** Text a customer when they book a future appointment. */
+export async function sendBookingConfirmationSms(opts: {
+  guestPhone: string;
+  guestName: string | null;
+  salonName: string;
+  technicianName?: string | null;
+  startTime: string;
+  serviceName?: string | null;
+}): Promise<boolean> {
+  if (!canSendSms() || !opts.guestPhone.trim()) return false;
+
+  const body = bookingConfirmationSmsBody({
+    clientName: opts.guestName ?? "there",
+    shopName: opts.salonName,
+    technicianName: opts.technicianName,
+    startTime: opts.startTime,
+    serviceName: opts.serviceName,
+  });
+  const sms = await sendNailQueueSms(opts.guestPhone, body);
+  return sms.sent;
 }
 
 export async function autoNotifyQueueAfterAdvance(

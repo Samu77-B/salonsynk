@@ -1,5 +1,41 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import { getNailAppointmentsData } from "./data";
+import { AppointmentsView } from "./appointments-view";
 
-export default function NailAppointmentsRedirect() {
-  redirect("/nail/queue");
+export const dynamic = "force-dynamic";
+
+export default async function NailAppointmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
+  const { date } = await searchParams;
+  const today = new Date().toISOString().slice(0, 10);
+  const data = await getNailAppointmentsData(date ?? today);
+  if (!data) redirect("/nail/onboarding");
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Bookings</h1>
+        <p className="text-xs text-muted">
+          {new Date(data.date + "T12:00:00").toLocaleDateString("en-GB", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          })}
+        </p>
+      </div>
+      <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
+        <AppointmentsView
+          date={data.date}
+          appointments={JSON.parse(JSON.stringify(data.appointments))}
+          upcomingAppointments={JSON.parse(JSON.stringify(data.upcomingAppointments))}
+          members={JSON.parse(JSON.stringify(data.members))}
+          services={JSON.parse(JSON.stringify(data.services))}
+        />
+      </Suspense>
+    </div>
+  );
 }

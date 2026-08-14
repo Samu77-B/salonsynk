@@ -1,10 +1,10 @@
 import { canSendSms, sendSms } from "@core/utils/sms";
-import { queueSmsBody, type QueueSmsTemplate } from "./queue-sms-messages";
 
 export {
   queueSmsBody,
   phoneHref,
   queueJoinedSmsBody,
+  bookingConfirmationSmsBody,
   estimatedWaitMinutes,
   AVG_SERVICE_MINUTES,
   type QueueSmsTemplate,
