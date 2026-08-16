@@ -48,6 +48,23 @@ function paysynkBaseUrl(): string {
   }
 }
 
+/** PaySynk returns `/s/:slug`; open it on PaySynk, not on SmartSynk. */
+export function resolvePaysynkShopUrl(shopUrl: string): string {
+  const trimmed = shopUrl.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const url = new URL(trimmed);
+      if (url.hostname === "paysynk.com") url.hostname = "www.paysynk.com";
+      return url.toString();
+    } catch {
+      return trimmed;
+    }
+  }
+  const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return `${paysynkBaseUrl()}${path}`;
+}
+
 function paysynkApiKey(): string | null {
   const key = process.env.PAYSYNK_ADMIN_API_KEY?.trim();
   return key || null;

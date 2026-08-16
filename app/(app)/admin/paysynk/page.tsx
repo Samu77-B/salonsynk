@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { fetchPaysynkSignups } from "@core/paysynk/admin-api";
+import {
+  fetchPaysynkSignups,
+  resolvePaysynkShopUrl,
+} from "@core/paysynk/admin-api";
 import type { PaysynkSignupStatus } from "@core/paysynk/types";
 import { PaysynkSignupRowActions } from "./paysynk-signup-row-actions";
 
@@ -97,6 +100,7 @@ export default async function AdminPaysynkPage({
             <tbody>
               {result.data.map((s) => {
                 const publicShop = s.signupStatus === "approved" && s.shopUrl;
+                const shopHref = s.shopUrl ? resolvePaysynkShopUrl(s.shopUrl) : "";
                 return (
                   <tr key={s.id} className="border-t border-border align-top">
                     <td className="px-4 py-3">
@@ -104,7 +108,7 @@ export default async function AdminPaysynkPage({
                       <p className="font-mono text-xs text-muted">{s.slug || "—"}</p>
                       {publicShop ? (
                         <a
-                          href={s.shopUrl}
+                          href={shopHref}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="mt-1 inline-block text-xs text-accent hover:underline"
