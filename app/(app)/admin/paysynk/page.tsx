@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   fetchPaysynkSignups,
+  paysynkClientStatus,
   resolvePaysynkShopUrl,
 } from "@core/paysynk/admin-api";
 import type { PaysynkSignupStatus } from "@core/paysynk/types";
@@ -33,6 +34,7 @@ export default async function AdminPaysynkPage({
   const params = await searchParams;
   const status = isSignupStatus(params.status) ? params.status : undefined;
   const result = await fetchPaysynkSignups(status);
+  const client = paysynkClientStatus();
 
   return (
     <div className="max-w-5xl">
@@ -83,6 +85,9 @@ export default async function AdminPaysynkPage({
               : "PaySynk is unavailable"}
           </p>
           <p className="mt-1 text-amber-200/80">{result.error}</p>
+          <p className="mt-2 font-mono text-xs text-amber-200/70">
+            Calling {client.url} · API key {client.keySet ? `set (${client.keyLength} chars)` : "missing"}
+          </p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border">

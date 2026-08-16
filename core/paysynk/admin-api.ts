@@ -66,8 +66,17 @@ export function resolvePaysynkShopUrl(shopUrl: string): string {
 }
 
 function paysynkApiKey(): string | null {
-  const key = process.env.PAYSYNK_ADMIN_API_KEY?.trim();
+  const key = process.env.PAYSYNK_ADMIN_API_KEY?.trim().replace(/^["']|["']$/g, "");
   return key || null;
+}
+
+export function paysynkClientStatus() {
+  const key = paysynkApiKey();
+  return {
+    url: paysynkBaseUrl(),
+    keySet: Boolean(key),
+    keyLength: key?.length ?? 0,
+  };
 }
 
 function errorMessage(body: string, status: number): string {
@@ -185,6 +194,7 @@ async function paysynkFetch(
       signal: AbortSignal.timeout(timeoutMs),
       headers: {
         Authorization: `Bearer ${key}`,
+        "X-SmartSynk-Key": key,
         Accept: "application/json",
         ...(body ? { "Content-Type": "application/json" } : {}),
         ...headers,
@@ -194,10 +204,14 @@ async function paysynkFetch(
     const text = await res.text().catch(() => "");
     if (!res.ok) {
       if (res.status === 401) {
+        const looksLikeHtml = /^\s*</.test(text) || text.includes("<!DOCTYPE");
         return {
           ok: false,
-          error:
-            "PaySynk rejected the API key (401). PAYSYNK_ADMIN_API_KEY on SalonSynk must match SMARTSYNK_API_KEY on PaySynk. After changing Vercel env vars, Redeploy both apps.",
+          error: looksLikeHtml
+            ? "PaySynk returned 401 HTML. If Vercel Deployment Protection is on for PaySynk production, turn it off or add a protection bypass for this server call."
+            : errorMessage(text, res.status) === "Unauthorized"
+              ? `PaySynk rejected the API key (401). Copy SMARTSYNK_API_KEY from the PaySynk Vercel project and paste it as PAYSYNK_ADMIN_API_KEY on SalonSynk (same string, no quotes). Then Redeploy both. Calling ${url}`
+              : errorMessage(text, res.status),
           availability: "unavailable",
         };
       }
