@@ -28,7 +28,7 @@ export type {
 } from "@core/paysynk/types";
 
 const DEFAULT_DEV_URL = "http://localhost:3000";
-const DEFAULT_PROD_URL = "https://paysynk.com";
+const DEFAULT_PROD_URL = "https://www.paysynk.com";
 const OVERVIEW_TIMEOUT_MS = 4000;
 const MUTATION_TIMEOUT_MS = 15000;
 
@@ -45,6 +45,13 @@ function paysynkApiKey(): string | null {
 
 function errorMessage(body: string, status: number): string {
   if (!body) return `PaySynk returned ${status}`;
+  const looksLikeHtml = /^\s*</.test(body) || body.includes("<!DOCTYPE");
+  if (looksLikeHtml) {
+    if (status === 404) {
+      return "PaySynk API route not found on the live site (404). The /api/smartsynk endpoints exist locally but are not deployed to paysynk.com yet.";
+    }
+    return `PaySynk returned HTML instead of JSON (HTTP ${status}). Check PAYSYNK_ADMIN_API_URL and that /api/smartsynk is deployed.`;
+  }
   try {
     const parsed = JSON.parse(body) as { error?: unknown; message?: unknown };
     if (typeof parsed.error === "string" && parsed.error.trim()) return parsed.error;
