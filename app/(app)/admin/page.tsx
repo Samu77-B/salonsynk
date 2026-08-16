@@ -9,12 +9,13 @@ import {
   salonPublicUrlsLabel,
   salonShopUrl,
 } from "@core/config/platform-urls";
+import { fetchPaysynkOverview } from "@core/paysynk/admin-api";
 import Link from "next/link";
 
 export default async function AdminDashboardPage() {
   const supabase = createAdminClient();
 
-  const [profilesRes, salonsRes, barberShopsRes, nailSalonsRes] = await Promise.all([
+  const [profilesRes, salonsRes, barberShopsRes, nailSalonsRes, paysynkOverview] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, email, full_name, created_at, is_super_admin")
@@ -32,6 +33,7 @@ export default async function AdminDashboardPage() {
       .from("nail_salons")
       .select("id, name, slug, subscription_status, created_at")
       .order("created_at", { ascending: false }),
+    fetchPaysynkOverview(),
   ]);
 
   const profiles = profilesRes.data ?? [];
@@ -274,6 +276,50 @@ export default async function AdminDashboardPage() {
                     Edit
                   </Link>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* PaySynk stores — separate app, HTTP only */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">PaySynk</h2>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin/paysynk/new"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90"
+            >
+              Add client
+            </Link>
+            <Link href="/admin/paysynk" className="text-sm text-accent hover:underline">
+              View all
+            </Link>
+          </div>
+        </div>
+        {!paysynkOverview.ok ? (
+          <p className="text-sm text-amber-400">
+            {paysynkOverview.availability === "unconfigured"
+              ? "PaySynk is not configured. Set PAYSYNK_ADMIN_API_KEY on the server."
+              : `PaySynk is unavailable — ${paysynkOverview.error}`}
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {(
+              [
+                ["Total stores", paysynkOverview.data.stores.total],
+                ["Pending", paysynkOverview.data.stores.pending],
+                ["Approved", paysynkOverview.data.stores.approved],
+                ["Rejected", paysynkOverview.data.stores.rejected],
+              ] as const
+            ).map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-xl border border-border bg-white/[0.02] p-4"
+              >
+                <p className="text-xs text-muted">{label}</p>
+                <p className="mt-1 text-2xl font-semibold">{value}</p>
               </div>
             ))}
           </div>

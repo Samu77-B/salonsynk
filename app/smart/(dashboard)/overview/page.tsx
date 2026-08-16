@@ -13,6 +13,8 @@ import {
   formatMinorAsCurrency,
   type DashboardOverviewStats,
 } from "@core/smart/dashboard-stats";
+import { fetchPaysynkOverview, paysynkAvailabilityLabel } from "@core/paysynk/admin-api";
+import type { PaysynkResult, PaysynkOverview } from "@core/paysynk/types";
 
 const EMPTY_STATS: DashboardOverviewStats = {
   appointmentsToday: 0,
@@ -43,15 +45,38 @@ export default async function SmartOverviewPage() {
   const ownedLocations = access?.ownedLocations ?? [];
 
   let stats = EMPTY_STATS;
-  try {
-    if (isSuperAdmin) {
-      stats = await fetchDashboardOverview();
-    } else {
-      stats = await fetchDashboardOverview(undefined, tenantIdsByPlatform(ownedLocations));
-    }
-  } catch {
-    stats = EMPTY_STATS;
+  let paysynk: PaysynkResult<PaysynkOverview> | null = null;
+  const [dbStats, pay] = await Promise.all([
+    (async () => {
+      try {
+        return isSuperAdmin
+          ? await fetchDashboardOverview()
+          : await fetchDashboardOverview(undefined, tenantIdsByPlatform(ownedLocations));
+      } catch {
+        return EMPTY_STATS;
+      }
+    })(),
+    isSuperAdmin ? fetchPaysynkOverview() : Promise.resolve(null),
+  ]);
+  stats = dbStats;
+  paysynk = pay;
+
+  if (paysynk?.ok) {
+    stats = {
+      ...stats,
+      locationsCount: stats.locationsCount + paysynk.data.stores.total,
+      revenueThisMonthMinor: stats.revenueThisMonthMinor + paysynk.data.revenueThisMonthMinor,
+    };
   }
+
+  const paysynkStatus = paysynk
+    ? paysynk.ok
+      ? { status: "Operational" as const, tone: "ok" as const }
+      : {
+          status: paysynkAvailabilityLabel(paysynk.availability),
+          tone: paysynk.availability === "unconfigured" ? ("warn" as const) : ("down" as const),
+        }
+    : undefined;
 
   const sparkAppts = stats.dailyPerformance.slice(-7).map((d) => d.appointments);
   const sparkRev = stats.dailyPerformance.slice(-7).map((d) => d.revenueMinor);
@@ -88,7 +113,9 @@ export default async function SmartOverviewPage() {
             value={stats.locationsCount.toLocaleString()}
             trend={
               isSuperAdmin
-                ? `${stats.newLocationsThisWeek} new this week`
+                ? paysynk?.ok
+                  ? `${stats.newLocationsThisWeek} new this week · ${paysynk.data.stores.total} PaySynk`
+                  : `${stats.newLocationsThisWeek} new this week`
                 : `${ownedLocations.length} you own`
             }
             trendPositive
@@ -115,7 +142,7 @@ export default async function SmartOverviewPage() {
             data={stats.platformDistribution}
             total={stats.appointmentsToday}
           />
-          {isSuperAdmin ? <SystemStatus /> : <div className="hidden lg:block" />}
+          {isSuperAdmin ? <SystemStatus paysynk={paysynkStatus} /> : <div className="hidden lg:block" />}
         </div>
       </main>
     </>

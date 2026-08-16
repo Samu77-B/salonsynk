@@ -1,20 +1,51 @@
-const SYSTEMS = [
-  { name: "SalonSynk", status: "Operational" },
-  { name: "BarberSynk", status: "Operational" },
-  { name: "NailSynk", status: "Operational" },
-  { name: "SmartSynk API", status: "Operational" },
+type StatusTone = "ok" | "warn" | "down";
+
+type SystemRow = {
+  name: string;
+  status: string;
+  tone: StatusTone;
+};
+
+const CORE_SYSTEMS: SystemRow[] = [
+  { name: "SalonSynk", status: "Operational", tone: "ok" },
+  { name: "BarberSynk", status: "Operational", tone: "ok" },
+  { name: "NailSynk", status: "Operational", tone: "ok" },
 ];
 
-export function SystemStatus() {
+const TONE_TEXT: Record<StatusTone, string> = {
+  ok: "text-emerald-400",
+  warn: "text-amber-400",
+  down: "text-red-400",
+};
+
+const TONE_DOT: Record<StatusTone, string> = {
+  ok: "bg-emerald-400 animate-pulse",
+  warn: "bg-amber-400",
+  down: "bg-red-400",
+};
+
+type SystemStatusProps = {
+  paysynk?: { status: string; tone: StatusTone };
+};
+
+export function SystemStatus({ paysynk }: SystemStatusProps) {
+  const systems: SystemRow[] = [
+    ...CORE_SYSTEMS,
+    paysynk
+      ? { name: "PaySynk", status: paysynk.status, tone: paysynk.tone }
+      : { name: "PaySynk", status: "Unavailable", tone: "down" },
+    { name: "SmartSynk API", status: "Operational", tone: "ok" },
+  ];
+
   return (
     <div className="rounded-xl border border-border bg-card p-5">
       <h3 className="font-heading text-lg font-semibold">System Status</h3>
       <ul className="mt-4 space-y-3">
-        {SYSTEMS.map((sys) => (
+        {systems.map((sys) => (
           <li key={sys.name} className="flex items-center justify-between text-sm">
             <span>{sys.name}</span>
-            <span className="flex items-center gap-2 text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className={`flex items-center gap-2 ${TONE_TEXT[sys.tone]}`}>
+              <span className={`h-2 w-2 rounded-full ${TONE_DOT[sys.tone]}`} />
               {sys.status}
             </span>
           </li>

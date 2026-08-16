@@ -49,6 +49,9 @@ export default async function AdminLayout({
             <Link href="/admin/nail-salons" className="hover:text-foreground">
               Nails
             </Link>
+            <Link href="/admin/paysynk" className="hover:text-foreground">
+              PaySynk
+            </Link>
           </nav>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3 text-xs sm:text-sm">
