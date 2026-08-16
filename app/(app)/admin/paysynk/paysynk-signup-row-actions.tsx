@@ -11,9 +11,10 @@ type PaysynkSignupRowActionsProps = {
 
 export function PaysynkSignupRowActions({ signup }: PaysynkSignupRowActionsProps) {
   const router = useRouter();
-  const [busy, setBusy] = useState<PaysynkSignupStatus | "notes" | null>(null);
+  const [busy, setBusy] = useState<PaysynkSignupStatus | "notes" | "name" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState(signup.adminNotes ?? "");
+  const [name, setName] = useState(signup.name);
 
   async function setStatus(status: PaysynkSignupStatus) {
     setError(null);
@@ -21,6 +22,20 @@ export function PaysynkSignupRowActions({ signup }: PaysynkSignupRowActionsProps
     const result = await adminPatchPaysynkSignup(signup.id, {
       status,
       adminNotes: notes.trim() || undefined,
+    });
+    setBusy(null);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    router.refresh();
+  }
+
+  async function saveName() {
+    setError(null);
+    setBusy("name");
+    const result = await adminPatchPaysynkSignup(signup.id, {
+      name: name.trim(),
     });
     setBusy(null);
     if (result.error) {
@@ -91,6 +106,24 @@ export function PaysynkSignupRowActions({ signup }: PaysynkSignupRowActionsProps
             {busy === "pending" ? "Saving…" : "Set pending"}
           </button>
         )}
+      </div>
+      <div className="flex w-full min-w-[12rem] max-w-xs items-center gap-1">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Store name"
+          aria-label="Store name"
+          className="w-full rounded-lg border border-border bg-background px-2 py-1 text-xs"
+        />
+        <button
+          type="button"
+          disabled={Boolean(busy) || name.trim() === signup.name.trim() || !name.trim()}
+          onClick={saveName}
+          className="shrink-0 rounded-lg border border-border px-2 py-1 text-xs disabled:opacity-40"
+        >
+          {busy === "name" ? "…" : "Rename"}
+        </button>
       </div>
       <div className="flex w-full min-w-[12rem] max-w-xs items-center gap-1">
         <input

@@ -48,21 +48,16 @@ function paysynkBaseUrl(): string {
   }
 }
 
-/** PaySynk returns `/s/:slug`; open it on PaySynk, not on SmartSynk. */
-export function resolvePaysynkShopUrl(shopUrl: string): string {
+/** Always https://www.paysynk.com/s/{slug} — never trust a relative or Vercel host. */
+export function resolvePaysynkShopUrl(shopUrl: string, slug?: string): string {
+  const origin = paysynkBaseUrl();
+  const slugFromField = slug?.trim().replace(/^\/+|\/+$/g, "");
+  if (slugFromField) return `${origin}/s/${slugFromField}`;
+
   const trimmed = shopUrl.trim();
-  if (!trimmed) return "";
-  if (/^https?:\/\//i.test(trimmed)) {
-    try {
-      const url = new URL(trimmed);
-      if (url.hostname === "paysynk.com") url.hostname = "www.paysynk.com";
-      return url.toString();
-    } catch {
-      return trimmed;
-    }
-  }
-  const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  return `${paysynkBaseUrl()}${path}`;
+  const fromPath = trimmed.match(/\/s\/([a-z0-9-]+)/i);
+  if (fromPath) return `${origin}/s/${fromPath[1]}`;
+  return "";
 }
 
 function paysynkApiKey(): string | null {

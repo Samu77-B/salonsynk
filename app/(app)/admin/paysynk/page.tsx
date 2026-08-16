@@ -55,6 +55,12 @@ export default async function AdminPaysynkPage({
 
       <p className="mb-4 text-sm text-muted">
         PaySynk stores live in a separate app. Pending shops are not public until you approve them.
+        Rename, approve, or reject here. Products and payments are edited in the PaySynk merchant
+        dashboard at{" "}
+        <a href="https://www.paysynk.com/login" className="text-accent hover:underline" target="_blank" rel="noopener noreferrer">
+          paysynk.com/login
+        </a>
+        .
       </p>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -105,13 +111,13 @@ export default async function AdminPaysynkPage({
             <tbody>
               {result.data.map((s) => {
                 const publicShop = s.signupStatus === "approved" && s.shopUrl;
-                const shopHref = s.shopUrl ? resolvePaysynkShopUrl(s.shopUrl) : "";
+                const shopHref = s.slug ? resolvePaysynkShopUrl(s.shopUrl, s.slug) : "";
                 return (
                   <tr key={s.id} className="border-t border-border align-top">
                     <td className="px-4 py-3">
                       <p className="font-medium">{s.name || "—"}</p>
                       <p className="font-mono text-xs text-muted">{s.slug || "—"}</p>
-                      {publicShop ? (
+                      {publicShop && shopHref ? (
                         <a
                           href={shopHref}
                           target="_blank"
@@ -120,7 +126,7 @@ export default async function AdminPaysynkPage({
                         >
                           Open shop
                         </a>
-                      ) : s.shopUrl ? (
+                      ) : s.slug ? (
                         <p className="mt-1 text-xs text-muted">Not public until approved</p>
                       ) : null}
                     </td>
