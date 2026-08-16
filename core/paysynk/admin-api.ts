@@ -34,8 +34,18 @@ const MUTATION_TIMEOUT_MS = 15000;
 
 function paysynkBaseUrl(): string {
   const explicit = process.env.PAYSYNK_ADMIN_API_URL?.trim();
-  if (explicit) return explicit.replace(/\/$/, "");
-  return process.env.NODE_ENV === "production" ? DEFAULT_PROD_URL : DEFAULT_DEV_URL;
+  const raw = (explicit || (process.env.NODE_ENV === "production" ? DEFAULT_PROD_URL : DEFAULT_DEV_URL)).replace(
+    /\/$/,
+    ""
+  );
+  try {
+    const url = new URL(raw);
+    // Apex 308s to www and fetch drops Authorization on that host change → 401.
+    if (url.hostname === "paysynk.com") url.hostname = "www.paysynk.com";
+    return url.origin;
+  } catch {
+    return raw;
+  }
 }
 
 function paysynkApiKey(): string | null {
@@ -166,6 +176,14 @@ async function paysynkFetch(
 
     const text = await res.text().catch(() => "");
     if (!res.ok) {
+      if (res.status === 401) {
+        return {
+          ok: false,
+          error:
+            "PaySynk rejected the API key (401). PAYSYNK_ADMIN_API_KEY on SalonSynk must match SMARTSYNK_API_KEY on PaySynk. After changing Vercel env vars, Redeploy both apps.",
+          availability: "unavailable",
+        };
+      }
       return { ok: false, error: errorMessage(text, res.status), availability: "unavailable" };
     }
 
