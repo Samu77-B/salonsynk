@@ -49,10 +49,12 @@ const LEAD_PLATFORM_LABEL: Record<LeadPlatform, string> = {
   nail: "NailSynk",
 };
 
-type LeadMailPayload = Omit<
-  Parameters<NonNullable<typeof resend>["emails"]["send"]>[0],
-  "to"
->;
+type LeadMailPayload = {
+  from: string;
+  replyTo?: string;
+  subject: string;
+  html: string;
+};
 
 /** Staff notification: hello@salonsynk.com, then a separate copy to hello@smartsynk.net. */
 async function sendLeadStaffEmails(payload: LeadMailPayload): Promise<{ error?: string }> {
