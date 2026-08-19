@@ -32,6 +32,7 @@ export function NailRequestForm() {
           phone: phone || undefined,
           planTier: "nail",
           paymentGateway: "stripe",
+          platform: "nail",
           message: message ? `[${NAIL_SITE.name}] ${message}` : `[${NAIL_SITE.name} signup]`,
         }),
       });

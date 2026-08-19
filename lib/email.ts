@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 import { BARBER_SITE } from "@core/config/barber-site";
 import { NAIL_SITE } from "@core/config/nail-site";
+import { SITE } from "@core/config/site";
+import { LEADS_INBOX } from "@core/config/support";
 
 const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
@@ -37,6 +39,79 @@ async function sendViaResend(
   if (normalized) return { error: normalized };
   if (!data?.id) return { error: "Email provider did not accept the message." };
   return {};
+}
+
+export type LeadPlatform = "salon" | "barber" | "nail";
+
+const LEAD_PLATFORM_LABEL: Record<LeadPlatform, string> = {
+  salon: "SalonSynk",
+  barber: "BarberSynk",
+  nail: "NailSynk",
+};
+
+type LeadMailPayload = Omit<
+  Parameters<NonNullable<typeof resend>["emails"]["send"]>[0],
+  "to"
+>;
+
+/** Staff notification: hello@salonsynk.com, then a separate copy to hello@smartsynk.net. */
+async function sendLeadStaffEmails(payload: LeadMailPayload): Promise<{ error?: string }> {
+  const primary = await sendViaResend({ ...payload, to: [SITE.email] });
+  if (primary.error) return primary;
+  if (LEADS_INBOX.trim().toLowerCase() !== SITE.email.trim().toLowerCase()) {
+    const copy = await sendViaResend({ ...payload, to: [LEADS_INBOX] });
+    if (copy.error) {
+      console.error("[leads] SmartSynk copy failed:", copy.error);
+    }
+  }
+  return {};
+}
+
+async function sendContactAutoReply(params: {
+  to: string;
+  name?: string;
+  platform: LeadPlatform;
+  kind: "account" | "support" | "setup";
+  businessName?: string;
+}): Promise<void> {
+  const email = params.to.trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+
+  const label = LEAD_PLATFORM_LABEL[params.platform];
+  const first = (params.name ?? "").trim().split(/\s+/)[0];
+  const greeting = first ? `Hi ${escapeHtmlPlainText(first)},` : "Hi,";
+  const business = params.businessName?.trim()
+    ? ` for <strong>${escapeHtmlPlainText(params.businessName.trim())}</strong>`
+    : "";
+  const what =
+    params.kind === "account"
+      ? `We've received your ${label} account request${business}.`
+      : params.kind === "setup"
+        ? `We've received your setup help request${business}.`
+        : "We've received your message.";
+  const html = `
+    <p>${greeting}</p>
+    <p>Thanks for getting in touch with <strong>${label}</strong>.</p>
+    <p>${what} We'll be in contact within 24 hours.</p>
+    <p>If you need to add anything, just reply to this email.</p>
+    <p>— The ${label} team</p>
+  `;
+  const replyTo =
+    params.platform === "barber"
+      ? BARBER_SITE.email
+      : params.platform === "nail"
+        ? NAIL_SITE.email
+        : SITE.email;
+  const mail = {
+    to: [email] as string[],
+    replyTo,
+    subject: `We've received your ${label} request`,
+    html,
+  };
+  const branded = await sendViaResend({ ...mail, from: platformFromAddress(params.platform) });
+  if (branded.error) {
+    await sendViaResend({ ...mail, from: fromAddress });
+  }
 }
 
 export async function sendAppointmentReminder(
@@ -105,14 +180,30 @@ export async function sendOwnerInviteLink(
   return { error: normalizeResendError(error) };
 }
 
+export function resolveLeadPlatform(input: {
+  platform?: string;
+  planTier?: string;
+  message?: string;
+}): LeadPlatform {
+  const p = (input.platform ?? "").trim().toLowerCase();
+  if (p === "barber" || p === "nail" || p === "salon") return p;
+  const tier = (input.planTier ?? "").trim().toLowerCase();
+  if (tier === "barber") return "barber";
+  if (tier === "nail") return "nail";
+  const msg = input.message ?? "";
+  if (msg.includes("[BarberSynk]")) return "barber";
+  if (msg.includes("[NailSynk]")) return "nail";
+  return "salon";
+}
+
 export async function sendSupportMessage(
   fromEmail: string,
   salonName: string,
   subject: string,
-  message: string
+  message: string,
+  platform: LeadPlatform = "salon"
 ): Promise<{ error?: string }> {
-  if (!resend) return { error: "Resend not configured" };
-  const to = "hello@salonsynk.com";
+  const label = LEAD_PLATFORM_LABEL[platform];
   const html = `
     <p><strong>From:</strong> ${fromEmail || "(not provided)"}</p>
     <p><strong>Salon:</strong> ${salonName}</p>
@@ -120,14 +211,22 @@ export async function sendSupportMessage(
     <hr />
     <p>${message.replace(/\n/g, "<br />")}</p>
   `;
-  const { error } = await resend.emails.send({
+  const result = await sendLeadStaffEmails({
     from: fromAddress,
-    to: [to],
     replyTo: fromEmail || undefined,
-    subject: `[SalonSynk Support] ${subject}`,
+    subject: `[${label} Support] ${subject}`,
     html,
   });
-  return { error: normalizeResendError(error) };
+  if (result.error) return result;
+  if (fromEmail) {
+    await sendContactAutoReply({
+      to: fromEmail,
+      platform,
+      kind: "support",
+      businessName: salonName,
+    });
+  }
+  return {};
 }
 
 export async function sendAccountRequest(params: {
@@ -141,9 +240,10 @@ export async function sendAccountRequest(params: {
   planPrice?: string;
   paymentGateway?: string;
   paymentGatewayLabel?: string;
+  platform?: LeadPlatform;
 }): Promise<{ error?: string }> {
-  if (!resend) return { error: "Resend not configured" };
-  const to = "hello@salonsynk.com";
+  const platform = resolveLeadPlatform(params);
+  const label = LEAD_PLATFORM_LABEL[platform];
   const phoneLine = params.phone?.trim()
     ? `<p><strong>Phone:</strong> ${params.phone.trim()}</p>`
     : "";
@@ -158,7 +258,7 @@ export async function sendAccountRequest(params: {
     ? `<p><strong>Card payments:</strong> ${params.paymentGatewayLabel}${params.paymentGateway ? ` — <code>${params.paymentGateway}</code>` : ""}</p>`
     : "";
   const html = `
-    <p><strong>New account request</strong> (SalonSynk)</p>
+    <p><strong>New account request</strong> (${label})</p>
     <p><strong>Name:</strong> ${params.fullName.trim()}</p>
     <p><strong>Email:</strong> ${params.email.trim()}</p>
     <p><strong>Salon / business:</strong> ${params.salonName.trim()}</p>
@@ -167,14 +267,21 @@ export async function sendAccountRequest(params: {
     ${phoneLine}
     ${msgBlock}
   `;
-  const { error } = await resend.emails.send({
+  const result = await sendLeadStaffEmails({
     from: fromAddress,
-    to: [to],
     replyTo: params.email.trim(),
-    subject: `[SalonSynk] Account request: ${params.salonName.trim().slice(0, 80)}`,
+    subject: `[${label}] Account request: ${params.salonName.trim().slice(0, 80)}`,
     html,
   });
-  return { error: normalizeResendError(error) };
+  if (result.error) return result;
+  await sendContactAutoReply({
+    to: params.email,
+    name: params.fullName,
+    platform,
+    kind: "account",
+    businessName: params.salonName,
+  });
+  return {};
 }
 
 export async function sendAftercareEmail(
@@ -420,8 +527,6 @@ export async function sendSetupConciergeRequest(params: {
   helpAreas: string[];
   notes?: string;
 }): Promise<{ error?: string }> {
-  if (!resend) return { error: "Resend not configured" };
-  const to = "hello@salonsynk.com";
   const areas = params.helpAreas.length ? params.helpAreas.join(", ") : "General setup";
   const priceHint = params.hasPriceLists
     ? "Client indicated they have price lists ready — quote from £60"
@@ -438,12 +543,19 @@ export async function sendSetupConciergeRequest(params: {
     <p><strong>Pricing guide:</strong> ${priceHint}</p>
     ${notesBlock}
   `;
-  const { error } = await resend.emails.send({
+  const result = await sendLeadStaffEmails({
     from: fromAddress,
-    to: [to],
     replyTo: params.ownerEmail,
     subject: `[SalonSynk] Setup help request: ${params.salonName.slice(0, 80)}`,
     html,
   });
-  return { error: normalizeResendError(error) };
+  if (result.error) return result;
+  await sendContactAutoReply({
+    to: params.ownerEmail,
+    name: params.ownerName,
+    platform: "salon",
+    kind: "setup",
+    businessName: params.salonName,
+  });
+  return {};
 }

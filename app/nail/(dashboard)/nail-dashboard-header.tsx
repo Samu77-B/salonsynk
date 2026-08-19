@@ -75,7 +75,7 @@ export function NailDashboardHeader({
               {userEmail}
             </span>
           )}
-          <SupportEmailChip />
+          <SupportEmailChip email={NAIL_SITE.email} />
         </div>
 
         <button
@@ -142,7 +142,7 @@ export function NailDashboardHeader({
                 </p>
               )}
               <div className="px-4">
-                <SupportEmailChip />
+                <SupportEmailChip email={NAIL_SITE.email} />
               </div>
             </div>
           </nav>

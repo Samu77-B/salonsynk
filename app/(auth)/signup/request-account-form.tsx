@@ -32,6 +32,7 @@ export function RequestAccountForm({ initialPlanTier = "professional" }: { initi
           phone: phone || undefined,
           planTier,
           paymentGateway,
+          platform: "salon",
           message: message || undefined,
         }),
       });

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SupportEmailChip } from "@/components/support-email-chip";
+import { BARBER_SITE } from "@core/config/barber-site";
 
 type NavLink = { href: string; label: string };
 
@@ -82,7 +83,7 @@ export function BarberDashboardHeader({
               {userEmail}
             </span>
           )}
-          <SupportEmailChip />
+          <SupportEmailChip email={BARBER_SITE.email} />
         </div>
 
         <button
@@ -132,7 +133,7 @@ export function BarberDashboardHeader({
                 </p>
               )}
               <div className="px-3">
-                <SupportEmailChip />
+                <SupportEmailChip email={BARBER_SITE.email} />
               </div>
             </div>
           </nav>

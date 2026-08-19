@@ -11,6 +11,7 @@ import dashboardLogo from "../../salonsynk-light.png";
 import dashboardLogoWhite from "../../salonsynk_logo-wht.png";
 import type { DashboardTheme } from "./dashboard-theme";
 import { SupportEmailChip } from "@/components/support-email-chip";
+import { SITE } from "@core/config/site";
 
 function ThemeToggleButton({
   theme,
@@ -228,7 +229,7 @@ export function AppHeader({
               {userEmail}
             </span>
           )}
-          <SupportEmailChip className="hidden lg:inline-flex" />
+          <SupportEmailChip email={SITE.email} className="hidden lg:inline-flex" />
           {onToggleTheme && <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />}
           <form action="/api/auth/signout" method="post">
             <button
@@ -353,7 +354,7 @@ export function AppHeader({
             )}
 
             <div className="px-3 pt-2">
-              <SupportEmailChip />
+              <SupportEmailChip email={SITE.email} />
             </div>
 
             <form action="/api/auth/signout" method="post" className="mt-auto pt-4">

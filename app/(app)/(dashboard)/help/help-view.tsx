@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { DashboardDisclosure, DashboardSection } from "@/components/dashboard/page-layout";
 import { dashboardBtnPrimaryClass, dashboardInputClass, dashboardTextareaClass, dashboardFlowClass } from "@/components/dashboard/ui";
-
-const SUPPORT_EMAIL = "hello@salonsynk.com";
+import { SITE } from "@core/config/site";
 
 export function HelpView({ salonName, userEmail }: { salonName: string; userEmail?: string }) {
   const [message, setMessage] = useState("");
@@ -96,8 +95,8 @@ export function HelpView({ salonName, userEmail }: { salonName: string; userEmai
       <DashboardSection title="Contact us">
         <p className="text-sm text-muted mb-4">
           Questions or feedback? Email{" "}
-          <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent hover:underline">
-            {SUPPORT_EMAIL}
+          <a href={`mailto:${SITE.email}`} className="text-accent hover:underline">
+            {SITE.email}
           </a>{" "}
           or send a message below.
         </p>

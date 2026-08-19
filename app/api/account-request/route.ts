@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { sendAccountRequest } from "@/lib/email";
+import { sendAccountRequest, resolveLeadPlatform } from "@/lib/email";
+import { BARBER_MONTHLY_GBP, NAIL_MONTHLY_GBP } from "@core/billing/platform-billing";
 import { isPlanTierId, PLAN_TIERS, formatPlanPrice, type PlanTierId } from "@/config/plans";
 import { isPaymentGatewayId, PAYMENT_GATEWAYS, type PaymentGatewayId } from "@/config/payment-gateways";
 
@@ -19,6 +20,11 @@ export async function POST(req: Request) {
     const phone = trimStr(body.phone, MAX_LEN.phone) || undefined;
     const message = trimStr(body.message, MAX_LEN.message) || undefined;
     const rawPlan = trimStr(body.planTier, 32);
+    const platform = resolveLeadPlatform({
+      platform: trimStr(body.platform, 16),
+      planTier: rawPlan,
+      message,
+    });
     const planTier: PlanTierId = isPlanTierId(rawPlan) ? rawPlan : "professional";
 
     const rawGateway = trimStr(body.paymentGateway, 32);
@@ -34,17 +40,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Salon or business name is required." }, { status: 400 });
     }
 
+    const planLabel =
+      platform === "barber"
+        ? "BarberSynk"
+        : platform === "nail"
+          ? "NailSynk"
+          : PLAN_TIERS[planTier].label;
+    const planPrice =
+      platform === "barber"
+        ? `£${BARBER_MONTHLY_GBP}/mo`
+        : platform === "nail"
+          ? `£${NAIL_MONTHLY_GBP}/mo`
+          : formatPlanPrice(planTier);
+    const paymentGatewayLabel =
+      platform === "barber" || platform === "nail"
+        ? "Stripe"
+        : PAYMENT_GATEWAYS[paymentGateway].label;
+
     const result = await sendAccountRequest({
       fullName,
       email,
       salonName,
       phone,
       message,
-      planTier,
-      planLabel: PLAN_TIERS[planTier].label,
-      planPrice: formatPlanPrice(planTier),
+      planTier: platform === "barber" || platform === "nail" ? platform : planTier,
+      planLabel,
+      planPrice,
       paymentGateway,
-      paymentGatewayLabel: PAYMENT_GATEWAYS[paymentGateway].label,
+      paymentGatewayLabel,
+      platform,
     });
     if (result.error) {
       return NextResponse.json({ error: result.error }, { status: 500 });

@@ -26,6 +26,7 @@ export function BarberRequestForm() {
           phone: phone || undefined,
           planTier: "barber",
           paymentGateway: "stripe",
+          platform: "barber",
           message: message ? `[BarberSynk] ${message}` : "[BarberSynk signup]",
         }),
       });
