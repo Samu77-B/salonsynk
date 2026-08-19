@@ -3,6 +3,7 @@ import { BARBER_SITE } from "@core/config/barber-site";
 import { NAIL_SITE } from "@core/config/nail-site";
 import { SITE } from "@core/config/site";
 import { LEADS_INBOX } from "@core/config/support";
+import { resolveProductFromHost } from "@/lib/platform-host";
 
 const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
@@ -49,6 +50,66 @@ const LEAD_PLATFORM_LABEL: Record<LeadPlatform, string> = {
   nail: "NailSynk",
 };
 
+function platformBrand(platform: LeadPlatform): {
+  label: string;
+  email: string;
+  url: string;
+  tagline: string;
+  logoUrl: string;
+  from: string;
+} {
+  if (platform === "barber") {
+    return {
+      label: BARBER_SITE.name,
+      email: BARBER_SITE.email,
+      url: BARBER_SITE.url,
+      tagline: BARBER_SITE.tagline,
+      logoUrl: `${BARBER_SITE.url}/imgs/barber/barbersynk-logo-v5.png`,
+      from: process.env.RESEND_FROM_BARBER || `BarberSynk <${BARBER_SITE.email}>`,
+    };
+  }
+  if (platform === "nail") {
+    return {
+      label: NAIL_SITE.name,
+      email: NAIL_SITE.email,
+      url: NAIL_SITE.url,
+      tagline: NAIL_SITE.tagline,
+      logoUrl: `${NAIL_SITE.url}/imgs/nail/nailsynk_logo_blk.png`,
+      from: process.env.RESEND_FROM_NAIL || `NailSynk <${NAIL_SITE.email}>`,
+    };
+  }
+  return {
+    label: SITE.name,
+    email: SITE.email,
+    url: SITE.url,
+    tagline: SITE.tagline,
+    logoUrl: `${SITE.url}/imgs/salon/salonsynk-footer-logo-v2.png`,
+    from: process.env.RESEND_FROM_HELLO || `SalonSynk <${SITE.email}>`,
+  };
+}
+
+function platformEmailSignature(platform: LeadPlatform): string {
+  const brand = platformBrand(platform);
+  return `
+    <hr style="border:none;border-top:1px solid #e5e5e5;margin:28px 0 16px" />
+    <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+      <tr>
+        <td style="padding:0 0 12px">
+          <a href="${brand.url}" style="text-decoration:none">
+            <img src="${brand.logoUrl}" alt="${escapeHtmlPlainText(brand.label)}" width="200" style="display:block;border:0;outline:none;max-width:200px;height:auto" />
+          </a>
+        </td>
+      </tr>
+      <tr>
+        <td style="font-family:Arial,sans-serif;font-size:13px;line-height:1.5;color:#555555">
+          ${escapeHtmlPlainText(brand.tagline)}<br />
+          <a href="mailto:${brand.email}" style="color:#555555">${brand.email}</a>
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
 type LeadMailPayload = {
   from: string;
   replyTo?: string;
@@ -79,7 +140,7 @@ async function sendContactAutoReply(params: {
   const email = params.to.trim();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
 
-  const label = LEAD_PLATFORM_LABEL[params.platform];
+  const brand = platformBrand(params.platform);
   const first = (params.name ?? "").trim().split(/\s+/)[0];
   const greeting = first ? `Hi ${escapeHtmlPlainText(first)},` : "Hi,";
   const business = params.businessName?.trim()
@@ -87,32 +148,26 @@ async function sendContactAutoReply(params: {
     : "";
   const what =
     params.kind === "account"
-      ? `We've received your ${label} account request${business}.`
+      ? `We've received your ${brand.label} account request${business}.`
       : params.kind === "setup"
         ? `We've received your setup help request${business}.`
         : "We've received your message.";
   const html = `
     <p>${greeting}</p>
-    <p>Thanks for getting in touch with <strong>${label}</strong>.</p>
+    <p>Thanks for getting in touch with <strong>${brand.label}</strong>.</p>
     <p>${what} We'll be in contact within 24 hours.</p>
     <p>If you need to add anything, just reply to this email.</p>
-    <p>— The ${label} team</p>
+    ${platformEmailSignature(params.platform)}
   `;
-  const replyTo =
-    params.platform === "barber"
-      ? BARBER_SITE.email
-      : params.platform === "nail"
-        ? NAIL_SITE.email
-        : SITE.email;
   const mail = {
     to: [email] as string[],
-    replyTo,
-    subject: `We've received your ${label} request`,
+    replyTo: brand.email,
+    subject: `We've received your ${brand.label} request`,
     html,
   };
-  const branded = await sendViaResend({ ...mail, from: platformFromAddress(params.platform) });
+  const branded = await sendViaResend({ ...mail, from: brand.from });
   if (branded.error) {
-    await sendViaResend({ ...mail, from: fromAddress });
+    await sendViaResend({ ...mail, from: `${brand.label} <${SITE.email}>` });
   }
 }
 
@@ -186,9 +241,30 @@ export function resolveLeadPlatform(input: {
   platform?: string;
   planTier?: string;
   message?: string;
+  host?: string;
+  referer?: string;
 }): LeadPlatform {
   const p = (input.platform ?? "").trim().toLowerCase();
   if (p === "barber" || p === "nail" || p === "salon") return p;
+
+  const host = (input.host ?? "").split(",")[0]?.trim() ?? "";
+  if (host) {
+    const fromHost = resolveProductFromHost(host);
+    if (fromHost === "barber" || fromHost === "nail") return fromHost;
+  }
+
+  const referer = input.referer ?? "";
+  if (referer) {
+    try {
+      const fromRef = resolveProductFromHost(new URL(referer).hostname);
+      if (fromRef === "barber" || fromRef === "nail") return fromRef;
+    } catch {
+      /* ignore invalid referer */
+    }
+    if (referer.includes("/barber")) return "barber";
+    if (referer.includes("/nail")) return "nail";
+  }
+
   const tier = (input.planTier ?? "").trim().toLowerCase();
   if (tier === "barber") return "barber";
   if (tier === "nail") return "nail";

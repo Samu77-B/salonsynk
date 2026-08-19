@@ -24,6 +24,8 @@ export async function POST(req: Request) {
       platform: trimStr(body.platform, 16),
       planTier: rawPlan,
       message,
+      host: req.headers.get("x-forwarded-host") || req.headers.get("host") || "",
+      referer: req.headers.get("referer") || "",
     });
     const planTier: PlanTierId = isPlanTierId(rawPlan) ? rawPlan : "professional";
 
