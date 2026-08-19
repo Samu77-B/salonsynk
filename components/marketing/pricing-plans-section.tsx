@@ -22,7 +22,7 @@ export function PricingPlansSection({
         Simple, transparent pricing
       </h2>
       <p className="mt-3 text-center text-zinc-600 max-w-2xl mx-auto">
-        Choose the plan that fits how you run your salon. No per-booking commissions — cancel anytime.
+        Choose the plan that fits how you run your salon. First Month Free. No per-booking commissions — cancel anytime.
       </p>
 
       <div className="mt-12 flex flex-col lg:flex-row items-stretch gap-8 lg:gap-10">

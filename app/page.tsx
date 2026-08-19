@@ -5,6 +5,7 @@ import { HomeOutcomesSection } from "@/components/marketing/home-outcomes-sectio
 import { PricingPlansSection } from "@/components/marketing/pricing-plans-section";
 import { MarketingSiteFooter } from "@/components/marketing/marketing-site-footer";
 import { MarketingSiteHeader } from "@/components/marketing/marketing-site-header";
+import { FirstMonthFree } from "@/components/marketing/first-month-free";
 import { SITE } from "@/config/site";
 import { formatPlanPrice } from "@/config/plans";
 import { BARBER_SITE } from "@core/config/barber-site";
@@ -103,6 +104,7 @@ export default function HomePage() {
                 Book a demo
               </a>
             </div>
+            <FirstMonthFree className="mt-4 text-white drop-shadow-md" />
           </div>
         </section>
 

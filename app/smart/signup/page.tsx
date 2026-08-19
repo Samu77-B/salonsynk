@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SMART_PLATFORMS } from "@core/config/smart-site";
 import { SmartSynkLogo } from "@/components/smart/smart-synk-logo";
 import { PlatformIcon } from "@/components/smart/marketing/platform-icons";
+import { FirstMonthFree } from "@/components/marketing/first-month-free";
 
 export default function SmartSignupPage() {
   return (
@@ -10,6 +11,7 @@ export default function SmartSignupPage() {
         <SmartSynkLogo variant="centered" />
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Request an account</h1>
+          <FirstMonthFree className="mt-2 text-zinc-800" />
           <p className="mt-2 text-sm text-zinc-600">
             Choose your platform to request access. We&apos;ll set you up and email you when you can sign in.
           </p>

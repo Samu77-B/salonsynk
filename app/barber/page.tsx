@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { SynkPlatformFooter } from "@/components/marketing/synk-platform-footer";
 import { BARBER_SITE } from "@core/config/barber-site";
+import { FirstMonthFree } from "@/components/marketing/first-month-free";
 import heroImage from "../../imgs/barber/hero.png";
 import scanIcon from "../../imgs/barber/scan.png";
 import chairIcon from "../../imgs/barber/chair.png";
@@ -160,6 +161,7 @@ export default function BarberHomePage() {
                     See How It Works
                   </a>
                 </div>
+                <FirstMonthFree className="mt-4" style={{ color: "#F5F1E8" }} />
               </div>
             </div>
           </div>
@@ -282,6 +284,7 @@ export default function BarberHomePage() {
                 >
                   Start Free Trial
                 </Link>
+                <FirstMonthFree className="mt-3" style={{ color: "#36454F" }} />
                 <p className="mt-3 text-xs" style={{ color: "#8a8278" }}>
                   No card required. Cancel anytime.
                 </p>
@@ -341,6 +344,7 @@ export default function BarberHomePage() {
                   Book a Demo
                 </a>
               </div>
+              <FirstMonthFree className="mt-4" style={{ color: "#36454F" }} />
             </div>
           </section>
         </Reveal>

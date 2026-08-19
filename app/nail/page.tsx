@@ -5,6 +5,7 @@ import { Reveal } from "@/components/reveal";
 import { SynkPlatformFooter } from "@/components/marketing/synk-platform-footer";
 import { NAIL_MONTHLY_GBP } from "@core/billing/platform-billing";
 import { NAIL_SITE } from "@core/config/nail-site";
+import { FirstMonthFree } from "@/components/marketing/first-month-free";
 import heroImage from "../../imgs/nail/hero.png";
 /* eslint-disable @next/next/no-img-element */
 
@@ -170,6 +171,7 @@ export default function NailHomePage() {
                     See How It Works
                   </a>
                 </div>
+                <FirstMonthFree className="mt-4" style={{ color: WHITE }} />
               </div>
             </div>
           </div>
@@ -279,6 +281,7 @@ export default function NailHomePage() {
                 >
                   Request Access
                 </Link>
+                <FirstMonthFree className="mt-3" style={{ color: BLACK }} />
                 <p className="mt-3 text-xs" style={{ color: "#8a8278" }}>
                   No card required to request access. Cancel anytime once live.
                 </p>
@@ -339,6 +342,7 @@ export default function NailHomePage() {
                   Book a Demo
                 </a>
               </div>
+              <FirstMonthFree className="mt-4" style={{ color: BLACK }} />
             </div>
           </section>
         </Reveal>

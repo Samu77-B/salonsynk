@@ -83,7 +83,7 @@ function platformBrand(platform: LeadPlatform): {
     email: SITE.email,
     url: SITE.url,
     tagline: SITE.tagline,
-    logoUrl: `${SITE.url}/imgs/salon/salonsynk-footer-logo-v2.png`,
+    logoUrl: `${SITE.url}/imgs/salon/salonsynk-logo.png`,
     from: process.env.RESEND_FROM_HELLO || `SalonSynk <${SITE.email}>`,
   };
 }
@@ -96,7 +96,7 @@ function platformEmailSignature(platform: LeadPlatform): string {
       <tr>
         <td style="padding:0 0 12px">
           <a href="${brand.url}" style="text-decoration:none">
-            <img src="${brand.logoUrl}" alt="${escapeHtmlPlainText(brand.label)}" width="200" style="display:block;border:0;outline:none;max-width:200px;height:auto" />
+            <img src="${brand.logoUrl}" alt="${escapeHtmlPlainText(brand.label)}" width="220" height="48" style="display:block;border:0;outline:none;width:220px;max-width:220px;height:auto;background:transparent" />
           </a>
         </td>
       </tr>

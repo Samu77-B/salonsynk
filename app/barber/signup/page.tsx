@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { BarberRequestForm } from "./barber-request-form";
+import { FirstMonthFree } from "@/components/marketing/first-month-free";
 /* eslint-disable @next/next/no-img-element */
 
 export const metadata: Metadata = {
@@ -37,6 +38,7 @@ export default async function BarberSignupPage() {
           <h1 className="text-2xl font-bold" style={{ color: "#36454F" }}>
             Request an account
           </h1>
+          <FirstMonthFree className="mt-2" style={{ color: "#36454F" }} />
           <p className="text-sm mt-1" style={{ color: "#5a6a74" }}>
             Tell us about your shop — we&apos;ll get you set up and email you when you can sign in.
           </p>

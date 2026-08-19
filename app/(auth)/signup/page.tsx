@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Reveal } from "@/components/reveal";
 import { RequestAccountForm } from "./request-account-form";
+import { FirstMonthFree } from "@/components/marketing/first-month-free";
 import { planTierFromQuery } from "@/config/plans";
 import siteLogo from "../../../salonsynk_logo.png";
 
@@ -37,6 +38,7 @@ export default async function SignupPage({
             />
           </Link>
           <h1 className="text-2xl font-bold">Request an account</h1>
+          <FirstMonthFree className="mt-2 text-zinc-800" />
           <p className="text-muted text-sm mt-1">
             Tell us about your salon — we’ll set you up and email you when you can sign in.
           </p>

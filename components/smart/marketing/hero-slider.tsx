@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { SMART_HERO_SLIDES } from "@core/config/smart-site";
+import { FirstMonthFree } from "@/components/marketing/first-month-free";
 
 type HeroSlide = (typeof SMART_HERO_SLIDES)[number];
 
@@ -111,6 +112,7 @@ export function HeroSlider({ slides }: HeroSliderProps) {
         >
           {slide.cta}
         </Link>
+        <FirstMonthFree className="mt-4 text-white" />
       </div>
     </section>
   );

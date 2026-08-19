@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { NAIL_SITE } from "@core/config/nail-site";
 import { NailRequestForm } from "./nail-request-form";
+import { FirstMonthFree } from "@/components/marketing/first-month-free";
 
 const ACCENT = "#9B4B6A";
 const TEXT_DARK = "#2D2A32";
@@ -38,6 +39,7 @@ export default async function NailSignupPage() {
           <h1 className="text-2xl font-bold" style={{ color: TEXT_DARK }}>
             Request an account
           </h1>
+          <FirstMonthFree className="mt-2" style={{ color: TEXT_DARK }} />
           <p className="text-sm mt-1" style={{ color: TEXT_MUTED }}>
             Tell us about your salon — we&apos;ll get you set up and email you when you can sign in.
           </p>
