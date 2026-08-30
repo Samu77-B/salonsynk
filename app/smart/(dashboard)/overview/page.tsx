@@ -31,7 +31,7 @@ const EMPTY_STATS: DashboardOverviewStats = {
   dailyPerformance: [],
   topLocations: [],
   recentActivity: [],
-  landingStats: { businesses: 0, appointments: 0, transactions: 0, platforms: 3 },
+  landingStats: { businesses: 0, appointments: 0, transactions: 0, platforms: 4 },
 };
 
 export default async function SmartOverviewPage() {
@@ -87,7 +87,7 @@ export default async function SmartOverviewPage() {
         subtitle={
           isSuperAdmin
             ? "Unified dashboard across all platforms and locations"
-            : "Your locations across SalonSynk, BarberSynk, and NailSynk"
+            : "Your locations across SalonSynk, BarberSynk, NailSynk, and PaySynk"
         }
       />
       <main className="flex-1 overflow-y-auto p-6">

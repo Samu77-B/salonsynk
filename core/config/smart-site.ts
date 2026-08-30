@@ -5,12 +5,13 @@
 import { SITE } from "@core/config/site";
 import { BARBER_SITE } from "@core/config/barber-site";
 import { NAIL_SITE } from "@core/config/nail-site";
+import { PAYSYNK_SITE } from "@core/config/paysynk-site";
 
 export const SMART_SITE = {
   name: "SmartSynk",
   tagline: "One login. Every location.",
   description:
-    "The hub for salon, barber, and nail groups — see all your locations in one place, then open any site to run the day.",
+    "The hub for salon, barber, nail, and retail groups — see all your locations in one place, then open any site to run the day.",
   url: "https://smartsynk.net",
   email: "hello@smartsynk.net",
   studio: "Paradigm Digital Studio",
@@ -58,7 +59,7 @@ export const SMART_NAV_ITEMS = [
 export const SMART_FAQ_ITEMS = [
   {
     q: "What is SmartSynk?",
-    a: "SmartSynk is the hub for SalonSynk, BarberSynk, and NailSynk. If you own several locations — or mix salons, barber shops, and nail bars — one login shows how they are all doing, then lets you open any site.",
+    a: "SmartSynk is the hub for SalonSynk, BarberSynk, NailSynk, and PaySynk. If you own several locations — or mix salons, barber shops, nail bars, and retail — one login shows how they are all doing, then lets you open any site.",
   },
   {
     q: "I own multiple salons. Do my managers share my login?",
@@ -66,11 +67,11 @@ export const SMART_FAQ_ITEMS = [
   },
   {
     q: "Do I need a separate account for each platform?",
-    a: "No. One SmartSynk account covers SalonSynk, BarberSynk, and NailSynk. Own two salons and a nail bar? They all appear on your SmartSynk overview.",
+    a: "No. One SmartSynk account covers SalonSynk, BarberSynk, NailSynk, and PaySynk. Own two salons and a nail bar? They all appear on your SmartSynk overview.",
   },
   {
     q: "Which platform should I use?",
-    a: "SalonSynk for hair salons, BarberSynk for barber shops with walk-in queues, and NailSynk for nail studios. Visit each product site to learn more and sign up — then manage the group from SmartSynk.",
+    a: "SalonSynk for hair salons, BarberSynk for barber shops with walk-in queues, NailSynk for nail studios, and PaySynk for retail shopfronts and payments. Visit each product site to learn more and sign up — then manage the group from SmartSynk.",
   },
   {
     q: "How do I get help or request a demo?",
@@ -80,7 +81,7 @@ export const SMART_FAQ_ITEMS = [
 
 export const SMART_ABOUT = {
   headline: "One owner. Many locations. One hub.",
-  body: "Whether you run Hair Top in East London and Birmingham, a barber shop and a nail bar under the same brand, or a growing group across the country — SmartSynk is where group owners see appointments, revenue, and activity across every location. Managers still log into their own site; you stay above the day-to-day with a clear view of the whole group.",
+  body: "Whether you run Hair Top in East London and Birmingham, a barber shop and a nail bar under the same brand, a retail counter on PaySynk, or a growing group across the country — SmartSynk is where group owners see appointments, revenue, and activity across every location. Managers still log into their own site; you stay above the day-to-day with a clear view of the whole group.",
   specializationLabel: "our platforms:",
   watermark: "Sy",
 } as const;
@@ -124,8 +125,11 @@ export type SmartShowcaseAccordionItem = {
 
 export type SmartPlatformId = "salon" | "barber" | "nail";
 
+/** Marketing platforms listed on SmartSynk (includes PaySynk, which is a separate app). */
+export type SmartMarketingPlatformId = SmartPlatformId | "paysynk";
+
 export type SmartShowcaseTab = {
-  id: SmartPlatformId;
+  id: SmartMarketingPlatformId;
   /** Pill label at top of section */
   label: string;
   productName: string;
@@ -284,6 +288,54 @@ export const SMART_SHOWCASE_TABS: readonly SmartShowcaseTab[] = [
       "No client app required",
     ],
   },
+  {
+    id: "paysynk",
+    label: "Retail shops",
+    productName: PAYSYNK_SITE.name,
+    tagline: "Retail shopfronts and payments — products, checkout, and payouts in one place.",
+    ctaLabel: "Explore PaySynk",
+    href: PAYSYNK_SITE.url,
+    color: "#22c55e",
+    image: "/imgs/smart/panel-paysynk.svg",
+    imageAlt: "PaySynk retail shopfront and payments",
+    accordion: [
+      {
+        title: "Put your products online with a shop that is yours.",
+        body: "Each PaySynk store gets a public shop page. Customers browse your catalogue and pay without leaving your brand.",
+        bullets: [
+          "Public shop page for every store",
+          "Products, prices, and stock in one catalogue",
+          "Share a simple link or QR from the till",
+        ],
+      },
+      {
+        title: "Take payment without a separate till system.",
+        body: "Card checkout runs through Stripe. Record sales, track payouts, and keep retail money in the same picture as your other Synk locations.",
+        bullets: [
+          "Card payments on your shop page",
+          "Payouts to your Stripe account",
+          "Sales visible on the SmartSynk overview",
+        ],
+      },
+      {
+        title: "Approve shops from SmartSynk, then run them in PaySynk.",
+        body: "PaySynk is its own app. Group owners still see stores from SmartSynk; merchants log in at paysynk.com to manage products and payments.",
+        bullets: [
+          "Pending shops stay private until you approve them",
+          "Merchant login at paysynk.com",
+          "Fits alongside salons, barber shops, and nail bars",
+        ],
+      },
+    ],
+    features: [
+      "Public shop page",
+      "Product catalogue",
+      "Card checkout",
+      "Stripe payouts",
+      "Stock-aware listings",
+      "SmartSynk overview",
+    ],
+  },
 ] as const;
 
 export const SMART_PLATFORMS = [
@@ -316,6 +368,16 @@ export const SMART_PLATFORMS = [
     color: "#f472b6",
     icon: "nail-polish",
     panelImage: "/imgs/smart/panel-nail.jpg",
+  },
+  {
+    id: "paysynk" as const,
+    name: PAYSYNK_SITE.name,
+    description: "Retail shopfronts and payments",
+    url: PAYSYNK_SITE.url,
+    dashboardPath: "/admin/paysynk",
+    color: "#22c55e",
+    icon: "cart",
+    panelImage: "/imgs/smart/panel-paysynk.svg",
   },
 ] as const;
 

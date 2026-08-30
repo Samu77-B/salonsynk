@@ -186,7 +186,7 @@ export async function fetchLandingStats() {
     businesses: salons + barbers + nails,
     appointments: salonAppts + barberAppts + nailAppts,
     transactions: salonTx + barberTx + nailTx,
-    platforms: 3,
+    platforms: 4,
   };
 }
 
@@ -344,7 +344,7 @@ export async function fetchDashboardOverview(
           businesses: (salonIds?.length ?? 0) + (shopIds?.length ?? 0) + (nailIds?.length ?? 0),
           appointments: 0,
           transactions: 0,
-          platforms: 3,
+          platforms: 4,
         })
       : fetchLandingStats(),
   ]);

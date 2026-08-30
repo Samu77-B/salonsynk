@@ -1,18 +1,22 @@
-import type { SmartPlatformId } from "@core/config/smart-site";
+import type { SmartMarketingPlatformId } from "@core/config/smart-site";
 
-export const SMART_PLATFORM_ICON_SRC: Record<SmartPlatformId, string> = {
+export const SMART_PLATFORM_ICON_SRC: Record<Exclude<SmartMarketingPlatformId, "paysynk">, string> = {
   salon: "/imgs/smart/salonsynk-platform-icon.png",
   barber: "/imgs/smart/barbersynk-platform-icon.png",
   nail: "/imgs/smart/nailsynk-platform-icon.png",
 };
 
 type PlatformIconProps = {
-  platform: SmartPlatformId;
+  platform: SmartMarketingPlatformId;
   className?: string;
 };
 
 /** Platform icon tinted via currentColor (SmartSynk orange on marketing pages). */
 export function PlatformIcon({ platform, className = "h-6 w-6" }: PlatformIconProps) {
+  if (platform === "paysynk") {
+    return <PaySynkIcon className={className} />;
+  }
+
   const src = SMART_PLATFORM_ICON_SRC[platform];
 
   return (
@@ -46,7 +50,7 @@ export function NailSynkIcon(props: Omit<PlatformIconProps, "platform">) {
   return <PlatformIcon platform="nail" {...props} />;
 }
 
-/** Cart / payments icon for PaySynk (no PNG mask — PaySynk is not a marketing tab here). */
+/** Cart / payments icon for PaySynk. */
 export function PaySynkIcon({ className = "h-6 w-6" }: Omit<PlatformIconProps, "platform">) {
   return (
     <svg

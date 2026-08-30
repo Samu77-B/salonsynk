@@ -275,6 +275,7 @@ export function OutcomeShowcase({
                   src={activeTab.image}
                   alt={activeTab.imageAlt}
                   fill
+                  unoptimized={activeTab.image.endsWith(".svg")}
                   className="object-cover"
                   sizes="(max-width: 1024px) 100vw, 50vw"
                 />

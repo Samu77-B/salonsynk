@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 export default async function SmartLandingPage() {
-  let stats = displayLandingStats({ businesses: 0, appointments: 0, transactions: 0, platforms: 3 });
+  let stats = displayLandingStats({ businesses: 0, appointments: 0, transactions: 0, platforms: 4 });
   try {
     const raw = await fetchLandingStats();
     stats = displayLandingStats(raw);

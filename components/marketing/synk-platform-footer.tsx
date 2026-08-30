@@ -5,6 +5,7 @@ export const SYNK_PLATFORM_LINKS = [
   { label: "salonsynk.com", href: "https://salonsynk.com" },
   { label: "nailsynk.com", href: "https://nailsynk.com" },
   { label: "barbersynk.com", href: "https://barbersynk.com" },
+  { label: "paysynk.com", href: "https://www.paysynk.com" },
 ] as const;
 
 type PlatformFooterLogo = {

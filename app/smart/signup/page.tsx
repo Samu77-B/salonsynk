@@ -16,11 +16,11 @@ export default function SmartSignupPage() {
             Choose your platform to request access. We&apos;ll set you up and email you when you can sign in.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           {SMART_PLATFORMS.map((p) => (
             <Link
               key={p.id}
-              href={`${p.url}/signup`}
+              href={p.id === "paysynk" ? p.url : `${p.url}/signup`}
               className="flex flex-col items-center gap-3 rounded-lg border border-zinc-200 bg-white p-4 text-sm font-medium text-zinc-800 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
             >
               <div

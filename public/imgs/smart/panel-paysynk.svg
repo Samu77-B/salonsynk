@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-label="PaySynk">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#052e16"/>
+      <stop offset="100%" stop-color="#14532d"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <rect x="280" y="210" width="640" height="420" rx="28" fill="#0b1f14" stroke="#22c55e" stroke-width="3"/>
+  <circle cx="430" cy="360" r="54" fill="none" stroke="#86efac" stroke-width="10"/>
+  <path d="M406 360h48M430 336v48" stroke="#86efac" stroke-width="10" stroke-linecap="round"/>
+  <rect x="530" y="318" width="300" height="22" rx="11" fill="#166534"/>
+  <rect x="530" y="362" width="220" height="22" rx="11" fill="#15803d"/>
+  <rect x="530" y="430" width="300" height="64" rx="14" fill="#22c55e"/>
+  <text x="600" y="720" text-anchor="middle" fill="#bbf7d0" font-family="Arial, sans-serif" font-size="42" font-weight="700" letter-spacing="8">PAYSYNK</text>
+</svg>
