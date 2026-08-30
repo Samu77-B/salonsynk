@@ -22,6 +22,7 @@ export const SMART_SITE = {
     salon: "/imgs/smart/salonsynk-platform-icon.png",
     barber: "/imgs/smart/barbersynk-platform-icon.png",
     nail: "/imgs/smart/nailsynk-platform-icon.png",
+    paysynk: "/imgs/smart/paysynk-platform-icon.png",
   },
 } as const;
 
@@ -113,6 +114,15 @@ export const SMART_HERO_SLIDES = [
     cta: "Explore NailSynk",
     href: NAIL_SITE.url,
     image: "/imgs/smart/hero-nail.jpg",
+  },
+  {
+    id: "paysynk" as const,
+    headline: "YOUR SHOP. YOUR TILL. YOUR WAY.",
+    description:
+      "Retail shopfronts and payments — products, checkout, and payouts in one place for independent shops.",
+    cta: "Explore PaySynk",
+    href: PAYSYNK_SITE.url,
+    image: "/imgs/smart/hero-paysynk.jpg",
   },
 ] as const;
 

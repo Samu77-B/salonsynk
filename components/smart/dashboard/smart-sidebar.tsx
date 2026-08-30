@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { SmartSynkLogo } from "@/components/smart/smart-synk-logo";
-import { PlatformIcon, PaySynkIcon } from "@/components/smart/marketing/platform-icons";
+import { PlatformIcon } from "@/components/smart/marketing/platform-icons";
 import type { SmartPlatformId } from "@core/config/smart-site";
 import type { PlatformMembership } from "@core/auth/resolve-user-platform";
 
@@ -117,11 +117,7 @@ export function SmartSidebar({
                         : "text-muted hover:bg-foreground/5 hover:text-foreground"
                     }`}
                   >
-                    {item.platform === "paysynk" ? (
-                      <PaySynkIcon className="h-4 w-4 text-accent" />
-                    ) : (
-                      <PlatformIcon platform={item.platform} className="h-4 w-4 shrink-0 text-accent" />
-                    )}
+                    <PlatformIcon platform={item.platform} className="h-4 w-4 shrink-0 text-accent" />
                     <span className="flex-1">{item.label}</span>
                     <svg className="h-3 w-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

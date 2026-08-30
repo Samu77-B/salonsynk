@@ -1,9 +1,10 @@
 import type { SmartMarketingPlatformId } from "@core/config/smart-site";
 
-export const SMART_PLATFORM_ICON_SRC: Record<Exclude<SmartMarketingPlatformId, "paysynk">, string> = {
+export const SMART_PLATFORM_ICON_SRC: Record<SmartMarketingPlatformId, string> = {
   salon: "/imgs/smart/salonsynk-platform-icon.png",
   barber: "/imgs/smart/barbersynk-platform-icon.png",
   nail: "/imgs/smart/nailsynk-platform-icon.png",
+  paysynk: "/imgs/smart/paysynk-platform-icon.png",
 };
 
 type PlatformIconProps = {
@@ -13,10 +14,6 @@ type PlatformIconProps = {
 
 /** Platform icon tinted via currentColor (SmartSynk orange on marketing pages). */
 export function PlatformIcon({ platform, className = "h-6 w-6" }: PlatformIconProps) {
-  if (platform === "paysynk") {
-    return <PaySynkIcon className={className} />;
-  }
-
   const src = SMART_PLATFORM_ICON_SRC[platform];
 
   return (
@@ -50,24 +47,8 @@ export function NailSynkIcon(props: Omit<PlatformIconProps, "platform">) {
   return <PlatformIcon platform="nail" {...props} />;
 }
 
-/** Cart / payments icon for PaySynk. */
-export function PaySynkIcon({ className = "h-6 w-6" }: Omit<PlatformIconProps, "platform">) {
-  return (
-    <svg
-      className={`shrink-0 ${className}`}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      aria-hidden
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-      />
-    </svg>
-  );
+export function PaySynkIcon(props: Omit<PlatformIconProps, "platform">) {
+  return <PlatformIcon platform="paysynk" {...props} />;
 }
 
 /** @deprecated Use PlatformIcon or SalonSynkIcon */
