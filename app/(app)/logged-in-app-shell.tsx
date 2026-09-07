@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 import { AppHeader } from "./app-header";
 import { HelpAgentWidget } from "./help-agent-widget";
 import type { PlatformFeatureId } from "@/config/plans";
 import type { DashboardTheme } from "./dashboard-theme";
+import { queueBackgroundShellClass, queueBackgroundShellStyle } from "@core/branding/queue-background";
 
 const STORAGE_KEY = "salonsynk-dashboard-theme";
 
@@ -21,6 +23,7 @@ export function LoggedInAppShell({
   currentSalon,
   adminSalons,
   enabledFeatures = [],
+  queueBackgroundColor = "",
 }: {
   children: React.ReactNode;
   userEmail: string | undefined;
@@ -30,6 +33,7 @@ export function LoggedInAppShell({
   currentSalon?: { id: string; name: string; slug: string };
   adminSalons?: { id: string; name: string }[];
   enabledFeatures?: PlatformFeatureId[];
+  queueBackgroundColor?: string;
 }) {
   const pathname = usePathname();
   const [theme, setThemeState] = useState<DashboardTheme>("dark");
@@ -69,7 +73,11 @@ export function LoggedInAppShell({
 
   return (
     <div
-      className={`${shellClass} min-h-screen flex flex-col overflow-x-hidden bg-canvas text-foreground`}
+      className={queueBackgroundShellClass(
+        `${shellClass} min-h-screen flex flex-col overflow-x-hidden text-foreground`,
+        queueBackgroundColor
+      )}
+      style={queueBackgroundShellStyle(queueBackgroundColor) as CSSProperties | undefined}
     >
       {!hideSalonHeader && (
         <AppHeader

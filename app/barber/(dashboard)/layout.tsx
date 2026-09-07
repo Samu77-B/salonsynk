@@ -1,8 +1,14 @@
 import { createClient } from "@core/supabase/server";
 import { redirect } from "next/navigation";
+import type { CSSProperties } from "react";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
 import { isManagerRole } from "@core/auth/dashboard-roles";
+import {
+  loadQueueBackgroundColor,
+  queueBackgroundShellClass,
+  queueBackgroundShellStyle,
+} from "@core/branding/queue-background";
 import { BarberDashboardHeader } from "./barber-dashboard-header";
 import { enforceBarberSubscriptionIfRequired } from "@/lib/subscription-gate-platform.server";
 
@@ -35,9 +41,16 @@ export default async function BarberDashboardLayout({
   const memberRole = shopContext.member.role ?? null;
   const isManager = isManagerRole(isSuperAdmin, memberRole ?? "");
   const isOwner = memberRole === "owner" || shopContext.member.id === "admin";
+  const queueBackgroundColor = await loadQueueBackgroundColor("barber_shops", shopContext.shop.id);
 
   return (
-    <div className="barber-dashboard min-h-screen flex flex-col overflow-x-hidden bg-canvas text-foreground">
+    <div
+      className={queueBackgroundShellClass(
+        "barber-dashboard min-h-screen flex flex-col overflow-x-hidden text-foreground",
+        queueBackgroundColor
+      )}
+      style={queueBackgroundShellStyle(queueBackgroundColor) as CSSProperties | undefined}
+    >
       <BarberDashboardHeader
         shopName={shopContext.shop.name}
         userEmail={user.email ?? null}

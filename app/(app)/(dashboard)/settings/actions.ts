@@ -108,6 +108,8 @@ export async function updateSalonBranding(salonId: string, branding: BrandingInp
     revalidatePath(`/shop/${slug}`);
     revalidatePath(`/${slug}/shop`);
     revalidatePath(`/walk-in/${slug}`);
+    revalidatePath("/queue");
+    revalidatePath("/dashboard");
   }
   return {};
 }

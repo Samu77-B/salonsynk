@@ -5,6 +5,7 @@ import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { isManagerRole } from "@/lib/dashboard-roles";
 import { getEnabledFeaturesForSalon } from "@/lib/salon-features.server";
+import { loadQueueBackgroundColor } from "@core/branding/queue-background";
 import { PLATFORM_FEATURES, type PlatformFeatureId } from "@/config/plans";
 
 export default async function AppLayout({
@@ -34,10 +35,12 @@ export default async function AppLayout({
   }
 
   let enabledFeatures: PlatformFeatureId[] = [];
+  let queueBackgroundColor = "";
   if (salonContext?.salon.id) {
     enabledFeatures = isSuperAdmin
       ? PLATFORM_FEATURES.map((f) => f.id)
       : await getEnabledFeaturesForSalon(salonContext.salon.id);
+    queueBackgroundColor = await loadQueueBackgroundColor("salons", salonContext.salon.id);
   }
 
   return (
@@ -49,6 +52,7 @@ export default async function AppLayout({
       currentSalon={salonContext?.salon}
       adminSalons={adminSalons}
       enabledFeatures={enabledFeatures}
+      queueBackgroundColor={queueBackgroundColor}
     >
       {children}
     </LoggedInAppShell>

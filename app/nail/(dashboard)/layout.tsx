@@ -1,8 +1,14 @@
 import { createClient } from "@core/supabase/server";
 import { redirect } from "next/navigation";
+import type { CSSProperties } from "react";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { getCurrentUserNailSalon } from "@modules/nail/lib/shop";
 import { isManagerRole } from "@core/auth/dashboard-roles";
+import {
+  loadQueueBackgroundColor,
+  queueBackgroundShellClass,
+  queueBackgroundShellStyle,
+} from "@core/branding/queue-background";
 import { NailDashboardHeader } from "./nail-dashboard-header";
 import { enforceNailSubscriptionIfRequired } from "@/lib/subscription-gate-platform.server";
 
@@ -27,9 +33,16 @@ export default async function NailDashboardLayout({
   const memberRole = salonContext.member.role ?? null;
   const isManager = isManagerRole(isSuperAdmin, memberRole ?? "");
   const isOwner = memberRole === "owner" || salonContext.member.id === "admin";
+  const queueBackgroundColor = await loadQueueBackgroundColor("nail_salons", salonContext.salon.id);
 
   return (
-    <div className="app-shell-dark min-h-screen flex flex-col overflow-x-hidden bg-canvas text-foreground">
+    <div
+      className={queueBackgroundShellClass(
+        "app-shell-dark min-h-screen flex flex-col overflow-x-hidden text-foreground",
+        queueBackgroundColor
+      )}
+      style={queueBackgroundShellStyle(queueBackgroundColor) as CSSProperties | undefined}
+    >
       <NailDashboardHeader
         salonName={salonContext.salon.name}
         userEmail={user.email ?? null}
