@@ -17,11 +17,12 @@ import {
   updateBarberAppointmentStatus,
   deleteBarberAppointment,
 } from "../appointments/actions";
-import type { QueueEntry, BarberMember, BarberService, TodayAppointment } from "./data";
+import type { QueueEntry, BarberMember, BarberService, BarberServiceCategory, TodayAppointment } from "./data";
 import {
   appointmentVisibleToMember,
   staffQueueRowVisibleToMember,
 } from "@core/queue/platform-queue-access";
+import { BarberServiceSelectOptions } from "@modules/barber/components/barber-service-select-options";
 
 type Props = {
   shopId: string;
@@ -30,6 +31,7 @@ type Props = {
   todayAppointments: TodayAppointment[];
   members: BarberMember[];
   services: BarberService[];
+  categories?: BarberServiceCategory[];
   currentMemberId: string;
   isManagerView: boolean;
   stats: { todayServed: number; todayCash: number; todayCard: number; todayRevenue: number };
@@ -223,6 +225,7 @@ export function LiveQueueView({
   todayAppointments,
   members,
   services,
+  categories = [],
   currentMemberId,
   isManagerView,
   stats,
@@ -365,7 +368,9 @@ export function LiveQueueView({
         )}
       </div>
 
-      {isManagerView ? <AddCustomerPanel services={services} members={members} /> : null}
+      {isManagerView ? (
+        <AddCustomerPanel services={services} categories={categories} members={members} />
+      ) : null}
 
       {inChairTotal > 0 && (
         <section>
@@ -500,9 +505,11 @@ function useQueueSmsActions(
 
 function AddCustomerPanel({
   services,
+  categories = [],
   members,
 }: {
   services: BarberService[];
+  categories?: BarberServiceCategory[];
   members: BarberMember[];
 }) {
   const [open, setOpen] = useState(false);
@@ -548,12 +555,12 @@ function AddCustomerPanel({
                 Service
               </label>
               <select id="service_id" name="service_id" className={selectClass}>
-                <option value="">Any</option>
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {serviceOptionLabel(s.name, s.price_minor)}
-                  </option>
-                ))}
+                <BarberServiceSelectOptions
+                  services={services}
+                  categories={categories}
+                  emptyLabel="Any"
+                  formatOption={(s) => serviceOptionLabel(s.name, s.price_minor)}
+                />
               </select>
             </div>
             <div>

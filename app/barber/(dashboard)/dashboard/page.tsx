@@ -62,6 +62,7 @@ export default async function BarberDashboardPage() {
         todayAppointments={JSON.parse(JSON.stringify(data.todayAppointments))}
         members={JSON.parse(JSON.stringify(data.members))}
         services={JSON.parse(JSON.stringify(data.services))}
+        categories={JSON.parse(JSON.stringify(data.categories))}
         currentMemberId={data.member.id}
         isManagerView={data.isManagerView}
         stats={data.stats}

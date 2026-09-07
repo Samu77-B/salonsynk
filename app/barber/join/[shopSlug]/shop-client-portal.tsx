@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { JoinQueueForm } from "./join-queue-form";
 import { BookAppointmentForm } from "./book-appointment-form";
+import type { BarberServiceCategory } from "@modules/barber/lib/service-categories";
 
 type BarberOption = {
   id: string;
@@ -11,7 +12,13 @@ type BarberOption = {
   avatar_url: string | null;
   role: string;
 };
-type ServiceOption = { id: string; name: string; duration_minutes: number; price_minor: number };
+type ServiceOption = {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  price_minor: number;
+  category_id?: string | null;
+};
 type BookingBarberOption = {
   id: string;
   display_name: string | null;
@@ -26,6 +33,7 @@ type Props = {
   walkInBarbers: BarberOption[];
   bookingBarbers: BookingBarberOption[];
   services: ServiceOption[];
+  categories?: BarberServiceCategory[];
   nextAvailableOnly?: boolean;
   showServicesOnQueue?: boolean;
 };
@@ -39,6 +47,7 @@ export function ShopClientPortal({
   walkInBarbers,
   bookingBarbers,
   services,
+  categories = [],
   nextAvailableOnly = false,
   showServicesOnQueue = true,
 }: Props) {
@@ -70,6 +79,7 @@ export function ShopClientPortal({
           queueLength={queueLength}
           barbers={walkInBarbers}
           services={services}
+          categories={categories}
           nextAvailableOnly={nextAvailableOnly}
           showServicesOnQueue={showServicesOnQueue}
         />
@@ -79,6 +89,7 @@ export function ShopClientPortal({
           shopName={shopName}
           barbers={bookingBarbers}
           services={services}
+          categories={categories}
           showServices={showServicesOnQueue}
           nextAvailableOnly={nextAvailableOnly}
         />

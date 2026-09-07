@@ -7,8 +7,9 @@ import {
   updateBarberAppointmentStatus,
   deleteBarberAppointment,
 } from "./actions";
-import type { BarberAppointment, BarberMember, BarberService } from "./data";
+import type { BarberAppointment, BarberMember, BarberService, BarberServiceCategory } from "./data";
 import { formatDurationMinutes } from "@/lib/format-duration";
+import { BarberServiceSelectOptions } from "@modules/barber/components/barber-service-select-options";
 
 type Props = {
   date: string;
@@ -16,6 +17,7 @@ type Props = {
   upcomingAppointments: BarberAppointment[];
   members: BarberMember[];
   services: BarberService[];
+  categories?: BarberServiceCategory[];
 };
 
 const fieldClass =
@@ -61,7 +63,14 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: "Canceled",
 };
 
-export function AppointmentsView({ date, appointments, upcomingAppointments, members, services }: Props) {
+export function AppointmentsView({
+  date,
+  appointments,
+  upcomingAppointments,
+  members,
+  services,
+  categories = [],
+}: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -193,12 +202,12 @@ export function AppointmentsView({ date, appointments, upcomingAppointments, mem
                   </p>
                 ) : null}
                 <select name="service_id" className={selectClass}>
-                  <option value="">General cut (30 min)</option>
-                  {services.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} — {formatDurationMinutes(s.duration_minutes)}
-                    </option>
-                  ))}
+                  <BarberServiceSelectOptions
+                    services={services}
+                    categories={categories}
+                    emptyLabel="General cut (30 min)"
+                    formatOption={(s) => `${s.name} — ${formatDurationMinutes(s.duration_minutes)}`}
+                  />
                 </select>
               </div>
               <div>

@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import type { JoinQueueResult } from "./actions";
+import { BarberServiceSelectOptions } from "@modules/barber/components/barber-service-select-options";
+import type { BarberServiceCategory } from "@modules/barber/lib/service-categories";
 
 type BarberOption = {
   id: string;
@@ -9,7 +11,13 @@ type BarberOption = {
   chair_number: number | null;
   avatar_url: string | null;
 };
-type ServiceOption = { id: string; name: string; duration_minutes: number; price_minor: number };
+type ServiceOption = {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  price_minor: number;
+  category_id?: string | null;
+};
 
 const fieldClass =
   "w-full h-11 rounded border border-border px-3 text-sm leading-5 focus:outline-none focus:ring-1 focus:ring-accent box-border";
@@ -22,6 +30,7 @@ type Props = {
   queueLength: number;
   barbers: BarberOption[];
   services: ServiceOption[];
+  categories?: BarberServiceCategory[];
   nextAvailableOnly?: boolean;
   showServicesOnQueue?: boolean;
 };
@@ -58,6 +67,7 @@ export function JoinQueueForm({
   queueLength,
   barbers,
   services,
+  categories = [],
   nextAvailableOnly = false,
   showServicesOnQueue = true,
 }: Props) {
@@ -190,13 +200,14 @@ export function JoinQueueForm({
               Service
             </label>
             <select id="service_id" name="service_id" className={selectClass}>
-              <option value="">Not sure yet</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                  {s.price_minor > 0 ? ` — ${formatPrice(s.price_minor)}` : ""}
-                </option>
-              ))}
+              <BarberServiceSelectOptions
+                services={services}
+                categories={categories}
+                emptyLabel="Not sure yet"
+                formatOption={(s) =>
+                  s.price_minor > 0 ? `${s.name} — ${formatPrice(s.price_minor)}` : s.name
+                }
+              />
             </select>
           </div>
         )}

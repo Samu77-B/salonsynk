@@ -21,13 +21,23 @@ export default async function BarberServicesPage() {
   if (!canManage) redirect("/barber/dashboard");
 
   const admin = createAdminClient();
-  const { data: services } = await admin
-    .from("barber_services")
-    .select("id, name, duration_minutes, price_minor, sort_order")
-    .eq("shop_id", context.shop.id)
-    .eq("is_active", true)
-    .order("sort_order")
-    .order("name");
+  const [servicesRes, categoriesRes] = await Promise.all([
+    admin
+      .from("barber_services")
+      .select("id, name, duration_minutes, price_minor, sort_order, category_id")
+      .eq("shop_id", context.shop.id)
+      .eq("is_active", true)
+      .order("sort_order")
+      .order("name"),
+    admin
+      .from("barber_service_categories")
+      .select("id, name, sort_order")
+      .eq("shop_id", context.shop.id)
+      .order("sort_order")
+      .order("name"),
+  ]);
+
+  const dbError = servicesRes.error?.message ?? categoriesRes.error?.message;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -46,11 +56,20 @@ export default async function BarberServicesPage() {
           >
             public queue page
           </a>
-          .
+          . Optional categories group them into headings.
         </p>
       </div>
 
-      <BarberServicesView services={JSON.parse(JSON.stringify(services ?? []))} />
+      {dbError && (
+        <p className="rounded border border-red-500/50 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+          Database error: {dbError}
+        </p>
+      )}
+
+      <BarberServicesView
+        services={JSON.parse(JSON.stringify(servicesRes.data ?? []))}
+        categories={JSON.parse(JSON.stringify(categoriesRes.data ?? []))}
+      />
     </div>
   );
 }

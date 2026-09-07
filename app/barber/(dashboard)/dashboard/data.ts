@@ -8,6 +8,7 @@ import {
   parseManagerNotificationSettings,
   type BarberManagerNotificationSettings,
 } from "@modules/barber/lib/manager-notifications";
+import type { BarberServiceCategory } from "@modules/barber/lib/service-categories";
 
 export type QueueEntry = {
   id: string;
@@ -44,7 +45,10 @@ export type BarberService = {
   name: string;
   duration_minutes: number;
   price_minor: number;
+  category_id?: string | null;
 };
+
+export type { BarberServiceCategory };
 
 export type TodayAppointment = {
   id: string;
@@ -83,7 +87,7 @@ export async function getBarberDashboardData() {
 
   const { start: todayStart, end: todayEnd } = todayBounds();
 
-  const [queueResult, membersResult, servicesResult, todayStatsResult, todayAppointmentsResult, futureBookingsResult, shopSettingsResult] =
+  const [queueResult, membersResult, servicesResult, categoriesResult, todayStatsResult, todayAppointmentsResult, futureBookingsResult, shopSettingsResult] =
     await Promise.all([
       supabase
         .from("barber_queue")
@@ -100,10 +104,17 @@ export async function getBarberDashboardData() {
 
       supabase
         .from("barber_services")
-        .select("id, name, duration_minutes, price_minor")
+        .select("id, name, duration_minutes, price_minor, category_id")
         .eq("shop_id", shopId)
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
+
+      supabase
+        .from("barber_service_categories")
+        .select("id, name, sort_order")
+        .eq("shop_id", shopId)
+        .order("sort_order")
+        .order("name"),
 
       supabase
         .from("barber_queue")
@@ -138,6 +149,7 @@ export async function getBarberDashboardData() {
   const queue = (queueResult.data ?? []) as QueueEntry[];
   const members = (membersResult.data ?? []) as BarberMember[];
   const services = (servicesResult.data ?? []) as BarberService[];
+  const categories = (categoriesResult.data ?? []) as BarberServiceCategory[];
 
   const todayCompleted = todayStatsResult.data ?? [];
   const todayServed = todayCompleted.length;
@@ -174,6 +186,7 @@ export async function getBarberDashboardData() {
     queue,
     members,
     services,
+    categories,
     todayAppointments,
     futureBookingsCount,
     managerNotifications,

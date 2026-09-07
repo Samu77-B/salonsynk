@@ -2,6 +2,7 @@ import { isManagerRole } from "@core/auth/dashboard-roles";
 
 export const QUEUE_SETUP_LIMITS = {
   maxServices: 20,
+  maxCategories: 12,
   maxTeamMembers: 10,
   maxStations: 10,
 } as const;

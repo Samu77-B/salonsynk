@@ -34,6 +34,7 @@ export default async function BarberAppointmentsPage({
           upcomingAppointments={JSON.parse(JSON.stringify(data.upcomingAppointments))}
           members={JSON.parse(JSON.stringify(data.members))}
           services={JSON.parse(JSON.stringify(data.services))}
+          categories={JSON.parse(JSON.stringify(data.categories))}
         />
       </Suspense>
     </div>

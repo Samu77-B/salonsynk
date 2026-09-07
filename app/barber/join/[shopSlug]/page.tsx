@@ -41,12 +41,19 @@ export default async function PublicJoinQueuePage({
   const showServicesOnQueue = branding.show_services_on_queue !== false;
 
   // Same visibility flag for Join queue + Book later ("Show on Choose your barber page")
-  const [servicesResult, publicBarbersResult, queueCountResult] = await Promise.all([
+  const [servicesResult, categoriesResult, publicBarbersResult, queueCountResult] = await Promise.all([
     supabase
       .from("barber_services")
-      .select("id, name, duration_minutes, price_minor")
+      .select("id, name, duration_minutes, price_minor, category_id")
       .eq("shop_id", shop.id)
       .eq("is_active", true)
+      .order("sort_order")
+      .order("name"),
+
+    supabase
+      .from("barber_service_categories")
+      .select("id, name, sort_order")
+      .eq("shop_id", shop.id)
       .order("sort_order")
       .order("name"),
 
@@ -66,7 +73,10 @@ export default async function PublicJoinQueuePage({
   ]);
 
   const services = (servicesResult.data ?? []) as {
-    id: string; name: string; duration_minutes: number; price_minor: number;
+    id: string; name: string; duration_minutes: number; price_minor: number; category_id: string | null;
+  }[];
+  const categories = (categoriesResult.data ?? []) as {
+    id: string; name: string; sort_order: number;
   }[];
   const walkInBarbers = (publicBarbersResult.data ?? []) as {
     id: string; display_name: string | null; chair_number: number | null; avatar_url: string | null; role: string;
@@ -118,6 +128,7 @@ export default async function PublicJoinQueuePage({
           walkInBarbers={JSON.parse(JSON.stringify(walkInBarbers))}
           bookingBarbers={JSON.parse(JSON.stringify(bookingBarbers))}
           services={JSON.parse(JSON.stringify(services))}
+          categories={JSON.parse(JSON.stringify(categories))}
           nextAvailableOnly={nextAvailableOnly}
           showServicesOnQueue={showServicesOnQueue}
         />

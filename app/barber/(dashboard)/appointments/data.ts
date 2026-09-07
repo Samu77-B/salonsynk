@@ -2,6 +2,7 @@ import { createClient } from "@core/supabase/server";
 import { createAdminClient } from "@core/supabase/admin";
 import { getIsSuperAdmin } from "@core/supabase/admin-auth";
 import { getCurrentUserShop } from "@modules/barber/lib/shop";
+import type { BarberServiceCategory } from "@modules/barber/lib/service-categories";
 
 export type BarberAppointment = {
   id: string;
@@ -29,7 +30,10 @@ export type BarberService = {
   name: string;
   duration_minutes: number;
   price_minor: number;
+  category_id?: string | null;
 };
+
+export type { BarberServiceCategory };
 
 function dayBounds(dateStr: string) {
   const start = new Date(dateStr + "T00:00:00");
@@ -56,7 +60,7 @@ export async function getBarberAppointmentsData(dateStr: string) {
   const nowIso = new Date().toISOString();
   const futureCap = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [appointmentsResult, upcomingResult, membersResult, servicesResult] = await Promise.all([
+  const [appointmentsResult, upcomingResult, membersResult, servicesResult, categoriesResult] = await Promise.all([
     supabase
       .from("barber_appointments")
       .select("*")
@@ -85,9 +89,16 @@ export async function getBarberAppointmentsData(dateStr: string) {
 
     supabase
       .from("barber_services")
-      .select("id, name, duration_minutes, price_minor")
+      .select("id, name, duration_minutes, price_minor, category_id")
       .eq("shop_id", shopId)
       .eq("is_active", true)
+      .order("sort_order")
+      .order("name"),
+
+    supabase
+      .from("barber_service_categories")
+      .select("id, name, sort_order")
+      .eq("shop_id", shopId)
       .order("sort_order")
       .order("name"),
   ]);
@@ -99,5 +110,6 @@ export async function getBarberAppointmentsData(dateStr: string) {
     upcomingAppointments: (upcomingResult.data ?? []) as BarberAppointment[],
     members: (membersResult.data ?? []) as BarberMember[],
     services: (servicesResult.data ?? []) as BarberService[],
+    categories: (categoriesResult.data ?? []) as BarberServiceCategory[],
   };
 }

@@ -541,6 +541,7 @@ export async function adminDeleteBarberShop(shopId: string) {
     { table: "barber_queue", column: "shop_id" },
     { table: "barber_clients", column: "shop_id" },
     { table: "barber_services", column: "shop_id" },
+    { table: "barber_service_categories", column: "shop_id" },
     { table: "barber_members", column: "shop_id" },
   ];
 

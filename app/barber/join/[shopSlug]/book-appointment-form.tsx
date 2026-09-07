@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { ANY_BARBER_BOOKING_VALUE, type BookAppointmentResult } from "./actions";
+import { BarberServiceSelectOptions } from "@modules/barber/components/barber-service-select-options";
+import type { BarberServiceCategory } from "@modules/barber/lib/service-categories";
 
 type BarberOption = {
   id: string;
@@ -9,7 +11,13 @@ type BarberOption = {
   chair_number: number | null;
   avatar_url: string | null;
 };
-type ServiceOption = { id: string; name: string; duration_minutes: number; price_minor: number };
+type ServiceOption = {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  price_minor: number;
+  category_id?: string | null;
+};
 
 const fieldClass =
   "w-full h-11 rounded border border-border px-3 text-sm leading-5 focus:outline-none focus:ring-1 focus:ring-accent box-border";
@@ -106,6 +114,7 @@ export function BookAppointmentForm({
   shopName,
   barbers,
   services,
+  categories = [],
   showServices = true,
   nextAvailableOnly = false,
 }: {
@@ -113,6 +122,7 @@ export function BookAppointmentForm({
   shopName: string;
   barbers: BarberOption[];
   services: ServiceOption[];
+  categories?: BarberServiceCategory[];
   showServices?: boolean;
   nextAvailableOnly?: boolean;
 }) {
@@ -258,13 +268,14 @@ export function BookAppointmentForm({
             Service
           </label>
           <select id="book_service_id" name="service_id" className={selectClass}>
-            <option value="">General cut (30 min)</option>
-            {services.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-                {s.price_minor > 0 ? ` — ${formatPrice(s.price_minor)}` : ""}
-              </option>
-            ))}
+            <BarberServiceSelectOptions
+              services={services}
+              categories={categories}
+              emptyLabel="General cut (30 min)"
+              formatOption={(s) =>
+                s.price_minor > 0 ? `${s.name} — ${formatPrice(s.price_minor)}` : s.name
+              }
+            />
           </select>
         </div>
       )}
