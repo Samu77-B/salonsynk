@@ -259,6 +259,7 @@ export async function getSettingsData() {
       primary_color: branding.primary_color ?? "",
       company_name: branding.company_name ?? "",
       booking_heading: branding.booking_heading ?? "",
+      queue_background_color: branding.queue_background_color ?? "",
     },
     adminFeePercent,
     depositRequired,

@@ -140,6 +140,7 @@ export default async function NailTeamPage() {
         salonName={context.salon.name}
         initialCompanyName={brandingStr("company_name").trim() || context.salon.name}
         initialShowTitle={branding.show_title_on_queue !== false}
+        initialQueueBackgroundColor={brandingStr("queue_background_color")}
       />
 
       <NailTeamView

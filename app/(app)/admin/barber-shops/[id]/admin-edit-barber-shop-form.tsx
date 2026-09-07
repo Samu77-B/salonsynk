@@ -21,6 +21,7 @@ export function AdminEditBarberShopForm({
     logo_url: string;
     primary_color: string;
     company_name: string;
+    queue_background_color: string;
     show_title_on_queue: boolean;
     next_available_only: boolean;
     show_services_on_queue: boolean;
@@ -31,6 +32,7 @@ export function AdminEditBarberShopForm({
   const [slug, setSlug] = useState(initialSlug);
   const [logoUrl, setLogoUrl] = useState(initialBranding.logo_url);
   const [primaryColor, setPrimaryColor] = useState(initialBranding.primary_color);
+  const [queueBackgroundColor, setQueueBackgroundColor] = useState(initialBranding.queue_background_color);
   const [companyName, setCompanyName] = useState(initialBranding.company_name);
   const [showTitleOnQueue, setShowTitleOnQueue] = useState(initialBranding.show_title_on_queue);
   const [nextAvailableOnly, setNextAvailableOnly] = useState(initialBranding.next_available_only);
@@ -52,6 +54,8 @@ export function AdminEditBarberShopForm({
       logo_url: logoUrl.trim(),
     };
     if (primaryColor.trim()) branding.primary_color = primaryColor.trim();
+    if (queueBackgroundColor.trim()) branding.queue_background_color = queueBackgroundColor.trim();
+    else branding.queue_background_color = "";
     if (companyName.trim()) branding.company_name = companyName.trim();
     const result = await adminUpdateBarberShop(shopId, {
       name: name.trim(),
@@ -192,6 +196,28 @@ export function AdminEditBarberShopForm({
           />
         </div>
         <p className="text-xs text-muted mt-1">Used on the public walk-in queue page.</p>
+      </div>
+      <div>
+        <label htmlFor="queueBackgroundColor" className="block text-sm font-medium mb-1">
+          Queue page background colour
+        </label>
+        <div className="flex items-center gap-3">
+          <input
+            id="queueBackgroundColor"
+            type="color"
+            value={queueBackgroundColor || "#374151"}
+            onChange={(e) => setQueueBackgroundColor(e.target.value)}
+            className="h-10 w-14 cursor-pointer rounded border border-border bg-background"
+          />
+          <input
+            type="text"
+            value={queueBackgroundColor}
+            onChange={(e) => setQueueBackgroundColor(e.target.value)}
+            placeholder="#374151"
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+          />
+        </div>
+        <p className="text-xs text-muted mt-1">Page background on the join queue screen. Leave blank for default.</p>
       </div>
       <div>
         <label className="block text-sm font-medium mb-1">Logo</label>

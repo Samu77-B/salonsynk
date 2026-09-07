@@ -2,10 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeLoyaltyCheckoutTotals } from "./calculate";
 import { parseLoyaltySettings } from "./settings";
 import { fetchClientLoyaltyBalance } from "./process-sale";
+import { resolveRetailLines } from "@/lib/product-stock";
 
 export type CheckoutLineInput = {
   serviceIds: string[];
   productIds: string[];
+  variantIds?: string[];
   customAmountMinor?: number | null;
   redeemServicePoints?: number;
   redeemProductPoints?: number;
@@ -26,9 +28,15 @@ export async function resolveCheckoutLineTotals(
   db: SupabaseClient,
   salonId: string,
   input: CheckoutLineInput
-): Promise<{ serviceSum: number; productSum: number; allowedServiceIds: string[]; allowedProductIds: string[] }> {
+): Promise<{
+  serviceSum: number;
+  productSum: number;
+  allowedServiceIds: string[];
+  allowedProductIds: string[];
+  allowedVariantIds: string[];
+  error?: string;
+}> {
   const serviceIds = [...new Set(input.serviceIds.filter(Boolean))];
-  const productIds = [...new Set(input.productIds.filter(Boolean))];
 
   let serviceSum = 0;
   const allowedServiceIds: string[] = [];
@@ -44,22 +52,28 @@ export async function resolveCheckoutLineTotals(
     }
   }
 
-  let productSum = 0;
-  const allowedProductIds: string[] = [];
-  if (productIds.length > 0) {
-    const { data: prodRows } = await db
-      .from("products")
-      .select("id, price_minor")
-      .eq("salon_id", salonId)
-      .eq("is_active", true)
-      .in("id", productIds);
-    for (const p of prodRows ?? []) {
-      allowedProductIds.push(p.id);
-      productSum += Number(p.price_minor ?? 0);
-    }
+  const retail = await resolveRetailLines(db, salonId, {
+    productIds: input.productIds ?? [],
+    variantIds: input.variantIds ?? [],
+  });
+  if (retail.error) {
+    return {
+      serviceSum,
+      productSum: 0,
+      allowedServiceIds,
+      allowedProductIds: [],
+      allowedVariantIds: [],
+      error: retail.error,
+    };
   }
 
-  return { serviceSum, productSum, allowedServiceIds, allowedProductIds };
+  return {
+    serviceSum,
+    productSum: retail.productSum,
+    allowedServiceIds,
+    allowedProductIds: retail.allowedProductIds,
+    allowedVariantIds: retail.allowedVariantIds,
+  };
 }
 
 export async function resolveCheckoutAmounts(
@@ -69,6 +83,7 @@ export async function resolveCheckoutAmounts(
   input: CheckoutLineInput
 ): Promise<{ amounts: ResolvedCheckoutAmounts; error?: string }> {
   const lines = await resolveCheckoutLineTotals(db, salonId, input);
+  if (lines.error) return { amounts: emptyAmounts(lines), error: lines.error };
   const lineTotalMinor = lines.serviceSum + lines.productSum;
 
   const useCustom =

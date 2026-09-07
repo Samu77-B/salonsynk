@@ -8,6 +8,8 @@ import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { revalidatePath } from "next/cache";
 import { parseCsvRows } from "@/lib/simple-csv";
 import { normalizeProductCurrency, parsePriceAmountToMinor, isAllowedProductCurrency } from "@/lib/product-currency";
+import type { VariantInput } from "@/lib/product-variants";
+import { sanitizeVariantInputs } from "@/lib/product-stock";
 
 const DESCRIPTION_MAX = 2000;
 
@@ -83,6 +85,77 @@ export async function replaceProductServiceLinks(
   return { error: null };
 }
 
+export async function replaceProductVariants(
+  salonId: string,
+  productId: string,
+  variants: VariantInput[]
+): Promise<{ error: string | null }> {
+  const auth = await assertCanManageProducts(salonId);
+  if ("error" in auth) return { error: auth.error };
+  const incoming = sanitizeVariantInputs(variants);
+  const supabase = await createClient();
+  const admin = getOptionalAdminClient();
+  const db = admin ?? supabase;
+
+  const { data: productRow, error: productErr } = await db
+    .from("products")
+    .select("id")
+    .eq("id", productId)
+    .eq("salon_id", salonId)
+    .maybeSingle();
+  if (productErr) return { error: formatDbError(productErr) };
+  if (!productRow) return { error: "Product not found" };
+
+  const existingRes = await db
+    .from("product_variants")
+    .select("id, color, size")
+    .eq("product_id", productId)
+    .eq("salon_id", salonId);
+  if (existingRes.error) return { error: formatDbError(existingRes.error) };
+
+  const keyOf = (color: string, size: string) => `${(color ?? "").trim().toLowerCase()}\0${(size ?? "").trim().toLowerCase()}`;
+  const existingByKey = new Map(
+    (existingRes.data ?? []).map((row) => [keyOf(row.color as string, row.size as string), row.id as string])
+  );
+  const incomingKeys = new Set(incoming.map((v) => keyOf(v.color, v.size)));
+  const toDelete = [...existingByKey.entries()].filter(([k]) => !incomingKeys.has(k)).map(([, id]) => id);
+
+  if (toDelete.length > 0) {
+    const del = await db.from("product_variants").delete().eq("salon_id", salonId).in("id", toDelete);
+    if (del.error) return { error: formatDbError(del.error) };
+  }
+
+  for (const v of incoming) {
+    const existingId = existingByKey.get(keyOf(v.color, v.size));
+    const payload = {
+      color: v.color,
+      size: v.size,
+      stock_quantity: v.stock_quantity,
+      image_url: v.image_url ?? null,
+      sort_order: v.sort_order ?? 0,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    };
+    if (existingId) {
+      const upd = await db
+        .from("product_variants")
+        .update(payload)
+        .eq("id", existingId)
+        .eq("salon_id", salonId);
+      if (upd.error) return { error: formatDbError(upd.error) };
+    } else {
+      const ins = await db.from("product_variants").insert({
+        product_id: productId,
+        salon_id: salonId,
+        ...payload,
+      });
+      if (ins.error) return { error: formatDbError(ins.error) };
+    }
+  }
+
+  return { error: null };
+}
+
 export async function addProduct(
   salonId: string,
   data: {
@@ -95,6 +168,7 @@ export async function addProduct(
     sort_order?: number;
     /** When set, product is surfaced at checkout when these services are on the bill */
     linked_service_ids?: string[];
+    variants?: VariantInput[];
   }
 ): Promise<{ error: string | null }> {
   const auth = await assertCanManageProducts(salonId);
@@ -129,6 +203,10 @@ export async function addProduct(
     const linkRes = await replaceProductServiceLinks(salonId, insertedId, data.linked_service_ids);
     if (linkRes.error) return { error: linkRes.error };
   }
+  if (data.variants?.length) {
+    const variantRes = await replaceProductVariants(salonId, insertedId, data.variants);
+    if (variantRes.error) return { error: variantRes.error };
+  }
   revalidatePath("/products");
   revalidatePath("/checkout");
   const ctx = await getCurrentUserSalon();
@@ -152,6 +230,7 @@ export async function updateProduct(
     is_active?: boolean;
     sort_order?: number;
     linked_service_ids?: string[] | null;
+    variants?: VariantInput[] | null;
   }
 ): Promise<{ error: string | null }> {
   const auth = await assertCanManageProducts(salonId);
@@ -165,7 +244,9 @@ export async function updateProduct(
   if (data.image_url !== undefined) payload.image_url = data.image_url?.trim() || null;
   if (data.is_active !== undefined) payload.is_active = data.is_active;
   if (data.sort_order !== undefined) payload.sort_order = Math.round(data.sort_order);
-  if (Object.keys(payload).length === 0 && data.linked_service_ids === undefined) return { error: null };
+  if (Object.keys(payload).length === 0 && data.linked_service_ids === undefined && data.variants === undefined) {
+    return { error: null };
+  }
   const supabase = await createClient();
   const admin = getOptionalAdminClient();
   const db = admin ?? supabase;
@@ -181,6 +262,10 @@ export async function updateProduct(
   if (data.linked_service_ids !== undefined) {
     const linkRes = await replaceProductServiceLinks(salonId, productId, data.linked_service_ids ?? []);
     if (linkRes.error) return { error: linkRes.error };
+  }
+  if (data.variants !== undefined) {
+    const variantRes = await replaceProductVariants(salonId, productId, data.variants ?? []);
+    if (variantRes.error) return { error: variantRes.error };
   }
   revalidatePath("/products");
   revalidatePath("/checkout");

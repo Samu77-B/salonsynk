@@ -336,7 +336,7 @@ export function buildPublicConciergePrompt(catalog: PublicSalonContext): string 
 
   const productLines = catalog.products
     .slice(0, 15)
-    .map((p) => `- ${p.name} (${formatPriceMinor(p.priceMinor)})`)
+    .map((p) => `- ${p.name} (${formatPriceMinor(p.priceMinor)})${p.description ? ` — ${p.description}` : ""}`)
     .join("\n");
 
   return `You are ${SYNKAI_AGENT_NAME} for ${catalog.salonName} — a friendly public assistant for clients booking online.
@@ -392,7 +392,7 @@ Service categories:
 ${categories.map((c) => `- ${c}`).join("\n") || "(none)"}
 
 Retail products:
-${catalog.products.map((p) => `- ${p.name}: ${formatPriceMinor(p.priceMinor)}`).join("\n") || "(none listed)"}
+${catalog.products.map((p) => `- ${p.name}: ${formatPriceMinor(p.priceMinor)}${p.description ? ` — ${p.description}` : ""}`).join("\n") || "(none listed)"}
 
 Booking: clients can book via this page's booking form or the ${SYNKAI_AGENT_NAME} tab.
 

@@ -79,6 +79,7 @@ export default async function BarberTeamPage() {
         shopName={context.shop.name}
         initialCompanyName={brandingStr("company_name").trim() || context.shop.name}
         initialShowTitle={branding.show_title_on_queue !== false}
+        initialQueueBackgroundColor={brandingStr("queue_background_color")}
       />
 
       <BarberManagerAlertsForm

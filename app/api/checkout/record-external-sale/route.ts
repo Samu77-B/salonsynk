@@ -15,6 +15,7 @@ import {
 } from "@/lib/loyalty/checkout-server";
 import { resolveCheckoutClientId } from "@/lib/loyalty/resolve-client";
 import { applyLoyaltyForCompletedSale } from "@/lib/loyalty/process-sale";
+import { applyProductVariantStock } from "@/lib/product-stock";
 
 /**
  * Record a sale paid on the salon's existing terminal (Worldpay, Dojo, other POS).
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
     silentAppointment?: boolean;
     serviceIds?: string[];
     productIds?: string[];
+    variantIds?: string[];
     customAmountMinor?: number | null;
     terminalReference?: string;
     redeemServicePoints?: number;
@@ -97,11 +99,14 @@ export async function POST(request: Request) {
 
   const serviceIds = [...new Set((body.serviceIds ?? []).filter(Boolean))];
   const productIds = [...new Set((body.productIds ?? []).filter(Boolean))];
+  const variantIds = [...new Set((body.variantIds ?? []).filter(Boolean))];
 
-  const lines = await resolveCheckoutLineTotals(admin, salonId, { serviceIds, productIds });
+  const lines = await resolveCheckoutLineTotals(admin, salonId, { serviceIds, productIds, variantIds });
+  if (lines.error) return NextResponse.json({ error: lines.error }, { status: 400 });
   const resolved = await resolveCheckoutAmounts(admin, salonId, clientResult.clientId, {
     serviceIds,
     productIds,
+    variantIds,
     customAmountMinor: body.customAmountMinor,
     redeemServicePoints: body.redeemServicePoints,
     redeemProductPoints: body.redeemProductPoints,
@@ -132,11 +137,14 @@ export async function POST(request: Request) {
     employment_type: employmentType,
     service_ids: lines.allowedServiceIds,
     product_ids: lines.allowedProductIds,
+    product_variant_ids: lines.allowedVariantIds,
   });
 
   if (insertError) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
+
+  await applyProductVariantStock(admin, syntheticId.slice(0, 255));
 
   if (clientResult.clientId) {
     const loyaltyResult = await applyLoyaltyForCompletedSale(admin, {

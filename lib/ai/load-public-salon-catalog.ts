@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 import type { SalonBookingCatalog } from "./booking-types";
+import { summarizeVariantsForCatalog } from "@/lib/product-variants";
 
 export type PublicSalonContext = SalonBookingCatalog & {
   slug: string;
@@ -74,13 +75,23 @@ async function fetchPublicSalonBySlug(slug: string): Promise<PublicSalonContext 
       .from("stylist_service_overrides")
       .select("stylist_id, service_id, custom_duration_minutes")
       .eq("salon_id", salonId),
-    supabase
-      .from("products")
-      .select("id, name, description, category, price_minor")
-      .eq("salon_id", salonId)
-      .eq("is_active", true)
-      .order("sort_order")
-      .order("name"),
+    (async () => {
+      const withVariants = await supabase
+        .from("products")
+        .select("id, name, description, category, price_minor, product_variants(color, size, stock_quantity)")
+        .eq("salon_id", salonId)
+        .eq("is_active", true)
+        .order("sort_order")
+        .order("name");
+      if (!withVariants.error) return withVariants;
+      return supabase
+        .from("products")
+        .select("id, name, description, category, price_minor")
+        .eq("salon_id", salonId)
+        .eq("is_active", true)
+        .order("sort_order")
+        .order("name");
+    })(),
     supabase.from("service_categories").select("id, name").eq("salon_id", salonId),
   ]);
 
@@ -130,12 +141,21 @@ async function fetchPublicSalonBySlug(slug: string): Promise<PublicSalonContext 
       price_minor: number;
       description?: string | null;
       category?: string | null;
+      product_variants?: { color: string | null; size: string | null; stock_quantity: number | null }[] | null;
     };
+    const variantNote = summarizeVariantsForCatalog(
+      (r.product_variants ?? []).map((v) => ({
+        color: v.color ?? "",
+        size: v.size ?? "",
+        stock_quantity: v.stock_quantity ?? 0,
+      }))
+    );
+    const base = r.description?.trim() || null;
     return {
       id: r.id,
       name: r.name,
       priceMinor: Number(r.price_minor) || 0,
-      description: r.description?.trim() || null,
+      description: [base, variantNote].filter(Boolean).join(" — ") || null,
       category: r.category?.trim() || null,
     };
   });

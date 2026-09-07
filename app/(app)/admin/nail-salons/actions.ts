@@ -9,6 +9,7 @@ export type NailBrandingInput = {
   logo_url?: string;
   primary_color?: string;
   company_name?: string;
+  queue_background_color?: string;
   /** When false, hide the salon title on the public join queue page (logo only). */
   show_title_on_queue?: boolean;
   /** When true, customers only see "Next available" — no named technician choice. */
@@ -214,6 +215,9 @@ export async function adminUpdateNailSalon(
     };
     if ("logo_url" in updates.branding && !updates.branding.logo_url?.trim()) {
       delete merged.logo_url;
+    }
+    if ("queue_background_color" in updates.branding && !updates.branding.queue_background_color?.trim()) {
+      delete merged.queue_background_color;
     }
     payload.settings = { ...current, branding: merged };
   }

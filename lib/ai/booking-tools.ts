@@ -965,7 +965,7 @@ export function buildBookingSystemPrompt(catalog: SalonBookingCatalog, access?: 
 
   const productLines = catalog.products
     .slice(0, 20)
-    .map((p) => `- ${p.name} (${formatPriceMinor(p.priceMinor)})`)
+    .map((p) => `- ${p.name} (${formatPriceMinor(p.priceMinor)})${p.description ? ` — ${p.description}` : ""}`)
     .join("\n");
 
   const stylistLines = catalog.stylists.map((s) => `- ${s.name}`).join("\n");

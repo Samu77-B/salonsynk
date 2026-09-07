@@ -35,6 +35,7 @@ export default async function PublicWalkInPage({
   };
   const displayName = brandingStr("company_name").trim() || salon.name;
   const primaryColor = brandingStr("primary_color").trim();
+  const queueBackgroundColor = brandingStr("queue_background_color").trim();
   const logoUrl = brandingStr("logo_url").trim();
   const showTitle = branding.show_title_on_queue !== false;
   const nextAvailableOnly = branding.next_available_only === true;
@@ -78,10 +79,11 @@ export default async function PublicWalkInPage({
 
   return (
     <div
-      className="app-shell-dark min-h-screen bg-canvas text-foreground"
-      style={
-        primaryColor ? ({ ["--accent"]: primaryColor } as CSSProperties) : undefined
-      }
+      className={`app-shell-dark min-h-screen text-foreground${queueBackgroundColor ? "" : " bg-canvas"}`}
+      style={{
+        ...(primaryColor ? ({ ["--accent"]: primaryColor } as CSSProperties) : {}),
+        ...(queueBackgroundColor ? { backgroundColor: queueBackgroundColor } : {}),
+      }}
     >
       {primaryColor ? (
         <div

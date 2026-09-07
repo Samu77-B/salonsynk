@@ -232,6 +232,7 @@ export async function updateNailTeamMember(
 export async function updateNailSalonBranding(updates: {
   show_title_on_queue?: boolean;
   company_name?: string;
+  queue_background_color?: string;
 }): Promise<{ error?: string }> {
   const { error, context } = await requireNailSalonManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
@@ -253,6 +254,14 @@ export async function updateNailSalonBranding(updates: {
   };
   if (updates.company_name !== undefined) {
     branding.company_name = updates.company_name.trim();
+  }
+  if (updates.queue_background_color !== undefined) {
+    const color = updates.queue_background_color.trim();
+    if (color) {
+      branding.queue_background_color = color;
+    } else {
+      delete branding.queue_background_color;
+    }
   }
 
   const { error: updateError } = await admin

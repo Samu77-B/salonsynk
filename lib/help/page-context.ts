@@ -105,7 +105,7 @@ export function getPageHelpContext(pathname: string): PageHelpContext {
       pageId: "products",
       pageLabel: "Products",
       helpPrompt: "Need help with retail products?",
-      knowledge: `Products (/products): Retail product catalogue for the salon, used with checkout and reports where product-tagged sales apply.`,
+      knowledge: `Products (/products): Retail catalogue for checkout and the public shop. Add one product per design (name, photo, price, description). For apparel, add colours and sizes, then type stock quantities in the grid (empty cell = not sold). Optional photo per colour. Checkout and the shop ask for colour/size; stock counts down when a sale is recorded. Simple items (shampoo) can skip the grid, or use Quantity in stock only.`,
     };
   }
   if (match(path, "/help")) {

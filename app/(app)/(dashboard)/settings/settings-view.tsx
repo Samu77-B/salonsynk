@@ -14,7 +14,7 @@ export function SettingsView(props: {
   subscriptionStatus: string;
   planLabel: string;
   planPriceLabel: string;
-  branding: { logo_url: string; primary_color: string; company_name: string; booking_heading: string };
+  branding: { logo_url: string; primary_color: string; company_name: string; booking_heading: string; queue_background_color: string };
   showSalonTaxVault?: boolean;
   salonTaxVaultMinor?: number;
   showRenterTaxVault?: boolean;
@@ -80,6 +80,7 @@ export function SettingsView(props: {
   const [adminFeeMsg, setAdminFeeMsg] = useState<"saved" | "error" | null>(null);
   const [adminFeeLoading, setAdminFeeLoading] = useState(false);
   const [primaryColor, setPrimaryColor] = useState(branding.primary_color);
+  const [queueBackgroundColor, setQueueBackgroundColor] = useState(branding.queue_background_color);
   const [companyName, setCompanyName] = useState(branding.company_name);
   const [bookingHeading, setBookingHeading] = useState(branding.booking_heading);
   const [brandingMsg, setBrandingMsg] = useState<"saved" | "error" | null>(null);
@@ -116,6 +117,7 @@ export function SettingsView(props: {
     const result = await updateSalonBranding(salonId, {
       logo_url: logoUrl.trim() || undefined,
       primary_color: primaryColor.trim() || undefined,
+      queue_background_color: queueBackgroundColor.trim(),
       company_name: companyName.trim() || undefined,
       booking_heading: bookingHeading.trim() || undefined,
     });
@@ -502,6 +504,27 @@ export function SettingsView(props: {
               placeholder="#a78bfa"
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Queue page background colour</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={queueBackgroundColor || "#374151"}
+                onChange={(e) => setQueueBackgroundColor(e.target.value)}
+                className="h-10 w-14 cursor-pointer rounded border border-border bg-background"
+              />
+              <input
+                type="text"
+                value={queueBackgroundColor}
+                onChange={(e) => setQueueBackgroundColor(e.target.value)}
+                placeholder="#374151"
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+              />
+            </div>
+            <p className="text-xs text-muted mt-1">
+              Background on your public walk-in queue page. Leave blank for the default.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Display name (optional)</label>

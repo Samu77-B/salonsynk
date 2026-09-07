@@ -28,6 +28,14 @@ export default async function CheckoutPage() {
 
   const supabase = await createClient();
   const productsQuery = async () => {
+    const withAll = await supabase
+      .from("products")
+      .select(
+        "id, name, price_minor, product_services(service_id), product_variants(id, color, size, stock_quantity, image_url, sort_order, is_active)"
+      )
+      .eq("salon_id", context.salon.id)
+      .eq("is_active", true);
+    if (!withAll.error) return withAll;
     const withLinks = await supabase
       .from("products")
       .select("id, name, price_minor, product_services(service_id)")
@@ -52,6 +60,15 @@ export default async function CheckoutPage() {
     name: string;
     price_minor: number | null;
     product_services?: { service_id: string }[] | null;
+    product_variants?: {
+      id: string;
+      color: string | null;
+      size: string | null;
+      stock_quantity: number | null;
+      image_url: string | null;
+      sort_order: number | null;
+      is_active: boolean | null;
+    }[] | null;
   };
 
   const products =
@@ -59,11 +76,24 @@ export default async function CheckoutPage() {
       const row = r as ProductRowRaw;
       const linked =
         row.product_services?.map((x) => x.service_id).filter((id): id is string => typeof id === "string") ?? [];
+      const variants = (row.product_variants ?? [])
+        .filter((v) => v.is_active !== false)
+        .slice()
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        .map((v) => ({
+          id: v.id,
+          color: v.color ?? "",
+          size: v.size ?? "",
+          stock_quantity: v.stock_quantity ?? 0,
+          image_url: v.image_url,
+          sort_order: v.sort_order ?? 0,
+        }));
       return {
         id: row.id,
         name: row.name,
         price_minor: row.price_minor ?? 0,
         linkedServiceIds: linked,
+        variants,
       };
     });
 

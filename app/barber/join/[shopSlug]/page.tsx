@@ -35,6 +35,7 @@ export default async function PublicJoinQueuePage({
   };
   const displayName = brandingStr("company_name").trim() || shop.name;
   const primaryColor = brandingStr("primary_color").trim();
+  const queueBackgroundColor = brandingStr("queue_background_color").trim();
   const logoUrl = brandingStr("logo_url").trim();
   const showTitle = branding.show_title_on_queue !== false;
   const nextAvailableOnly = branding.next_available_only === true;
@@ -93,12 +94,11 @@ export default async function PublicJoinQueuePage({
 
   return (
     <div
-      className="barber-dashboard min-h-screen bg-canvas text-foreground"
-      style={
-        primaryColor
-          ? ({ ["--accent"]: primaryColor } as CSSProperties)
-          : undefined
-      }
+      className={`barber-dashboard min-h-screen text-foreground${queueBackgroundColor ? "" : " bg-canvas"}`}
+      style={{
+        ...(primaryColor ? ({ ["--accent"]: primaryColor } as CSSProperties) : {}),
+        ...(queueBackgroundColor ? { backgroundColor: queueBackgroundColor } : {}),
+      }}
     >
       {primaryColor ? (
         <div className="h-1.5 w-full bg-accent" aria-hidden />

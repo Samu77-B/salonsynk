@@ -5,11 +5,13 @@ import { useState } from "react";
 export function ProductBuyButton({
   slug,
   productId,
+  variantId,
   productName,
   priceLabel,
 }: {
   slug: string;
   productId: string;
+  variantId?: string;
   productName: string;
   priceLabel: string;
 }) {
@@ -28,6 +30,7 @@ export function ProductBuyButton({
         body: JSON.stringify({
           slug,
           productIds: [productId],
+          variantIds: variantId ? [variantId] : undefined,
           clientEmail: email.trim() || undefined,
         }),
       });

@@ -9,8 +9,17 @@ import {
   uploadProductImage,
   importProductsFromCsv,
 } from "./actions";
+import { ProductVariantsEditor } from "./product-variants-editor";
 import { PRODUCT_CURRENCY_OPTIONS } from "@/lib/product-currency";
 import { dashboardFlowClass, dashboardStaggerClass } from "@/components/dashboard/ui";
+import {
+  draftToVariantInputs,
+  emptyVariantDraft,
+  totalVariantStock,
+  variantsToDraft,
+  type ProductVariantRow,
+  type VariantDraft,
+} from "@/lib/product-variants";
 
 const DESCRIPTION_MAX = 2000;
 
@@ -26,6 +35,7 @@ export type ProductRow = {
   image_url: string | null;
   /** Empty = universal at checkout; otherwise suggest when any of these services are on the bill */
   linked_service_ids: string[];
+  variants: ProductVariantRow[];
 };
 
 export type ServiceLinkOption = { id: string; name: string };
@@ -233,6 +243,7 @@ function ProductCard({
   const [sortOrder, setSortOrder] = useState(String(product.sort_order));
   const [isActive, setIsActive] = useState(product.is_active);
   const [linkedServiceIds, setLinkedServiceIds] = useState(product.linked_service_ids);
+  const [variantDraft, setVariantDraft] = useState<VariantDraft>(() => variantsToDraft(product.variants));
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -249,6 +260,7 @@ function ProductCard({
     setSortOrder(String(product.sort_order));
     setIsActive(product.is_active);
     setLinkedServiceIds(product.linked_service_ids);
+    setVariantDraft(variantsToDraft(product.variants));
   }, [product]);
 
   async function save() {
@@ -279,6 +291,7 @@ function ProductCard({
       is_active: isActive,
       sort_order: Number.isFinite(so) ? so : 0,
       linked_service_ids: linkedServiceIds,
+      variants: draftToVariantInputs(variantDraft),
     });
     setSaving(false);
     if (result.error) {
@@ -315,6 +328,13 @@ function ProductCard({
       >
         <ChevronIcon open={expanded} />
         <span className="min-w-0 flex-1 truncate font-medium text-foreground">{name || "Unnamed product"}</span>
+        {product.variants.length > 0 ? (
+          <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+            {product.variants.length === 1 && !product.variants[0]?.color && !product.variants[0]?.size
+              ? `${totalVariantStock(product.variants)} in stock`
+              : `${product.variants.length} options · ${totalVariantStock(product.variants)} in stock`}
+          </span>
+        ) : null}
         <span className="shrink-0 text-sm text-muted-foreground">{displayCategory}</span>
         {!isActive ? (
           <span className="shrink-0 rounded-md bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">Inactive</span>
@@ -394,6 +414,12 @@ function ProductCard({
         idPrefix={`edit-${product.id}`}
         imageUrl={imageUrl}
         onImageUrlChange={setImageUrl}
+      />
+      <ProductVariantsEditor
+        salonId={salonId}
+        idPrefix={`edit-${product.id}`}
+        value={variantDraft}
+        onChange={setVariantDraft}
       />
       <ProductServiceLinksField
         idPrefix={`edit-${product.id}`}
@@ -488,6 +514,7 @@ export function ProductsView({
   const [newDescription, setNewDescription] = useState("");
   const [newImageUrl, setNewImageUrl] = useState("");
   const [newLinkedServiceIds, setNewLinkedServiceIds] = useState<string[]>([]);
+  const [newVariantDraft, setNewVariantDraft] = useState<VariantDraft>(emptyVariantDraft);
   const [addLoading, setAddLoading] = useState(false);
   const [addMsg, setAddMsg] = useState<"saved" | "error" | null>(null);
   const [addError, setAddError] = useState("");
@@ -527,8 +554,8 @@ export function ProductsView({
   return (
     <section className={`${dashboardFlowClass} space-y-6`}>
       <p className="text-sm text-muted">
-        Retail items (shampoos, conditioners, etc.) are separate from appointment services. Your public shop uses the same
-        slug as booking:{" "}
+        Retail items (shampoos, t-shirts, etc.) are separate from appointment services. Add one product per design, then
+        fill colours, sizes, and how many you have of each. Your public shop uses the same slug as booking:{" "}
         <a href={`/shop/${salonSlug}`} className="font-mono text-accent underline" target="_blank" rel="noreferrer">
           /shop/{salonSlug}
         </a>
@@ -657,6 +684,7 @@ export function ProductsView({
                 description: newDescription,
                 image_url: newImageUrl.trim() || null,
                 linked_service_ids: newLinkedServiceIds.length ? newLinkedServiceIds : undefined,
+                variants: draftToVariantInputs(newVariantDraft),
               });
               setAddMsg(result.error ? "error" : "saved");
               if (result.error) setAddError(result.error);
@@ -667,6 +695,7 @@ export function ProductsView({
                 setNewDescription("");
                 setNewImageUrl("");
                 setNewLinkedServiceIds([]);
+                setNewVariantDraft(emptyVariantDraft());
                 router.refresh();
               }
             } catch (err) {
@@ -739,6 +768,12 @@ export function ProductsView({
             idPrefix="new-product"
             imageUrl={newImageUrl}
             onImageUrlChange={setNewImageUrl}
+          />
+          <ProductVariantsEditor
+            salonId={salonId}
+            idPrefix="new-product"
+            value={newVariantDraft}
+            onChange={setNewVariantDraft}
           />
           <ProductServiceLinksField
             idPrefix="new-product"

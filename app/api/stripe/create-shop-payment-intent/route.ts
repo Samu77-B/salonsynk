@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/server";
+import { resolveRetailLines } from "@/lib/product-stock";
 
 /**
  * Public checkout for retail products on the salon shop (no staff session).
  * Payment routes to the salon Connect account (employee-style split).
  */
 export async function POST(request: Request) {
-  let body: { slug?: string; productIds?: string[]; clientEmail?: string | null };
+  let body: { slug?: string; productIds?: string[]; variantIds?: string[]; clientEmail?: string | null };
   try {
     body = await request.json();
   } catch {
@@ -17,8 +18,15 @@ export async function POST(request: Request) {
   const slug = typeof body.slug === "string" ? body.slug.trim() : "";
   const rawIds = Array.isArray(body.productIds) ? body.productIds : [];
   const productIds = [...new Set(rawIds.filter((id): id is string => typeof id === "string" && id.length > 0))];
+  const variantIds = [
+    ...new Set(
+      (Array.isArray(body.variantIds) ? body.variantIds : []).filter(
+        (id): id is string => typeof id === "string" && id.length > 0
+      )
+    ),
+  ];
 
-  if (!slug || productIds.length === 0) {
+  if (!slug || (productIds.length === 0 && variantIds.length === 0)) {
     return NextResponse.json({ error: "Missing slug or productIds" }, { status: 400 });
   }
 
@@ -51,19 +59,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This salon is not ready for online payments" }, { status: 400 });
   }
 
-  const { data: products } = await admin
-    .from("products")
-    .select("id, price_minor")
-    .eq("salon_id", salon.id)
-    .eq("is_active", true)
-    .in("id", productIds);
-
-  const matched = products ?? [];
-  if (matched.length !== productIds.length) {
+  const retail = await resolveRetailLines(admin, salon.id, { productIds, variantIds });
+  if (retail.error) {
+    return NextResponse.json({ error: retail.error }, { status: 400 });
+  }
+  if (retail.allowedProductIds.length === 0) {
     return NextResponse.json({ error: "Invalid product selection" }, { status: 400 });
   }
 
-  const amountMinor = matched.reduce((sum, p) => sum + Number(p.price_minor ?? 0), 0);
+  const amountMinor = retail.productSum;
   if (amountMinor < 50) {
     return NextResponse.json({ error: "Order total must be at least £0.50" }, { status: 400 });
   }
@@ -99,7 +103,8 @@ export async function POST(request: Request) {
       stylist_id: stylistId,
       silent_appointment: "false",
       service_ids: "",
-      product_ids: productIds.join(",").slice(0, 450),
+      product_ids: retail.allowedProductIds.join(",").slice(0, 450),
+      product_variant_ids: retail.allowedVariantIds.join(",").slice(0, 450),
     };
 
     const paymentIntent = await stripe.paymentIntents.create({

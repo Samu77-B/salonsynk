@@ -1,9 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Reveal } from "@/components/reveal";
-import { formatProductPriceMinor } from "@/lib/product-currency";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ProductBuyButton } from "./product-buy-button";
+import { ProductShopCard } from "./product-shop-card";
 import { salonRowHasFeature } from "@/lib/salon-features";
 
 /** Public retail shop for a salon (same slug as booking). */
@@ -55,15 +54,69 @@ export async function SalonPublicShop({ slug }: { slug: string }) {
 
   const logoUrl = branding.logo_url?.trim();
 
-  const { data: productRows } = await supabase
+  const withVariants = await supabase
     .from("products")
-    .select("id, name, description, category, price_minor, currency, image_url, sort_order")
+    .select(
+      "id, name, description, category, price_minor, currency, image_url, sort_order, product_variants(id, color, size, stock_quantity, image_url, sort_order, is_active)"
+    )
     .eq("salon_id", salon.id)
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
+  const productRows = withVariants.error
+    ? (
+        await supabase
+          .from("products")
+          .select("id, name, description, category, price_minor, currency, image_url, sort_order")
+          .eq("salon_id", salon.id)
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true })
+          .order("name", { ascending: true })
+      ).data
+    : withVariants.data;
 
-  const products = productRows ?? [];
+  const products = (productRows ?? []).map((p) => {
+    const row = p as {
+      id: string;
+      name: string;
+      description: string | null;
+      category: string | null;
+      price_minor: number | null;
+      currency: string | null;
+      image_url: string | null;
+      product_variants?: {
+        id: string;
+        color: string | null;
+        size: string | null;
+        stock_quantity: number | null;
+        image_url: string | null;
+        sort_order: number | null;
+        is_active: boolean | null;
+      }[] | null;
+    };
+    const variants = (row.product_variants ?? [])
+      .filter((v) => v.is_active !== false)
+      .slice()
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      .map((v) => ({
+        id: v.id,
+        color: v.color ?? "",
+        size: v.size ?? "",
+        stock_quantity: v.stock_quantity ?? 0,
+        image_url: v.image_url,
+        sort_order: v.sort_order ?? 0,
+      }));
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      category: row.category,
+      price_minor: row.price_minor ?? 0,
+      currency: row.currency ?? "gbp",
+      image_url: row.image_url,
+      variants,
+    };
+  });
 
   return (
     <main
@@ -105,57 +158,9 @@ export async function SalonPublicShop({ slug }: { slug: string }) {
           </p>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
-            {products.map((p) => {
-              const row = p as {
-                id: string;
-                name: string;
-                description: string | null;
-                category: string | null;
-                price_minor: number | null;
-                currency: string | null;
-                image_url: string | null;
-              };
-              const minor = row.price_minor ?? 0;
-              const cur = row.currency ?? "gbp";
-              return (
-                <li
-                  key={row.id}
-                  id={`product-${row.id}`}
-                  className="scroll-mt-24 overflow-hidden rounded-xl border border-border bg-background/80 shadow-sm"
-                >
-                  <div className="aspect-[4/3] w-full bg-muted/30">
-                    {row.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={row.image_url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-muted">No image</div>
-                    )}
-                  </div>
-                  <div className="space-y-1 p-4">
-                    {row.category && (
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted">{row.category}</p>
-                    )}
-                    <h2 className="text-lg font-semibold text-foreground">{row.name}</h2>
-                    <p className="text-base font-medium text-accent">
-                      {formatProductPriceMinor(minor, cur)}
-                    </p>
-                    {row.description && (
-                      <p className="text-sm text-muted whitespace-pre-wrap">{row.description}</p>
-                    )}
-                    <ProductBuyButton
-                      slug={slug}
-                      productId={row.id}
-                      productName={row.name}
-                      priceLabel={formatProductPriceMinor(minor, cur)}
-                    />
-                  </div>
-                </li>
-              );
-            })}
+            {products.map((p) => (
+              <ProductShopCard key={p.id} slug={slug} product={p} />
+            ))}
           </ul>
         )}
 

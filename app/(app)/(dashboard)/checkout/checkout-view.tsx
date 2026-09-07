@@ -17,16 +17,11 @@ import {
 } from "@/components/dashboard/ui";
 import { computeLoyaltyCheckoutTotals, maxRedeemableProductPoints } from "@/lib/loyalty/calculate";
 import { DEFAULT_LOYALTY_SETTINGS, formatMoneyMinor, type LoyaltySettings } from "@/lib/loyalty/settings";
+import { CheckoutProductPick, type CheckoutProduct } from "./checkout-product-picker";
 
 type Client = { id: string; name: string | null; email: string | null };
 type Service = { id: string; name: string; duration_minutes: number; price_minor: number };
-type Product = {
-  id: string;
-  name: string;
-  price_minor: number;
-  /** Empty = always suggested; otherwise only when overlapping services are on the bill */
-  linkedServiceIds: string[];
-};
+type Product = CheckoutProduct;
 type Stylist = { id: string; displayName: string; employmentType: string };
 
 function productSuggestedForBill(p: Product, selectedServiceIds: string[]): boolean {
@@ -68,6 +63,7 @@ export function CheckoutView({
   const [walkInName, setWalkInName] = useState("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
   const [customAmountMinor, setCustomAmountMinor] = useState<number | null>(null);
   const [silentAppointment, setSilentAppointment] = useState(false);
   const [cancellationPolicyAccepted, setCancellationPolicyAccepted] = useState(false);
@@ -191,10 +187,15 @@ export function CheckoutView({
     const s = services.find((x) => x.id === id);
     return sum + (s?.price_minor ?? 0);
   }, 0);
-  const lineProductsMinor = selectedProductIds.reduce((sum, id) => {
-    const p = products.find((x) => x.id === id);
-    return sum + (p?.price_minor ?? 0);
-  }, 0);
+  const lineProductsMinor =
+    selectedProductIds.reduce((sum, id) => {
+      const p = products.find((x) => x.id === id);
+      return sum + (p?.price_minor ?? 0);
+    }, 0) +
+    selectedVariantIds.reduce((sum, id) => {
+      const p = products.find((x) => x.variants.some((v) => v.id === id));
+      return sum + (p?.price_minor ?? 0);
+    }, 0);
   const lineTotalMinor = lineServicesMinor + lineProductsMinor;
   const loyaltyEligible = loyaltyEnabled && (Boolean(clientId) || joinLoyalty);
   const useCustomAmount = customAmountMinor != null && customAmountMinor >= 50;
@@ -283,6 +284,7 @@ export function CheckoutView({
         silentAppointment: silentAppointment || undefined,
         serviceIds: selectedServiceIds,
         productIds: selectedProductIds,
+        variantIds: selectedVariantIds,
         customAmountMinor: customAmountMinor != null ? customAmountMinor : null,
         redeemServicePoints: loyaltyTotals?.totals.redeemServicePoints ?? 0,
         redeemProductPoints: loyaltyTotals?.totals.redeemProductPoints ?? 0,
@@ -610,18 +612,17 @@ export function CheckoutView({
                   <p className="text-xs font-medium text-foreground">Suggested for this bill</p>
                 ) : null}
                 {suggestedProducts.map((p) => (
-                  <label key={p.id} className="flex items-center gap-2 py-1">
-                    <input
-                      type="checkbox"
-                      checked={selectedProductIds.includes(p.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) setSelectedProductIds((x) => [...x, p.id]);
-                        else setSelectedProductIds((x) => x.filter((id) => id !== p.id));
-                      }}
-                    />
-                    <span>{p.name}</span>
-                    <span className="text-muted">£{((p.price_minor ?? 0) / 100).toFixed(2)}</span>
-                  </label>
+                  <CheckoutProductPick
+                    key={p.id}
+                    product={p}
+                    selectedProductIds={selectedProductIds}
+                    selectedVariantIds={selectedVariantIds}
+                    onToggleProduct={(id, on) => {
+                      if (on) setSelectedProductIds((x) => (x.includes(id) ? x : [...x, id]));
+                      else setSelectedProductIds((x) => x.filter((pid) => pid !== id));
+                    }}
+                    onChangeVariants={setSelectedVariantIds}
+                  />
                 ))}
               </div>
             ) : (
@@ -634,18 +635,17 @@ export function CheckoutView({
                 </summary>
                 <div className="border-t border-border px-3 py-2 space-y-1">
                   {otherProducts.map((p) => (
-                    <label key={p.id} className="flex items-center gap-2 py-1">
-                      <input
-                        type="checkbox"
-                        checked={selectedProductIds.includes(p.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) setSelectedProductIds((x) => [...x, p.id]);
-                          else setSelectedProductIds((x) => x.filter((id) => id !== p.id));
-                        }}
-                      />
-                      <span>{p.name}</span>
-                      <span className="text-muted">£{((p.price_minor ?? 0) / 100).toFixed(2)}</span>
-                    </label>
+                    <CheckoutProductPick
+                      key={p.id}
+                      product={p}
+                      selectedProductIds={selectedProductIds}
+                      selectedVariantIds={selectedVariantIds}
+                      onToggleProduct={(id, on) => {
+                        if (on) setSelectedProductIds((x) => (x.includes(id) ? x : [...x, id]));
+                        else setSelectedProductIds((x) => x.filter((pid) => pid !== id));
+                      }}
+                      onChangeVariants={setSelectedVariantIds}
+                    />
                   ))}
                 </div>
               </details>

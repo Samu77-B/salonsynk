@@ -23,6 +23,7 @@ export type BrandingInput = {
   primary_color?: string;
   company_name?: string;
   booking_heading?: string;
+  queue_background_color?: string;
 };
 
 async function assertCanManageServices(salonId: string): Promise<{ ok: true } | { error: string }> {
@@ -86,6 +87,14 @@ export async function updateSalonBranding(salonId: string, branding: BrandingInp
 
   const current = (existing.settings as Record<string, unknown>) ?? {};
   const nextBranding = { ...(current.branding as object), ...branding };
+  if (branding.queue_background_color !== undefined) {
+    const color = branding.queue_background_color.trim();
+    if (color) {
+      nextBranding.queue_background_color = color;
+    } else {
+      delete (nextBranding as Record<string, unknown>).queue_background_color;
+    }
+  }
   const { error } = await supabase
     .from("salons")
     .update({ settings: { ...current, branding: nextBranding } })
@@ -98,6 +107,7 @@ export async function updateSalonBranding(salonId: string, branding: BrandingInp
     revalidatePath(`/book/${slug}`);
     revalidatePath(`/shop/${slug}`);
     revalidatePath(`/${slug}/shop`);
+    revalidatePath(`/walk-in/${slug}`);
   }
   return {};
 }

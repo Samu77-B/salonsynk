@@ -12,6 +12,7 @@ import {
   tenantTable,
 } from "@core/billing/stripe-metadata";
 import { applyLoyaltyForCompletedSale } from "@/lib/loyalty/process-sale";
+import { applyProductVariantStock } from "@/lib/product-stock";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
       employment_type?: string;
       service_ids?: string;
       product_ids?: string;
+      product_variant_ids?: string;
       loyalty_redeem_service_pts?: string;
       loyalty_redeem_product_pts?: string;
       loyalty_service_paid_minor?: string;
@@ -78,6 +80,7 @@ export async function POST(request: Request) {
       employment_type?: string;
       service_ids?: string;
       product_ids?: string;
+      product_variant_ids?: string;
     } | null;
   };
   let event: {
@@ -138,6 +141,7 @@ export async function POST(request: Request) {
       employment_type?: string;
       service_ids?: string;
       product_ids?: string;
+      product_variant_ids?: string;
     } | null;
   }): Promise<void> {
     const { paymentIntentId, amountMinor, currency, paidAt, metadata } = args;
@@ -153,6 +157,10 @@ export async function POST(request: Request) {
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean);
+    const productVariantIds = (metadata?.product_variant_ids ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
     await supabase.from("sales_transactions").upsert(
       {
         salon_id: salonId,
@@ -164,10 +172,12 @@ export async function POST(request: Request) {
         employment_type: metadata?.employment_type ?? null,
         service_ids: serviceIds,
         product_ids: productIds,
+        product_variant_ids: productVariantIds,
         paid_at: (paidAt ?? new Date()).toISOString(),
       },
       { onConflict: "stripe_payment_intent_id" }
     );
+    await applyProductVariantStock(supabase, paymentIntentId);
   }
 
   if (event.type === "payment_intent.succeeded") {

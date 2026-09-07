@@ -221,6 +221,7 @@ export async function updateBarberTeamMember(
 export async function updateBarberShopBranding(updates: {
   show_title_on_queue?: boolean;
   company_name?: string;
+  queue_background_color?: string;
 }): Promise<{ error?: string }> {
   const { error, context } = await requireBarberShopManager();
   if (error || !context) return { error: error ?? "Unauthorized" };
@@ -236,9 +237,17 @@ export async function updateBarberShopBranding(updates: {
   if (!existing) return { error: "Shop not found" };
 
   const current = (existing.settings as Record<string, unknown>) ?? {};
-  const branding = { ...(current.branding as object), ...updates };
+  const branding: Record<string, unknown> = { ...(current.branding as object), ...updates };
   if (updates.company_name !== undefined) {
     branding.company_name = updates.company_name.trim();
+  }
+  if (updates.queue_background_color !== undefined) {
+    const color = updates.queue_background_color.trim();
+    if (color) {
+      branding.queue_background_color = color;
+    } else {
+      delete branding.queue_background_color;
+    }
   }
 
   const { error: updateError } = await admin

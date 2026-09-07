@@ -168,6 +168,7 @@ export default async function AdminBarberShopDetailPage({
           initialBranding={{
             logo_url: brandingStr("logo_url"),
             primary_color: brandingStr("primary_color"),
+            queue_background_color: brandingStr("queue_background_color"),
             company_name: brandingStr("company_name") || shop.name,
             show_title_on_queue: branding.show_title_on_queue !== false,
             next_available_only: branding.next_available_only === true,

@@ -28,6 +28,7 @@ export async function POST(request: Request) {
     silentAppointment,
     serviceIds,
     productIds,
+    variantIds,
     customAmountMinor,
     redeemServicePoints,
     redeemProductPoints,
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
     silentAppointment?: boolean;
     serviceIds?: string[];
     productIds?: string[];
+    variantIds?: string[];
     customAmountMinor?: number | null;
     redeemServicePoints?: number;
     redeemProductPoints?: number;
@@ -104,15 +106,21 @@ export async function POST(request: Request) {
   const normalizedProductIds = Array.isArray(productIds)
     ? [...new Set(productIds.filter((id): id is string => typeof id === "string" && id.length > 0))]
     : [];
+  const normalizedVariantIds = Array.isArray(variantIds)
+    ? [...new Set(variantIds.filter((id): id is string => typeof id === "string" && id.length > 0))]
+    : [];
 
   const lines = await resolveCheckoutLineTotals(supabase, salonId, {
     serviceIds: normalizedServiceIds,
     productIds: normalizedProductIds,
+    variantIds: normalizedVariantIds,
   });
+  if (lines.error) return NextResponse.json({ error: lines.error }, { status: 400 });
 
   const resolved = await resolveCheckoutAmounts(supabase, salonId, clientResult.clientId, {
     serviceIds: normalizedServiceIds,
     productIds: normalizedProductIds,
+    variantIds: normalizedVariantIds,
     customAmountMinor,
     redeemServicePoints,
     redeemProductPoints,
@@ -147,6 +155,7 @@ export async function POST(request: Request) {
       silent_appointment: silentAppointment === true ? "true" : "false",
       service_ids: lines.allowedServiceIds.join(",").slice(0, 450),
       product_ids: lines.allowedProductIds.join(",").slice(0, 450),
+      product_variant_ids: lines.allowedVariantIds.join(",").slice(0, 450),
       ...loyaltyMetadata(amounts),
     };
 
