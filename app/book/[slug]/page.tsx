@@ -91,10 +91,14 @@ export default async function BookPage({
 
   const settings = (salon.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | boolean | undefined>) ?? {};
-  const displayName = (branding.company_name?.trim() || salon.name) as string;
-  const bookingHeading = branding.booking_heading?.trim() ?? "";
-  const primaryColor = branding.primary_color?.trim();
-  const logoUrl = branding.logo_url?.trim();
+  const brandingStr = (key: string) => {
+    const v = branding[key];
+    return typeof v === "string" ? v : "";
+  };
+  const displayName = brandingStr("company_name").trim() || salon.name;
+  const bookingHeading = brandingStr("booking_heading").trim();
+  const primaryColor = brandingStr("primary_color").trim() || undefined;
+  const logoUrl = brandingStr("logo_url").trim() || undefined;
   const showShopLink = salonRowHasFeature(salon, "products_shop");
   const showSalonQa = branding.show_salon_qa_on_booking === true;
 

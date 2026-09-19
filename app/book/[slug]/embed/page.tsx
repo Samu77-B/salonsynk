@@ -96,19 +96,23 @@ export default async function BookEmbedPage({
 
   const settings = (salon.settings as Record<string, unknown>) ?? {};
   const branding = (settings.branding as Record<string, string | boolean | undefined>) ?? {};
+  const brandingStr = (key: string) => {
+    const v = branding[key];
+    return typeof v === "string" ? v : "";
+  };
   const displayName = neutral
     ? "Your Salon"
-    : ((branding.company_name?.trim() || salon.name) as string);
+    : brandingStr("company_name").trim() || salon.name;
   const bookingHeading = neutral
     ? "Book an appointment"
-    : branding.booking_heading?.trim() ?? "";
-  const brandingColor = branding.primary_color?.trim();
+    : brandingStr("booking_heading").trim();
+  const brandingColor = brandingStr("primary_color").trim();
   // Allow host page to override accent via ?primary=hex (e.g. ?primary=000 or ?primary=%23000)
   const hex = primaryOverride?.trim();
   const primaryColor = hex
     ? (hex.startsWith("#") ? hex : `#${hex}`)
     : brandingColor;
-  const logoUrl = neutral ? undefined : branding.logo_url?.trim();
+  const logoUrl = neutral ? undefined : brandingStr("logo_url").trim() || undefined;
   const showSalonQa = !neutral && branding.show_salon_qa_on_booking === true;
 
   return (
