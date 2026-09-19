@@ -24,6 +24,7 @@ export type BrandingInput = {
   company_name?: string;
   booking_heading?: string;
   queue_background_color?: string;
+  show_salon_qa_on_booking?: boolean;
 };
 
 async function assertCanManageServices(salonId: string): Promise<{ ok: true } | { error: string }> {
@@ -105,6 +106,7 @@ export async function updateSalonBranding(salonId: string, branding: BrandingInp
   const slug = context.salon.slug;
   if (slug) {
     revalidatePath(`/book/${slug}`);
+    revalidatePath(`/book/${slug}/embed`);
     revalidatePath(`/shop/${slug}`);
     revalidatePath(`/${slug}/shop`);
     revalidatePath(`/walk-in/${slug}`);

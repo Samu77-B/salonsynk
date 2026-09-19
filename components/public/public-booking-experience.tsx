@@ -11,17 +11,20 @@ export function PublicBookingExperience({
   slug,
   salonName,
   form,
+  showSalonQa = false,
 }: {
   slug: string;
   salonName: string;
   form: ReactNode;
+  /** When true, show a third tab for policy / FAQ Q&A. Off by default. */
+  showSalonQa?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("form");
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "form", label: "Book online" },
     { id: "concierge", label: SYNKAI_AGENT_NAME },
-    { id: "qa", label: "Salon QA" },
+    ...(showSalonQa ? [{ id: "qa" as const, label: "Salon QA" }] : []),
   ];
 
   return (

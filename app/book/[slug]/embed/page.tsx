@@ -95,7 +95,7 @@ export default async function BookEmbedPage({
   }
 
   const settings = (salon.settings as Record<string, unknown>) ?? {};
-  const branding = (settings.branding as Record<string, string | undefined>) ?? {};
+  const branding = (settings.branding as Record<string, string | boolean | undefined>) ?? {};
   const displayName = neutral
     ? "Your Salon"
     : ((branding.company_name?.trim() || salon.name) as string);
@@ -109,6 +109,7 @@ export default async function BookEmbedPage({
     ? (hex.startsWith("#") ? hex : `#${hex}`)
     : brandingColor;
   const logoUrl = neutral ? undefined : branding.logo_url?.trim();
+  const showSalonQa = !neutral && branding.show_salon_qa_on_booking === true;
 
   return (
     <main
@@ -138,6 +139,7 @@ export default async function BookEmbedPage({
         <PublicBookingExperience
           slug={slug}
           salonName={displayName}
+          showSalonQa={showSalonQa}
           form={
             <GuestBookingForm
               salonId={salon.id}

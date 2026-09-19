@@ -189,7 +189,7 @@ export async function getSettingsData() {
   const services = servicesResult.data;
 
   const settings = (salon?.settings as Record<string, unknown>) ?? {};
-  const branding = (settings.branding as Record<string, string | undefined>) ?? {};
+  const branding = (settings.branding as Record<string, unknown>) ?? {};
   const adminFeePercent = Number(settings.admin_fee_percent) || 10;
   const depositRequired = Boolean(settings.deposit_required);
   const depositType = (settings.deposit_type as "percent" | "flat") || "percent";
@@ -255,11 +255,12 @@ export async function getSettingsData() {
       };
     }),
     branding: {
-      logo_url: branding.logo_url ?? "",
-      primary_color: branding.primary_color ?? "",
-      company_name: branding.company_name ?? "",
-      booking_heading: branding.booking_heading ?? "",
-      queue_background_color: branding.queue_background_color ?? "",
+      logo_url: typeof branding.logo_url === "string" ? branding.logo_url : "",
+      primary_color: typeof branding.primary_color === "string" ? branding.primary_color : "",
+      company_name: typeof branding.company_name === "string" ? branding.company_name : "",
+      booking_heading: typeof branding.booking_heading === "string" ? branding.booking_heading : "",
+      queue_background_color: typeof branding.queue_background_color === "string" ? branding.queue_background_color : "",
+      show_salon_qa_on_booking: branding.show_salon_qa_on_booking === true,
     },
     adminFeePercent,
     depositRequired,

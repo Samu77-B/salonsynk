@@ -90,12 +90,13 @@ export default async function BookPage({
   }
 
   const settings = (salon.settings as Record<string, unknown>) ?? {};
-  const branding = (settings.branding as Record<string, string | undefined>) ?? {};
+  const branding = (settings.branding as Record<string, string | boolean | undefined>) ?? {};
   const displayName = (branding.company_name?.trim() || salon.name) as string;
   const bookingHeading = branding.booking_heading?.trim() ?? "";
   const primaryColor = branding.primary_color?.trim();
   const logoUrl = branding.logo_url?.trim();
   const showShopLink = salonRowHasFeature(salon, "products_shop");
+  const showSalonQa = branding.show_salon_qa_on_booking === true;
 
   return (
     <main
@@ -135,6 +136,7 @@ export default async function BookPage({
         <PublicBookingExperience
           slug={slug}
           salonName={displayName}
+          showSalonQa={showSalonQa}
           form={
             <GuestBookingForm
               salonId={salon.id}

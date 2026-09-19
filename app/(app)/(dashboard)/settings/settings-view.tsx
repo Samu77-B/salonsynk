@@ -14,7 +14,14 @@ export function SettingsView(props: {
   subscriptionStatus: string;
   planLabel: string;
   planPriceLabel: string;
-  branding: { logo_url: string; primary_color: string; company_name: string; booking_heading: string; queue_background_color: string };
+  branding: {
+    logo_url: string;
+    primary_color: string;
+    company_name: string;
+    booking_heading: string;
+    queue_background_color: string;
+    show_salon_qa_on_booking: boolean;
+  };
   showSalonTaxVault?: boolean;
   salonTaxVaultMinor?: number;
   showRenterTaxVault?: boolean;
@@ -83,6 +90,7 @@ export function SettingsView(props: {
   const [queueBackgroundColor, setQueueBackgroundColor] = useState(branding.queue_background_color);
   const [companyName, setCompanyName] = useState(branding.company_name);
   const [bookingHeading, setBookingHeading] = useState(branding.booking_heading);
+  const [showSalonQaOnBooking, setShowSalonQaOnBooking] = useState(branding.show_salon_qa_on_booking);
   const [brandingMsg, setBrandingMsg] = useState<"saved" | "error" | null>(null);
   const [brandingLoading, setBrandingLoading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -120,6 +128,7 @@ export function SettingsView(props: {
       queue_background_color: queueBackgroundColor.trim(),
       company_name: companyName.trim() || undefined,
       booking_heading: bookingHeading.trim() || undefined,
+      show_salon_qa_on_booking: showSalonQaOnBooking,
     });
     setBrandingLoading(false);
     setBrandingMsg(result.error ? "error" : "saved");
@@ -549,6 +558,20 @@ export function SettingsView(props: {
               Custom heading shown on your booking page. Leave blank to hide it entirely.
             </p>
           </div>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={showSalonQaOnBooking}
+              onChange={(e) => setShowSalonQaOnBooking(e.target.checked)}
+            />
+            <span>
+              Show <span className="font-medium">Salon QA</span> tab on your public booking page
+              <span className="block text-xs text-muted mt-0.5">
+                Off by default. Most salons only need Book online and SynkAI.
+              </span>
+            </span>
+          </label>
           {brandingMsg === "saved" && <p className="text-sm text-green-400">Branding saved.</p>}
           {brandingMsg === "error" && <p className="text-sm text-red-400">Failed to save.</p>}
           <button
