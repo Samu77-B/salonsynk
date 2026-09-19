@@ -78,6 +78,7 @@ export function AdminEditSalonForm({
 
   const [staffInviteEmail, setStaffInviteEmail] = useState("");
   const [staffInviteName, setStaffInviteName] = useState("");
+
   const [staffInviteMsg, setStaffInviteMsg] = useState<"saved" | "error" | null>(null);
   const [staffInviteErrorText, setStaffInviteErrorText] = useState("");
   const [staffInviteLoading, setStaffInviteLoading] = useState(false);
@@ -296,7 +297,7 @@ export function AdminEditSalonForm({
                   type="email"
                   value={createEmail}
                   onChange={(e) => setCreateEmail(e.target.value)}
-                  placeholder="kc@fabhair.london"
+                  placeholder="owner@example.com"
                   className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-64"
                   required
                 />
@@ -423,7 +424,7 @@ export function AdminEditSalonForm({
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="kiri@fabhair.london"
+                  placeholder="owner@example.com"
                   className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-64"
                   required
                 />
@@ -435,7 +436,7 @@ export function AdminEditSalonForm({
                   type="text"
                   value={inviteName}
                   onChange={(e) => setInviteName(e.target.value)}
-                  placeholder="Kiri (optional)"
+                  placeholder="Name (optional)"
                   className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-40"
                 />
               </div>
@@ -500,7 +501,7 @@ export function AdminEditSalonForm({
                   type="email"
                   value={resendEmail}
                   onChange={(e) => setResendEmail(e.target.value)}
-                  placeholder="kiri@fabhair.london"
+                  placeholder="owner@example.com"
                   className="rounded-lg border border-border bg-background px-3 py-2 text-sm w-64"
                   required
                 />
