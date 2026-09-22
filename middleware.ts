@@ -18,6 +18,13 @@ function isHostMatch(host: string, hosts: string[]): boolean {
   return hosts.some((h) => host.includes(h));
 }
 
+/** Rewrite to an internal path, keeping the query string (e.g. `?next=`). */
+function rewriteTo(request: NextRequest, pathname: string): NextResponse {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  return NextResponse.rewrite(url);
+}
+
 export async function middleware(request: NextRequest) {
   const host = request.headers.get("host")?.toLowerCase() ?? "";
   const { pathname } = request.nextUrl;
@@ -25,16 +32,16 @@ export async function middleware(request: NextRequest) {
   // smartsynk.net: central hub — landing, login, master dashboard
   if (isHostMatch(host, SMART_HOSTS)) {
     if (pathname === "/") {
-      return NextResponse.rewrite(new URL("/smart", request.url));
+      return rewriteTo(request, "/smart");
     }
     if (pathname === "/login") {
-      return NextResponse.rewrite(new URL("/smart/login", request.url));
+      return rewriteTo(request, "/smart/login");
     }
     if (pathname === "/signup") {
-      return NextResponse.rewrite(new URL("/smart/signup", request.url));
+      return rewriteTo(request, "/smart/signup");
     }
     if (pathname === "/dashboard" || pathname === "/overview") {
-      return NextResponse.rewrite(new URL("/smart/overview", request.url));
+      return rewriteTo(request, "/smart/overview");
     }
     const allowed =
       pathname.startsWith("/smart") ||
@@ -54,10 +61,10 @@ export async function middleware(request: NextRequest) {
   // barbersynk.com: rewrite root to /barber landing page, block salon-only routes
   if (isHostMatch(host, BARBER_HOSTS)) {
     if (pathname === "/") {
-      return NextResponse.rewrite(new URL("/barber", request.url));
+      return rewriteTo(request, "/barber");
     }
     if (pathname === "/signup") {
-      return NextResponse.rewrite(new URL("/barber/signup", request.url));
+      return rewriteTo(request, "/barber/signup");
     }
     if (pathname === "/login") {
       const loginUrl = smartLoginUrl(request);
@@ -85,10 +92,10 @@ export async function middleware(request: NextRequest) {
   // nailsynk.com: rewrite root to /nail landing page, block salon/barber-only routes
   if (isHostMatch(host, NAIL_HOSTS)) {
     if (pathname === "/") {
-      return NextResponse.rewrite(new URL("/nail", request.url));
+      return rewriteTo(request, "/nail");
     }
     if (pathname === "/signup") {
-      return NextResponse.rewrite(new URL("/nail/signup", request.url));
+      return rewriteTo(request, "/nail/signup");
     }
     if (pathname === "/login") {
       const loginUrl = smartLoginUrl(request);
@@ -98,11 +105,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
     if (pathname === "/onboarding") {
-      return NextResponse.rewrite(new URL("/nail/onboarding", request.url));
+      return rewriteTo(request, "/nail/onboarding");
     }
     if (pathname.startsWith("/book/")) {
-      const slug = pathname.slice("/book/".length);
-      return NextResponse.rewrite(new URL(`/nail/book/${slug}`, request.url));
+      return rewriteTo(request, `/nail${pathname}`);
     }
     const allowed =
       pathname.startsWith("/nail") ||
