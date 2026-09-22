@@ -83,7 +83,7 @@ const DAY_TIME_PHRASES =
 const TERM_EXPANSIONS: Record<string, string[]> = {
   haircut: ["hair", "cut", "haircut", "trim", "grooming"],
   trimmed: ["hair", "trim"],
-  trim: ["trim", "hair", "fringe"],
+  trim: ["trim", "hair", "fringe", "tidy", "ends", "bangs"],
   colour: ["colour", "color", "tint", "dye"],
   color: ["colour", "color", "tint"],
   highlight: ["highlight", "highlights", "balayage"],
@@ -96,7 +96,6 @@ const TERM_EXPANSIONS: Record<string, string[]> = {
   mens: ["men", "male", "barber", "grooming", "gents", "gent", "gentleman", "gentlemans"],
   gentleman: ["gent", "gents", "men", "male", "haircut", "cut"],
   ladies: ["ladies", "women", "female", "woman", "lady"],
-  trim: ["trim", "tidy", "ends", "fringe", "bangs"],
 };
 
 function stripDateTimePhrases(query: string): string {
