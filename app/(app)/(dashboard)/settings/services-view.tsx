@@ -632,7 +632,7 @@ function ServiceCard({
           id={`svc-desc-${service.id}`}
           value={description}
           onChange={(e) => setDescription(e.target.value.slice(0, DESCRIPTION_MAX))}
-          placeholder="What is included, prep notes, or anything clients or staff should know."
+          placeholder="What is included, prep notes, or words clients use (e.g. mens cut, blow dry) — SynkAI reads this when matching."
           rows={4}
           maxLength={DESCRIPTION_MAX}
           className={`${inputClass} resize-y min-h-[5rem]`}
@@ -919,7 +919,7 @@ export function ServicesView({
               name="new_service_description"
               value={newServiceDescription}
               onChange={(e) => setNewServiceDescription(e.target.value.slice(0, DESCRIPTION_MAX))}
-              placeholder="Optional: what is included, timing notes, or client-facing copy."
+              placeholder="Optional: what is included, timing notes, or phrases clients say (SynkAI uses this to match bookings)."
               rows={3}
               maxLength={DESCRIPTION_MAX}
               className={`${inputClass} resize-y min-h-[4.5rem]`}

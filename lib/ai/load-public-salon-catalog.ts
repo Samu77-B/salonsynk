@@ -165,6 +165,11 @@ async function fetchPublicSalonBySlug(slug: string): Promise<PublicSalonContext 
       ? settings.aftercare_message.trim()
       : null;
 
+  const synkaiHints =
+    typeof settings.synkai_hints === "string" && settings.synkai_hints.trim()
+      ? settings.synkai_hints.trim().slice(0, 2000)
+      : null;
+
   return {
     salonId,
     salonName: salon.name as string,
@@ -177,6 +182,7 @@ async function fetchPublicSalonBySlug(slug: string): Promise<PublicSalonContext 
     teamMembers: [],
     openingHoursNote: openingHoursFromSettings(settings),
     aftercareMessage,
+    synkaiHints,
     policyNotes: policyParts.join(" ") || "Standard salon cancellation policies apply. Contact the salon for no-show rules.",
   };
 }

@@ -60,6 +60,8 @@ export type SalonBookingCatalog = {
   teamMembers: AiBookingTeamMember[];
   openingHoursNote: string;
   aftercareMessage: string | null;
+  /** Optional salon-specific SynkAI notes from Settings → salon JSON (settings.synkai_hints). */
+  synkaiHints: string | null;
 };
 
 export type ResolveResult<T> =

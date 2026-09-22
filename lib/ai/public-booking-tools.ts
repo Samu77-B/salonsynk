@@ -332,7 +332,10 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
 export function buildPublicConciergePrompt(catalog: PublicSalonContext): string {
   const today = todaySalonDateIso();
   const categories = uniqueServiceCategories(catalog.services);
-  const serviceLines = catalog.services.slice(0, 30).map((s) => formatServiceCatalogLine(s)).join("\n");
+  const serviceLines = catalog.services.map((s) => formatServiceCatalogLine(s)).join("\n");
+  const salonHints = catalog.synkaiHints?.trim()
+    ? `\nSalon notes for matching client wording to services:\n${catalog.synkaiHints.trim()}\n`
+    : "";
 
   const productLines = catalog.products
     .slice(0, 15)
@@ -349,7 +352,7 @@ You help clients with:
 - General salon questions: opening hours, policies, what a service includes
 
 Opening hours: ${catalog.openingHoursNote}
-
+${salonHints}
 Rules:
 - Never mention internal staff tools or client databases
 - ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
@@ -360,6 +363,7 @@ Rules:
 - For style or colour advice, describe what the salon offers based on service list — do not invent services
 - If asked about opening times, use the opening hours note above; if unsure, suggest calling the salon
 - If asked about salon policy: ${catalog.policyNotes}
+- If a tool returns suggestions[], only offer those exact service names — do not say a service is missing unless the tool failed and the name is not in the Services list above
 - Be concise and welcoming; minimise tool calls
 
 Services (use descriptions to explain cuts, colour, highlights, etc.):
@@ -378,11 +382,14 @@ ${catalog.stylists.map((s) => `- ${s.name}`).join("\n") || "(any available)"}`;
 export function buildPublicQaPrompt(catalog: PublicSalonContext): string {
   const categories = uniqueServiceCategories(catalog.services);
   const serviceLines = catalog.services.map((s) => formatServiceCatalogLine(s, 180)).join("\n");
+  const salonHints = catalog.synkaiHints?.trim()
+    ? `\nSalon notes:\n${catalog.synkaiHints.trim()}\n`
+    : "";
 
   return `You are ${SYNKAI_AGENT_NAME} for ${catalog.salonName}. Answer client questions about services, styling, colour, pricing, policies, opening hours, and how to book.
 
 Opening hours: ${catalog.openingHoursNote}
-
+${salonHints}
 Policy context: ${catalog.policyNotes}
 
 Services (use these to answer questions about cuts, colour techniques, duration, and price):
@@ -403,5 +410,6 @@ Rules:
 - For opening times, use the opening hours note; do not invent hours
 - Do not invent services or prices not listed above
 - For account-specific questions, ask them to contact the salon directly
-- You cannot access live appointment schedules in QA mode — suggest ${SYNKAI_AGENT_NAME} booking for availability`;
+- You cannot access live appointment schedules in QA mode — suggest ${SYNKAI_AGENT_NAME} booking for availability
+- When describing services, use the exact bookable names from the list above (not category headings)`;
 }

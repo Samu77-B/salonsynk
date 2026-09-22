@@ -25,6 +25,32 @@ function normalizeQuery(value: string): string {
     .trim();
 }
 
+/** Collapse common multi-word salon phrases so "hair cut" matches "haircut" and "blow dry" matches "blowdry". */
+function compactServicePhrase(value: string): string {
+  return normalizeQuery(value)
+    .replace(/\bblow dry\b/g, "blowdry")
+    .replace(/\bhair cut\b/g, "haircut")
+    .replace(/\s+/g, "");
+}
+
+function serviceNamesEquivalent(a: string, b: string): boolean {
+  if (normalizeQuery(a) === normalizeQuery(b)) return true;
+  const ca = compactServicePhrase(a);
+  const cb = compactServicePhrase(b);
+  return Boolean(ca && cb && ca === cb);
+}
+
+function findServiceByNormalizedName(services: AiBookingService[], query: string): AiBookingService | null {
+  const q = normalizeQuery(query);
+  const qc = compactServicePhrase(query);
+  if (!q && !qc) return null;
+
+  for (const service of services) {
+    if (serviceNamesEquivalent(service.name, query)) return service;
+  }
+  return null;
+}
+
 const STOP_WORDS = new Set([
   "i",
   "need",
@@ -62,8 +88,15 @@ const TERM_EXPANSIONS: Record<string, string[]> = {
   color: ["colour", "color", "tint"],
   highlight: ["highlight", "highlights", "balayage"],
   blowdry: ["blow", "dry", "style", "blowdry"],
-  mens: ["men", "male", "barber", "grooming"],
-  ladies: ["ladies", "women", "female", "woman"],
+  brazilian: ["brazilian", "blowdry", "blow", "smooth"],
+  fade: ["fade", "skin", "taper", "clipper"],
+  balayage: ["balayage", "freehand", "hand", "painted"],
+  foil: ["foil", "foils", "highlight", "highlights"],
+  regrowth: ["root", "roots", "regrowth", "touch"],
+  mens: ["men", "male", "barber", "grooming", "gents", "gent", "gentleman", "gentlemans"],
+  gentleman: ["gent", "gents", "men", "male", "haircut", "cut"],
+  ladies: ["ladies", "women", "female", "woman", "lady"],
+  trim: ["trim", "tidy", "ends", "fringe", "bangs"],
 };
 
 function stripDateTimePhrases(query: string): string {
@@ -88,6 +121,12 @@ function extractSearchKeywords(query: string): string[] {
 
   if (normalized.includes("hair cut") || normalized.includes("haircut")) {
     ["hair", "cut", "haircut", "trim", "grooming", "barber"].forEach((k) => keywords.add(k));
+  }
+  if (normalized.includes("blow dry") || normalized.includes("blowdry")) {
+    ["blow", "dry", "blowdry", "style"].forEach((k) => keywords.add(k));
+  }
+  if (normalized.includes("cut and blow") || normalized.includes("wash and blow")) {
+    ["cut", "blow", "dry", "blowdry", "style", "hair"].forEach((k) => keywords.add(k));
   }
 
   return [...keywords].filter((k) => k.length >= 3);
@@ -180,6 +219,11 @@ export function matchServiceForBooking(services: AiBookingService[], query: stri
 
   const serviceIntent = stripDateTimePhrases(trimmed) || trimmed;
 
+  const exact = findServiceByNormalizedName(services, serviceIntent);
+  if (exact) {
+    return { ok: true, service: exact, needsConfirmation: false, alternatives: [] };
+  }
+
   const categoryHits = new Map<string, AiBookingService[]>();
   for (const service of services) {
     if (!service.categoryName) continue;
@@ -262,9 +306,11 @@ function scoreNameMatch(candidate: string, query: string): number {
   const c = normalizeQuery(candidate);
   const q = normalizeQuery(query);
   if (!c || !q) return 0;
-  if (c === q) return 100;
-  if (c.startsWith(q) || q.startsWith(c)) return 80;
-  if (c.includes(q) || q.includes(c)) return 60;
+  const cc = compactServicePhrase(candidate);
+  const qc = compactServicePhrase(query);
+  if (c === q || (cc && qc && cc === qc)) return 100;
+  if (c.startsWith(q) || q.startsWith(c) || cc.startsWith(qc) || qc.startsWith(cc)) return 80;
+  if (c.includes(q) || q.includes(c) || cc.includes(qc) || qc.includes(cc)) return 60;
   const qTokens = q.split(" ").filter(Boolean);
   const matched = qTokens.filter((t) => tokenMatchesText(c, t)).length;
   if (matched === 0) return 0;
@@ -313,9 +359,19 @@ export function resolveService(
   services: AiBookingService[],
   serviceName: string
 ): ResolveResult<AiBookingService> {
+  const exact = findServiceByNormalizedName(services, serviceName);
+  if (exact) return { ok: true, item: exact };
+
   const match = matchServiceForBooking(services, serviceName);
   if (match.ok) {
     if (match.needsConfirmation && match.alternatives.length > 0) {
+      const picked =
+        serviceNamesEquivalent(match.service.name, serviceName) ||
+        match.alternatives.some((alt) => serviceNamesEquivalent(alt, serviceName));
+      if (picked) {
+        const resolved = findServiceByNormalizedName(services, serviceName) ?? match.service;
+        return { ok: true, item: resolved };
+      }
       return {
         ok: false,
         error: `Several services could match "${serviceName}". Which did you mean?`,

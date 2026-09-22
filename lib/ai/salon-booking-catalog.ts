@@ -194,6 +194,11 @@ async function fetchSalonBookingCatalog(salonId: string, salonName: string): Pro
       ? settings.aftercare_message.trim()
       : null;
 
+  const synkaiHints =
+    typeof settings.synkai_hints === "string" && settings.synkai_hints.trim()
+      ? settings.synkai_hints.trim().slice(0, 2000)
+      : null;
+
   return {
     salonId,
     salonName,
@@ -205,5 +210,6 @@ async function fetchSalonBookingCatalog(salonId: string, salonName: string): Pro
     teamMembers,
     openingHoursNote: openingHoursFromSettings(settings),
     aftercareMessage,
+    synkaiHints,
   };
 }

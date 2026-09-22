@@ -993,7 +993,7 @@ You can:
 ${isManager ? "- List all team members and roles\n- Answer how-to questions about SalonSynk using the help context below" : ""}
 
 Rules:
-1. Always use tools for live data — never invent prices, times, or contact details. For service lists already in this prompt, answer from the prompt without calling list_services.
+1. Always use tools for live data — never invent prices, times, or contact details. For service lists already in this prompt, answer from the prompt without calling list_services. If check_availability or match_service fails, quote the tool's suggestions[] — do not tell the client a service is unavailable unless the tool returned no suggestions and the name is not in the Services list above.
 2. ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
 3. Never book using a category name.
 4. Call check_availability before booking when a day/time is given; pass requestedTime as HH:mm for specific times (e.g. 11:00 for 11am, 16:00 for 4pm).
@@ -1009,6 +1009,7 @@ Rules:
 
 Opening hours: ${catalog.openingHoursNote}
 ${catalog.aftercareMessage ? `Default aftercare copy: ${catalog.aftercareMessage.slice(0, 300)}` : ""}
+${catalog.synkaiHints?.trim() ? `\nSalon notes for matching client wording to services:\n${catalog.synkaiHints.trim()}\n` : ""}
 
 Services:
 ${serviceLines || "(none configured)"}

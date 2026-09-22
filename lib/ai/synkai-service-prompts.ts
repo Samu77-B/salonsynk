@@ -1,8 +1,19 @@
 import type { AiBookingService } from "./booking-types";
 import { formatDurationMinutes } from "@/lib/format-duration";
 import { formatPriceMinor } from "./booking-resolvers";
+import {
+  SYNKAI_CONFIRMATION_AND_TOOLS,
+  SYNKAI_HAIR_JARGON,
+  SYNKAI_TOOL_USE_FOR_BOOKING,
+} from "./synkai-hair-jargon";
 
 export const SYNKAI_NATURAL_LANGUAGE_SERVICES = `When someone describes a treatment in everyday language (e.g. "I need my hair trimmed", "roots coloured", "a haircut on Saturday"), map it to the closest **bookable service name** from the catalogue — never to a category heading.
+
+${SYNKAI_HAIR_JARGON}
+
+${SYNKAI_CONFIRMATION_AND_TOOLS}
+
+${SYNKAI_TOOL_USE_FOR_BOOKING}
 
 Prefer speed: pass their casual wording straight to check_availability (and later book_*). Those tools already fuzzy-match service names — do **not** call match_service first unless check_availability fails with askToClarify / multiple suggestions.
 
