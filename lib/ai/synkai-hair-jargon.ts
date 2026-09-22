@@ -26,14 +26,16 @@ Treatments
 
 Men's / barbering terms
 - "skin fade", "fade", "taper", "clipper cut", "buzz cut", "beard trim", "hot towel" → men's / grooming services as named on the menu
-- "mens haircut", "men's cut", "gents cut", "gentleman's haircut" → the **exact** men's/gents service name from the catalogue (never rename it — if the menu says "Gents Cut", use "Gents Cut", not "Gentleman's Haircut")
+- "mens haircut", "men's cut", "gents cut", "gentleman's haircut" → call match_service or read the **Services** list in this prompt and use that row's exact name (never invent labels like "Gents Cut" unless that exact string appears in the catalogue or match_service.serviceName)
 
 When several services could fit, ask one short question using **exact service names from the catalogue or tool suggestions** — never invent a service name that is not in the list.`;
 
 export const SYNKAI_TOOL_USE_FOR_BOOKING = `Booking requests (service + date/time):
 - Always call match_service or check_availability before saying a service is missing or unavailable
-- Never guess or rename services (e.g. do not say "Gentleman's Haircut" unless that exact name is in the catalogue or tool output)
-- If the client only confirms ("yes", "that's fine", "anytime tomorrow"), reuse the last serviceName you resolved — combine with their date/time in check_availability`;
+- Before suggesting an alternative service name to the client, call match_service and quote match_service.serviceName (catalogue spelling)
+- Never guess or rename services — jargon examples are NOT menu names
+- If check_availability returns a matched service but no slots, say the service was found and offer alternative times — do not say the service does not exist
+- If the client only confirms ("yes", "that's fine", "anytime tomorrow"), reuse the last match_service.serviceName — combine with their date/time in check_availability`;
 
 export const SYNKAI_CONFIRMATION_AND_TOOLS = `After the client confirms ("yes", "that's the one", "book it"):
 - Reuse the **exact service name** you already matched (from the catalogue or tool suggestions) — never pass "yes" or "that one" as the service name

@@ -20,8 +20,12 @@ import {
   uniqueServiceCategories,
 } from "@/lib/ai/synkai-service-prompts";
 
-function errorPayload(message: string, suggestions: string[] = []) {
-  return { success: false as const, error: message, suggestions };
+function errorPayload(
+  message: string,
+  suggestions: string[] = [],
+  extra?: { matchedServiceName?: string; failureReason?: "service_not_found" | "no_availability" | "invalid_date" }
+) {
+  return { success: false as const, error: message, suggestions, ...extra };
 }
 
 function successPayload<T extends Record<string, unknown>>(data: T) {
@@ -147,9 +151,18 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
       }),
       execute: async ({ stylistName, serviceName, dateIso, timePreference, requestedTime }) => {
         const serviceResult = resolveService(services, serviceName);
-        if (!serviceResult.ok) return errorPayload(serviceResult.error, serviceResult.suggestions);
+        if (!serviceResult.ok) {
+          return errorPayload(serviceResult.error, serviceResult.suggestions, {
+            failureReason: "service_not_found",
+          });
+        }
         const dateIsoNorm = parseSalonDateIso(dateIso);
-        if (!dateIsoNorm) return errorPayload("Please provide a valid date.", []);
+        if (!dateIsoNorm) {
+          return errorPayload("Please provide a valid date.", [], {
+            matchedServiceName: serviceResult.item.name,
+            failureReason: "invalid_date",
+          });
+        }
 
         const stylistCandidates = stylistName?.trim()
           ? [resolveStylist(stylists, stylistName)]
@@ -216,7 +229,8 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
           const alt = slotRows.slice(0, 6).map((s) => `${s.stylist}: ${s.dayLabel} at ${s.timeLabel}`);
           return errorPayload(
             `Not available at ${requestedTime} on ${dateIsoNorm}. Here are the next available times:`,
-            alt
+            alt,
+            { matchedServiceName: serviceResult.item.name, failureReason: "no_availability" }
           );
         }
 
@@ -231,7 +245,10 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
         }
 
         if (slotRows.length === 0) {
-          return errorPayload("No openings on that day. Try another date or stylist.", stylists.map((s) => s.name));
+          return errorPayload("No openings on that day. Try another date or stylist.", stylists.map((s) => s.name), {
+            matchedServiceName: serviceResult.item.name,
+            failureReason: "no_availability",
+          });
         }
 
         return successPayload({
@@ -356,7 +373,9 @@ ${salonHints}
 Rules:
 - Never mention internal staff tools or client databases
 - ${SYNKAI_NATURAL_LANGUAGE_SERVICES}
+- Before suggesting a different service name to the client, call match_service and use the returned serviceName verbatim
 - If check_availability / match_service returns askToClarify or multiple suggestions, ask a friendly follow-up (e.g. men's or ladies' haircut) using the exact service names returned.
+- If check_availability returns failureReason "no_availability" and matchedServiceName, the service exists — offer other times; do not say the service is missing
 - Prefer check_availability then book_guest_appointment — skip list_services / match_service when the catalogue above is enough
 - When the client confirms with "yes", "that's right", etc., reuse the exact serviceName you already identified — never pass the word "yes" as the service name
 - Resolve "Saturday", "tomorrow", etc. to a YYYY-MM-DD date before calling check_availability

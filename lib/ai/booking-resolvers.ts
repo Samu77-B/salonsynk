@@ -27,10 +27,45 @@ function normalizeQuery(value: string): string {
 
 /** Collapse common multi-word salon phrases so "hair cut" matches "haircut" and "blow dry" matches "blowdry". */
 function compactServicePhrase(value: string): string {
-  return normalizeQuery(value)
+  const n = normalizeQuery(value)
     .replace(/\bblow dry\b/g, "blowdry")
     .replace(/\bhair cut\b/g, "haircut")
     .replace(/\s+/g, "");
+  if (queryImpliesGentsCut(value)) return "gentshaircut";
+  return n;
+}
+
+/** Strip booking filler so "yes make it a gents cut for 11am tomorrow" → "gents cut". */
+function normalizeServiceIntent(query: string): string {
+  let q = stripDateTimePhrases(query.trim()) || query.trim();
+  const noise =
+    /^(?:yes|yeah|yep|yup|ok|okay|please|sure|correct|right|that?s fine|make it(?: a)?|book(?: me)?(?: in)?(?: for)?|i want(?: a)?|can i get(?: a)?|hi|hello|thanks)\b[\s,.]*/gi;
+  for (let i = 0; i < 4; i++) {
+    const next = q.replace(noise, "").trim();
+    if (next === q) break;
+    q = next;
+  }
+  return q.replace(/\bfor\s*$/i, "").replace(/\s+/g, " ").trim();
+}
+
+function queryImpliesGentsCut(query: string): boolean {
+  const q = normalizeQuery(query);
+  const mens = /\b(gents?|mens?|men|gentleman|gentlemans|male|barber|grooming)\b/.test(q);
+  const cut = /\b(cut|haircut|trim|clip|fade|shape)\b/.test(q) || q.includes("hair cut");
+  return mens && cut;
+}
+
+function findGentsCutService(services: AiBookingService[]): AiBookingService | null {
+  const hits = services.filter((s) => {
+    const n = normalizeQuery(s.name);
+    const mens = /\b(gent|gents|men|mens|male|barber|grooming)\b/.test(n);
+    const cut = /\b(cut|haircut|trim|clip|fade)\b/.test(n);
+    return mens && cut;
+  });
+  if (hits.length === 1) return hits[0];
+  if (hits.length === 0) return null;
+  const preferGents = hits.find((s) => /\bgents?\b/i.test(s.name));
+  return preferGents ?? hits[0];
 }
 
 function serviceNamesEquivalent(a: string, b: string): boolean {
@@ -216,7 +251,7 @@ export function matchServiceForBooking(services: AiBookingService[], query: stri
     };
   }
 
-  const serviceIntent = stripDateTimePhrases(trimmed) || trimmed;
+  const serviceIntent = normalizeServiceIntent(trimmed) || stripDateTimePhrases(trimmed) || trimmed;
 
   const exact = findServiceByNormalizedName(services, serviceIntent);
   if (exact) {
@@ -246,6 +281,21 @@ export function matchServiceForBooking(services: AiBookingService[], query: stri
     const rootTint = findRootTintService(services);
     if (rootTint) {
       return { ok: true, service: rootTint, needsConfirmation: true, alternatives: [] };
+    }
+  }
+
+  if (queryImpliesGentsCut(serviceIntent) || queryImpliesGentsCut(trimmed)) {
+    const gentsCut = findGentsCutService(services);
+    if (gentsCut) {
+      const alts = services
+        .filter((s) => s.id !== gentsCut.id && queryImpliesGentsCut(s.name))
+        .map((s) => s.name);
+      return {
+        ok: true,
+        service: gentsCut,
+        needsConfirmation: alts.length > 0,
+        alternatives: alts.slice(0, 3),
+      };
     }
   }
 
@@ -358,7 +408,8 @@ export function resolveService(
   services: AiBookingService[],
   serviceName: string
 ): ResolveResult<AiBookingService> {
-  const exact = findServiceByNormalizedName(services, serviceName);
+  const intent = normalizeServiceIntent(serviceName) || serviceName;
+  const exact = findServiceByNormalizedName(services, intent);
   if (exact) return { ok: true, item: exact };
 
   const match = matchServiceForBooking(services, serviceName);
