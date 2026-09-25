@@ -9,7 +9,7 @@ import type {
 } from "@core/gymsynk/types";
 
 const DEFAULT_DEV_URL = "http://localhost:3000";
-const DEFAULT_PROD_URL = "https://gymsynk.net";
+const DEFAULT_PROD_URL = "https://www.gymsynk.net";
 const HEALTH_TIMEOUT_MS = 4000;
 const MUTATION_TIMEOUT_MS = 15000;
 
@@ -19,7 +19,10 @@ function gymsynkBaseUrl(): string {
     explicit || (process.env.NODE_ENV === "production" ? DEFAULT_PROD_URL : DEFAULT_DEV_URL)
   ).replace(/\/$/, "");
   try {
-    return new URL(raw).origin;
+    const url = new URL(raw);
+    // Apex 308s to www and fetch drops Authorization on that host change.
+    if (url.hostname === "gymsynk.net") url.hostname = "www.gymsynk.net";
+    return url.origin;
   } catch {
     return raw;
   }
