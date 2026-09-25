@@ -9,13 +9,15 @@ import {
   salonPublicUrlsLabel,
   salonShopUrl,
 } from "@core/config/platform-urls";
+import { fetchGymsynkTenants } from "@core/gymsynk/admin-api";
 import { fetchPaysynkOverview } from "@core/paysynk/admin-api";
 import Link from "next/link";
 
 export default async function AdminDashboardPage() {
   const supabase = createAdminClient();
 
-  const [profilesRes, salonsRes, barberShopsRes, nailSalonsRes, paysynkOverview] = await Promise.all([
+  const [profilesRes, salonsRes, barberShopsRes, nailSalonsRes, paysynkOverview, gymsynkTenants] =
+    await Promise.all([
     supabase
       .from("profiles")
       .select("id, email, full_name, created_at, is_super_admin")
@@ -34,6 +36,7 @@ export default async function AdminDashboardPage() {
       .select("id, name, slug, subscription_status, created_at")
       .order("created_at", { ascending: false }),
     fetchPaysynkOverview(),
+    fetchGymsynkTenants(),
   ]);
 
   const profiles = profilesRes.data ?? [];
@@ -320,6 +323,55 @@ export default async function AdminDashboardPage() {
               >
                 <p className="text-xs text-muted">{label}</p>
                 <p className="mt-1 text-2xl font-semibold">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">GymSynk</h2>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin/gymsynk/new"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90"
+            >
+              Add gym
+            </Link>
+            <Link href="/admin/gymsynk" className="text-sm text-accent hover:underline">
+              View all
+            </Link>
+          </div>
+        </div>
+        {!gymsynkTenants.ok ? (
+          <p className="text-sm text-amber-400">
+            {gymsynkTenants.availability === "unconfigured"
+              ? "GymSynk is not configured. Set GYMSYNK_ADMIN_API_KEY on the server."
+              : `GymSynk is unavailable — ${gymsynkTenants.error}`}
+          </p>
+        ) : gymsynkTenants.data.length === 0 ? (
+          <p className="text-sm text-muted">No gyms yet. Add one to get started.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {gymsynkTenants.data.map((gym) => (
+              <div
+                key={gym.id}
+                className="flex flex-col gap-2 rounded-xl border border-border bg-white/[0.02] p-4"
+              >
+                <h3 className="truncate font-semibold" title={gym.name}>
+                  {gym.name}
+                </h3>
+                <p className="font-mono text-xs text-muted">{gym.slug}</p>
+                <p className="text-sm text-muted">{gym.owner?.email || "No owner email"}</p>
+                <a
+                  href={gym.loginUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-accent hover:underline"
+                >
+                  Owner login
+                </a>
               </div>
             ))}
           </div>

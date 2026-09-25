@@ -16,13 +16,14 @@ type NavItem = {
 
 const MAIN_NAV: NavItem[] = [{ label: "Overview", href: "/smart/overview" }];
 
-type SidebarPlatformId = SmartPlatformId | "paysynk";
+type SidebarPlatformId = SmartPlatformId | "paysynk" | "gym";
 
 const PLATFORM_NAV: (NavItem & { platform: SidebarPlatformId })[] = [
   { label: "SalonSynk", href: "/admin/salons", platform: "salon" },
   { label: "BarberSynk", href: "/admin/barber-shops", platform: "barber" },
   { label: "NailSynk", href: "/admin/nail-salons", platform: "nail" },
   { label: "PaySynk", href: "/admin/paysynk", platform: "paysynk" },
+  { label: "GymSynk", href: "/admin/gymsynk", platform: "gym" },
 ];
 
 const TOOLS_NAV: NavItem[] = [
@@ -35,7 +36,16 @@ const PLATFORM_LABELS: Record<string, string> = {
   salon: "SalonSynk",
   barber: "BarberSynk",
   nail: "NailSynk",
+  gym: "GymSynk",
 };
+
+function GymPlatformIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+      <path strokeLinecap="round" strokeWidth={2} d="M4 10v4M20 10v4M7 8v8M17 8v8M7 12h10" />
+    </svg>
+  );
+}
 
 type SmartSidebarProps = {
   userName: string;
@@ -117,7 +127,11 @@ export function SmartSidebar({
                         : "text-muted hover:bg-foreground/5 hover:text-foreground"
                     }`}
                   >
-                    <PlatformIcon platform={item.platform} className="h-4 w-4 shrink-0 text-accent" />
+                    {item.platform === "gym" ? (
+                      <GymPlatformIcon className="h-4 w-4 shrink-0 text-accent" />
+                    ) : (
+                      <PlatformIcon platform={item.platform} className="h-4 w-4 shrink-0 text-accent" />
+                    )}
                     <span className="flex-1">{item.label}</span>
                     <svg className="h-3 w-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

@@ -13,6 +13,7 @@ import {
   formatMinorAsCurrency,
   type DashboardOverviewStats,
 } from "@core/smart/dashboard-stats";
+import { fetchGymsynkHealth, gymsynkAvailabilityLabel } from "@core/gymsynk/admin-api";
 import { fetchPaysynkOverview, paysynkAvailabilityLabel } from "@core/paysynk/admin-api";
 import type { PaysynkResult, PaysynkOverview } from "@core/paysynk/types";
 
@@ -46,7 +47,7 @@ export default async function SmartOverviewPage() {
 
   let stats = EMPTY_STATS;
   let paysynk: PaysynkResult<PaysynkOverview> | null = null;
-  const [dbStats, pay] = await Promise.all([
+  const [dbStats, pay, gym] = await Promise.all([
     (async () => {
       try {
         return isSuperAdmin
@@ -57,6 +58,7 @@ export default async function SmartOverviewPage() {
       }
     })(),
     isSuperAdmin ? fetchPaysynkOverview() : Promise.resolve(null),
+    isSuperAdmin ? fetchGymsynkHealth() : Promise.resolve(null),
   ]);
   stats = dbStats;
   paysynk = pay;
@@ -75,6 +77,15 @@ export default async function SmartOverviewPage() {
       : {
           status: paysynkAvailabilityLabel(paysynk.availability),
           tone: paysynk.availability === "unconfigured" ? ("warn" as const) : ("down" as const),
+        }
+    : undefined;
+
+  const gymsynkStatus = gym
+    ? gym.ok
+      ? { status: "Operational" as const, tone: "ok" as const }
+      : {
+          status: gymsynkAvailabilityLabel(gym.availability),
+          tone: gym.availability === "unconfigured" ? ("warn" as const) : ("down" as const),
         }
     : undefined;
 
@@ -142,7 +153,11 @@ export default async function SmartOverviewPage() {
             data={stats.platformDistribution}
             total={stats.appointmentsToday}
           />
-          {isSuperAdmin ? <SystemStatus paysynk={paysynkStatus} /> : <div className="hidden lg:block" />}
+          {isSuperAdmin ? (
+            <SystemStatus paysynk={paysynkStatus} gymsynk={gymsynkStatus} />
+          ) : (
+            <div className="hidden lg:block" />
+          )}
         </div>
       </main>
     </>

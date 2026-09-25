@@ -24,16 +24,22 @@ const TONE_DOT: Record<StatusTone, string> = {
   down: "bg-red-400",
 };
 
+type RemoteStatus = { status: string; tone: StatusTone };
+
 type SystemStatusProps = {
-  paysynk?: { status: string; tone: StatusTone };
+  paysynk?: RemoteStatus;
+  gymsynk?: RemoteStatus;
 };
 
-export function SystemStatus({ paysynk }: SystemStatusProps) {
+export function SystemStatus({ paysynk, gymsynk }: SystemStatusProps) {
   const systems: SystemRow[] = [
     ...CORE_SYSTEMS,
     paysynk
       ? { name: "PaySynk", status: paysynk.status, tone: paysynk.tone }
       : { name: "PaySynk", status: "Unavailable", tone: "down" },
+    gymsynk
+      ? { name: "GymSynk", status: gymsynk.status, tone: gymsynk.tone }
+      : { name: "GymSynk", status: "Unavailable", tone: "down" },
     { name: "SmartSynk API", status: "Operational", tone: "ok" },
   ];
 
