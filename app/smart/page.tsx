@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 export default async function SmartLandingPage() {
-  let stats = displayLandingStats({ businesses: 0, appointments: 0, transactions: 0, platforms: 4 });
+  let stats = displayLandingStats({ businesses: 0, appointments: 0, transactions: 0, platforms: 5 });
   try {
     const raw = await fetchLandingStats();
     stats = displayLandingStats(raw);
@@ -82,9 +82,9 @@ export default async function SmartLandingPage() {
                 Own more than one location?
               </h2>
               <p className="mt-3 text-zinc-600">
-                SmartSynk is for group owners — see every salon, barber shop, and nail studio you own
-                in one place, then open any location to run the day. Site managers keep their own
-                logins for a single site.
+                SmartSynk is for group owners — see every salon, barber shop, nail studio, gym, and
+                retail site you own in one place, then open any location to run the day. Site
+                managers keep their own logins for a single site.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
                 <Link

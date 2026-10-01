@@ -4,6 +4,7 @@ export const SMART_PLATFORM_ICON_SRC: Record<SmartMarketingPlatformId, string> =
   salon: "/imgs/smart/salonsynk-platform-icon.png",
   barber: "/imgs/smart/barbersynk-platform-icon.png",
   nail: "/imgs/smart/nailsynk-platform-icon.png",
+  gym: "/imgs/smart/gymsynk-platform-icon.svg",
   paysynk: "/imgs/smart/paysynk-platform-icon.png",
 };
 
@@ -49,6 +50,10 @@ export function NailSynkIcon(props: Omit<PlatformIconProps, "platform">) {
 
 export function PaySynkIcon(props: Omit<PlatformIconProps, "platform">) {
   return <PlatformIcon platform="paysynk" {...props} />;
+}
+
+export function GymSynkIcon(props: Omit<PlatformIconProps, "platform">) {
+  return <PlatformIcon platform="gym" {...props} />;
 }
 
 /** @deprecated Use PlatformIcon or SalonSynkIcon */

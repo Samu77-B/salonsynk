@@ -6,12 +6,13 @@ import { SITE } from "@core/config/site";
 import { BARBER_SITE } from "@core/config/barber-site";
 import { NAIL_SITE } from "@core/config/nail-site";
 import { PAYSYNK_SITE } from "@core/config/paysynk-site";
+import { GYM_SITE } from "@core/config/gym-site";
 
 export const SMART_SITE = {
   name: "SmartSynk",
   tagline: "One login. Every location.",
   description:
-    "The hub for salon, barber, nail, and retail groups — see all your locations in one place, then open any site to run the day.",
+    "The hub for salon, barber, nail, studio, and retail groups — see all your locations in one place, then open any site to run the day.",
   url: "https://smartsynk.net",
   email: "hello@smartsynk.net",
   studio: "Paradigm Digital Studio",
@@ -23,6 +24,7 @@ export const SMART_SITE = {
     barber: "/imgs/smart/barbersynk-platform-icon.png",
     nail: "/imgs/smart/nailsynk-platform-icon.png",
     paysynk: "/imgs/smart/paysynk-platform-icon.png",
+    gym: "/imgs/smart/gymsynk-platform-icon.svg",
   },
 } as const;
 
@@ -44,8 +46,8 @@ export const SMART_JSON_LD = {
   subOrganization: [
     {
       "@type": "SoftwareApplication",
-      name: "GymSynk",
-      url: "https://gymsynk.com",
+      name: GYM_SITE.name,
+      url: GYM_SITE.url,
     },
     {
       "@type": "SoftwareApplication",
@@ -104,7 +106,7 @@ export const SMART_NAV_ITEMS = [
 export const SMART_FAQ_ITEMS = [
   {
     q: "What is SmartSynk?",
-    a: "SmartSynk is the hub for SalonSynk, BarberSynk, NailSynk, and PaySynk. If you own several locations — or mix salons, barber shops, nail bars, and retail — one login shows how they are all doing, then lets you open any site.",
+    a: "SmartSynk is the hub for SalonSynk, BarberSynk, NailSynk, GymSynk, and PaySynk. If you own several locations — or mix salons, barber shops, nail bars, studios, and retail — one login shows how they are all doing, then lets you open any site.",
   },
   {
     q: "I own multiple salons. Do my managers share my login?",
@@ -112,11 +114,11 @@ export const SMART_FAQ_ITEMS = [
   },
   {
     q: "Do I need a separate account for each platform?",
-    a: "No. One SmartSynk account covers SalonSynk, BarberSynk, NailSynk, and PaySynk. Own two salons and a nail bar? They all appear on your SmartSynk overview.",
+    a: "No. One SmartSynk account covers SalonSynk, BarberSynk, NailSynk, GymSynk, and PaySynk. Own two salons and a nail bar? They all appear on your SmartSynk overview.",
   },
   {
     q: "Which platform should I use?",
-    a: "SalonSynk for hair salons, BarberSynk for barber shops with walk-in queues, NailSynk for nail studios, and PaySynk for retail shopfronts and payments. Visit each product site to learn more and sign up — then manage the group from SmartSynk.",
+    a: "SalonSynk for hair salons, BarberSynk for barber shops with walk-in queues, NailSynk for nail studios, GymSynk for class-based studios and gyms, and PaySynk for retail shopfronts and payments. Visit each product site to learn more and sign up — then manage the group from SmartSynk.",
   },
   {
     q: "How do I get help or request a demo?",
@@ -126,7 +128,7 @@ export const SMART_FAQ_ITEMS = [
 
 export const SMART_ABOUT = {
   headline: "One owner. Many locations. One hub.",
-  body: "Whether you run Hair Top in East London and Birmingham, a barber shop and a nail bar under the same brand, a retail counter on PaySynk, or a growing group across the country — SmartSynk is where group owners see appointments, revenue, and activity across every location. Managers still log into their own site; you stay above the day-to-day with a clear view of the whole group.",
+  body: "Whether you run Hair Top in East London and Birmingham, a barber shop and a nail bar under the same brand, a boutique studio on GymSynk, a retail counter on PaySynk, or a growing group across the country — SmartSynk is where group owners see appointments, revenue, and activity across every location. Managers still log into their own site; you stay above the day-to-day with a clear view of the whole group.",
   specializationLabel: "our platforms:",
   watermark: "Sy",
 } as const;
@@ -160,6 +162,15 @@ export const SMART_HERO_SLIDES = [
     image: "/imgs/smart/hero-nail.jpg",
   },
   {
+    id: "gym" as const,
+    headline: "YOUR STUDIO. YOUR SCHEDULE. YOUR MEMBERS.",
+    description:
+      "Class timetables, 1:1 coaching, and session packages — built for boutique studios and modern gyms.",
+    cta: "Explore GymSynk",
+    href: GYM_SITE.url,
+    image: "/imgs/smart/hero-gym.svg",
+  },
+  {
     id: "paysynk" as const,
     headline: "YOUR SHOP. YOUR TILL. YOUR WAY.",
     description:
@@ -180,7 +191,7 @@ export type SmartShowcaseAccordionItem = {
 export type SmartPlatformId = "salon" | "barber" | "nail";
 
 /** Marketing platforms listed on SmartSynk (includes PaySynk, which is a separate app). */
-export type SmartMarketingPlatformId = SmartPlatformId | "paysynk";
+export type SmartMarketingPlatformId = SmartPlatformId | "paysynk" | "gym";
 
 export type SmartShowcaseTab = {
   id: SmartMarketingPlatformId;
@@ -343,6 +354,54 @@ export const SMART_SHOWCASE_TABS: readonly SmartShowcaseTab[] = [
     ],
   },
   {
+    id: "gym",
+    label: "Studios & gyms",
+    productName: GYM_SITE.name,
+    tagline: "Class timetables, 1:1 sessions, and packages for boutique studios and gyms.",
+    ctaLabel: "Explore GymSynk",
+    href: GYM_SITE.url,
+    color: "#818cf8",
+    image: "/imgs/smart/panel-gym.svg",
+    imageAlt: "GymSynk studio and class management",
+    accordion: [
+      {
+        title: "Publish a timetable clients can book from any device.",
+        body: "List classes, workshops, and open slots in one schedule. Members pick a session and confirm without back-and-forth messages.",
+        bullets: [
+          "Weekly class timetable with capacity per session",
+          "Public booking for classes and 1:1 slots",
+          "One place for coaches to see who is coming",
+        ],
+      },
+      {
+        title: "Sell packages that tie to bookings, not a separate till.",
+        body: "Session packs and intro offers live next to the schedule — when someone buys a package, bookings draw down the balance automatically.",
+        bullets: [
+          "Multi-session packages and intro bundles",
+          "Balance tracked against future bookings",
+          "Ideal for coaching, reformer, and boutique fitness",
+        ],
+      },
+      {
+        title: "Run the studio from GymSynk; group owners stay on SmartSynk.",
+        body: "GymSynk is its own app at gymsynk.net. Add studios from SmartSynk when you onboard a new location, then hand day-to-day to your studio team.",
+        bullets: [
+          "Owner onboarding from the SmartSynk dashboard",
+          "Studio staff log in at gymsynk.net",
+          "Fits alongside salons, barbers, nails, and retail",
+        ],
+      },
+    ],
+    features: [
+      "Class timetable",
+      "1:1 session booking",
+      "Session packages",
+      "Capacity per class",
+      "Studio staff login",
+      "SmartSynk overview",
+    ],
+  },
+  {
     id: "paysynk",
     label: "Retail shops",
     productName: PAYSYNK_SITE.name,
@@ -422,6 +481,16 @@ export const SMART_PLATFORMS = [
     color: "#f472b6",
     icon: "nail-polish",
     panelImage: "/imgs/smart/panel-nail.jpg",
+  },
+  {
+    id: "gym" as const,
+    name: GYM_SITE.name,
+    description: "Studios, classes, and session packages",
+    url: GYM_SITE.url,
+    dashboardPath: "/admin/gymsynk",
+    color: "#818cf8",
+    icon: "dumbbell",
+    panelImage: "/imgs/smart/panel-gym.svg",
   },
   {
     id: "paysynk" as const,

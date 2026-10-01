@@ -32,7 +32,7 @@ const EMPTY_STATS: DashboardOverviewStats = {
   dailyPerformance: [],
   topLocations: [],
   recentActivity: [],
-  landingStats: { businesses: 0, appointments: 0, transactions: 0, platforms: 4 },
+  landingStats: { businesses: 0, appointments: 0, transactions: 0, platforms: 5 },
 };
 
 export default async function SmartOverviewPage() {

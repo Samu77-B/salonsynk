@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" role="img" aria-label="GymSynk studio management">
+  <defs>
+    <linearGradient id="hero-gym-bg" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0%" stop-color="#312e81"/>
+      <stop offset="55%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#0f0d2e"/>
+    </linearGradient>
+    <radialGradient id="hero-gym-glow" cx="70%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#hero-gym-bg)"/>
+  <rect width="1920" height="1080" fill="url(#hero-gym-glow)"/>
+  <g opacity="0.15" stroke="#a5b4fc" stroke-width="2">
+    <line x1="0" y1="200" x2="1920" y2="200"/>
+    <line x1="0" y1="400" x2="1920" y2="400"/>
+    <line x1="0" y1="600" x2="1920" y2="600"/>
+    <line x1="0" y1="800" x2="1920" y2="800"/>
+  </g>
+  <rect x="980" y="280" width="520" height="520" rx="32" fill="#0f0d2e" stroke="#818cf8" stroke-width="2" opacity="0.9"/>
+  <rect x="1040" y="360" width="140" height="100" rx="12" fill="#4338ca"/>
+  <rect x="1200" y="360" width="140" height="100" rx="12" fill="#4f46e5"/>
+  <rect x="1360" y="360" width="100" height="100" rx="12" fill="#6366f1"/>
+  <rect x="1040" y="500" width="420" height="16" rx="8" fill="#6366f1"/>
+  <rect x="1040" y="540" width="320" height="16" rx="8" fill="#818cf8"/>
+  <rect x="1040" y="620" width="200" height="48" rx="12" fill="#a5b4fc"/>
+</svg>
