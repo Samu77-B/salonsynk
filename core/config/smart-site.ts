@@ -168,7 +168,7 @@ export const SMART_HERO_SLIDES = [
       "Class timetables, 1:1 coaching, and session packages — built for boutique studios and modern gyms.",
     cta: "Explore GymSynk",
     href: GYM_SITE.url,
-    image: "/imgs/smart/hero-gym.svg",
+    image: "/imgs/smart/hero-gym.jpg",
   },
   {
     id: "paysynk" as const,
@@ -361,7 +361,7 @@ export const SMART_SHOWCASE_TABS: readonly SmartShowcaseTab[] = [
     ctaLabel: "Explore GymSynk",
     href: GYM_SITE.url,
     color: "#818cf8",
-    image: "/imgs/smart/panel-gym.svg",
+    image: "/imgs/smart/panel-gym.jpg",
     imageAlt: "GymSynk studio and class management",
     accordion: [
       {
@@ -409,7 +409,7 @@ export const SMART_SHOWCASE_TABS: readonly SmartShowcaseTab[] = [
     ctaLabel: "Explore PaySynk",
     href: PAYSYNK_SITE.url,
     color: "#22c55e",
-    image: "/imgs/smart/panel-paysynk.svg",
+    image: "/imgs/smart/panel-paysynk.jpg",
     imageAlt: "PaySynk retail shopfront and payments",
     accordion: [
       {
@@ -490,7 +490,7 @@ export const SMART_PLATFORMS = [
     dashboardPath: "/admin/gymsynk",
     color: "#818cf8",
     icon: "dumbbell",
-    panelImage: "/imgs/smart/panel-gym.svg",
+    panelImage: "/imgs/smart/panel-gym.jpg",
   },
   {
     id: "paysynk" as const,
@@ -500,7 +500,7 @@ export const SMART_PLATFORMS = [
     dashboardPath: "/admin/paysynk",
     color: "#22c55e",
     icon: "cart",
-    panelImage: "/imgs/smart/panel-paysynk.svg",
+    panelImage: "/imgs/smart/panel-paysynk.jpg",
   },
 ] as const;
 
