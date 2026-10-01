@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SMART_JSON_LD } from "@core/config/smart-site";
 
 export const metadata: Metadata = {
   icons: {
@@ -9,5 +10,13 @@ export const metadata: Metadata = {
 };
 
 export default function SmartLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(SMART_JSON_LD) }}
+      />
+      {children}
+    </>
+  );
 }

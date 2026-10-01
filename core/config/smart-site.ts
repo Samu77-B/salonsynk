@@ -26,6 +26,50 @@ export const SMART_SITE = {
   },
 } as const;
 
+/** Structured data for SmartSynk marketing pages (schema.org Organization + SoftwareApplication). */
+export const SMART_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": ["Organization", "SoftwareApplication"],
+  name: SMART_SITE.name,
+  url: SMART_SITE.url,
+  operatingSystem: "Web, iOS, Android",
+  applicationCategory: "BusinessApplication",
+  description:
+    "The central SaaS network and ecosystem management portal unifying specialized booking, payment, and operational tools including GymSynk, SalonSynk, BarberSynk, NailSynk, and PaySynk.",
+  parentOrganization: {
+    "@type": "Organization",
+    name: "Paradigm Studio & Labs",
+    url: "https://paradigmstudiolabs.com",
+  },
+  subOrganization: [
+    {
+      "@type": "SoftwareApplication",
+      name: "GymSynk",
+      url: "https://gymsynk.com",
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: SITE.name,
+      url: SITE.url,
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: BARBER_SITE.name,
+      url: BARBER_SITE.url,
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: NAIL_SITE.name,
+      url: NAIL_SITE.url,
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: PAYSYNK_SITE.name,
+      url: "https://paysynk.com",
+    },
+  ],
+} as const;
+
 /** Adjust real DB counts for public SmartSynk marketing stats (front page only). */
 export const SMART_LANDING_STAT_DISPLAY = {
   /** 9 real businesses display as 90; each new signup adds 1 (91, 92, …). */
