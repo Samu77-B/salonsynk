@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     .eq("id", context.salon.id)
     .maybeSingle();
 
-  const settings = parseLoyaltySettings((salon?.settings as Record<string, unknown>) ?? {});
+  const settings = parseLoyaltySettings((salon?.settings as Record<string, unknown>) ?? {}, context.salon.slug);
   if (!settings.enabled) return NextResponse.json({ enabled: false });
 
   const balance = await fetchClientLoyaltyBalance(supabase, context.salon.id, clientId);

@@ -6,6 +6,7 @@ import { GuestBookingForm } from "./guest-booking-form";
 import { PublicBookingExperience } from "@/components/public/public-booking-experience";
 import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 import { salonRowHasFeature } from "@/lib/salon-features";
+import { publicBookingFormModel } from "@/lib/public-booking/form-model";
 
 export default async function BookPage({
   params,
@@ -101,6 +102,21 @@ export default async function BookPage({
   const logoUrl = brandingStr("logo_url").trim() || undefined;
   const showShopLink = salonRowHasFeature(salon, "products_shop");
   const showSalonQa = branding.show_salon_qa_on_booking === true;
+  const categories = ((categoriesRes as { data?: { id: string; name: string; sort_order: number }[] | null }).data ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+  }));
+  const serviceRows = (servicesRes.data ?? []).map((s) => {
+    const row = s as { id: string; name: string; duration_minutes: number; category_id?: string | null };
+    return { id: row.id, name: row.name, duration_minutes: row.duration_minutes, category_id: row.category_id ?? null };
+  });
+  const formModel = publicBookingFormModel({
+    slug,
+    salonName: displayName,
+    settings,
+    services: serviceRows,
+    categories,
+  });
 
   return (
     <main
@@ -141,22 +157,20 @@ export default async function BookPage({
           slug={slug}
           salonName={displayName}
           showSalonQa={showSalonQa}
+          clubHref={formModel.policy.clubPortalEnabled ? formModel.clubHref : undefined}
+          clubName={formModel.policy.clubPortalEnabled ? formModel.policy.clubName : undefined}
           form={
             <GuestBookingForm
               salonId={salon.id}
               salonName={displayName}
-              services={(servicesRes.data ?? []).map((s) => {
-                const row = s as { id: string; name: string; duration_minutes: number; category_id?: string | null };
-                return { id: row.id, name: row.name, duration_minutes: row.duration_minutes, category_id: row.category_id ?? null };
-              })}
+              services={formModel.services}
               stylists={bookableStylists}
               stylistOverrides={stylistOverrides}
-              categories={((categoriesRes as { data?: { id: string; name: string; sort_order: number }[] | null }).data ?? []).map((c) => ({
-                id: c.id,
-                name: c.name,
-              }))}
+              categories={categories}
               prefillStylistId={stylistPrefill}
               prefillStartIso={startPrefill}
+              policy={formModel.policy}
+              clubHref={formModel.clubHref}
             />
           }
         />

@@ -280,7 +280,7 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
           startTimeIso: { type: "string" },
           guestName: { type: "string" },
           guestEmail: { type: "string" },
-          guestPhone: { type: "string" },
+          guestPhone: { type: "string", description: "Mobile number. Required when the salon sends text confirmations." },
         },
         required: ["serviceName", "startTimeIso", "guestName", "guestEmail"],
         additionalProperties: false,
@@ -331,14 +331,25 @@ export function createPublicBookingTools(catalog: PublicSalonContext) {
           guestName: guestName.trim(),
           guestEmail: guestEmail.trim(),
           guestPhone: guestPhone?.trim(),
+          patchTestChoice: "will_test",
+          joinClub: true,
         });
 
         if (result.error) return errorPayload(result.error, []);
 
+        const bookedName =
+          "bookedServiceName" in result && result.bookedServiceName
+            ? result.bookedServiceName
+            : serviceResult.item.name;
+        const remapNote =
+          "remappedToConsultation" in result && result.remappedToConsultation
+            ? " New colour clients are booked into a consultation rather than a full colour service."
+            : "";
+
         return successPayload({
           bookingChanged: true,
           appointmentId: "appointmentId" in result ? result.appointmentId : undefined,
-          message: `Your ${serviceResult.item.name} with ${stylistDisplayName} is confirmed. A confirmation email will be sent to ${guestEmail}.`,
+          message: `Your ${bookedName} with ${stylistDisplayName} is confirmed. A confirmation will be sent to ${guestEmail}.${remapNote}`,
           bookingUrl: `/book/${slug}`,
         });
       },
@@ -365,7 +376,7 @@ Today is ${today}. Use UK English.
 
 You help clients with:
 - Hair services (cuts, colour, highlights, balayage, styling, etc.) — use service names and descriptions below
-- Booking appointments (check availability, then book with name + email)
+- Booking appointments (check availability, then book with name, email, and mobile number if the salon requires texts)
 - General salon questions: opening hours, policies, what a service includes
 
 Opening hours: ${catalog.openingHoursNote}

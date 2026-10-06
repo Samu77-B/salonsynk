@@ -25,8 +25,8 @@ async function loadSalonLoyaltySettings(
   db: SupabaseClient,
   salonId: string
 ): Promise<LoyaltySettings | null> {
-  const { data: salon } = await db.from("salons").select("settings").eq("id", salonId).maybeSingle();
-  const settings = parseLoyaltySettings((salon?.settings as Record<string, unknown>) ?? {});
+  const { data: salon } = await db.from("salons").select("settings, slug").eq("id", salonId).maybeSingle();
+  const settings = parseLoyaltySettings((salon?.settings as Record<string, unknown>) ?? {}, salon?.slug as string | undefined);
   return settings.enabled ? settings : null;
 }
 

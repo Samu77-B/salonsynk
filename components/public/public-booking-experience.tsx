@@ -12,12 +12,16 @@ export function PublicBookingExperience({
   salonName,
   form,
   showSalonQa = false,
+  clubHref,
+  clubName,
 }: {
   slug: string;
   salonName: string;
   form: ReactNode;
   /** When true, show a third tab for policy / FAQ Q&A. Off by default. */
   showSalonQa?: boolean;
+  clubHref?: string;
+  clubName?: string;
 }) {
   const [tab, setTab] = useState<Tab>("form");
 
@@ -29,6 +33,18 @@ export function PublicBookingExperience({
 
   return (
     <div className="min-w-0 space-y-4">
+      {clubHref && clubName ? (
+        <p className="text-center text-sm">
+          <a
+            href={clubHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-accent underline hover:opacity-90"
+          >
+            {clubName} — view your details, points &amp; visits
+          </a>
+        </p>
+      ) : null}
       <div
         className="flex flex-wrap gap-1 rounded-lg border border-border bg-background/60 p-1"
         role="tablist"

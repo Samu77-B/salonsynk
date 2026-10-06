@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { isMissingDescriptionColumnError, isMissingProcessingColumnError, isMissingColorColumnError, isMissingCategoryColumnError, isMissingSortOrderColumnError, isMissingCategoryColorColumnError } from "@/lib/db/service-schema";
 import { pickNextCategoryColor } from "@/lib/service-diary-color";
 import { serializeLoyaltySettings, type LoyaltySettings } from "@/lib/loyalty/settings";
+import { serializeBookingPolicy, type BookingPolicy } from "@/lib/booking-policy";
 import { isManagerRole } from "@/lib/dashboard-roles";
 
 const SERVICE_DESCRIPTION_MAX_LEN = 2000;
@@ -217,6 +218,28 @@ export async function updateLoyaltySettings(salonId: string, loyalty: LoyaltySet
   revalidatePath("/settings");
   revalidatePath("/checkout");
   revalidatePath("/targets");
+  return {};
+}
+
+export async function updateBookingPolicySettings(salonId: string, policy: BookingPolicy) {
+  const context = await getCurrentUserSalon();
+  if (!context || context.salon.id !== salonId || context.member.role !== "owner") return { error: "Unauthorized" };
+  const supabase = await createClient();
+  const { data: existing } = await supabase.from("salons").select("settings, slug").eq("id", salonId).single();
+  if (!existing) return { error: "Salon not found" };
+  const current = (existing.settings as Record<string, unknown>) ?? {};
+  const { error } = await supabase
+    .from("salons")
+    .update({ settings: { ...current, booking_policy: serializeBookingPolicy(policy) } })
+    .eq("id", salonId);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  const slug = existing.slug as string | undefined;
+  if (slug) {
+    revalidatePath(`/book/${slug}`);
+    revalidatePath(`/book/${slug}/embed`);
+    revalidatePath(`/club/${slug}`);
+  }
   return {};
 }
 

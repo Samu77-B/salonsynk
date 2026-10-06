@@ -4,9 +4,9 @@ import { formatSalonDateLabel, formatSalonTimeLabel } from "@/lib/ai/salon-time"
 
 /**
  * Notify the client that their booking is confirmed.
- * Prefers email when present; otherwise SMS/WhatsApp if Twilio is configured.
+ * Email is sent when present. SMS/WhatsApp is sent when there is no email,
+ * or when `alsoSms` is true (salon requires text confirmations).
  * Failures are non-fatal (logged only) so booking creation still succeeds.
- * Returns `emailError` when email was attempted but Resend failed (e.g. missing API key or sandbox restrictions).
  */
 export async function sendClientBookingConfirmation(params: {
   email: string | null | undefined;
@@ -14,7 +14,8 @@ export async function sendClientBookingConfirmation(params: {
   salonName: string;
   start: Date;
   serviceName?: string | null;
-}): Promise<{ emailError?: string }> {
+  alsoSms?: boolean;
+}): Promise<{ emailError?: string; smsSent?: boolean }> {
   const email = params.email?.trim() || null;
   const phone = params.phone?.trim() || null;
   if (!email && !phone) return {};
@@ -22,6 +23,9 @@ export async function sendClientBookingConfirmation(params: {
   const date = formatSalonDateLabel(params.start);
   const time = formatSalonTimeLabel(params.start);
   const smsBody = `Your appointment at ${params.salonName} is confirmed for ${date} at ${time}.`;
+
+  let emailError: string | undefined;
+  let smsSent = false;
 
   if (email) {
     const { error } = await sendBookingConfirmation(email, {
@@ -32,21 +36,23 @@ export async function sendClientBookingConfirmation(params: {
     });
     if (error) {
       console.warn("[booking-notifications] confirmation email:", error);
-      return { emailError: error };
+      emailError = error;
     }
-    return {};
   }
 
-  if (phone) {
+  const shouldText = Boolean(phone && (params.alsoSms || !email));
+  if (shouldText && phone) {
     if (canSendWhatsApp()) {
       const { error } = await sendWhatsApp(phone, smsBody);
-      if (!error) return {};
-      console.warn("[booking-notifications] confirmation WhatsApp:", error);
+      if (!error) smsSent = true;
+      else console.warn("[booking-notifications] confirmation WhatsApp:", error);
     }
-    if (canSendSms()) {
+    if (!smsSent && canSendSms()) {
       const { error } = await sendSms(phone, smsBody);
-      if (error) console.warn("[booking-notifications] confirmation SMS:", error);
+      if (!error) smsSent = true;
+      else console.warn("[booking-notifications] confirmation SMS:", error);
     }
   }
-  return {};
+
+  return { emailError, smsSent };
 }

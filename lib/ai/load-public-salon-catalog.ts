@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchSalonMembersAdaptiveSelect, memberShowsOnDiary } from "@/lib/show-on-diary";
 import type { SalonBookingCatalog } from "./booking-types";
 import { summarizeVariantsForCatalog } from "@/lib/product-variants";
+import { bookingPolicyNotes, parseBookingPolicy } from "@/lib/booking-policy";
 
 export type PublicSalonContext = SalonBookingCatalog & {
   slug: string;
@@ -59,6 +60,9 @@ async function fetchPublicSalonBySlug(slug: string): Promise<PublicSalonContext 
   if (branding.booking_heading?.trim()) {
     policyParts.push(`Booking welcome: ${branding.booking_heading.trim()}`);
   }
+  const bookingPolicy = parseBookingPolicy(salon.slug as string, settings, salon.name as string);
+  const extraPolicy = bookingPolicyNotes(bookingPolicy, salon.name as string);
+  if (extraPolicy) policyParts.push(extraPolicy);
 
   const [servicesRes, membersLoad, overridesRes, productsRes, categoriesRes] = await Promise.all([
     supabase

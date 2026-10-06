@@ -11,6 +11,7 @@ import { computeBalanceDueMinor } from "@/lib/appointment-billing";
 import { fetchSalonPlanState } from "@/lib/salon-features.server";
 import { getEnabledFeatures } from "@/config/plans";
 import { parseLoyaltySettings } from "@/lib/loyalty/settings";
+import { fetchLatestColourWaiver } from "@/lib/waivers/colour-patch-test";
 import {
   dashboardFlowClass,
   dashboardGrid2ColClass,
@@ -38,11 +39,19 @@ export default async function ClientDetailPage({
     color_formulas: unknown;
     patch_test_due_at: string | null;
     last_skin_test_at?: string | null;
+    colour_waiver_signed_at?: string | null;
   };
 
   const supabase = await createClient();
 
   async function loadClient(): Promise<ClientRow | null> {
+    const withWaiver = await supabase
+      .from("clients")
+      .select("id, name, email, phone, notes, sex, marketing_opt_in, color_formulas, patch_test_due_at, last_skin_test_at, colour_waiver_signed_at")
+      .eq("id", id)
+      .eq("salon_id", context!.salon.id)
+      .single();
+    if (!withWaiver.error) return withWaiver.data as ClientRow | null;
     const withSkinTest = await supabase
       .from("clients")
       .select("id, name, email, phone, notes, sex, marketing_opt_in, color_formulas, patch_test_due_at, last_skin_test_at")
@@ -206,7 +215,7 @@ export default async function ClientDetailPage({
   const { data: salonRow } = await supabase.from("salons").select("settings").eq("id", context.salon.id).maybeSingle();
   const planState = await fetchSalonPlanState(context.salon.id);
   const enabledFeatures = getEnabledFeatures(planState);
-  const loyaltySettings = parseLoyaltySettings((salonRow?.settings as Record<string, unknown>) ?? {});
+  const loyaltySettings = parseLoyaltySettings((salonRow?.settings as Record<string, unknown>) ?? {}, context.salon.slug);
   const loyaltyEnabled = enabledFeatures.includes("targets_loyalty") && loyaltySettings.enabled;
   const loyaltyPoints = loyaltyEnabled
     ? {
@@ -216,6 +225,18 @@ export default async function ClientDetailPage({
         tier: loyaltyData?.tier ?? "bronze",
       }
     : null;
+
+  const colourWaiver =
+    (await fetchLatestColourWaiver(supabase, context.salon.id, id)) ??
+    (client.colour_waiver_signed_at
+      ? {
+          id: "",
+          signed_at: client.colour_waiver_signed_at,
+          signer_name: client.name ?? "Client",
+          declined_patch_test: true,
+          waiver_version: "",
+        }
+      : null);
 
   const profilePhoto = clientPhotos.find((p) => p.slot === "profile");
   const avatarSrc = profilePhoto
@@ -253,6 +274,16 @@ export default async function ClientDetailPage({
 
       <div className={dashboardGrid2ColClass}>
         <div className={dashboardStackColClass}>
+          {colourWaiver ? (
+            <div className={`${dashboardSectionClass} border-amber-500/50 bg-amber-500/10`}>
+              <p className="text-sm font-medium">Colour patch test waiver</p>
+              <p className="text-amber-700 dark:text-amber-400">
+                Declined patch test — e-signed {new Date(colourWaiver.signed_at).toLocaleDateString("en-GB")}
+              </p>
+              <p className="text-xs text-muted mt-1">Signed by {colourWaiver.signer_name}</p>
+            </div>
+          ) : null}
+
           {daysUntilPatch !== null && (
             <div
               className={
@@ -315,6 +346,7 @@ export default async function ClientDetailPage({
             sales={salesHistory}
             onPatchTestDueAt={client.patch_test_due_at}
             onLastSkinTestAt={client.last_skin_test_at ?? null}
+            colourWaiver={colourWaiver}
             clientNotes={clientNotes}
             loyaltyPoints={loyaltyPoints}
           />

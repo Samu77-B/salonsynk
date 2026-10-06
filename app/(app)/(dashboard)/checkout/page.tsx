@@ -120,7 +120,7 @@ export default async function CheckoutPage() {
 
   const planState = await fetchSalonPlanState(context.salon.id);
   const enabledFeatures = getEnabledFeatures(planState);
-  const loyaltySettings = parseLoyaltySettings((salonRow?.settings as Record<string, unknown>) ?? {});
+  const loyaltySettings = parseLoyaltySettings((salonRow?.settings as Record<string, unknown>) ?? {}, context.salon.slug);
   const loyaltyEnabled = enabledFeatures.includes("targets_loyalty") && loyaltySettings.enabled;
 
   return (

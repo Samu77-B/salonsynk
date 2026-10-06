@@ -17,6 +17,7 @@ export type ClientListRow = {
   sex: string | null;
   patch_test_due_at: string | null;
   last_skin_test_at?: string | null;
+  colour_waiver_signed_at?: string | null;
   profile_photo_url: string | null;
 };
 
@@ -51,6 +52,11 @@ function ClientCard({ client }: { client: ClientListRow }) {
           {contact ? <p className="mt-0.5 truncate text-sm text-muted">{contact}</p> : null}
         </div>
       </div>
+      {client.colour_waiver_signed_at ? (
+        <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
+          Colour waiver signed {new Date(client.colour_waiver_signed_at).toLocaleDateString("en-GB")} (patch test declined)
+        </p>
+      ) : null}
       {client.patch_test_due_at ? (
         <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
           Patch test due: {new Date(client.patch_test_due_at).toLocaleDateString("en-GB")}

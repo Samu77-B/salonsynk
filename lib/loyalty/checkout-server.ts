@@ -106,8 +106,8 @@ export async function resolveCheckoutAmounts(
     };
   }
 
-  const { data: salon } = await db.from("salons").select("settings").eq("id", salonId).maybeSingle();
-  const loyaltySettings = parseLoyaltySettings((salon?.settings as Record<string, unknown>) ?? {});
+  const { data: salon } = await db.from("salons").select("settings, slug").eq("id", salonId).maybeSingle();
+  const loyaltySettings = parseLoyaltySettings((salon?.settings as Record<string, unknown>) ?? {}, salon?.slug as string | undefined);
   const canUseLoyalty = loyaltySettings.enabled && Boolean(clientId?.trim());
 
   if (!canUseLoyalty) {

@@ -37,6 +37,7 @@ export default async function SettingsPage() {
         depositType={data.depositType}
         depositValue={data.depositValue}
         reminderHours={data.reminderHours}
+        bookingPolicy={data.bookingPolicy}
         googleReviewUrl={data.googleReviewUrl}
         weMissYouWeeksMin={data.weMissYouWeeksMin}
         weMissYouWeeksMax={data.weMissYouWeeksMax}

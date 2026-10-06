@@ -38,6 +38,7 @@ export function ClientDetailView({
   sales,
   onPatchTestDueAt,
   onLastSkinTestAt,
+  colourWaiver = null,
   clientNotes = [],
   loyaltyPoints = null,
 }: {
@@ -48,6 +49,11 @@ export function ClientDetailView({
   sales: ClientSaleRow[];
   onPatchTestDueAt: string | null;
   onLastSkinTestAt?: string | null;
+  colourWaiver?: {
+    signed_at: string;
+    signer_name: string;
+    declined_patch_test: boolean;
+  } | null;
   clientNotes?: ClientNote[];
   loyaltyPoints?: {
     servicePoints: number;
@@ -305,6 +311,18 @@ export function ClientDetailView({
 
       <section className={dashboardSectionClass}>
         <h2 className="text-lg font-semibold mb-2">Skin &amp; Patch Testing</h2>
+        {colourWaiver ? (
+          <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+            <p className="font-medium">
+              {colourWaiver.declined_patch_test ? "Declined patch test — waiver signed" : "Colour waiver on file"}
+            </p>
+            <p className="text-xs text-muted mt-1">
+              {new Date(colourWaiver.signed_at).toLocaleString("en-GB")} · {colourWaiver.signer_name}
+            </p>
+          </div>
+        ) : (
+          <p className="mb-3 text-xs text-muted">No colour patch-test waiver on file.</p>
+        )}
         <div className="space-y-3">
           <div>
             <label className="block text-sm font-medium mb-1">Last skin test date</label>

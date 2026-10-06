@@ -1,5 +1,8 @@
+import { isJoJoAndFloSlug } from "@/lib/booking-policy";
+
 export type LoyaltySettings = {
   enabled: boolean;
+  programName: string;
   /** Points earned per £1 spent on services (default 1). */
   servicePointsPerGbp: number;
   /** Points earned per £1 spent on products (default 2). */
@@ -14,6 +17,7 @@ export type LoyaltySettings = {
 
 export const DEFAULT_LOYALTY_SETTINGS: LoyaltySettings = {
   enabled: false,
+  programName: "Loyalty",
   servicePointsPerGbp: 1,
   productPointsPerGbp: 2,
   servicePointValueMinor: 25,
@@ -27,10 +31,17 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
   return Math.min(max, Math.max(min, n));
 }
 
-export function parseLoyaltySettings(raw: Record<string, unknown> | null | undefined): LoyaltySettings {
+export function parseLoyaltySettings(
+  raw: Record<string, unknown> | null | undefined,
+  slug?: string
+): LoyaltySettings {
   const loyalty = (raw?.loyalty as Record<string, unknown> | undefined) ?? {};
+  const jojo = isJoJoAndFloSlug(slug);
+  const storedName = typeof loyalty.program_name === "string" ? loyalty.program_name.trim() : "";
+  const enabledStored = loyalty.enabled;
   return {
-    enabled: Boolean(loyalty.enabled),
+    enabled: typeof enabledStored === "boolean" ? enabledStored : jojo,
+    programName: storedName || (jojo ? "JoJoFlo Club" : DEFAULT_LOYALTY_SETTINGS.programName),
     servicePointsPerGbp: clampInt(loyalty.service_points_per_gbp, 0, 100, DEFAULT_LOYALTY_SETTINGS.servicePointsPerGbp),
     productPointsPerGbp: clampInt(loyalty.product_points_per_gbp, 0, 100, DEFAULT_LOYALTY_SETTINGS.productPointsPerGbp),
     servicePointValueMinor: clampInt(loyalty.service_point_value_minor, 1, 10_000, DEFAULT_LOYALTY_SETTINGS.servicePointValueMinor),
@@ -42,6 +53,7 @@ export function parseLoyaltySettings(raw: Record<string, unknown> | null | undef
 export function serializeLoyaltySettings(settings: LoyaltySettings): Record<string, unknown> {
   return {
     enabled: settings.enabled,
+    program_name: settings.programName,
     service_points_per_gbp: settings.servicePointsPerGbp,
     product_points_per_gbp: settings.productPointsPerGbp,
     service_point_value_minor: settings.servicePointValueMinor,

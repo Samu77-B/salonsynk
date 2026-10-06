@@ -8,10 +8,16 @@ export default async function ClientsPage() {
   const context = await getCurrentUserSalon();
   if (!context) redirect("/onboarding");
 
-  type ClientRow = { id: string; name: string | null; email: string | null; phone: string | null; sex?: string | null; patch_test_due_at: string | null; last_skin_test_at?: string | null };
+  type ClientRow = { id: string; name: string | null; email: string | null; phone: string | null; sex?: string | null; patch_test_due_at: string | null; last_skin_test_at?: string | null; colour_waiver_signed_at?: string | null };
 
   const supabase = await createClient();
   async function loadClients(): Promise<ClientRow[]> {
+    const withWaiver = await supabase
+      .from("clients")
+      .select("id, name, email, phone, sex, patch_test_due_at, last_skin_test_at, colour_waiver_signed_at")
+      .eq("salon_id", context!.salon.id)
+      .order("name");
+    if (!withWaiver.error) return (withWaiver.data ?? []) as ClientRow[];
     const withSkinTest = await supabase
       .from("clients")
       .select("id, name, email, phone, sex, patch_test_due_at, last_skin_test_at")
@@ -56,6 +62,7 @@ export default async function ClientsPage() {
     sex: c.sex ?? null,
     patch_test_due_at: c.patch_test_due_at,
     last_skin_test_at: c.last_skin_test_at ?? null,
+    colour_waiver_signed_at: c.colour_waiver_signed_at ?? null,
     profile_photo_url: photoMap.get(c.id) ?? null,
   }));
 

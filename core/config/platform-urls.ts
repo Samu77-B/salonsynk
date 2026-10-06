@@ -12,6 +12,10 @@ export function salonWalkInUrl(slug: string) {
   return `${SITE.url}/walk-in/${slug}`;
 }
 
+export function salonClubUrl(slug: string) {
+  return `${SITE.url}/club/${slug}`;
+}
+
 export function salonBookingUrl(slug: string) {
   return `${SITE.url}/book/${slug}`;
 }

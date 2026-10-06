@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, updateDepositSettings, updateReminderSettings, updateSalonMarketingSettings, updateLoyaltySettings } from "./actions";
+import { updateSalonBranding, updateRenterAdminFee, uploadSalonLogo, updateDepositSettings, updateReminderSettings, updateSalonMarketingSettings, updateLoyaltySettings, updateBookingPolicySettings } from "./actions";
 import type { PlatformFeatureId } from "@/config/plans";
 import { DEFAULT_LOYALTY_SETTINGS, type LoyaltySettings } from "@/lib/loyalty/settings";
+import { defaultColourWaiverText, type BookingPolicy } from "@/lib/booking-policy";
 import { dashboardBtnPrimaryClass, dashboardInputClass, dashboardSectionClass, dashboardFlowClass, dashboardGrid2ColClass, dashboardStackColClass } from "@/components/dashboard/ui";
 
 export function SettingsView(props: {
@@ -37,6 +38,7 @@ export function SettingsView(props: {
   weMissYouWeeksMax?: number;
   weMissYouDiscountCode?: string;
   loyaltySettings?: LoyaltySettings;
+  bookingPolicy?: BookingPolicy;
   subscriptionCheckoutAvailable?: boolean;
   hasBillingCustomer?: boolean;
   enabledFeatures?: PlatformFeatureId[];
@@ -64,6 +66,7 @@ export function SettingsView(props: {
     weMissYouWeeksMax = 10,
     weMissYouDiscountCode = "",
     loyaltySettings = DEFAULT_LOYALTY_SETTINGS,
+    bookingPolicy,
     subscriptionCheckoutAvailable = false,
     hasBillingCustomer = false,
     enabledFeatures = [],
@@ -112,11 +115,21 @@ export function SettingsView(props: {
   const [marketingMsg, setMarketingMsg] = useState<"saved" | "error" | null>(null);
   const [marketingLoading, setMarketingLoading] = useState(false);
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(loyaltySettings.enabled);
+  const [loyaltyProgramName, setLoyaltyProgramName] = useState(loyaltySettings.programName);
   const [servicePointValuePence, setServicePointValuePence] = useState(String(loyaltySettings.servicePointValueMinor));
   const [productBlockPoints, setProductBlockPoints] = useState(String(loyaltySettings.productPointsPerBlock));
   const [productBlockValuePence, setProductBlockValuePence] = useState(String(loyaltySettings.productBlockValueMinor));
   const [loyaltyMsg, setLoyaltyMsg] = useState<"saved" | "error" | null>(null);
   const [loyaltyLoading, setLoyaltyLoading] = useState(false);
+  const [policyPhone, setPolicyPhone] = useState(bookingPolicy?.phoneRequired ?? false);
+  const [policySms, setPolicySms] = useState(bookingPolicy?.smsConfirmation ?? false);
+  const [policyConsult, setPolicyConsult] = useState(bookingPolicy?.newClientColourConsultation ?? false);
+  const [policyWaiver, setPolicyWaiver] = useState(bookingPolicy?.patchTestWaiver ?? false);
+  const [policyClub, setPolicyClub] = useState(bookingPolicy?.clubPortalEnabled ?? false);
+  const [policyClubName, setPolicyClubName] = useState(bookingPolicy?.clubName ?? "");
+  const [policyWaiverText, setPolicyWaiverText] = useState(bookingPolicy?.waiverText ?? "");
+  const [policyMsg, setPolicyMsg] = useState<"saved" | "error" | null>(null);
+  const [policyLoading, setPolicyLoading] = useState(false);
 
   async function handleBrandingSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -261,6 +274,7 @@ export function SettingsView(props: {
               setLoyaltyLoading(true);
               const result = await updateLoyaltySettings(salonId, {
                 enabled: loyaltyEnabled,
+                programName: loyaltyProgramName.trim() || DEFAULT_LOYALTY_SETTINGS.programName,
                 servicePointsPerGbp: DEFAULT_LOYALTY_SETTINGS.servicePointsPerGbp,
                 productPointsPerGbp: DEFAULT_LOYALTY_SETTINGS.productPointsPerGbp,
                 servicePointValueMinor: Math.max(1, Math.round(Number(servicePointValuePence) || 25)),
@@ -281,6 +295,16 @@ export function SettingsView(props: {
               />
               <span className="text-sm font-medium">Enable loyalty points at checkout</span>
             </label>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Programme name</label>
+              <input
+                type="text"
+                value={loyaltyProgramName}
+                onChange={(e) => setLoyaltyProgramName(e.target.value)}
+                placeholder="e.g. JoJoFlo Club"
+                className={dashboardInputClass}
+              />
+            </div>
             {loyaltyEnabled && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
@@ -325,6 +349,89 @@ export function SettingsView(props: {
             </button>
             {loyaltyMsg === "saved" && <span className="text-sm text-green-400">Saved.</span>}
             {loyaltyMsg === "error" && <span className="text-sm text-red-400">Failed.</span>}
+          </form>
+        </section>
+      )}
+
+      {isOwner && (
+        <section className={dashboardSectionClass}>
+          <h2 className="text-lg font-semibold mb-2">Online booking rules</h2>
+          <p className="text-muted text-sm mb-4">
+            These apply to your public booking page. JoJo &amp; Flo defaults: phone + SMS, colour consultation for new
+            clients, patch-test waiver, and {policyClubName || "client club"}.
+          </p>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setPolicyMsg(null);
+              setPolicyLoading(true);
+              const result = await updateBookingPolicySettings(salonId, {
+                phoneRequired: policyPhone,
+                smsConfirmation: policySms,
+                newClientColourConsultation: policyConsult,
+                patchTestWaiver: policyWaiver,
+                clubPortalEnabled: policyClub,
+                clubName: policyClubName.trim() || "Client club",
+                waiverText: policyWaiverText.trim() || defaultColourWaiverText(companyName || salonName),
+                consultationServiceId: bookingPolicy?.consultationServiceId ?? null,
+              });
+              setPolicyLoading(false);
+              setPolicyMsg(result.error ? "error" : "saved");
+            }}
+            className="space-y-3"
+          >
+            <label className="flex items-start gap-2 text-sm cursor-pointer">
+              <input type="checkbox" className="mt-0.5" checked={policyPhone} onChange={(e) => setPolicyPhone(e.target.checked)} />
+              <span>Require a mobile number (confirmation + reminder texts)</span>
+            </label>
+            <label className="flex items-start gap-2 text-sm cursor-pointer">
+              <input type="checkbox" className="mt-0.5" checked={policySms} onChange={(e) => setPolicySms(e.target.checked)} />
+              <span>Send SMS confirmation as well as email</span>
+            </label>
+            <label className="flex items-start gap-2 text-sm cursor-pointer">
+              <input type="checkbox" className="mt-0.5" checked={policyConsult} onChange={(e) => setPolicyConsult(e.target.checked)} />
+              <span>New colour clients must book a consultation (not Full Head / Balayage online)</span>
+            </label>
+            <label className="flex items-start gap-2 text-sm cursor-pointer">
+              <input type="checkbox" className="mt-0.5" checked={policyWaiver} onChange={(e) => setPolicyWaiver(e.target.checked)} />
+              <span>Colour bookings: patch test, or e-signed waiver if declined</span>
+            </label>
+            <label className="flex items-start gap-2 text-sm cursor-pointer">
+              <input type="checkbox" className="mt-0.5" checked={policyClub} onChange={(e) => setPolicyClub(e.target.checked)} />
+              <span>Client club portal (details, points, visits)</span>
+            </label>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Club name</label>
+              <input
+                type="text"
+                value={policyClubName}
+                onChange={(e) => setPolicyClubName(e.target.value)}
+                placeholder="JoJoFlo Club"
+                className={dashboardInputClass}
+              />
+              {policyClub ? (
+                <p className="mt-1 text-xs text-muted">
+                  Public page:{" "}
+                  <a href={`/club/${salonSlug}`} target="_blank" rel="noopener noreferrer" className="text-accent underline">
+                    /club/{salonSlug}
+                  </a>
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Colour waiver text</label>
+              <textarea
+                value={policyWaiverText}
+                onChange={(e) => setPolicyWaiverText(e.target.value)}
+                rows={8}
+                className={`${dashboardInputClass} min-h-[8rem]`}
+              />
+            </div>
+            <button type="submit" disabled={policyLoading} className={dashboardBtnPrimaryClass}>
+              {policyLoading ? "Saving…" : "Save booking rules"}
+            </button>
+            {policyMsg === "saved" && <span className="ml-2 text-sm text-green-400">Saved.</span>}
+            {policyMsg === "error" && <span className="ml-2 text-sm text-red-400">Failed.</span>}
           </form>
         </section>
       )}

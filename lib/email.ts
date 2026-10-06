@@ -217,6 +217,25 @@ export async function sendBookingConfirmation(
   return { error: normalizeResendError(error) };
 }
 
+export async function sendClubAccessCode(
+  to: string,
+  details: { salonName: string; clubName: string; code: string }
+): Promise<{ error?: string }> {
+  if (!resend) return { error: "Resend not configured" };
+  const html = `
+    <p>Your ${details.clubName} sign-in code for ${details.salonName} is:</p>
+    <p style="font-size:28px;letter-spacing:4px;font-weight:700;">${details.code}</p>
+    <p>This code expires in 10 minutes. If you didn't request it, you can ignore this email.</p>
+  `;
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [to],
+    subject: `${details.clubName} sign-in code`,
+    html,
+  });
+  return { error: normalizeResendError(error) };
+}
+
 export async function sendOwnerInviteLink(
   to: string,
   inviteLink: string,
