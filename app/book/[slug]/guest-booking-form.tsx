@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { createGuestBooking } from "./actions";
 import { ColourWaiverForm, type ColourWaiverValue } from "@/components/public/colour-waiver-form";
 import type { BookingPolicy, ClassifiedService } from "@/lib/booking-policy";
-import { findConsultationService } from "@/lib/booking-policy";
+import { colourMinBookableDate, findConsultationService, toLocalDateInputValue } from "@/lib/booking-policy";
 
 type Category = { id: string; name: string };
 type Stylist = { id: string; display_name: string | null };
@@ -144,6 +144,11 @@ export function GuestBookingForm({
     treatAsNewColour && consultation ? consultation : selected;
   const colourNeedsPatch =
     Boolean(policy.patchTestWaiver && effectiveService?.isColour && !effectiveService.isConsultation);
+  const colourAdvance = Boolean(
+    policy.colourMinAdvanceDays > 0 && effectiveService?.isColour && !effectiveService.isConsultation
+  );
+  const colourMinDate = colourAdvance ? colourMinBookableDate(policy) : null;
+  const colourMinDateStr = colourMinDate ? toLocalDateInputValue(colourMinDate) : undefined;
 
   function handleServiceChange(id: string) {
     setServiceId(id);
@@ -175,6 +180,15 @@ export function GuestBookingForm({
     if (colourNeedsPatch && patchTestChoice === "decline" && (!waiver.agreed || waiver.signerName.trim().length < 2)) {
       setError("Please e-sign the colour waiver to continue without a patch test.");
       return;
+    }
+    if (colourAdvance && colourMinDate) {
+      const startCheck = new Date(`${date}T${time}:00`);
+      if (startCheck < colourMinDate) {
+        setError(
+          `Colour appointments must be booked at least ${policy.colourMinAdvanceDays} days in advance.`
+        );
+        return;
+      }
     }
 
     const bookedService = effectiveService ?? selected;
@@ -339,10 +353,19 @@ export function GuestBookingForm({
           <input
             type="date"
             value={date}
+            min={colourMinDateStr}
             onChange={(e) => setDate(e.target.value)}
             required
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
           />
+          {colourAdvance ? (
+            <p className="mt-1 text-xs text-muted">
+              Colour bookings need at least {policy.colourMinAdvanceDays} days&apos; notice
+              {policy.colourDepositPercent > 0
+                ? ` and a ${policy.colourDepositPercent}% deposit. Cancel within ${policy.colourLateCancelHours || 2} hours of the appointment and the deposit is forfeited.`
+                : "."}
+            </p>
+          ) : null}
         </div>
         <div className="flex-1 min-w-0">
           <label className="block text-sm font-medium mb-1">Time</label>

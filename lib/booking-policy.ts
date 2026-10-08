@@ -10,6 +10,12 @@ export type BookingPolicy = {
   clubName: string;
   waiverText: string;
   consultationServiceId: string | null;
+  /** Colour application cannot be booked sooner than this many days from today. */
+  colourMinAdvanceDays: number;
+  /** Percentage deposit required to confirm a colour booking. */
+  colourDepositPercent: number;
+  /** Cancel within this many hours of a colour appointment and the deposit is forfeited. */
+  colourLateCancelHours: number;
 };
 
 export type ClassifiedService = {
@@ -79,7 +85,33 @@ export function parseBookingPolicy(
       typeof raw.consultation_service_id === "string" && raw.consultation_service_id.trim()
         ? raw.consultation_service_id.trim()
         : null,
+    colourMinAdvanceDays: numberFlag(raw.colour_min_advance_days, jojo ? 6 : 0),
+    colourDepositPercent: numberFlag(raw.colour_deposit_percent, jojo ? 10 : 0),
+    colourLateCancelHours: numberFlag(raw.colour_late_cancel_hours, jojo ? 2 : 0),
   };
+}
+
+function numberFlag(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) return value;
+  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) {
+    return Math.max(0, Number(value));
+  }
+  return fallback;
+}
+
+export function colourMinBookableDate(policy: BookingPolicy, now = new Date()): Date | null {
+  if (!policy.colourMinAdvanceDays) return null;
+  const min = new Date(now);
+  min.setHours(0, 0, 0, 0);
+  min.setDate(min.getDate() + policy.colourMinAdvanceDays);
+  return min;
+}
+
+export function toLocalDateInputValue(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export function serializeBookingPolicy(policy: BookingPolicy): Record<string, unknown> {
@@ -92,6 +124,9 @@ export function serializeBookingPolicy(policy: BookingPolicy): Record<string, un
     club_name: policy.clubName,
     waiver_text: policy.waiverText,
     consultation_service_id: policy.consultationServiceId,
+    colour_min_advance_days: policy.colourMinAdvanceDays,
+    colour_deposit_percent: policy.colourDepositPercent,
+    colour_late_cancel_hours: policy.colourLateCancelHours,
   };
 }
 
@@ -140,7 +175,9 @@ export function bookingPolicyActive(policy: BookingPolicy): boolean {
     policy.smsConfirmation ||
     policy.newClientColourConsultation ||
     policy.patchTestWaiver ||
-    policy.clubPortalEnabled
+    policy.clubPortalEnabled ||
+    policy.colourMinAdvanceDays > 0 ||
+    policy.colourDepositPercent > 0
   );
 }
 
@@ -157,6 +194,16 @@ export function bookingPolicyNotes(policy: BookingPolicy, salonName: string): st
   if (policy.patchTestWaiver) {
     parts.push(
       "Colour application requires a patch test, or an e-signed waiver if the client declines. Use the booking form to sign a waiver; do not complete a declined-patch-test colour booking in chat."
+    );
+  }
+  if (policy.colourMinAdvanceDays > 0) {
+    parts.push(
+      `Colour bookings must be made at least ${policy.colourMinAdvanceDays} days in advance.`
+    );
+  }
+  if (policy.colourDepositPercent > 0) {
+    parts.push(
+      `Colour bookings require a ${policy.colourDepositPercent}% deposit. Cancellations within ${policy.colourLateCancelHours || 2} hours of the appointment forfeit the deposit.`
     );
   }
   if (policy.clubPortalEnabled) {

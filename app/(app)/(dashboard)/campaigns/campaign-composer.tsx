@@ -55,6 +55,8 @@ export function CampaignComposer({
   const [sendOk, setSendOk] = useState<string | null>(null);
   const [pendingCount, startCount] = useTransition();
   const [pendingSend, startSend] = useTransition();
+  const [sendEmail, setSendEmail] = useState(true);
+  const [sendSms, setSendSms] = useState(true);
 
   const selectedServiceName = useMemo(
     () => services.find((s) => s.id === audienceServiceId)?.name ?? null,
@@ -105,11 +107,17 @@ export function CampaignComposer({
       setSendError("Choose a service for the “Booked a specific service” audience.");
       return;
     }
+    if (!sendEmail && !sendSms) {
+      setSendError("Choose email, text message, or both.");
+      return;
+    }
     const fd = new FormData();
     fd.set("subject", subject.trim());
     fd.set("preheader", preheader.trim());
     fd.set("bodyHtml", bodyHtml);
     fd.set("audienceSegment", audienceSegment);
+    fd.set("sendEmail", sendEmail ? "1" : "0");
+    fd.set("sendSms", sendSms ? "1" : "0");
     fd.set(
       "audienceServiceId",
       audienceSegment === "service_booked" ? audienceServiceId.trim() : ""
@@ -179,9 +187,8 @@ export function CampaignComposer({
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Marketing audience</h3>
                 <p className="text-sm text-muted mt-2 leading-relaxed">
-                  Only clients with an <strong className="text-foreground">email address</strong> and{" "}
-                  <strong className="text-foreground">marketing opt-in</strong> are eligible. Pick a segment, then check
-                  the count. Each send includes an unsubscribe link.
+                  Only clients with <strong className="text-foreground">marketing opt-in</strong> are eligible.
+                  Emails need an address; texts need a mobile number. Pick a segment, then check the count.
                 </p>
               </div>
 
@@ -244,6 +251,28 @@ export function CampaignComposer({
                   )}
                 </div>
               )}
+
+              <fieldset className="space-y-2">
+                <legend className="text-xs font-semibold uppercase tracking-wide text-muted">Channel</legend>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={sendEmail}
+                    onChange={(e) => setSendEmail(e.target.checked)}
+                    className="h-4 w-4 accent-[var(--accent)]"
+                  />
+                  Email
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={sendSms}
+                    onChange={(e) => setSendSms(e.target.checked)}
+                    className="h-4 w-4 accent-[var(--accent)]"
+                  />
+                  Text message (SMS)
+                </label>
+              </fieldset>
 
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <div className="rounded-lg border border-border bg-white/5 px-4 py-3 min-w-[140px]">

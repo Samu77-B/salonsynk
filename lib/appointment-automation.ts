@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { sendClientBookingConfirmation } from "./booking-notifications";
 import { sendAftercareEmail } from "./email";
 import { canSendSms, canSendWhatsApp, sendSms, sendWhatsApp } from "./sms";
+import { parseBookingPolicy } from "./booking-policy";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -33,7 +34,7 @@ export async function triggerBookingConfirmation(appointmentId: string): Promise
   const { data } = await db
     .from("appointments")
     .select(
-      "id, start_time, guest_email, guest_phone, guest_name, confirmation_sent_at, clients(email, phone), salons(name), services(name), appointment_services(sort_order, services(name))"
+      "id, start_time, guest_email, guest_phone, guest_name, confirmation_sent_at, clients(email, phone), salons(name, slug, settings), services(name), appointment_services(sort_order, services(name))"
     )
     .eq("id", appointmentId)
     .maybeSingle();
@@ -45,7 +46,7 @@ export async function triggerBookingConfirmation(appointmentId: string): Promise
     guest_email: string | null;
     guest_phone: string | null;
     clients: { email?: string; phone?: string } | null;
-    salons: { name?: string } | null;
+    salons: { name?: string; slug?: string; settings?: Record<string, unknown> | null } | null;
     services: { name?: string } | null;
     appointment_services?: { services?: { name?: string } | null }[];
   };
@@ -59,12 +60,16 @@ export async function triggerBookingConfirmation(appointmentId: string): Promise
       ? serviceNames.join(" · ")
       : row.services?.name ?? null;
 
+  const salonName = row.salons?.name ?? "Salon";
+  const policy = parseBookingPolicy(row.salons?.slug, row.salons?.settings ?? null, salonName);
+
   await sendClientBookingConfirmation({
     email: row.guest_email ?? row.clients?.email ?? null,
     phone: row.guest_phone ?? row.clients?.phone ?? null,
-    salonName: row.salons?.name ?? "Salon",
+    salonName,
     start,
     serviceName,
+    alsoSms: policy.smsConfirmation,
   });
 
   await db

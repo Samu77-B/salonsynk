@@ -49,9 +49,9 @@ export default async function CampaignsPage() {
       <div>
         <h1 className="text-2xl font-bold">Campaigns</h1>
         <p className="text-sm text-muted mt-1 max-w-2xl">
-          Email marketing for <span className="text-foreground font-medium">{context.salon.name}</span>. Delivery is
-          powered by Resend (same as booking and reminder emails). Build a campaign in three steps—similar to tools
-          like Brevo or Mailchimp—then send to clients who have opted in.
+          Email and text marketing for <span className="text-foreground font-medium">{context.salon.name}</span>.
+          Emails go through Resend; texts use Twilio (same as booking confirmations). Build a campaign in three
+          steps, choose email, SMS, or both, then send to clients who have opted in.
         </p>
       </div>
 

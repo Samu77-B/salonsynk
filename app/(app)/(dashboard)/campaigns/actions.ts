@@ -7,6 +7,7 @@ import { getCurrentUserSalon } from "@/lib/supabase/salon";
 import { getIsSuperAdmin } from "@/lib/supabase/admin-auth";
 import { canViewReports } from "@/lib/dashboard-roles";
 import { sendMarketingEmail } from "@/lib/email";
+import { canSendSms, sendSms } from "@/lib/sms";
 import { signUnsubscribeToken } from "@/lib/marketing-unsubscribe";
 import { getPublicSiteUrl } from "@/lib/public-site-url";
 import { revalidatePath } from "next/cache";
@@ -18,7 +19,24 @@ const ALLOWED_CAMPAIGN_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "
 
 const BATCH_SIZE = 25;
 
-type CampaignRecipientRow = { id: string; email: string; name: string | null };
+type CampaignRecipientRow = { id: string; email: string; name: string | null; phone?: string | null };
+
+function htmlToSms(html: string, subject: string): string {
+  const text = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\u200b/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  const body = text || subject;
+  const prefix = subject && !body.startsWith(subject) ? `${subject}\n\n` : "";
+  return `${prefix}${body}`.slice(0, 1500);
+}
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -122,9 +140,15 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
   const audienceServiceIdRaw = String(formData.get("audienceServiceId") ?? "").trim();
   const audience_service_id: string | null =
     audienceSegment === "service_booked" && audienceServiceIdRaw ? audienceServiceIdRaw : null;
+  const sendEmail = String(formData.get("sendEmail") ?? "1") !== "0";
+  const sendSmsChannel = String(formData.get("sendSms") ?? "0") === "1";
 
   if (!subject) return { error: "Subject is required" };
   if (!bodyHtml) return { error: "Message body is required" };
+  if (!sendEmail && !sendSmsChannel) return { error: "Choose email, text message, or both." };
+  if (sendSmsChannel && !canSendSms()) {
+    return { error: "Text messaging is not configured (Twilio). Email can still be sent." };
+  }
   if (audienceSegment === "service_booked" && !audience_service_id) {
     return { error: "Choose a service for this audience." };
   }
@@ -189,37 +213,77 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
   }
 
   const rawList = (recipients ?? []) as CampaignRecipientRow[];
-  const list = rawList.filter((r) => r.email && String(r.email).includes("@"));
-  if (list.length === 0) {
+  const emailList = sendEmail
+    ? rawList.filter((r) => r.email && String(r.email).includes("@"))
+    : [];
+
+  const ids = rawList.map((r) => r.id).filter(Boolean);
+  let phoneById = new Map<string, string>();
+  if (sendSmsChannel && ids.length > 0) {
+    const { data: phoneRows } = await supabase
+      .from("clients")
+      .select("id, phone")
+      .eq("salon_id", context.salon.id)
+      .in("id", ids);
+    for (const row of phoneRows ?? []) {
+      const phone = String((row as { phone?: string | null }).phone ?? "").trim();
+      if (phone.replace(/\D/g, "").length >= 10) {
+        phoneById.set((row as { id: string }).id, phone);
+      }
+    }
+  }
+  const smsList = sendSmsChannel ? rawList.filter((r) => phoneById.has(r.id)) : [];
+
+  if (emailList.length === 0 && smsList.length === 0) {
     await supabase
       .from("email_campaigns")
-      .update({ status: "failed", error_message: "No opted-in clients with email addresses." })
+      .update({
+        status: "failed",
+        error_message: "No opted-in clients with an email or mobile number for the chosen channel.",
+      })
       .eq("id", campaignId);
-    return { error: "No opted-in clients with email addresses." };
+    return { error: "No opted-in clients with an email or mobile number for the chosen channel." };
   }
 
   const baseUrl = getPublicSiteUrl();
   let firstError: string | undefined;
+  const smsBody = htmlToSms(bodyHtml, subject);
 
-  for (let i = 0; i < list.length; i += BATCH_SIZE) {
-    const slice = list.slice(i, i + BATCH_SIZE);
-    const results = await Promise.all(
-      slice.map(async (c: CampaignRecipientRow) => {
-        const token = signUnsubscribeToken(c.id, context.salon.id);
-        const unsubscribeUrl = `${baseUrl}/unsubscribe?token=${encodeURIComponent(token)}`;
-        return sendMarketingEmail({
-          to: String(c.email),
-          subject,
-          html: bodyHtml,
-          unsubscribeUrl,
-          preheader: preheader || undefined,
-        });
-      }),
-    );
-    const bad = results.find((r) => r.error);
-    if (bad?.error) {
-      firstError = bad.error;
-      break;
+  if (sendEmail) {
+    for (let i = 0; i < emailList.length; i += BATCH_SIZE) {
+      const slice = emailList.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        slice.map(async (c: CampaignRecipientRow) => {
+          const token = signUnsubscribeToken(c.id, context.salon.id);
+          const unsubscribeUrl = `${baseUrl}/unsubscribe?token=${encodeURIComponent(token)}`;
+          return sendMarketingEmail({
+            to: String(c.email),
+            subject,
+            html: bodyHtml,
+            unsubscribeUrl,
+            preheader: preheader || undefined,
+          });
+        }),
+      );
+      const bad = results.find((r) => r.error);
+      if (bad?.error) {
+        firstError = bad.error;
+        break;
+      }
+    }
+  }
+
+  if (!firstError && sendSmsChannel) {
+    for (let i = 0; i < smsList.length; i += BATCH_SIZE) {
+      const slice = smsList.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        slice.map(async (c) => sendSms(phoneById.get(c.id) as string, smsBody)),
+      );
+      const bad = results.find((r) => r.error);
+      if (bad?.error) {
+        firstError = bad.error;
+        break;
+      }
     }
   }
 
@@ -235,7 +299,7 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
     .from("email_campaigns")
     .update({
       status: "sent",
-      recipient_count: list.length,
+      recipient_count: Math.max(emailList.length, smsList.length),
       sent_at: new Date().toISOString(),
       error_message: null,
     })

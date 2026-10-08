@@ -6,6 +6,8 @@ import { isGeneralSalonStaffRole } from "@/lib/dashboard-roles";
 import { requireStaffElevationOrError } from "@/lib/staff-elevation";
 import { dedupeOrderedServiceIds, syncAppointmentServices, syncAppointmentServiceBillLines, type AppointmentServiceBillLine } from "./appointment-service-lines";
 import { triggerAftercareOnComplete } from "@/lib/appointment-automation";
+import { getStripe } from "@/lib/stripe/server";
+import { classifyHairService, parseBookingPolicy } from "@/lib/booking-policy";
 import {
   hasBlockingOverlapWithExisting,
   rangeToMinutes,
@@ -313,6 +315,10 @@ export async function executeAppointmentPatch(
     void triggerAftercareOnComplete(id);
   }
 
+  if (nextStatus === "canceled") {
+    void captureColourDepositIfLateCancel(db, id, salonId);
+  }
+
   let revalidateClientId: string | null = null;
   const hasContact = !!(updates.guest_email?.trim() || updates.guest_phone?.trim());
   if (hasContact) {
@@ -347,4 +353,45 @@ export async function executeAppointmentPatch(
   });
 
   return { error: null };
+}
+
+async function captureColourDepositIfLateCancel(
+  db: Awaited<ReturnType<typeof getMutateClient>>,
+  appointmentId: string,
+  salonId: string
+): Promise<void> {
+  try {
+    const { data: appt } = await db
+      .from("appointments")
+      .select("start_time, deposit_payment_intent_id, services(name)")
+      .eq("id", appointmentId)
+      .eq("salon_id", salonId)
+      .maybeSingle();
+    if (!appt?.deposit_payment_intent_id || !appt.start_time) return;
+
+    const { data: salon } = await db
+      .from("salons")
+      .select("name, slug, settings")
+      .eq("id", salonId)
+      .maybeSingle();
+    const policy = parseBookingPolicy(
+      salon?.slug as string | undefined,
+      (salon?.settings as Record<string, unknown> | null) ?? null,
+      (salon?.name as string) || "Salon"
+    );
+    const hours = policy.colourLateCancelHours || 0;
+    if (hours <= 0) return;
+
+    const serviceName = (appt.services as { name?: string } | null)?.name ?? "";
+    if (!classifyHairService(serviceName).isColour) return;
+
+    const start = new Date(appt.start_time as string);
+    const msLeft = start.getTime() - Date.now();
+    if (msLeft > hours * 60 * 60 * 1000) return;
+
+    const stripe = getStripe();
+    await stripe.paymentIntents.capture(appt.deposit_payment_intent_id as string);
+  } catch (err) {
+    console.error("[captureColourDepositIfLateCancel]", err);
+  }
 }

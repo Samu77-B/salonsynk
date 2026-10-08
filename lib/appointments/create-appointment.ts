@@ -12,7 +12,6 @@ import {
   type AppointmentBlockingInput,
 } from "@/lib/diary-rules";
 import { revalidatePath } from "next/cache";
-import { sendClientBookingConfirmation } from "@/lib/booking-notifications";
 import { triggerBookingConfirmation } from "@/lib/appointment-automation";
 
 export type CreateAppointmentInput = {
@@ -165,13 +164,6 @@ export async function executeCreateAppointment(
     return { error: syn.error };
   }
 
-  void sendClientBookingConfirmation({
-    email: input.guestEmail,
-    phone: input.guestPhone,
-    salonName: context.salon.name,
-    start,
-    serviceName,
-  });
   void triggerBookingConfirmation(appointmentId);
 
   if (input.clientId && (input.guestEmail?.trim() || input.guestPhone?.trim())) {

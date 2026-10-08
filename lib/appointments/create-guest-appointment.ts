@@ -1,5 +1,4 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendClientBookingConfirmation } from "@/lib/booking-notifications";
 import { hasOverlap, rangeToMinutes } from "@/lib/diary-rules";
 import {
   fetchSalonMembersAdaptiveSelect,
@@ -13,6 +12,7 @@ import {
   classifyServicesForBooking,
   findConsultationService,
   parseBookingPolicy,
+  colourMinBookableDate,
   type BookingPolicy,
 } from "@/lib/booking-policy";
 import { upsertGuestClient } from "@/lib/clients/upsert-guest";
@@ -240,6 +240,14 @@ export async function executeGuestBooking(data: GuestBookingInput): Promise<Gues
   if (!Number.isFinite(start.getTime())) {
     return { error: "Invalid date or time." };
   }
+  if (isColourApplication && policy.colourMinAdvanceDays > 0) {
+    const minDate = colourMinBookableDate(policy);
+    if (minDate && start < minDate) {
+      return {
+        error: `Colour appointments must be booked at least ${policy.colourMinAdvanceDays} days in advance.`,
+      };
+    }
+  }
 
   let end = new Date(data.endTime);
   if (colourResult.remappedToConsultation && colourResult.durationMinutes) {
@@ -359,21 +367,13 @@ export async function executeGuestBooking(data: GuestBookingInput): Promise<Gues
     }
   }
 
-  const notify = await sendClientBookingConfirmation({
-    email: data.guestEmail,
-    phone: guestPhone || null,
-    salonName: salon.name as string,
-    start,
-    serviceName: colourResult.serviceName,
-    alsoSms: policy.smsConfirmation,
-  });
-  void triggerBookingConfirmation(appointmentId);
+  await triggerBookingConfirmation(appointmentId);
 
   return {
     error: null,
     appointmentId,
-    confirmationEmailError: notify.emailError,
-    smsSent: notify.smsSent,
+    confirmationEmailError: undefined,
+    smsSent: policy.smsConfirmation,
     remappedToConsultation: colourResult.remappedToConsultation,
     bookedServiceName: colourResult.serviceName,
   };

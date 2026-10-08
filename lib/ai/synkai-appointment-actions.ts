@@ -1,6 +1,6 @@
 import { formatSalonDateLabel, formatSalonTimeLabel } from "@/lib/ai/salon-time";
 import { createClient } from "@/lib/supabase/server";
-import { triggerBookingConfirmation, triggerAftercareOnComplete } from "@/lib/appointment-automation";
+import { triggerAftercareOnComplete } from "@/lib/appointment-automation";
 import { sendClientBookingConfirmation } from "@/lib/booking-notifications";
 import { sendAppointmentReminder } from "@/lib/email";
 import { canSendSms, canSendWhatsApp, sendSms, sendWhatsApp } from "@/lib/sms";
@@ -74,7 +74,12 @@ export async function synkaiSendBookingConfirmation(
 
   if (result.emailError) return { ok: false, error: result.emailError };
 
-  await triggerBookingConfirmation(appointmentId);
+  const supabase = await createClient();
+  await supabase
+    .from("appointments")
+    .update({ confirmation_sent_at: new Date().toISOString() })
+    .eq("id", appointmentId)
+    .eq("salon_id", salonId);
   return { ok: true, channel: contact.email ? "email" : "sms" };
 }
 
