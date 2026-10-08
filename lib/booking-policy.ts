@@ -62,7 +62,7 @@ I am signing this electronically. My typed name and/or drawn signature have the 
 }
 
 export function parseBookingPolicy(
-  slug: string,
+  slug: string | null | undefined,
   settings: Record<string, unknown> | null | undefined,
   salonName: string
 ): BookingPolicy {
@@ -79,7 +79,7 @@ export function parseBookingPolicy(
     newClientColourConsultation: boolFlag(raw.new_client_colour_consultation, jojo),
     patchTestWaiver: boolFlag(raw.patch_test_waiver, jojo),
     clubPortalEnabled: boolFlag(raw.club_portal_enabled, jojo),
-    clubName: clubFromPolicy || clubFromLoyalty || defaultClubName(slug, salonName),
+    clubName: clubFromPolicy || clubFromLoyalty || defaultClubName(slug ?? "", salonName),
     waiverText: customText || defaultColourWaiverText(salonName),
     consultationServiceId:
       typeof raw.consultation_service_id === "string" && raw.consultation_service_id.trim()

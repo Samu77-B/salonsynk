@@ -127,6 +127,9 @@ export function SettingsView(props: {
   const [policyWaiver, setPolicyWaiver] = useState(bookingPolicy?.patchTestWaiver ?? false);
   const [policyClub, setPolicyClub] = useState(bookingPolicy?.clubPortalEnabled ?? false);
   const [policyClubName, setPolicyClubName] = useState(bookingPolicy?.clubName ?? "");
+  const [policyColourDays, setPolicyColourDays] = useState(String(bookingPolicy?.colourMinAdvanceDays ?? 0));
+  const [policyColourDeposit, setPolicyColourDeposit] = useState(String(bookingPolicy?.colourDepositPercent ?? 0));
+  const [policyColourLateHours, setPolicyColourLateHours] = useState(String(bookingPolicy?.colourLateCancelHours ?? 0));
   const [policyWaiverText, setPolicyWaiverText] = useState(bookingPolicy?.waiverText ?? "");
   const [policyMsg, setPolicyMsg] = useState<"saved" | "error" | null>(null);
   const [policyLoading, setPolicyLoading] = useState(false);
@@ -374,6 +377,9 @@ export function SettingsView(props: {
                 clubName: policyClubName.trim() || "Client club",
                 waiverText: policyWaiverText.trim() || defaultColourWaiverText(companyName || salonName),
                 consultationServiceId: bookingPolicy?.consultationServiceId ?? null,
+                colourMinAdvanceDays: Math.max(0, Number(policyColourDays) || 0),
+                colourDepositPercent: Math.min(100, Math.max(0, Number(policyColourDeposit) || 0)),
+                colourLateCancelHours: Math.max(0, Number(policyColourLateHours) || 0),
               });
               setPolicyLoading(false);
               setPolicyMsg(result.error ? "error" : "saved");
@@ -417,6 +423,42 @@ export function SettingsView(props: {
                   </a>
                 </p>
               ) : null}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium">Colour min. notice (days)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={policyColourDays}
+                  onChange={(e) => setPolicyColourDays(e.target.value)}
+                  className={dashboardInputClass}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Colour deposit (%)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={policyColourDeposit}
+                  onChange={(e) => setPolicyColourDeposit(e.target.value)}
+                  className={dashboardInputClass}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Late-cancel forfeit (hours)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={policyColourLateHours}
+                  onChange={(e) => setPolicyColourLateHours(e.target.value)}
+                  className={dashboardInputClass}
+                />
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Colour waiver text</label>
