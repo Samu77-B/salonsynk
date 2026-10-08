@@ -306,5 +306,9 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
     .eq("id", campaignId);
 
   revalidatePath("/campaigns");
-  return { sent: list.length };
+  const sentIds = new Set([
+    ...emailList.map((r) => r.id),
+    ...smsList.map((r) => r.id),
+  ]);
+  return { sent: sentIds.size };
 }
