@@ -26,11 +26,31 @@ function isHtmlBodyEmpty(html: string): boolean {
 type EditorMode = "design" | "html" | "preview";
 type WizardStep = 1 | 2 | 3;
 
-const STEPS: { step: WizardStep; label: string; hint: string }[] = [
-  { step: 1, label: "Audience", hint: "Who receives this send" },
-  { step: 2, label: "Email", hint: "Subject & content" },
-  { step: 3, label: "Review", hint: "Check and send" },
-];
+const SMS_MAX = 1500;
+
+function htmlToPlainText(html: string, subject: string): string {
+  const text = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\u200b/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  const body = text || subject;
+  const prefix = subject && !body.startsWith(subject) ? `${subject}\n\n` : "";
+  return `${prefix}${body}`.slice(0, SMS_MAX);
+}
+
+function smsSegmentCount(text: string): number {
+  const n = text.trim().length;
+  if (n === 0) return 0;
+  if (n <= 160) return 1;
+  return Math.ceil(n / 153);
+}
 
 export function CampaignComposer({
   salonId,
@@ -57,6 +77,15 @@ export function CampaignComposer({
   const [pendingSend, startSend] = useTransition();
   const [sendEmail, setSendEmail] = useState(true);
   const [sendSms, setSendSms] = useState(true);
+  const [smsBody, setSmsBody] = useState("");
+
+  const step2Label = sendEmail && sendSms ? "Message" : sendSms ? "Text" : "Email";
+  const step2Hint = sendEmail && sendSms ? "Email & text" : sendSms ? "SMS content" : "Subject & content";
+  const STEPS: { step: WizardStep; label: string; hint: string }[] = [
+    { step: 1, label: "Audience", hint: "Who receives this send" },
+    { step: 2, label: step2Label, hint: step2Hint },
+    { step: 3, label: "Review", hint: "Check and send" },
+  ];
 
   const selectedServiceName = useMemo(
     () => services.find((s) => s.id === audienceServiceId)?.name ?? null,
@@ -92,7 +121,10 @@ export function CampaignComposer({
   }
 
   function canGoToReview(): boolean {
-    return subject.trim().length > 0 && !isHtmlBodyEmpty(bodyHtml);
+    if (!sendEmail && !sendSms) return false;
+    if (sendEmail && (subject.trim().length === 0 || isHtmlBodyEmpty(bodyHtml))) return false;
+    if (sendSms && smsBody.trim().length === 0) return false;
+    return true;
   }
 
   function handleSend(e: React.FormEvent) {
@@ -100,7 +132,13 @@ export function CampaignComposer({
     setSendError(null);
     setSendOk(null);
     if (!canGoToReview()) {
-      setSendError("Add a subject and message body before sending.");
+      setSendError(
+        sendSms && !sendEmail
+          ? "Add a text message before sending."
+          : sendEmail && sendSms
+            ? "Add the email and the text message before sending."
+            : "Add a subject and message body before sending."
+      );
       return;
     }
     if (!audienceReady) {
@@ -115,6 +153,7 @@ export function CampaignComposer({
     fd.set("subject", subject.trim());
     fd.set("preheader", preheader.trim());
     fd.set("bodyHtml", bodyHtml);
+    fd.set("smsBody", smsBody.trim());
     fd.set("audienceSegment", audienceSegment);
     fd.set("sendEmail", sendEmail ? "1" : "0");
     fd.set("sendSms", sendSms ? "1" : "0");
@@ -131,6 +170,7 @@ export function CampaignComposer({
         setSubject("");
         setPreheader("");
         setBodyHtml("");
+        setSmsBody("");
         setMode("design");
         setDesignMountKey((k) => k + 1);
         setAudienceSegment("all");
@@ -309,7 +349,7 @@ export function CampaignComposer({
                 onClick={() => setStep(2)}
                 className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-background hover:opacity-90 transition-opacity"
               >
-                Continue to email
+                Continue to {sendEmail && sendSms ? "message" : sendSms ? "text" : "email"}
               </button>
             </div>
           </div>
@@ -318,13 +358,56 @@ export function CampaignComposer({
         {step === 2 && (
           <div className="space-y-8">
             <div className="space-y-1">
-              <h3 className="text-base font-semibold text-foreground">Write your email</h3>
+              <h3 className="text-base font-semibold text-foreground">
+                {sendEmail && sendSms ? "Write your email and text" : sendSms ? "Write your text message" : "Write your email"}
+              </h3>
               <p className="text-sm text-muted max-w-2xl">
-                Set how the message appears in the inbox, then compose the body. Use Design for formatting and layout
-                blocks, or HTML if you prefer to paste markup.
+                {sendSms && !sendEmail
+                  ? "This is sent as an SMS to clients with a mobile number on file. Keep it short — one standard text is 160 characters."
+                  : sendEmail && sendSms
+                    ? "Compose the email for inboxes, then write a separate SMS. The text is not taken from the email layout."
+                    : "Set how the message appears in the inbox, then compose the body. Use Design for formatting and layout blocks, or HTML if you prefer to paste markup."}
               </p>
             </div>
 
+            {sendSms && (
+              <section className="space-y-4 rounded-2xl border border-border bg-gradient-to-b from-white/[0.06] to-transparent p-5 sm:p-6 shadow-sm w-full min-w-0">
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground">Text message (SMS)</h4>
+                  <p className="text-xs text-muted mt-1.5 leading-relaxed">
+                    Sent via Twilio to opted-in clients with a valid mobile number. Longer messages are split into
+                    several texts.
+                  </p>
+                </div>
+                <textarea
+                  id="camp-sms"
+                  value={smsBody}
+                  onChange={(e) => setSmsBody(e.target.value.slice(0, SMS_MAX))}
+                  rows={6}
+                  className="w-full min-h-[140px] rounded-xl border border-border bg-background px-3.5 py-3 text-sm leading-relaxed shadow-sm transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
+                  placeholder="Hi, it’s JoJo & Flo — book your colour patch test this week…"
+                />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[11px] tabular-nums text-muted">
+                    {smsBody.trim().length} / {SMS_MAX} characters
+                    {smsBody.trim().length > 0
+                      ? ` · ${smsSegmentCount(smsBody)} SMS segment${smsSegmentCount(smsBody) === 1 ? "" : "s"}`
+                      : ""}
+                  </p>
+                  {sendEmail && (
+                    <button
+                      type="button"
+                      onClick={() => setSmsBody(htmlToPlainText(bodyHtml, subject))}
+                      className="text-xs font-medium text-accent hover:underline"
+                    >
+                      Copy from email
+                    </button>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {sendEmail && (
             <div className="flex flex-col gap-8">
               <section className="space-y-5 rounded-2xl border border-border bg-gradient-to-b from-white/[0.06] to-transparent p-5 sm:p-6 shadow-sm w-full min-w-0">
                 <div>
@@ -473,6 +556,7 @@ export function CampaignComposer({
                 </div>
               </section>
             </div>
+            )}
 
             <div className="flex flex-wrap justify-between gap-3">
               <button
@@ -503,12 +587,19 @@ export function CampaignComposer({
                 <dd className="font-medium text-foreground break-words">
                   {audienceSummaryLine(audienceSegment, selectedServiceName)}
                 </dd>
+                <dt className="text-muted">Channel</dt>
+                <dd className="font-medium text-foreground">
+                  {[sendEmail ? "Email" : null, sendSms ? "Text message (SMS)" : null].filter(Boolean).join(" · ")}
+                </dd>
                 <dt className="text-muted">Recipients</dt>
                 <dd className="font-medium text-foreground">
                   {count !== null && !countError && audienceReady ? (
                     <>
                       {count} recipient{count === 1 ? "" : "s"}{" "}
-                      <span className="text-muted font-normal">(opt-in + email)</span>
+                      <span className="text-muted font-normal">
+                        (opt-in{sendEmail ? " + email" : ""}
+                        {sendSms ? " + mobile" : ""})
+                      </span>
                     </>
                   ) : (
                     <span className="text-muted">—</span>
@@ -516,15 +607,34 @@ export function CampaignComposer({
                 </dd>
                 <dt className="text-muted">Sending as</dt>
                 <dd className="font-medium text-foreground">{salonName}</dd>
-                <dt className="text-muted">Subject</dt>
-                <dd className="font-medium text-foreground break-words">{subject.trim() || "—"}</dd>
-                <dt className="text-muted">Preview text</dt>
-                <dd className="text-foreground break-words">{preheader.trim() || <span className="text-muted italic">None</span>}</dd>
+                {sendEmail && (
+                  <>
+                    <dt className="text-muted">Subject</dt>
+                    <dd className="font-medium text-foreground break-words">{subject.trim() || "—"}</dd>
+                    <dt className="text-muted">Preview text</dt>
+                    <dd className="text-foreground break-words">{preheader.trim() || <span className="text-muted italic">None</span>}</dd>
+                  </>
+                )}
               </dl>
             </div>
 
+            {sendSms && (
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Text preview</h4>
+                <div className="rounded-lg border border-border bg-zinc-100 dark:bg-zinc-900/40 p-4">
+                  <div className="mx-auto max-w-[360px] rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-4 py-3 shadow-sm">
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-1">SMS</p>
+                    <p className="text-sm whitespace-pre-wrap text-zinc-900 dark:text-zinc-100">
+                      {smsBody.trim() || "(no text)"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {sendEmail && (
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Final preview</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Email preview</h4>
               <div className="rounded-lg border border-border bg-zinc-100 dark:bg-zinc-900/40 p-4">
                 <div className="mx-auto max-w-[600px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-4 py-3 border-b-0 rounded-b-none">
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Inbox</p>
@@ -546,6 +656,7 @@ export function CampaignComposer({
                 </p>
               </div>
             </div>
+            )}
 
             {sendError && <p className="text-sm text-red-400">{sendError}</p>}
             {sendOk && <p className="text-sm text-emerald-400">{sendOk}</p>}
@@ -556,7 +667,7 @@ export function CampaignComposer({
                 onClick={() => setStep(2)}
                 className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-white/10 transition-colors"
               >
-                ← Edit email
+                ← Edit {sendEmail && sendSms ? "message" : sendSms ? "text" : "email"}
               </button>
               <button
                 type="submit"

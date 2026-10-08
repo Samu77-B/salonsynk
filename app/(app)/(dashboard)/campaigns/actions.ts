@@ -142,10 +142,12 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
     audienceSegment === "service_booked" && audienceServiceIdRaw ? audienceServiceIdRaw : null;
   const sendEmail = String(formData.get("sendEmail") ?? "1") !== "0";
   const sendSmsChannel = String(formData.get("sendSms") ?? "0") === "1";
+  const smsBodyRaw = String(formData.get("smsBody") ?? "").trim();
 
-  if (!subject) return { error: "Subject is required" };
-  if (!bodyHtml) return { error: "Message body is required" };
   if (!sendEmail && !sendSmsChannel) return { error: "Choose email, text message, or both." };
+  if (sendEmail && !subject) return { error: "Subject is required" };
+  if (sendEmail && !bodyHtml) return { error: "Message body is required" };
+  if (sendSmsChannel && !smsBodyRaw && !bodyHtml) return { error: "Text message is required" };
   if (sendSmsChannel && !canSendSms()) {
     return { error: "Text messaging is not configured (Twilio). Email can still be sent." };
   }
@@ -178,12 +180,21 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
     data: { user },
   } = await supabase.auth.getUser();
 
+  const campaignSubject = subject || smsBodyRaw.slice(0, 80) || "SMS campaign";
+  const campaignHtml =
+    bodyHtml ||
+    `<p>${smsBodyRaw
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\n/g, "<br/>")}</p>`;
+
   const { data: campaignRow, error: insertErr } = await supabase
     .from("email_campaigns")
     .insert({
       salon_id: context.salon.id,
-      subject,
-      body_html: bodyHtml,
+      subject: campaignSubject,
+      body_html: campaignHtml,
       status: "sending",
       created_by: user?.id ?? null,
       audience_segment: audienceSegment,
@@ -247,7 +258,7 @@ export async function sendMarketingCampaignAction(formData: FormData): Promise<{
 
   const baseUrl = getPublicSiteUrl();
   let firstError: string | undefined;
-  const smsBody = htmlToSms(bodyHtml, subject);
+  const smsBody = (smsBodyRaw || htmlToSms(bodyHtml, subject)).slice(0, 1500);
 
   if (sendEmail) {
     for (let i = 0; i < emailList.length; i += BATCH_SIZE) {
