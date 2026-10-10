@@ -64,21 +64,36 @@ async function fetchPublicSalonBySlug(slug: string): Promise<PublicSalonContext 
   const extraPolicy = bookingPolicyNotes(bookingPolicy, salon.name as string);
   if (extraPolicy) policyParts.push(extraPolicy);
 
-  const [servicesRes, membersLoad, overridesRes, productsRes, categoriesRes] = await Promise.all([
-    supabase
+  const servicesPromise = (async () => {
+    const full = await supabase
       .from("services")
       .select("id, name, duration_minutes, price_minor, description, category_id")
       .eq("salon_id", salonId)
       .order("sort_order")
-      .order("name"),
+      .order("name");
+    if (!full.error) return full;
+    // Production may not have services.description yet (migration 020). A failed
+    // select must not be treated as an empty menu.
+    const withoutDescription = await supabase
+      .from("services")
+      .select("id, name, duration_minutes, price_minor, category_id")
+      .eq("salon_id", salonId)
+      .order("sort_order")
+      .order("name");
+    if (!withoutDescription.error) return withoutDescription;
+    return supabase
+      .from("services")
+      .select("id, name, duration_minutes, price_minor")
+      .eq("salon_id", salonId)
+      .order("name");
+  })();
+
+  const [servicesRes, membersLoad, productsRes, categoriesRes] = await Promise.all([
+    servicesPromise,
     fetchSalonMembersAdaptiveSelect(supabase, salonId, [
       "id, display_name, role, show_on_diary",
       "id, display_name, role",
     ]),
-    supabase
-      .from("stylist_service_overrides")
-      .select("stylist_id, service_id, custom_duration_minutes")
-      .eq("salon_id", salonId),
     (async () => {
       const withVariants = await supabase
         .from("products")
@@ -132,10 +147,17 @@ async function fetchPublicSalonBySlug(slug: string): Promise<PublicSalonContext 
     }));
 
   const stylistOverrides: Record<string, Record<string, number>> = {};
-  for (const row of overridesRes.data ?? []) {
-    const r = row as { stylist_id: string; service_id: string; custom_duration_minutes: number };
-    if (!stylistOverrides[r.stylist_id]) stylistOverrides[r.stylist_id] = {};
-    stylistOverrides[r.stylist_id][r.service_id] = Number(r.custom_duration_minutes) || 0;
+  const memberIds = stylists.map((s) => s.id);
+  if (memberIds.length > 0) {
+    const { data: overrideRows } = await supabase
+      .from("stylist_service_overrides")
+      .select("stylist_id, service_id, custom_duration_minutes")
+      .in("stylist_id", memberIds);
+    for (const row of overrideRows ?? []) {
+      const r = row as { stylist_id: string; service_id: string; custom_duration_minutes: number };
+      if (!stylistOverrides[r.stylist_id]) stylistOverrides[r.stylist_id] = {};
+      stylistOverrides[r.stylist_id][r.service_id] = Number(r.custom_duration_minutes) || 0;
+    }
   }
 
   const products = (productsRes.data ?? []).map((row) => {
